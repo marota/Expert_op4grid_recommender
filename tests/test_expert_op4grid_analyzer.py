@@ -1048,7 +1048,7 @@ def test_overflow_graph_construction():
     #env = grid2op.make(env_name, backend=backend, n_busbar=6, param=p)
 
     current_folder = Path(__file__).parent.resolve()
-    env_folder=os.path.dirname(os.path.dirname(current_folder))#two level up
+    env_folder=env_folder=os.path.join(os.path.dirname(current_folder),"data")#two level up
     env = make_grid2op_training_env(env_folder, env_name)#make_grid2op_assistant_env(".", env_name)
 
     # make the environment
@@ -1151,7 +1151,7 @@ def test_overflow_graph_actions_filtered(check_with_action_description=True):
     timestep = 1  # 36
     line_defaut = "P.SAOL31RONCI"  # "FRON5L31LOUHA"
     lines_defaut = [line_defaut]
-    env_folder=os.path.dirname(os.path.dirname(os.path.dirname(__file__)))#two level up
+    env_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)),"data")
     env_name = "env_dijon_v2_assistant"
 
     action_space_folder = os.path.join(env_folder,"action_space")
@@ -1476,7 +1476,7 @@ def _test_grid2op_action_type_close_coupling(action_space):
 def test_grid2op_action_types():
     #load action space
     env_name = "env_dijon_v2_assistant"
-    env_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # two level up
+    env_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)),"data")
     env = make_grid2op_training_env(env_folder, env_name)  # make_grid2op_assistant_env(".", env_name)
     action_space=env.action_space
 
@@ -1548,7 +1548,7 @@ def test_identify_overload_lines_to_keep_overflow_graph_connected():
     """
     # Setup test environment
     env_name = "env_dijon_v2_assistant"
-    env_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # two level up
+    env_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)),"data")
     env = make_grid2op_assistant_env(env_folder, env_name)
     obs=env.get_obs()
 
@@ -1569,7 +1569,7 @@ def test_get_n_connected_components_graph_with_overloads():
         Logical test to test get_n_connected_components_graph_with_overloads: when you target a line considered overloaded that is actually an antenna on the grid, ...
     """
     env_name = "env_dijon_v2_assistant"
-    env_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # two level up
+    env_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)),"data")
     env = make_grid2op_assistant_env(env_folder, env_name)
     obs = env.get_obs()
 
@@ -1595,7 +1595,7 @@ def test_get_n_connected_components_graph_with_overloads_2():
     #get_n_connected_components_graph_with_overloads(obs_simu, lines_overloaded_ids)
 
     env_name = "env_dijon_v2_assistant"
-    env_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # two level up
+    env_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)),"data")
     env = make_grid2op_assistant_env(env_folder, env_name)
     date = datetime(2024, 11,
                     27)  # datetime(2024, 9, 19)#datetime(2024, 8, 28)#datetime(2024, 11, 27)#datetime(2024, 12, 9)#datetime(2024, 12, 7)#datetime(2024, 12, 7)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 12, 9)#datetime(2024, 12, 2)#datetime(2024, 8, 28)  # we choose a date for the chronic
@@ -1631,7 +1631,7 @@ def test_get_subs_islanded_by_overload_disconnections():
     #BEONL31CPVAN, nov 27 2024
     # Setup test environment
     env_name = "env_dijon_v2_assistant"
-    env_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # two level up
+    env_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
     env = make_grid2op_assistant_env(env_folder, env_name)
     obs = env.get_obs()
 
@@ -1653,7 +1653,7 @@ def test_get_subs_islanded_by_overload_disconnections_2():
         Known situation with BEON L31CPVAN as a contingency and C.FOUL31MERVA as an overload that then island several substations
     """
     env_name = "env_dijon_v2_assistant"
-    env_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # two level up
+    env_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)),"data")
     env = make_grid2op_assistant_env(env_folder, env_name)
     date = datetime(2024, 11,
                     27)  # datetime(2024, 9, 19)#datetime(2024, 8, 28)#datetime(2024, 11, 27)#datetime(2024, 12, 9)#datetime(2024, 12, 7)#datetime(2024, 12, 7)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 12, 9)#datetime(2024, 12, 2)#datetime(2024, 8, 28)  # we choose a date for the chronic
@@ -1676,7 +1676,7 @@ def test_get_subs_islanded_by_overload_disconnections_2():
 
 def test_get_maintenance_timestep():
     #WARNING env folder expected too be at the root level where the package is
-    env_folder=os.path.dirname(os.path.dirname(os.path.dirname(__file__)))#two level up
+    env_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)),"data")#two level up
     env_name = "env_dijon_v2_assistant"
     env = make_grid2op_assistant_env(env_folder, env_name)
     # datetime(2024, 9, 19)#datetime(2024, 8, 28)#datetime(2024, 11, 27)#datetime(2024, 12, 9)#datetime(2024, 12, 7)#datetime(2024, 12, 7)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 12, 9)#datetime(2024, 12, 2)#datetime(2024, 8, 28)  # we choose a date for the chronic
