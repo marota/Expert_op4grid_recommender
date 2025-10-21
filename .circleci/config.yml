@@ -1,0 +1,27 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+version: 2.1
+
+orbs:
+  python: circleci/python@2.1.1
+
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies
+          command: |
+            python -m pip install --upgrade pip
+            # Install package and test dependencies from pyproject.toml
+            pip install .[test]
+      - run:
+          name: Run Unit Tests (Exclude Slow)
+          # Modify the pytest command here
+          command: pytest -m "not slow" # This tells pytest to exclude tests marked 'slow'
+
+workflows:
+  sample:
+    jobs:
+      - build-and-test
