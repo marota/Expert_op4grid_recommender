@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "expert_op4grid_analyzer"
+version = "0.1.0" # Start with an initial version
+authors = [
+    { name="Your Name", email="your.email@example.com" },
+]
+description = "Expert system analyzer for Grid2Op scenarios based on ExpertOp4Grid principles."
+readme = "README.md" # Optional: A file describing your project
+requires-python = ">=3.10" # Specify compatible Python versions
+license = { file="LICENSE" } # Optional: Specify your license file
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)", # Or your chosen license
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    # List ALL external libraries your code depends on
+    "numpy",
+    "pandas",
+    "networkx",
+    "pypowsybl", # Make sure you have the correct package name and version specifier if needed
+    "pypowsybl2grid",
+    "expertop4grid>=0.2.6", # Your original dependency check
+    # Add any other libraries used (e.g., matplotlib if plotting outside grid2op)
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]  # Look in the project root directory
+include = ["expert_op4grid_analyzer*"]  # Explicitly include only your package
+exclude = ["tests*", "venv*", "alphaDeesp*"] # Explicitly exclude tests, venv, and alphaDeesp
+
+[project.urls] # Optional
+Homepage = "https://github.com/yourusername/expert_op4grid_analyzer"
+Issues = "https://github.com/yourusername/expert_op4grid_analyzer/issues"
