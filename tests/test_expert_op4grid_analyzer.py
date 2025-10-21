@@ -1032,6 +1032,7 @@ def test_get_maintenance_timestep():
 
 #################################
 ### TEST Section
+@pytest.mark.slow
 def test_overflow_graph_construction():
     """
     This function tests the construction of the overflow graph and the identification of constrained and dispatch paths.
@@ -1132,6 +1133,7 @@ def test_overflow_graph_construction():
     assert (set(list_lines_redispatch_path_test).intersection(set(lines_redispatch))==set(list_lines_redispatch_path_test))
     assert (set(list_hubs_test).intersection(set(hubs))==set(hubs))
 
+@pytest.mark.slow
 def test_overflow_graph_actions_filtered(check_with_action_description=True):
     """
     This function tests the filtering of actions based on the overflow graph and the identification of constrained and dispatch paths.
@@ -1473,6 +1475,7 @@ def _test_grid2op_action_type_close_coupling(action_space):
 
     assert (action_type == "close_coupling")
 
+@pytest.mark.slow
 def test_grid2op_action_types():
     #load action space
     env_name = "env_dijon_v2_assistant"
@@ -1542,6 +1545,7 @@ def test_load_action_no_filter():
     assert(do_filter_action==False)
     assert (broken_rule is None)
 
+@pytest.mark.slow
 def test_identify_overload_lines_to_keep_overflow_graph_connected():
     """
         Test function to verify that only rho of lines_overloaded_ids will be considered in this function to detect the max rho
@@ -1564,6 +1568,7 @@ def test_identify_overload_lines_to_keep_overflow_graph_connected():
     assert (l1_id in lines_overloaded_ids_to_keep)
     assert (l2_id not in lines_overloaded_ids_to_keep)
 
+@pytest.mark.slow
 def test_get_n_connected_components_graph_with_overloads():
     """
         Logical test to test get_n_connected_components_graph_with_overloads: when you target a line considered overloaded that is actually an antenna on the grid, ...
@@ -1586,7 +1591,7 @@ def test_get_n_connected_components_graph_with_overloads():
     islanded_sub=obs.name_sub[comps_wo_max_overload[2].pop()]
     assert(islanded_sub=='TILLEP3')
 
-
+@pytest.mark.slow
 def test_get_n_connected_components_graph_with_overloads_2():
     """
         Known situation with BEON L31CPVAN as a contingency and C.FOUL31MERVA as an overload that then island several substations.
@@ -1623,6 +1628,7 @@ def test_get_n_connected_components_graph_with_overloads_2():
     assert (islanded_subs_1 == islanded_subs_1_prime == set(['NAVILP3', 'P.SAOP3', 'RONCIP3', 'AISERP3', 'BEON P3', 'C.FOUP3'])) #TODO
     assert (islanded_sub_2 == 'TILLEP3')
 
+@pytest.mark.slow
 def test_get_subs_islanded_by_overload_disconnections():
     """
         Logical test to test get_subs_islanded_by_overload_disconnections: when you target a line considered overloaded that is actually an antenna on the grid, you expect one of its neighboring substation to be islanded
@@ -1648,6 +1654,7 @@ def test_get_subs_islanded_by_overload_disconnections():
     identified_subs_broken_apart
     assert(identified_subs_broken_apart==['TILLEP3'])
 
+@pytest.mark.slow
 def test_get_subs_islanded_by_overload_disconnections_2():
     """
         Known situation with BEON L31CPVAN as a contingency and C.FOUL31MERVA as an overload that then island several substations
@@ -1674,6 +1681,7 @@ def test_get_subs_islanded_by_overload_disconnections_2():
 
     assert(set(identified_subs_broken_apart)==set(['NAVILP3', 'P.SAOP3', 'RONCIP3', 'AISERP3', 'BEON P3', 'C.FOUP3']))
 
+@pytest.mark.slow
 def test_get_maintenance_timestep():
     #WARNING env folder expected too be at the root level where the package is
     env_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)),"data")#two level up
