@@ -27,13 +27,20 @@ jobs:
     steps:
       # Checkout the code as the first step.
       - checkout
-      - python/install-packages:
-          pkg-manager: pip
-          # app-dir: ~/project/package-directory/  # If your requirements.txt isn't in the root directory.
-          # pip-dependency-file: test-requirements.txt  # if you have a different name for your requirements file, maybe one that combines your runtime and test requirements.
+
+      # Install dependencies using pyproject.toml
+      - run:
+          name: Install Dependencies
+          command: |
+            # Upgrade pip for modern packaging support
+            python -m pip install --upgrade pip
+            # Install the package in editable mode (.) along with the [test] dependencies
+            # This is the modern equivalent of using requirements.txt
+            pip install .[test]
+
       - run:
           name: Run tests
-          # This assumes pytest is installed via the install-package step above
+          # This assumes pytest is installed via the install step above
           command: pytest
 
 # Orchestrate jobs using workflows
