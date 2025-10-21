@@ -433,23 +433,23 @@ def mock_check_rho_reduction(obs, timestep, act_defaut, action, overload_ids, ac
 
 @pytest.fixture
 def discovery_mocks(monkeypatch):
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.check_rho_reduction",
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.check_rho_reduction",
                         mock_rho_reduction_discovery)
-    monkeypatch.setattr("expert_op4grid_analyzer.utils.simulation.create_default_action",
+    monkeypatch.setattr("expert_op4grid_recommender.utils.simulation.create_default_action",
                         lambda *args: MockActionObject())
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.AlphaDeesp_warmStart",
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.AlphaDeesp_warmStart",
                         lambda *args: MockAlphaDeesp())
 
     def mock_id(desc, **kwargs): return desc.get("type", "unknown")
 
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.identify_action_type", mock_id)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.identify_action_type", mock_id)
 
     def mock_sort(map_score):
         items = sorted(map_score.items(), key=lambda item: item[1]['score'], reverse=True)
         return {k: v['action'] for k, v in items}, [v.get('sub_impacted') or v.get('line_impacted') for k, v in
                                                     items], [v['score'] for k, v in items]
 
-    monkeypatch.setattr("expert_op4grid_analyzer.utils.helpers.sort_actions_by_score", mock_sort)
+    monkeypatch.setattr("expert_op4grid_recommender.utils.helpers.sort_actions_by_score", mock_sort)
 
 def test_find_relevant_node_merging(monkeypatch):
     # Setup observation with four substations
@@ -470,7 +470,7 @@ def test_find_relevant_node_merging(monkeypatch):
     act_reco_maintenance = []
 
     action_space = MockActionSpace()
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.check_rho_reduction", mock_check_rho_reduction)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.check_rho_reduction", mock_check_rho_reduction)
 
     identified, effective, ineffective = find_relevant_node_merging(
         nodes_dispatch_path, obs, timestep, action_space, defauts, overload_ids, act_reco_maintenance
@@ -515,7 +515,7 @@ def test_identify_and_score_node_splitting_actions(monkeypatch):
     )
 
     # Patch identify_action_type to always return open_coupling
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.identify_action_type", lambda desc, **kwargs: ["open_coupling"])
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.identify_action_type", lambda desc, **kwargs: ["open_coupling"])
 
     map_score, ignored = identify_and_score_node_splitting_actions(
         dict_action, hubs, nodes_blue_path,
@@ -579,9 +579,9 @@ def test_find_relevant_node_splitting(monkeypatch):
     act_reco_maintenance = []
 
     action_space = MockActionSpace()
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.AlphaDeesp_warmStart", lambda g, g_dist, sim_data: MockAlphaDeesp())
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.check_rho_reduction", mock_check_rho_reduction)
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.identify_action_type", mock_identify_action_type)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.AlphaDeesp_warmStart", lambda g, g_dist, sim_data: MockAlphaDeesp())
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.check_rho_reduction", mock_check_rho_reduction)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.identify_action_type", mock_identify_action_type)
 
     # Run function
     identified, effective, ineffective, ignored, scores = find_relevant_node_splitting(
@@ -637,8 +637,8 @@ def test_find_relevant_disconnections(monkeypatch):
     # Patch dependencies
     def mock_identify_action_type(action_desc, by_description, grid2op_action_space):
         return action_desc.get("type", "")
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.identify_action_type", lambda desc, **_: desc["type"])
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.check_rho_reduction", mock_check_rho_reduction)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.identify_action_type", lambda desc, **_: desc["type"])
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.check_rho_reduction", mock_check_rho_reduction)
 
     # Run function
     identified, effective, ineffective, ignored = find_relevant_disconnections(
@@ -864,11 +864,11 @@ def test_verify_relevant_reconnections(monkeypatch):
         return "mock_default_action"
 
     # --- Apply patches ---
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.check_other_reconnectable_line_on_path", mock_check_other_reconnectable_line_on_path)
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.get_delta_theta_line", mock_get_delta_theta_line)
-    monkeypatch.setattr("expert_op4grid_analyzer.utils.helpers.sort_actions_by_score", mock_sort_actions_by_score)
-    monkeypatch.setattr("expert_op4grid_analyzer.action_evaluation.discovery.check_rho_reduction", mock_check_rho_reduction)
-    monkeypatch.setattr("expert_op4grid_analyzer.utils.simulation.create_default_action", mock_create_default_action)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.check_other_reconnectable_line_on_path", mock_check_other_reconnectable_line_on_path)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.get_delta_theta_line", mock_get_delta_theta_line)
+    monkeypatch.setattr("expert_op4grid_recommender.utils.helpers.sort_actions_by_score", mock_sort_actions_by_score)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.check_rho_reduction", mock_check_rho_reduction)
+    monkeypatch.setattr("expert_op4grid_recommender.utils.simulation.create_default_action", mock_create_default_action)
 
     # --- Setup minimal mocks for objects ---
     obs = MockObservation(name_sub=["Sub0", "Sub1"],name_line=np.array(["L1", "L2"]))
