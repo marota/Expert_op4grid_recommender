@@ -23,7 +23,7 @@ if project_root not in sys.path:
 from expert_op4grid_recommender import config
 from expert_op4grid_recommender.environment import setup_environment_configs, switch_to_dc_load_flow
 # The incorrect import from data_loader has been removed from here
-from expert_op4grid_recommender.utils.simulation import simulate_contingency, check_simu_overloads
+from expert_op4grid_recommender.utils.simulation import simulate_contingency, check_simu_overloads, create_default_action
 from expert_op4grid_recommender.utils.helpers import get_maintenance_timestep, print_filtered_out_action, save_data_for_test
 from expert_op4grid_recommender.graph_analysis.builder import build_overflow_graph
 from expert_op4grid_recommender.graph_analysis.processor import (
@@ -35,6 +35,7 @@ from expert_op4grid_recommender.graph_analysis.visualization import make_overflo
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from expert_op4grid_recommender.action_evaluation.rules import ActionRuleValidator
 from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
+from expert_op4grid_recommender.utils.simulation import check_rho_reduction
 
 # --- Define Default Values ---
 # You can define them here or import them if they still exist in config.py
@@ -210,6 +211,17 @@ def main():
     )
 
     print("\nPrioritized actions are: " + str(list(prioritized_actions.keys())))
+
+    #reassess the prioritized actions
+    act_defaut = create_default_action(env.action_space, current_lines_defaut)
+    for action_id, action  in prioritized_actions.items():
+        print(f"{action_id}")
+        #print(action)
+
+        is_rho_reduction, _ = check_rho_reduction(
+            obs, current_timestep, act_defaut, action, lines_overloaded_ids,
+            act_reco_maintenance, lines_we_care_about
+        )
 
 
 if __name__ == "__main__":
