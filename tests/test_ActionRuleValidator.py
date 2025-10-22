@@ -86,6 +86,7 @@ class MockDistributionGraph:
 
 # Import the new validator class
 from expert_op4grid_recommender.action_evaluation.rules import ActionRuleValidator
+from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 
 ## Section 3: ActionRuleValidator Method Unit Tests ##
 # These tests now instantiate ActionRuleValidator
@@ -98,6 +99,7 @@ def basic_validator():
     return ActionRuleValidator(
         obs=mock_obs,
         action_space=MockActionSpace(),
+        classifier=ActionClassifier(MockActionSpace()),
         hubs=["S0"],
         paths=mock_paths,
         by_description=True
@@ -154,6 +156,7 @@ def test_validator_verify_action_rules_check(): # Removed fixture injection for 
     validator = ActionRuleValidator(
         obs=mock_obs,
         action_space=MockActionSpace(),
+        classifier=ActionClassifier(MockActionSpace()),
         hubs=["S0"],
         paths=mock_paths,
         by_description=True
