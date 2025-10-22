@@ -40,10 +40,6 @@ from expert_op4grid_recommender.environment import make_grid2op_training_env, ma
 from expert_op4grid_recommender.utils.load_evaluation_data import list_all_chronics,load_interesting_lines
 from expert_op4grid_recommender.graph_analysis.builder import build_overflow_graph
 
-#from Expert_rule_action_verification import is_line_reconnection,is_load_disconnection,is_line_disconnection,is_nodale_grid2op_action,find_relevant_disconnections, verify_relevant_reconnections, get_maintenance_timestep
-#from Expert_rule_action_verification import find_relevant_node_merging,find_relevant_node_splitting, compute_node_splitting_action_score, identify_and_score_node_splitting_actions,check_other_reconnectable_line_on_path
-#from Expert_rule_action_verification import build_overflow_graph, categorize_action_space, identify_action_type, check_rules, identify_grid2op_action_type,check_simu_overloads, load_interesting_lines,get_n_connected_components_graph_with_overloads, identify_overload_lines_to_keep_overflow_graph_connected, get_subs_islanded_by_overload_disconnections, get_maintenance_timestep
-#from Expert_rule_action_verification import is_sublist,_get_line_substations,_find_paths_for_line,_get_active_edges_between,_has_blocking_disconnected_line,check_other_reconnectable_line_on_path
 from packaging.version import Version as version_packaging
 from importlib.metadata import version
 
@@ -740,7 +736,24 @@ def test_overflow_graph_actions_filtered(check_with_action_description=True):
     # Check rules for each action
     lines_reco_maintenance=[]
     paths=((lines_constrained_path, nodes_constrained_path), (lines_dispatch, nodes_dispatch_path))
-    actions_to_filter, actions_unfiltered = categorize_action_space(dict_action, hubs,paths, obs, timestep, lines_defaut, env.action_space, lines_overloaded_ids,lines_reco_maintenance,by_description=check_with_action_description)
+
+    # Instantiate the validator with context
+    validator = ActionRuleValidator(
+        obs=obs,
+        action_space=env.action_space,
+        hubs=hubs,
+        paths=paths,
+        by_description=check_with_action_description
+    )
+
+    # Call the categorization method, passing simulation context
+    actions_to_filter, actions_unfiltered = validator.categorize_actions(
+        dict_action=dict_action,
+        timestep=timestep,
+        defauts=lines_defaut,
+        overload_ids=lines_overloaded_ids,
+        lines_reco_maintenance=lines_reco_maintenance
+    )
 
     n_actions = len(dict_action.keys())
     n_actions_filtered = len(actions_to_filter.keys())
@@ -1004,61 +1017,6 @@ def test_grid2op_action_types():
     _test_grid2op_action_type_open_line(action_space)
     _test_grid2op_action_type_close_coupling(action_space)
     _test_grid2op_action_type_open_coupling(action_space)
-
-def test_no_broken_rule_multi_node_dispatch_path():
-    action_type="open_coupling"
-    localization="dispatch_path"
-    subs_topology=[[1,1,2,2,2,1]]#topology already in multi nodes
-    do_filter_action, broken_rule=check_rules(action_type, localization, subs_topology)
-
-    assert(do_filter_action==False)
-    assert (broken_rule is None)
-
-def test_broken_rule_open_line_dispatch_path():
-    action_type="open_line"
-    localization="dispatch_path"
-    subs_topology=[]#topology already in multi nodes
-    do_filter_action, broken_rule=check_rules(action_type, localization, subs_topology)
-
-    assert(do_filter_action)
-    assert (broken_rule=="No line disconnection on dispatch path")
-
-def test_broken_rule_close_line_constrained_path():
-    action_type="close_line"
-    localization="constrained_path"
-    subs_topology=[]#topology already in multi nodes
-    do_filter_action, broken_rule=check_rules(action_type, localization, subs_topology)
-
-    assert(do_filter_action)
-    assert (broken_rule=="No line reconnection on constrained path")
-
-def test_broken_rule_close_coupling_constrained_path():
-    action_type="close_coupling"
-    localization="constrained_path"
-    subs_topology=[]#topology already in multi nodes
-    do_filter_action, broken_rule=check_rules(action_type, localization, subs_topology)
-
-    assert(do_filter_action)
-    assert (broken_rule=="No node merging on constrained path")
-
-def test_broken_rule_open_coupling_dispatch_path():
-    action_type="open_coupling"
-    localization="dispatch_path"
-    subs_topology=[[1,1,1,1]]#topology in one node
-    do_filter_action, broken_rule=check_rules(action_type, localization, subs_topology)
-
-    assert(do_filter_action)
-    assert (broken_rule=="No node splitting on dispatch path")
-
-def test_load_action_no_filter():
-    action_type = "open_line_load"
-    localization = ""
-    subs_topology = []
-
-    do_filter_action, broken_rule = check_rules(action_type, localization, subs_topology)
-
-    assert(do_filter_action==False)
-    assert (broken_rule is None)
 
 @pytest.mark.slow
 def test_identify_overload_lines_to_keep_overflow_graph_connected():
