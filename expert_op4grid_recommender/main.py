@@ -33,7 +33,7 @@ from expert_op4grid_recommender.graph_analysis.processor import (
 )
 from expert_op4grid_recommender.graph_analysis.visualization import make_overflow_graph_visualization, get_graph_file_name
 from expert_op4grid_recommender.action_evaluation.rules import categorize_action_space
-from expert_op4grid_recommender.action_evaluation.discovery import find_relevant_actions
+from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
 
 # --- Define Default Values ---
 # You can define them here or import them if they still exist in config.py
@@ -164,13 +164,30 @@ def main():
     # Pre-process graph for AlphaDeesp
     g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_graph_alphadeesp(g_overflow, overflow_sim, node_name_mapping)
 
-    # Find relevant actions - pass current args
-    prioritized_actions = find_relevant_actions(
-        env, non_connected_reconnectable_lines, actions_unfiltered, dict_action, hubs,
-        g_overflow_processed, g_distribution_graph_processed, simulator_data, obs, obs_simu_defaut, current_timestep,
-        current_lines_defaut, lines_overloaded_ids, act_reco_maintenance,
-        lines_we_care_about=lines_we_care_about, all_disconected_lines=lines_non_reconnectable + non_connected_reconnectable_lines,
-        n_action_max=config.N_PRIORITIZED_ACTIONS # Get limit from config
+    # Instantiate the discoverer with all necessary context
+    discoverer = ActionDiscoverer(
+        env=env,
+        obs=obs,
+        obs_defaut=obs_simu_defaut,
+        timestep=current_timestep,
+        lines_defaut=current_lines_defaut,
+        lines_overloaded_ids=lines_overloaded_ids,
+        act_reco_maintenance=act_reco_maintenance,
+        non_connected_reconnectable_lines=non_connected_reconnectable_lines,
+        all_disconnected_lines=lines_non_reconnectable + non_connected_reconnectable_lines,
+        dict_action=dict_action,
+        actions_unfiltered=set(actions_unfiltered.keys()),  # Pass only the IDs
+        hubs=hubs,  # Assumes hubs are names from build_overflow_graph
+        g_overflow=g_overflow_processed,
+        g_distribution_graph=g_distribution_graph_processed,
+        simulator_data=simulator_data,
+        check_action_simulation=config.CHECK_ACTION_SIMULATION,
+        lines_we_care_about=lines_we_care_about
+    )
+
+    # Run the discovery process
+    prioritized_actions = discoverer.discover_and_prioritize(
+        n_action_max=config.N_PRIORITIZED_ACTIONS
     )
 
     print("\nPrioritized actions are: " + str(list(prioritized_actions.keys())))
