@@ -21,6 +21,9 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from expert_op4grid_recommender import config
+# Import the specific defaults needed for argparse
+from expert_op4grid_recommender.config import DATE as DEFAULT_DATE, TIMESTEP as DEFAULT_TIMESTEP, LINES_DEFAUT as DEFAULT_LINES_DEFAUT
+
 from expert_op4grid_recommender.environment import setup_environment_configs, switch_to_dc_load_flow
 # The incorrect import from data_loader has been removed from here
 from expert_op4grid_recommender.utils.simulation import simulate_contingency, check_simu_overloads, create_default_action
@@ -37,54 +40,47 @@ from expert_op4grid_recommender.action_evaluation.rules import ActionRuleValidat
 from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
 from expert_op4grid_recommender.utils.simulation import check_rho_reduction
 
-# --- Define Default Values ---
-# You can define them here or import them if they still exist in config.py
-DEFAULT_DATE_STR = "2024-09-19"
-DEFAULT_TIMESTEP = 1
-DEFAULT_LINES_DEFAUT = ["CPVANL61ZMAGN"]
-# --- End Default Values ---
-
 def main():
     """Main function to run the expert system analysis."""
 
     # --- Argument Parsing ---
+    # Convert default date from datetime object to string for argparse
+    default_date_str = DEFAULT_DATE.strftime("%Y-%m-%d")
+
     parser = argparse.ArgumentParser(description="Run ExpertOp4Grid analysis for a specific contingency.")
     parser.add_argument(
         "--date",
-        # Remove required=True
-        default=DEFAULT_DATE_STR,  # Add default value
-        help=f"Date for the chronic in YYYY-MM-DD format (default: {DEFAULT_DATE_STR})"
+        default=default_date_str,  # Use default from config (as string)
+        help=f"Date for the chronic in YYYY-MM-DD format (default: {default_date_str})"
     )
     parser.add_argument(
         "--timestep",
-        # Remove required=True
         type=int,
-        default=DEFAULT_TIMESTEP,  # Add default value
+        default=DEFAULT_TIMESTEP,  # Use default from config
         help=f"Timestep index within the chronic (default: {DEFAULT_TIMESTEP})"
     )
     parser.add_argument(
         "--lines-defaut",
-        # Remove required=True
         nargs='+',
-        default=DEFAULT_LINES_DEFAUT,  # Add default value
+        default=DEFAULT_LINES_DEFAUT,  # Use default from config
         help=f"One or more line names for the N-1 contingency (default: {' '.join(DEFAULT_LINES_DEFAUT)})"
     )
     args = parser.parse_args()
 
-    # Convert date string to datetime object
+    # Convert potentially user-provided date string to datetime object
     try:
         analysis_date = datetime.strptime(args.date, "%Y-%m-%d")
     except ValueError:
         print("Error: Date format must be YYYY-MM-DD")
         sys.exit(1)
 
-    # Use parsed arguments instead of config values
+    # Use parsed arguments (which default to config values if not provided)
     current_timestep = args.timestep
     current_lines_defaut = args.lines_defaut
     # --- End Argument Parsing ---
 
-    print(f"Running analysis for Date: {analysis_date.strftime('%Y-%m-%d')}, Timestep: {current_timestep}, Contingency: {current_lines_defaut}")
-
+    print(
+        f"Running analysis for Date: {analysis_date.strftime('%Y-%m-%d')}, Timestep: {current_timestep}, Contingency: {current_lines_defaut}")
     # Load setup - Pass the date argument to setup
     # NOTE: You might need to modify setup_environment_configs if it hardcodes the date internally
     #       For now, assuming it uses the date passed to get_env_first_obs correctly.
