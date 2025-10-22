@@ -16,13 +16,18 @@ import os
 #  Case Configuration
 # -------------------
 # Define the specific scenario to analyze
-DATE = datetime(2024, 9, 19)
-TIMESTEP = 1
-LINES_DEFAUT = ["CPVANL61ZMAGN"]
+#### all cases in evaluation for reference
+# date = datetime(2024, 8, 29)#datetime(2024, 9, 19)#datetime(2024, 8, 28)#datetime(2024, 11, 27)#datetime(2024, 12, 9)#datetime(2024, 12, 7)#datetime(2024, 12, 7)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 12, 9)#datetime(2024, 12, 2)#datetime(2024, 8, 28)  # we choose a date for the chronic
+# timestep = 32#1#47#18#13#22#9#1#15#1#35#10#14#14#13#22 #1 # 36
+# lines_defaut = "CHALOY631"#"CPVANL61ZMAGN"#"P.SAOL31RONCI"#"COUCHL31VOSNE"#"MAGNYY633"#"CPVANY633"#"CHALOL61CPVAN"#"C.REGL61ZMAGN"#"BEON L31CPVAN"#"CPVANL61ZMAGN"#"CPVANL31RIBAU"#"BEON L31CPVAN"#"MAGNYY633"#"BEON L31CPVAN"##AISERL31RONCI, P.SAOL31RONCI, AISERL31MAGNY, BEON L31CPVAN, "FRON5L31LOUHA"
+
+DATE = datetime(2024, 8, 29)#datetime(2024, 9, 19)#datetime(2024, 8, 28)#datetime(2024, 11, 27)#datetime(2024, 12, 9)#datetime(2024, 12, 7)#datetime(2024, 12, 7)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 12, 9)#datetime(2024, 12, 2)#datetime(2024, 8, 28)  # we choose a date for the chronic
+TIMESTEP = 1#32#1#47#18#13#22#9#1#15#1#35#10#14#14#13#22 #1 # 36
+LINES_DEFAUT = ["CPVANL61ZMAGN"]#"CHALOY631"#"CPVANL61ZMAGN"#"P.SAOL31RONCI"#"COUCHL31VOSNE"#"MAGNYY633"#"CPVANY633"#"CHALOL61CPVAN"#"C.REGL61ZMAGN"#"BEON L31CPVAN"#"CPVANL61ZMAGN"#"CPVANL31RIBAU"#"BEON L31CPVAN"#"MAGNYY633"#"BEON L31CPVAN"##AISERL31RONCI, P.SAOL31RONCI, AISERL31MAGNY, BEON L31CPVAN, "FRON5L31LOUHA"
 CASE_NAME = "defaut_" + "_".join(map(str, LINES_DEFAUT)) + "_t" + str(TIMESTEP)
 
 # -------------------
-#  Environment & Paths
+#  Environment & Pathsdatetime(2024, 9, 19)#
 # -------------------
 ENV_FOLDER = "../data"
 ENV_NAME = "env_dijon_v2_assistant"
