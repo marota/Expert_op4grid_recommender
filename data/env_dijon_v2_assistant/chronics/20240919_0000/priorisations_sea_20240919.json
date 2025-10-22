@@ -1,0 +1,592 @@
+{
+    "GENLIL31MAGNY": {
+        "5d5b1733-bb2b-4bb9-a019-17521a3c2df3": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL31RIBAU": 2
+                },
+                "lines_ex_id": {
+                    "BEON L31CPVAN": 2,
+                    "CPVANY631": 2,
+                    "CPVANY632": 1,
+                    "CPVANY633": 2
+                },
+                "loads_id": {
+                    "ARBOIL31CPVAN": 1,
+                    "BREVAL31CPVAN": 2,
+                    "CPDIVL32CPVAN": 2,
+                    "CPVANL31MESNA": 1,
+                    "CPVANL31ZBRE6": 1,
+                    "CPVAN3TR312": 1,
+                    "CPVAN3TR311": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "AISERL31MAGNY": {
+        "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CPVANY631": -1,
+                    "CPVANY632": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CPVANL31RIBAU": {
+        "8ce1b409-b39c-46e7-98c7-e22d9af731b9": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": 1
+                },
+                "lines_ex_id": {
+                    "C.SAUL31MAGNY": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CHALOL61CPVAN": {
+        "106a8bae-e761-41d5-9903-d363c85955e0": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY632": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "fb2a0db8-20cf-4ef7-940d-22dc59de7d9a": {
+            "set_bus": {
+                "lines_or_id": {
+                    "VIELMY762": 1
+                },
+                "lines_ex_id": {
+                    "VIELMY762": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "COUCHY631": {
+        "842297ff-6031-403a-94d0-1b67bcbc9c7a": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY635": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "COUCHY632": {
+        "b7f4c0af-5ff7-4390-8c59-4e1c7f6db71e": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY635": -1,
+                    "VIELMY762": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "842297ff-6031-403a-94d0-1b67bcbc9c7a": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY635": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "BXNE5L32MTAGN": {
+        "466bde62-0d1f-4bc5-abfd-f12bcdc9b7b1": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "BXNE5L31MTAGN": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "1d230803-d3cd-4654-804b-5048b3169a98": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "COUCH3TR312": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CPVANL61ZMAGN": {
+        "f4205550-e5d9-4d85-bcdd-504c3d8992b4": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "66782189-dffc-404f-a6d4-b231e2b05cd3": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "C.REGY633": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "GEVREL32N.GEO": {},
+    "MAGNYY633": {
+        "9514fa13-6261-41ae-9b1a-a55a11170ae9": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31ZCRIM": 1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "5d5b1733-bb2b-4bb9-a019-17521a3c2df3": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL31RIBAU": 2
+                },
+                "lines_ex_id": {
+                    "BEON L31CPVAN": 2,
+                    "CPVANY631": 2,
+                    "CPVANY632": 1,
+                    "CPVANY633": 2
+                },
+                "loads_id": {
+                    "ARBOIL31CPVAN": 1,
+                    "BREVAL31CPVAN": 2,
+                    "CPDIVL32CPVAN": 2,
+                    "CPVANL31MESNA": 1,
+                    "CPVANL31ZBRE6": 1,
+                    "CPVAN3TR312": 1,
+                    "CPVAN3TR311": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "COUCHL31VOSNE": {},
+    "BEON L31P.SAO": {
+        "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "MEURSL32MTAGN": {
+        "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "COUCHL32GEVRE": {},
+    "C.REGL61ZMAGN": {
+        "f4205550-e5d9-4d85-bcdd-504c3d8992b4": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "66782189-dffc-404f-a6d4-b231e2b05cd3": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "C.REGY633": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "MAGNYL61ZMAGN": {
+        "f4205550-e5d9-4d85-bcdd-504c3d8992b4": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "66782189-dffc-404f-a6d4-b231e2b05cd3": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "C.REGY633": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "P.SAOL31RONCI": {
+        "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CPVANY631": -1,
+                    "CPVANY632": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CHALOY633": {
+        "a707a8e3-1aa2-42a4-8652-32e11cc212c2": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY631": 1
+                },
+                "lines_ex_id": {
+                    "CHALOY631": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CHALOY632": {
+        "36e6a547-35f7-4848-95ae-f285f7d91eb1": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY633": 1
+                },
+                "lines_ex_id": {
+                    "CHALOY633": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CHALOY631": {
+        "36e6a547-35f7-4848-95ae-f285f7d91eb1": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY633": 1
+                },
+                "lines_ex_id": {
+                    "CHALOY633": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "BEON L31CPVAN": {
+        "d751e1b4-abdc-43e4-b1bb-7dd1f4d5ca82": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "MAGNYY633": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "FTAINL32MEURS": {
+        "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "AISERL31RONCI": {
+        "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CPVANY631": -1,
+                    "CPVANY632": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CPVANY632": {
+        "5d5b1733-bb2b-4bb9-a019-17521a3c2df3": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL31RIBAU": 2
+                },
+                "lines_ex_id": {
+                    "BEON L31CPVAN": 2,
+                    "CPVANY631": 2,
+                    "CPVANY632": 1,
+                    "CPVANY633": 2
+                },
+                "loads_id": {
+                    "ARBOIL31CPVAN": 1,
+                    "BREVAL31CPVAN": 2,
+                    "CPDIVL32CPVAN": 2,
+                    "CPVANL31MESNA": 1,
+                    "CPVANL31ZBRE6": 1,
+                    "CPVAN3TR312": 1,
+                    "CPVAN3TR311": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "387cac68-6dfa-498f-9216-6c62c7046f51": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "CPVANL31ZBRE6": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CPVANY633": {
+        "5d5b1733-bb2b-4bb9-a019-17521a3c2df3": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL31RIBAU": 2
+                },
+                "lines_ex_id": {
+                    "BEON L31CPVAN": 2,
+                    "CPVANY631": 2,
+                    "CPVANY632": 1,
+                    "CPVANY633": 2
+                },
+                "loads_id": {
+                    "ARBOIL31CPVAN": 1,
+                    "BREVAL31CPVAN": 2,
+                    "CPDIVL32CPVAN": 2,
+                    "CPVANL31MESNA": 1,
+                    "CPVANL31ZBRE6": 1,
+                    "CPVAN3TR312": 1,
+                    "CPVAN3TR311": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "387cac68-6dfa-498f-9216-6c62c7046f51": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "CPVANL31ZBRE6": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CPVANY631": {
+        "5d5b1733-bb2b-4bb9-a019-17521a3c2df3": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL31RIBAU": 2
+                },
+                "lines_ex_id": {
+                    "BEON L31CPVAN": 2,
+                    "CPVANY631": 2,
+                    "CPVANY632": 1,
+                    "CPVANY633": 2
+                },
+                "loads_id": {
+                    "ARBOIL31CPVAN": 1,
+                    "BREVAL31CPVAN": 2,
+                    "CPDIVL32CPVAN": 2,
+                    "CPVANL31MESNA": 1,
+                    "CPVANL31ZBRE6": 1,
+                    "CPVAN3TR312": 1,
+                    "CPVAN3TR311": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "387cac68-6dfa-498f-9216-6c62c7046f51": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "CPVANL31ZBRE6": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "BXNE L31BXNE5": {
+        "1d230803-d3cd-4654-804b-5048b3169a98": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "COUCH3TR312": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CHAL5L31MOLLE": {
+        "1d230803-d3cd-4654-804b-5048b3169a98": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "COUCH3TR312": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "BXNE5L31VOSNE": {},
+    "AUXONL31RIBAU": {
+        "8ce1b409-b39c-46e7-98c7-e22d9af731b9": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": 1
+                },
+                "lines_ex_id": {
+                    "C.SAUL31MAGNY": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    },
+    "CHALOL32FTAIN": {
+        "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        }
+    }
+}

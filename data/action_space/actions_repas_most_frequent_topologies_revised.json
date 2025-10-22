@@ -1,0 +1,2138 @@
+{
+    "60c7b148-b96d-4d84-b9d8-c36b9dc30ef0": {
+        "description_complete": "Actions curatives :\n- Ouverture OC 'C.LEO3ZC.L5.1 DJ_OC' dans le poste 'C.LEOP3'\n- Ouverture OC 'GROSN6MACON.1 DJ_OC' dans le poste 'GROSNP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'GROSN6MACON.1 DJ_OC' dans le poste 'GROSNP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'CREYS7COUPL.2 DJ_OC' dans le poste 'CREYSP7'\n- Ouverture OC 'GROSN6MACON.1 DJ_OC' dans le poste 'GROSNP6'\n",
+        "description_unitaire": "Ouverture OC 'GROSN6MACON.1 DJ_OC' dans le poste 'GROSNP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GROSNL61MACON": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GROSNP6"
+    },
+    "2e0adcfa-fec8-47f1-b8a4-84e06d22f7e4": {
+        "description": "Actions curatives :\n- Ouverture OC 'ALBER7COUPL.B DJ_OC' dans le poste 'ALBERP7'\n- Ouverture OC 'MAMBE7COUPL.1 DJ_OC' dans le poste 'MAMBEP7'\n- Fermeture OC 'GEN.P7AT761 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'G.ILE7TRO.1 DJ_OC' dans le poste 'G.ILEP7'\n- Ouverture OC 'G.ILE7COUPL.B DJ_OC' dans le poste 'G.ILEP7'\n- Ouverture OC 'ALBER6COUPL.1 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'SSSIX3ZSSFA.1 DJ_OC' dans le poste 'SSSIXP3'\n- Ouverture OC 'MAMBE7AT763 DJ_OC' dans le poste 'MAMBEP7'\n- Fermeture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'G.ILE7TRO.1 DJ_OC' dans le poste 'G.ILEP7'\n- Ouverture OC 'G.ILE7COUPL.B DJ_OC' dans le poste 'G.ILEP7'\n- Ouverture OC 'THONE3SSSIX.1 DJ_OC' dans le poste 'THONEP3'\n- Fermeture OC 'GEN.P7AT761 DJ_OC' dans le poste 'GEN.PP7'\n- Fermeture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'ALBER6COUPL.1 DJ_OC' dans le poste 'ALBERP6'\n\nVariante: Actions curatives :\n- Fermeture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'THONE3SSSIX.1 DJ_OC' dans le poste 'THONEP3'\n- Ouverture OC 'THONE3VNERE.1 DJ_OC' dans le poste 'THONEP3'\n\nVariante: Actions curatives :\n- Fermeture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n\nVariante: Actions pr\u00e9ventives :\n- Fermeture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'BELLE3ZBRAC.1 DJ_OC' dans le poste 'BELLEP3'\n- Fermeture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P7VIELM.2 DJ_OC' dans le poste 'GEN.PP7'\n- Fermeture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n",
+        "description_unitaire": "Fermeture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6' (reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GEN.PY762": 1
+                },
+                "lines_ex_id": {
+                    "GEN.PY762": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 1099,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 11.035244502460086,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "f03503db-4f4e-4057-aa01-cb926007549a": {
+        "description": "Actions curatives :\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'ALBER6AT763 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'CREYS7G.ILE.2 DJ_OC' dans le poste 'CREYSP7'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'SSV.O7TRO2.AB DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'GEN.P7COUPL.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'CHAFF7COUPL.B DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7BOISS.1 DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'P.COR7TRO.2 DJ_OC' dans le poste 'P.CORP7'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P7COUPL.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'CORNI6COUPL.1 DJ_OC' dans le poste 'CORNIP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'SERRI3RUMIL.1 DJ_OC' dans le poste 'SERRIP3'\n- Ouverture OC 'ALBER6COUPL.1 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'MALGO6COUPL DJ_OC' dans le poste 'MALGOP6'\n",
+        "description_unitaire": "Fermeture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6' (reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GEN.PY761": 1
+                },
+                "lines_ex_id": {
+                    "GEN.PY761": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 969,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 9.729892559493925,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "a4783abc-c4b1-448b-8ba2-36fd8cafc96c": {
+        "description": "Actions curatives :\n- Fermeture OC 'PYMON6CPVAN.1 DJ_OC' dans le poste 'PYMONP6'\n",
+        "description_unitaire": "Fermeture OC 'PYMON6CPVAN.1 DJ_OC' dans le poste 'PYMONP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL61PYMON": 1
+                },
+                "lines_ex_id": {
+                    "CPVANL61PYMON": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 2535,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 25.454362887840144,
+        "VoltageLevelId": "PYMONP6"
+    },
+    "fb2a0db8-20cf-4ef7-940d-22dc59de7d9a": {
+        "description": "Actions curatives :\n- Fermeture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'SIERE7COUPL DJ_OC' dans le poste 'SIEREP7'\n- Ouverture OC 'MARL67VIGY.1 DJ_OC' dans le poste 'MARL6P7'\n- Fermeture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n",
+        "description_unitaire": "Fermeture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "VIELMY762": 1
+                },
+                "lines_ex_id": {
+                    "VIELMY762": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 5141,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 51.62164875991565,
+        "VoltageLevelId": "VIELMP6"
+    },
+    "bac1d757-70d5-4325-9f2c-b5c82914a367_G.CHEP3": {
+        "description": "Part 1 - VoltageLevel:G.CHEP3 - Actions curatives :\n- Ouverture OC 'G.CHE3FRON5.1 DJ_OC' dans le poste 'G.CHEP3'\n- Ouverture OC 'PYMON3TR632 DJ_OC' dans le poste 'PYMONP3'\n",
+        "description_unitaire": "Ouverture OC 'G.CHE3FRON5.1 DJ_OC' dans le poste 'G.CHEP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "FRON5L31G.CHE": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "G.CHEP3"
+    },
+    "bac1d757-70d5-4325-9f2c-b5c82914a367_PYMONP3": {
+        "description": "Part 2 - VoltageLevel:PYMONP3 - Actions curatives :\n- Ouverture OC 'G.CHE3FRON5.1 DJ_OC' dans le poste 'G.CHEP3'\n- Ouverture OC 'PYMON3TR632 DJ_OC' dans le poste 'PYMONP3'\n",
+        "description_unitaire": "Ouverture OC 'PYMON3TR632 DJ_OC' dans le poste 'PYMONP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "PYMONY632": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "PYMONP3"
+    },
+    "91a6c764-b18b-4cdc-9388-2290e1d60284": {
+        "description": "Actions curatives :\n- Fermeture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n\nVariante: Actions curatives :\n- Fermeture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPNOL3ARBOI.1 DJ_OC' dans le poste 'CPNOLP3'\n\nVariante: Actions curatives :\n- Fermeture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'ARBOI3ZMESN.1 DJ_OC' dans le poste 'ARBOIP3'\n\nVariante: Actions curatives :\n- Fermeture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'SSVIT3ZSSFE.1 DJ_OC' dans le poste 'SSVITP3'\n",
+        "description_unitaire": "Fermeture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL31RIBAU": 1
+                },
+                "lines_ex_id": {
+                    "BEON L31CPVAN": 1,
+                    "CPVANY631": 1,
+                    "CPVANY632": 1,
+                    "CPVANY633": 1
+                },
+                "loads_id": {
+                    "ARBOIL31CPVAN": 1,
+                    "BREVAL31CPVAN": 1,
+                    "CPDIVL32CPVAN": 1,
+                    "CPVANL31MESNA": 1,
+                    "CPVANL31ZBRE6": 1,
+                    "CPVAN3TR312": 1,
+                    "CPVAN3TR311": 1
+                },
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 2882,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 28.93864845868059,
+        "VoltageLevelId": "CPVANP3"
+    },
+    "bf6ee2b2-85f8-4952-8425-f13a5fb3f940": {
+        "description": "Actions curatives :\n- Fermeture OC 'PYMON3COUPL DJ_OC' dans le poste 'PYMONP3'\n",
+        "description_unitaire": "Fermeture OC 'PYMON3COUPL DJ_OC' dans le poste 'PYMONP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "PYMONL31SAISS": 1
+                },
+                "lines_ex_id": {
+                    "LOUHAL31PYMON": 1,
+                    "PYMONY631": 1,
+                    "PYMONY632": 1
+                },
+                "loads_id": {
+                    "L.SAUL31PYMON": 1,
+                    "L.SAUL32PYMON": 1,
+                    "L.SAUL33PYMON": 1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 7069,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 70.98102219098304,
+        "VoltageLevelId": "PYMONP3"
+    },
+    "f3ccb5cd-77a5-45cf-b150-0b8bcec6909e": {
+        "description": "Actions curatives :\n- Ouverture OC 'GEN.P6ZCRUS.1 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6CORNI.2 DJ_OC' dans le poste 'GEN.PP6'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6ZCRUS.1 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6CORNI.2 DJ_OC' dans le poste 'GEN.PP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "GEN.PL61ZCRUS": -1,
+                    "CORNIL62GEN.P": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "dd8a495f-86e1-4910-909e-ee8638245846": {
+        "description": "Actions curatives :\n- Fermeture OC 'CLUS53ZBROU.1 DJ_OC' dans le poste 'CLUS5P3'\n- Ouverture OC 'VOUGL3TR631 DJ_OC' dans le poste 'VOUGLP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'VOUGL3TR631 DJ_OC' dans le poste 'VOUGLP3'\n",
+        "description_unitaire": "Ouverture OC 'VOUGL3TR631 DJ_OC' dans le poste 'VOUGLP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VOUGLY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VOUGLP3"
+    },
+    "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+        "description": "Actions curatives :\n- Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P7CREYS.1 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'\n",
+        "description_unitaire": "Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "4c377676-3ed1-4ca3-87d8-b026771f627c": {
+        "description": "Actions curatives :\n- Ouverture OC 'BOISS6AT761 DJ_OC' dans le poste 'BOISSP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'BOISS6AT761 DJ_OC' dans le poste 'BOISSP6'\n- Ouverture OC 'MIONS6AT761 DJ_OC' dans le poste 'MIONSP6'\n",
+        "description_unitaire": "Ouverture OC 'BOISS6AT761 DJ_OC' dans le poste 'BOISSP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "BOISSY761": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "BOISSP6"
+    },
+    "3e184a10-eef8-4c31-a273-2e507aa1073f": {
+        "description": "Actions curatives :\n- Ouverture OC 'MACON6COUPL DJ_OC' dans le poste 'MACONP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'MACON6COUPL DJ_OC' dans le poste 'MACONP6'\n- Ouverture OC 'MACON3TR632 DJ_OC' dans le poste 'MACONP3'\n- Ouverture OC 'BELLE3MARNI.1 DJ_OC' dans le poste 'BELLEP3'\n- Ouverture OC 'BRIAN   3TR531    DJ' dans le poste 'BRIANP3'\n- Ouverture OC 'S.BAR3TR531 DJ_OC' dans le poste 'S.BARP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'MACON6COUPL DJ_OC' dans le poste 'MACONP6'\n- Ouverture OC 'MACON3TR632 DJ_OC' dans le poste 'MACONP3'\n",
+        "description_unitaire": "Ouverture OC 'MACON6COUPL DJ_OC' dans le poste 'MACONP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "MACONL61ZJOUX": 1
+                },
+                "lines_ex_id": {
+                    "GROSNL61MACON": 2
+                },
+                "loads_id": {
+                    "MACON6TR611": 2,
+                    "MACONY631": 1,
+                    "MACONY632": 2,
+                    "MACONY633": 1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 742,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 7.450547243699167,
+        "VoltageLevelId": "MACONP6"
+    },
+    "11016304-3123-4415-b002-c658560d1436": {
+        "description": "Actions curatives :\n- Ouverture OC 'SSCL53GEX.1 DJ_OC' dans le poste 'SSCL5P3'\n- Ouverture OC 'VOUGL6PYMON.1 DJ_OC' dans le poste 'VOUGLP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'VOUGL6PYMON.1 DJ_OC' dans le poste 'VOUGLP6'\n",
+        "description_unitaire": "Ouverture OC 'VOUGL6PYMON.1 DJ_OC' dans le poste 'VOUGLP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "PYMONL61VOUGL": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VOUGLP6"
+    },
+    "387cac68-6dfa-498f-9216-6c62c7046f51": {
+        "description": "Actions curatives :\n- Ouverture OC 'CPVAN3ZBRE6.1 DJ_OC' dans le poste 'CPVANP3'\n",
+        "description_unitaire": "Ouverture OC 'CPVAN3ZBRE6.1 DJ_OC' dans le poste 'CPVANP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "CPVANL31ZBRE6": -1
+                },
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CPVANP3"
+    },
+    "a5375fd1-5406-470f-aae5-1e0b54947571": {
+        "description": "Actions curatives :\n- Ouverture OC 'PYMON6CPVAN.1 DJ_OC' dans le poste 'PYMONP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'IZERN3TR631 DJ_OC' dans le poste 'IZERNP3'\n- Ouverture OC 'PYMON6CPVAN.1 DJ_OC' dans le poste 'PYMONP6'\n",
+        "description_unitaire": "Ouverture OC 'PYMON6CPVAN.1 DJ_OC' dans le poste 'PYMONP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CPVANL61PYMON": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "PYMONP6"
+    },
+    "01c3d31d-ad19-489f-b668-011b797a0ab1": {
+        "description": "Actions curatives :\n- Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'\n",
+        "description_unitaire": "Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "GROSNY762": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GROSNP6"
+    },
+    "31179566-6216-4295-876c-1bcb942c6e38": {
+        "description": "Actions curatives :\n- Ouverture OC 'VIELM3B.ROC.2 DJ_OC' dans le poste 'VIELMP3'\n",
+        "description_unitaire": "Ouverture OC 'VIELM3B.ROC.2 DJ_OC' dans le poste 'VIELMP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "B.ROCL32VIELM": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP3"
+    },
+    "66782189-dffc-404f-a6d4-b231e2b05cd3": {
+        "description": "Actions curatives :\n- Ouverture OC 'C.REG3TR633 DJ_OC' dans le poste 'C.REGP3'\n",
+        "description_unitaire": "Ouverture OC 'C.REG3TR633 DJ_OC' dans le poste 'C.REGP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "C.REGY633": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "C.REGP3"
+    },
+    "6134b3b0-249f-4b1d-9306-80b72b104dad": {
+        "description": "Actions curatives :\n- Ouverture OC 'JOUX 3TR633 DJ_OC' dans le poste 'JOUX P3'\n- Ouverture OC 'BOISS6AT762 DJ_OC' dans le poste 'BOISSP6'\n",
+        "description_unitaire": "Ouverture OC 'BOISS6AT762 DJ_OC' dans le poste 'BOISSP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "BOISSY762": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "BOISSP6"
+    },
+    "466f2c03-90ce-401e-a458-fa177ad45abc_VIELMP3": {
+        "description": "Part 1 - VoltageLevel:VIELMP3 - Actions curatives :\n- Ouverture OC 'VIELM3B.ROC.2 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'\n",
+        "description_unitaire": "Ouverture OC 'VIELM3B.ROC.2 DJ_OC' dans le poste 'VIELMP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "B.ROCL32VIELM": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP3"
+    },
+    "466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6": {
+        "description": "Part 2 - VoltageLevel:C.REGP6 - Actions curatives :\n- Ouverture OC 'VIELM3B.ROC.2 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'\n",
+        "description_unitaire": "Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.REGL61VIELM": 2,
+                    "C.REGL61ZMAGN": 1,
+                    "C.REGL62VIELM": 1,
+                    "C.REGY631": 2,
+                    "C.REGY633": 1
+                },
+                "lines_ex_id": {},
+                "loads_id": {
+                    "C.REG6TR615": 2,
+                    "C.REG6TR614": 1,
+                    "C.REG6TR613": 1
+                },
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 1827,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 18.345215383070588,
+        "VoltageLevelId": "C.REGP6"
+    },
+    "c565265f-bbfa-4111-95df-0c3f9234448c": {
+        "description": "Actions curatives :\n- Ouverture OC 'SSAL53ZC.BA.1 DJ_OC' dans le poste 'SSAL5P3'\n- Ouverture OC 'SERRI3CULOZ.1 DJ_OC' dans le poste 'SERRIP3'\n- Modification d\u00e9phaseur P.ANDY771 :\n  * Plot cibl\u00e9 : 16\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'ALBER6AT762 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'ALBER6AT763 DJ_OC' dans le poste 'ALBERP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'SSAL53ZC.BA.1 DJ_OC' dans le poste 'SSAL5P3'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'ALBER6AT762 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "GEN.PY762": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 14.007430464906115,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "21ca159a-e69e-4ab8-b4c4-22788e3a84eb": {
+        "description": "Actions curatives :\n- Ouverture OC 'IZERN6GEN.P.1 DJ_OC' dans le poste 'IZERNP6'\n",
+        "description_unitaire": "Ouverture OC 'IZERN6GEN.P.1 DJ_OC' dans le poste 'IZERNP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "GEN.PL61IZERN": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "IZERNP6"
+    },
+    "463179d8-be4e-4293-b42c-b53db763272b": {
+        "description": "Actions curatives :\n- Ouverture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6TRO.2AB DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'SSAL53ZC.BA.1 DJ_OC' dans le poste 'SSAL5P3'\n- Ouverture OC 'SERRI3CULOZ.1 DJ_OC' dans le poste 'SERRIP3'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6TRO.2AB DJ_OC' dans le poste 'GEN.PP6'\n avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GEN.PL61IZERN": 1,
+                    "GEN.PL61VOUGL": 2,
+                    "GEN.PL62GENIS": 1,
+                    "GEN.PL63GENIS": 1,
+                    "GEN.PL64GENIS": 2,
+                    "GEN.PL65GENIS": 1,
+                    "GEN.PL66GENIS": 1
+                },
+                "lines_ex_id": {
+                    "BOISSL61GEN.P": 1,
+                    "GEN.PY761": 2,
+                    "GEN.PY762": 1
+                },
+                "loads_id": {
+                    ".VERBL61GEN.P": 1,
+                    ".VERBL62GEN.P": 2,
+                    "ARLODL61GEN.P": 2,
+                    "CHAV6L61GEN.P": 1,
+                    "CORNIL62GEN.P": 1,
+                    "GEN.PL61SERRI": 1,
+                    "GEN.PL61ZCRUS": 1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 681,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 6.838035947384276,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6": {
+        "description": "Part 1 - VoltageLevel:CPVANP6 - Actions curatives :\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n- Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'\n",
+        "description_unitaire": "Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL61PYMON": 2,
+                    "CPVANL61TAVAU": 1,
+                    "CPVANL61ZMAGN": 2,
+                    "CPVANY631": 2,
+                    "CPVANY633": 1
+                },
+                "lines_ex_id": {
+                    "CHALOL61CPVAN": 1,
+                    "COUCHL61CPVAN": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 1015,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 10.191786323928104,
+        "VoltageLevelId": "CPVANP6"
+    },
+    "3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6": {
+        "description": "Part 2 - VoltageLevel:VIELMP6 - Actions curatives :\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n- Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'\n",
+        "description_unitaire": "Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "VIELMY634": 2,
+                    "VIELMY635": 1
+                },
+                "lines_ex_id": {
+                    "C.REGL61VIELM": 1,
+                    "C.REGL62VIELM": 2,
+                    "COMMUL61VIELM": 2,
+                    "COUCHL61VIELM": 1,
+                    "VIELMY761": 2,
+                    "VIELMY762": 1,
+                    "VIELMY763": 2
+                },
+                "loads_id": {
+                    "DARCEL61VIELM": 1,
+                    "SARRYL61VIELM": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 1015,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 10.191786323928104,
+        "VoltageLevelId": "VIELMP6"
+    },
+    "730f56e1-d290-4108-b433-bfcf4857738c": {
+        "description": "Actions curatives :\n- Ouverture OC 'SAISS3PYMON.1 DJ_OC' dans le poste 'SAISSP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'SAISS3PYMON.1 DJ_OC' dans le poste 'SAISSP3'\n- Ouverture OC 'GEN.P7VIELM.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P7COUPL.1 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P7CREYS.1 DJ_OC' dans le poste 'GEN.PP7'\n\nVariante: Actions pr\u00e9ventives :\n- Ouverture OC 'SAISS3PYMON.1 DJ_OC' dans le poste 'SAISSP3'\n",
+        "description_unitaire": "Ouverture OC 'SAISS3PYMON.1 DJ_OC' dans le poste 'SAISSP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "PYMONL31SAISS": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "SAISSP3"
+    },
+    "102107e7-70dc-4f19-b7a7-5f21bddff4ab": {
+        "description": "Actions curatives :\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n- Fermeture OC 'MELI53ZMESN.1 DJ_OC' dans le poste 'MELI5P3'\n- Fermeture OC 'SSVIT3ZSSFE.1 DJ_OC' dans le poste 'SSVITP3'\n",
+        "description_unitaire": "Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY762": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP6"
+    },
+    "1febac54-3bb9-4323-88cd-c2754bd92b5f_VIELMP3": {
+        "description": "Part 2 - VoltageLevel:VIELMP3 - Actions curatives :\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM3TR635 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'VIELM3TR634 DJ_OC' dans le poste 'VIELMP3'\n",
+        "description_unitaire": "Ouverture OC 'VIELM3TR635 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'VIELM3TR634 DJ_OC' dans le poste 'VIELMP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY634": -1,
+                    "VIELMY635": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP3"
+    },
+    "5dfefed7-30c7-4b20-8cbb-0c97389a1e8b": {
+        "description": "Actions curatives :\n- Ouverture OC 'COMMU6TRO.1AB DJ.HT_OC' dans le poste 'COMMUP6'\n- Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n",
+        "description_unitaire": "Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY763": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP6"
+    },
+    "fe8d3856-5e21-4945-919e-d834acf4f808": {
+        "description": "Actions curatives :\n- Ouverture OC 'PATUR3ROMAN.1 DJ_OC' dans le poste 'PATURP3'\n- Fermeture OC 'MACON6ZJOUX.1 DJ_OC' dans le poste 'MACONP6'\n",
+        "description_unitaire": "Fermeture OC 'MACON6ZJOUX.1 DJ_OC' dans le poste 'MACONP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "MACONL61ZJOUX": 1
+                },
+                "lines_ex_id": {
+                    "MACONL61ZJOUX": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 2614,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 26.24761522241189,
+        "VoltageLevelId": "MACONP6"
+    },
+    "d0e8ac6e-274f-4233-8253-9d030728e95f": {
+        "description": "Actions curatives :\n- Ouverture OC 'PATUR3ROMAN.1 DJ_OC' dans le poste 'PATURP3'\n- Ouverture OC 'MACON6ZJOUX.1 DJ_OC' dans le poste 'MACONP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'MACON6ZJOUX.1 DJ_OC' dans le poste 'MACONP6'\n",
+        "description_unitaire": "Ouverture OC 'MACON6ZJOUX.1 DJ_OC' dans le poste 'MACONP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "MACONL61ZJOUX": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "MACONP6"
+    },
+    "8d4d2a13-7dfe-4fb4-a788-4524568634a0": {
+        "description": "Actions curatives :\n- Ouverture OC 'LOUHA3CHALO.1 DJ_OC' dans le poste 'LOUHAP3'\n",
+        "description_unitaire": "Ouverture OC 'LOUHA3CHALO.1 DJ_OC' dans le poste 'LOUHAP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOL31LOUHA": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "LOUHAP3"
+    },
+    "a707a8e3-1aa2-42a4-8652-32e11cc212c2": {
+        "description": "Actions curatives :\n- Fermeture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'\n",
+        "description_unitaire": "Fermeture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY631": 1
+                },
+                "lines_ex_id": {
+                    "CHALOY631": 1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 3576,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 35.907219600361486,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "9874592b-f131-4525-bca1-97c508c15d64": {
+        "description": "Actions curatives :\n- Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'\n",
+        "description_unitaire": "Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY633": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "a93b9924-0236-45f4-bbf7-ce011f58db5a": {
+        "description": "Actions curatives :\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'ALBER7AT762 DJ_OC' dans le poste 'ALBERP7'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'ALBER6AT762 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'CORNI6COUPL.1 DJ_OC' dans le poste 'CORNIP6'\n\nVariante: Actions pr\u00e9ventives :\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\nActions curatives :\n- Fermeture OC 'CRUET3ZVONN.1 DJ_OC' dans le poste 'CRUETP3'\n\nVariante: Actions pr\u00e9ventives :\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\nActions curatives :\n- Ouverture OC 'HAUT63AMBER.1 DJ_OC' dans le poste 'HAUT6P3'\n\nVariante: Actions curatives :\n- Ouverture OC 'SSV.O7COUPL.B DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'SSV.O7LIAIS DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'SSV.O7TRO2.AB DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'SSAL53ZC.BA.1 DJ_OC' dans le poste 'SSAL5P3'\n- Fermeture OC 'SSV.O7COUPL.B DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'GEN.P7COUPL.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "GEN.PY762": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "d751e1b4-abdc-43e4-b1bb-7dd1f4d5ca82": {
+        "description": "Actions curatives :\n- Ouverture OC 'MAGNY3TR633 DJ_OC' dans le poste 'MAGNYP3'\n",
+        "description_unitaire": "Ouverture OC 'MAGNY3TR633 DJ_OC' dans le poste 'MAGNYP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "MAGNYY633": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "MAGNYP3"
+    },
+    "4332b13e-2457-4b0e-be3d-7980368baddd": {
+        "description": "Actions curatives :\n- Ouverture OC 'CHALO6CPVAN.1 DJ_OC' dans le poste 'CHALOP6'\n",
+        "description_unitaire": "Ouverture OC 'CHALO6CPVAN.1 DJ_OC' dans le poste 'CHALOP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOL61CPVAN": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP6"
+    },
+    "f89f9ddf-60b2-4c35-9224-abbace29a1ca": {
+        "description": "Actions curatives :\n- Ouverture OC 'GEN.P7CREYS.1 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'AMBER3HAUT6.1 DJ_OC' dans le poste 'AMBERP3'\n- Ouverture OC 'SSAL53ZC.BA.1 DJ_OC' dans le poste 'SSAL5P3'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P7COUPL.1 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P7CREYS.1 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'CIZE 3ALLE5.1 DJ_OC' dans le poste 'CIZE P3'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'BELLE3ZBRAC.1 DJ_OC' dans le poste 'BELLEP3'\n- Ouverture OC 'MALGO6COUPL DJ_OC' dans le poste 'MALGOP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P7VIELM.1 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P7COUPL.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n\nVariante: Actions pr\u00e9ventives :\n- Fermeture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\nActions curatives :\n- Ouverture OC 'GEN.P7CREYS.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P7CREYS.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'ALBER7AT763 DJ_OC' dans le poste 'ALBERP7'\n\nVariante: Actions curatives :\n- Ouverture OC 'SSV.O7COUPL.A DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'SSV.O7TRO2.AB DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'CHAFF7TRO.1AB DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7BOISS.1 DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CREYS7G.ILE.1 DJ_OC' dans le poste 'CREYSP7'\n- Ouverture OC 'G.ILE7COUPL.A DJ_OC' dans le poste 'G.ILEP7'\n- Ouverture OC 'G.ILE7TRO.1 DJ_OC' dans le poste 'G.ILEP7'\n- Ouverture OC 'ALBER7AT763 DJ_OC' dans le poste 'ALBERP7'\n- Ouverture OC 'ALBER7AT762 DJ_OC' dans le poste 'ALBERP7'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'MARNI3ROSSI.1 DJ_OC' dans le poste 'MARNIP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'SSV.O7COUPL.A DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'SSV.O7TRO2.AB DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'SSV.O7CHAFF.3 DJ_OC' dans le poste 'SSV.OP7'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n\nVariante: Actions curatives :\n- Fermeture OC 'CHAFF7B.MON.2 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7B.MON.2 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7B.MON.2 SA.2_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7BOISS.1 DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7BOISS.1 SA.1_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7BOISS.1 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7COULA.1 DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7COULA.1 SA.1_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7COULA.1 SA.2_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7COUPL.A DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7COUPL.A SA.1_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7COUPL.A SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7COUPL.B DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7COUPL.B SA.1_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7COUPL.B SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7CPNIE.1 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7CPNIE.1 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7CPNIE.1 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7CPNIE.2 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7CPNIE.2 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7CPNIE.2 SA.2_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7G.ILE.1 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7G.ILE.1 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7G.ILE.1 SA.2_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7G.ILE.2 DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7G.ILE.2 SA.1_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7G.ILE.2 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7MIONS.1 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7MIONS.1 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7MIONS.1 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7MIONS.2 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7MIONS.2 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7MIONS.2 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7P.COR.1 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7P.COR.1 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7P.COR.1 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7P.COR.2 DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7P.COR.2 SA.1_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7P.COR.2 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7SSV.O.1 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7SSV.O.1 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7SSV.O.1 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7SSV.O.2 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7SSV.O.2 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7SSV.O.2 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7SSV.O.3 DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7SSV.O.3 SA.1_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7SSV.O.3 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7SSV.O.4 DJ_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7SSV.O.4 SA.1_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7SSV.O.4 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TR731 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TR731 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7TR731 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TR732 DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TR732 SA.1_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7TR732 SA.2_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TRO.1AB DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TRO.1AB SA.1B_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TRO.1AB SA.1A_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'CHAFF7TRO.2AB DJ_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TRO.2AB SA.2B_OC' dans le poste 'CHAFFP7'\n- Fermeture OC 'CHAFF7TRO.2AB SA.2A_OC' dans le poste 'CHAFFP7'\n- Ouverture OC 'AMBER3HAUT6.1 DJ_OC' dans le poste 'AMBERP3'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'P.COR7COUPL.B DJ_OC' dans le poste 'P.CORP7'\n- Ouverture OC '.PIO5 7 .PIOS.2 DJ' dans le poste '.PIO5 7'\n- Ouverture OC '.PIO5 7 .PIOS.1 DJ' dans le poste '.PIO5 7'\n",
+        "description_unitaire": "Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOL31LOUHA": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "1e84ffe4-44d2-47a8-bd1c-7c78daa746d9": {
+        "description": "Actions curatives :\n- Fermeture OC 'BOISS6MIONS.2 DJ_OC' dans le poste 'BOISSP6'\n",
+        "description_unitaire": "Fermeture OC 'BOISS6MIONS.2 DJ_OC' dans le poste 'BOISSP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "BOISSL62MIONS": 1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 4731,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 47.504769555176225,
+        "VoltageLevelId": "BOISSP6"
+    },
+    "f344b395-9908-43c2-bca0-75c5f298465e": {
+        "description": "Actions curatives :\n- Ouverture OC 'COUCH6COUPL DJ_OC' dans le poste 'COUCHP6'\n",
+        "description_unitaire": "Ouverture OC 'COUCH6COUPL DJ_OC' dans le poste 'COUCHP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "COUCHL61CPVAN": 2,
+                    "COUCHL61VIELM": 1,
+                    "COUCHY631": 2,
+                    "COUCHY632": 1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 7095,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 71.24209257957627,
+        "VoltageLevelId": "COUCHP6"
+    },
+    "6ba7e0a3-2c1a-4dd5-b85c-5cf83d8c0358": {
+        "description": "Actions curatives :\n- Ouverture OC 'TABAR7COUPL.B DJ_OC' dans le poste 'TABARP7'\n- Ouverture OC 'TABAR7COUPL.A DJ_OC' dans le poste 'TABARP7'\n- Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'\n",
+        "description_unitaire": "Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GROSNL61GUEUG": 1,
+                    "GROSNL61MACON": 2,
+                    "GROSNL61ZCUR5": 2
+                },
+                "lines_ex_id": {
+                    "CHALOL61GROSN": 2,
+                    "CHALOL62GROSN": 1,
+                    "CURTIL61GROSN": 1,
+                    "GROSNY761": 2,
+                    "GROSNY762": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 4422,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 44.40204839843358,
+        "VoltageLevelId": "GROSNP6"
+    },
+    "7aebf924-42b4-4838-96f8-f696deb32b50_CHALOP6": {
+        "description": "Part 2 - VoltageLevel:CHALOP6 - Actions curatives :\n- Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'CHALO6GROSN.2 DJ_OC' dans le poste 'CHALOP6'\n",
+        "description_unitaire": "Ouverture OC 'CHALO6GROSN.2 DJ_OC' dans le poste 'CHALOP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOL62GROSN": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP6"
+    },
+    "7ffa571c-c501-4059-a67c-259a7c233e17_C.REGP6": {
+        "description": "Part 1 - VoltageLevel:C.REGP6 - Actions curatives :\n- Ouverture OC 'C.REG6ZMAGN.1 DJ_OC' dans le poste 'C.REGP6'\n- Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'\n",
+        "description_unitaire": "Ouverture OC 'C.REG6ZMAGN.1 DJ_OC' dans le poste 'C.REGP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.REGL61ZMAGN": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "C.REGP6"
+    },
+    "2dd933ae-d432-4039-90ad-dc1ed6545f70": {
+        "description": "Actions curatives :\n- Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'\n- Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'\n",
+        "description_unitaire": "Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'\n- Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'\n avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GROSNL61GUEUG": 1,
+                    "GROSNL61MACON": 2,
+                    "GROSNL61ZCUR5": 2
+                },
+                "lines_ex_id": {
+                    "CHALOL61GROSN": 2,
+                    "CHALOL62GROSN": 1,
+                    "CURTIL61GROSN": 1,
+                    "GROSNY761": 2
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 4720,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 47.3943166984637,
+        "VoltageLevelId": "GROSNP6"
+    },
+    "443eb893-09f7-4fd6-b5d6-f7aeafd6b3ad": {
+        "description": "Actions curatives :\n- Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'\n",
+        "description_unitaire": "Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "FRON5L31LOUHA": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "LOUHAP3"
+    },
+    "84087386-fe7c-4a1b-9a0b-df9b9577f261_CHALOP6": {
+        "description": "Part 2 - VoltageLevel:CHALOP6 - Actions curatives :\n- Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'\n- Ouverture OC 'CHALO6TR633 DJ_OC' dans le poste 'CHALOP6'\n- Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'\n",
+        "description_unitaire": "Ouverture OC 'CHALO6TR633 DJ_OC' dans le poste 'CHALOP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY633": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP6"
+    },
+    "6e0cde42-fe88-436f-911d-5a4807396f3b_N.GEOP3": {
+        "description": "Part 1 - VoltageLevel:N.GEOP3 - Actions curatives :\n- Ouverture OC 'N.GEO3GEVRE.2 DJ_OC' dans le poste 'N.GEOP3'\n- Ouverture OC 'COUCH6VIELM.1 DJ_OC' dans le poste 'COUCHP6'\n",
+        "description_unitaire": "Ouverture OC 'N.GEO3GEVRE.2 DJ_OC' dans le poste 'N.GEOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "GEVREL32N.GEO": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "N.GEOP3"
+    },
+    "6e0cde42-fe88-436f-911d-5a4807396f3b_COUCHP6": {
+        "description": "Part 2 - VoltageLevel:COUCHP6 - Actions curatives :\n- Ouverture OC 'N.GEO3GEVRE.2 DJ_OC' dans le poste 'N.GEOP3'\n- Ouverture OC 'COUCH6VIELM.1 DJ_OC' dans le poste 'COUCHP6'\n",
+        "description_unitaire": "Ouverture OC 'COUCH6VIELM.1 DJ_OC' dans le poste 'COUCHP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "COUCHL61VIELM": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "COUCHP6"
+    },
+    "106a8bae-e761-41d5-9903-d363c85955e0": {
+        "description": "Actions curatives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\n\nVariante: Actions pr\u00e9ventives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\nActions curatives :\n- Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n\nVariante: Actions pr\u00e9ventives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\nActions curatives :\n- Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'DARCE6ZC.SE.1 DJ_OC' dans le poste 'DARCEP6'\n\nVariante: Actions pr\u00e9ventives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\nActions curatives :\n- Ouverture OC 'IZERN3TR631 DJ_OC' dans le poste 'IZERNP3'\n",
+        "description_unitaire": "Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY632": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "00441fd1-2eff-4fee-aef8-f20000d4a74e_GROSNP6": {
+        "description": "Part 2 - VoltageLevel:GROSNP6 - Actions curatives :\n- Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'GROSN6AT761 DJ_OC' dans le poste 'GROSNP6'\n",
+        "description_unitaire": "Ouverture OC 'GROSN6AT761 DJ_OC' dans le poste 'GROSNP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "GROSNY761": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GROSNP6"
+    },
+    "d0fcc3e6-8b33-4ed2-837d-13f3d1be5387_GROSNP6": {
+        "description": "Part 2 - VoltageLevel:GROSNP6 - Actions curatives :\n- Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'GROSN6AT761 DJ_OC' dans le poste 'GROSNP6'\n- Ouverture OC 'GROSN6CHALO.2 DJ_OC' dans le poste 'GROSNP6'\n",
+        "description_unitaire": "Ouverture OC 'GROSN6AT761 DJ_OC' dans le poste 'GROSNP6'\n- Ouverture OC 'GROSN6CHALO.2 DJ_OC' dans le poste 'GROSNP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOL62GROSN": -1,
+                    "GROSNY761": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GROSNP6"
+    },
+    "b1a3225d-b06a-4c09-8890-9c8d6061d1db_C.FOUP3": {
+        "description": "Part 1 - VoltageLevel:C.FOUP3 - Actions curatives :\n- Ouverture OC 'C.FOU3MERVA.1 DJ_OC' dans le poste 'C.FOUP3'\n- Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'\n",
+        "description_unitaire": "Ouverture OC 'C.FOU3MERVA.1 DJ_OC' dans le poste 'C.FOUP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.FOUL31MERVA": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "C.FOUP3"
+    },
+    "ea03851c-b924-4346-9fb4-732738792a7c": {
+        "description": "Actions curatives :\n- Ouverture OC 'COUCH3TR631 DJ_OC' dans le poste 'COUCHP3'\n",
+        "description_unitaire": "Ouverture OC 'COUCH3TR631 DJ_OC' dans le poste 'COUCHP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "COUCHY631": -1
+                },
+                "shunts_id": {},
+                "loads_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "COUCHP3"
+    },
+    "f4205550-e5d9-4d85-bcdd-504c3d8992b4": {
+        "description": "Actions curatives :\n- Ouverture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+        "description_unitaire": "Ouverture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "C.SAUP3"
+    },
+    "8ce1b409-b39c-46e7-98c7-e22d9af731b9": {
+        "description": "Actions curatives :\n- Fermeture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+        "description_unitaire": "Fermeture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": 1
+                },
+                "lines_ex_id": {
+                    "C.SAUL31MAGNY": 1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 5224,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 52.45506576965558,
+        "VoltageLevelId": "C.SAUP3"
+    },
+    "72c06d1d-2002-4e34-8167-0a7fa465ec6e": {
+        "description": "Actions curatives :\n- Ouverture OC 'C.SAU3ZCRIM.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+        "description_unitaire": "Ouverture OC 'C.SAU3ZCRIM.1 DJ_OC' dans le poste 'C.SAUP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31ZCRIM": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "C.SAUP3"
+    },
+    "de95be91-2c60-49ef-902b-eebbf037d7cb": {
+        "description": "Actions curatives :\n- Fermeture OC 'COUCH3TR631 DJ_OC' dans le poste 'COUCHP3'\n",
+        "description_unitaire": "Fermeture OC 'COUCH3TR631 DJ_OC' dans le poste 'COUCHP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "COUCHY631": 1
+                },
+                "lines_ex_id": {
+                    "COUCHY631": 1
+                },
+                "shunts_id": {},
+                "loads_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 4640,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 46.591023195099915,
+        "VoltageLevelId": "COUCHP3"
+    },
+    "13088870-68b8-4c44-b15f-30b751eecd0e": {
+        "description": "Actions curatives :\n- Ouverture OC 'VOUGL3TR632 DJ_OC' dans le poste 'VOUGLP3'\n- Ouverture OC 'CHANC3ZMOUX.1 DJ_OC' dans le poste 'CHANCP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'VOUGL3TR632 DJ_OC' dans le poste 'VOUGLP3'\n",
+        "description_unitaire": "Ouverture OC 'VOUGL3TR632 DJ_OC' dans le poste 'VOUGLP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VOUGLY632": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VOUGLP3"
+    },
+    "4265e4c1-edb6-48f9-a8db-1503c37ee0d9_PYMONP3": {
+        "description": "Part 2 - VoltageLevel:PYMONP3 - Actions curatives :\n- Ouverture OC 'SAISS3PYMON.1 DJ_OC' dans le poste 'SAISSP3'\n- Ouverture OC 'PYMON3LOUHA.1 DJ_OC' dans le poste 'PYMONP3'\n",
+        "description_unitaire": "Ouverture OC 'PYMON3LOUHA.1 DJ_OC' dans le poste 'PYMONP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "LOUHAL31PYMON": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "PYMONP3"
+    },
+    "1d230803-d3cd-4654-804b-5048b3169a98": {
+        "description": "Actions curatives :\n- Ouverture OC 'COUCH3TR632 DJ_OC' dans le poste 'COUCHP3'\n",
+        "description_unitaire": "Ouverture OC 'COUCH3TR632 DJ_OC' dans le poste 'COUCHP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "shunts_id": {},
+                "loads_id": {
+                    "COUCH3TR312": -1
+                },
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "COUCHP3"
+    },
+    "01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6": {
+        "description": "Part 2 - VoltageLevel:VIELMP6 - Actions curatives :\n- Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'\n- Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n",
+        "description_unitaire": "Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY762": -1,
+                    "VIELMY763": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP6"
+    },
+    "842297ff-6031-403a-94d0-1b67bcbc9c7a": {
+        "description": "Actions curatives :\n- Ouverture OC 'VIELM3TR635 DJ_OC' dans le poste 'VIELMP3'\n",
+        "description_unitaire": "Ouverture OC 'VIELM3TR635 DJ_OC' dans le poste 'VIELMP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY635": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP3"
+    },
+    "17a97d1d-032b-4d62-8681-76d943b25f41_COUCHP6": {
+        "description": "Part 2 - VoltageLevel:COUCHP6 - Actions curatives :\n- Ouverture OC 'C.REG3TR633 DJ_OC' dans le poste 'C.REGP3'\n- Ouverture OC 'COUCH6CPVAN.1 DJ_OC' dans le poste 'COUCHP6'\n",
+        "description_unitaire": "Ouverture OC 'COUCH6CPVAN.1 DJ_OC' dans le poste 'COUCHP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "COUCHL61CPVAN": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "COUCHP6"
+    },
+    "a17357f8-028a-485f-ad45-25b851c48266": {
+        "description": "Actions curatives :\n- Ouverture OC 'VIELM6AT761 DJ_OC' dans le poste 'VIELMP6'\n",
+        "description_unitaire": "Ouverture OC 'VIELM6AT761 DJ_OC' dans le poste 'VIELMP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VIELMY761": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP6"
+    },
+    "e857097e-eab3-48be-870d-93c4dc968402_CHALOP3": {
+        "description": "Part 1 - VoltageLevel:CHALOP3 - Actions curatives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n",
+        "description_unitaire": "Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY632": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "e857097e-eab3-48be-870d-93c4dc968402_CPVANP6": {
+        "description": "Part 2 - VoltageLevel:CPVANP6 - Actions curatives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n",
+        "description_unitaire": "Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL61PYMON": 2,
+                    "CPVANL61TAVAU": 1,
+                    "CPVANL61ZMAGN": 2,
+                    "CPVANY631": 2,
+                    "CPVANY632": 1,
+                    "CPVANY633": 1
+                },
+                "lines_ex_id": {
+                    "CHALOL61CPVAN": 1,
+                    "COUCHL61CPVAN": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 1582,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 15.885129029018977,
+        "VoltageLevelId": "CPVANP6"
+    },
+    "7a26cdec-15b8-4e98-a695-bf9cd379cbf3": {
+        "description": "Actions curatives :\n- Ouverture OC 'PYMON3COUPL DJ_OC' dans le poste 'PYMONP3'\n",
+        "description_unitaire": "Ouverture OC 'PYMON3COUPL DJ_OC' dans le poste 'PYMONP3' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "PYMONL31SAISS": 1
+                },
+                "lines_ex_id": {
+                    "LOUHAL31PYMON": 2,
+                    "PYMONY631": 2,
+                    "PYMONY632": 1
+                },
+                "loads_id": {
+                    "L.SAUL31PYMON": 1,
+                    "L.SAUL32PYMON": 2,
+                    "L.SAUL33PYMON": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 2425,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 24.34983432071493,
+        "VoltageLevelId": "PYMONP3"
+    },
+    "f2679b48-fd0c-48cc-b700-6de11b663b8a_CPVANP6": {
+        "description": "Part 2 - VoltageLevel:CPVANP6 - Actions curatives :\n- Ouverture OC 'GEN.P7COUPL.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P7CREYS.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'AMBER3HAUT6.1 DJ_OC' dans le poste 'AMBERP3'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'CPVAN6PYMON.1 DJ_OC' dans le poste 'CPVANP6'\n- Ouverture OC 'SSAGA3ZSSAG.1 DJ.HT_OC' dans le poste 'SSAGAP3'\n- Ouverture OC 'SSAGA3ZSSA5.2 DJ.HT_OC' dans le poste 'SSAGAP3'\n",
+        "description_unitaire": "Ouverture OC 'CPVAN6PYMON.1 DJ_OC' dans le poste 'CPVANP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL61PYMON": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CPVANP6"
+    },
+    "0ff779bb-dc95-41c0-ba46-ad07f2a8630c_CHALOP3": {
+        "description": "Part 1 - VoltageLevel:CHALOP3 - Actions curatives :\n- Ouverture OC 'GEN.P7COUPL.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P7CREYS.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'AMBER3HAUT6.1 DJ_OC' dans le poste 'AMBERP3'\n- Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n",
+        "description_unitaire": "Ouverture OC 'CHALO3LOUHA.1 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOL31LOUHA": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "eb94f3a8-67af-4ab3-a182-23a58789a2dc": {
+        "description": "Actions curatives :\n- Ouverture OC 'VOUGL3TR632 DJ_OC' dans le poste 'VOUGLP3'\n- Ouverture OC 'VOUGL3TR631 DJ_OC' dans le poste 'VOUGLP3'\n",
+        "description_unitaire": "Ouverture OC 'VOUGL3TR632 DJ_OC' dans le poste 'VOUGLP3'\n- Ouverture OC 'VOUGL3TR631 DJ_OC' dans le poste 'VOUGLP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "VOUGLY631": -1,
+                    "VOUGLY632": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VOUGLP3"
+    },
+    "eb4f1d7f-a79f-41e8-8611-a9fe8fcaaeb3": {
+        "description": "Actions curatives :\n- Ouverture OC 'VIELM3B.ROC.1 DJ_OC' dans le poste 'VIELMP3'\n",
+        "description_unitaire": "Ouverture OC 'VIELM3B.ROC.1 DJ_OC' dans le poste 'VIELMP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "B.ROCL31VIELM": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP3"
+    },
+    "5d0ff706-a47f-4ee5-8d33-ec90b5d4fbad_CHALOP3": {
+        "description": "Part 2 - VoltageLevel:CHALOP3 - Actions curatives :\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n- Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'\n",
+        "description_unitaire": "Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "a4fcf5eb-1e45-4103-9ab3-d8739eab0de2": {
+        "description": "Actions curatives :\n- Ouverture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6COUPL.A DJ_OC' dans le poste 'GEN.PP6'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6COUPL.A DJ_OC' dans le poste 'GEN.PP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GEN.PL61IZERN": 1,
+                    "GEN.PL61VOUGL": 1,
+                    "GEN.PL62GENIS": 2,
+                    "GEN.PL63GENIS": 2,
+                    "GEN.PL64GENIS": 1,
+                    "GEN.PL65GENIS": 2,
+                    "GEN.PL66GENIS": 1
+                },
+                "lines_ex_id": {
+                    "BOISSL61GEN.P": 2,
+                    "GEN.PY761": 1,
+                    "GEN.PY762": 1
+                },
+                "loads_id": {
+                    ".VERBL61GEN.P": 1,
+                    ".VERBL62GEN.P": 1,
+                    "ARLODL61GEN.P": 1,
+                    "CHAV6L61GEN.P": 2,
+                    "CORNIL62GEN.P": 2,
+                    "GEN.PL61SERRI": 2,
+                    "GEN.PL61ZCRUS": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 681,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 6.838035947384276,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "c83223cf-a723-4fa3-88e0-21ae19595333": {
+        "description": "Actions curatives :\n- Ouverture OC 'GEN.P6CHAV6.1 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'MIONS6SSV.E.1 DJ_OC' dans le poste 'MIONSP6'\n- Ouverture OC 'MALGO6COUPL DJ_OC' dans le poste 'MALGOP6'\n- Ouverture OC 'S.BIS   7G4       DJ.HT' dans le poste 'S.BISP7'\n- Ouverture OC 'S.BIS   7G3       DJ.HT' dans le poste 'S.BISP7'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'S.BIS1GROUPE2 DJ_OC' dans le poste 'S.BISP7'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6CHAV6.1 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6AT762 DJ_OC' dans le poste 'GEN.PP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "GEN.PY762": -1
+                },
+                "loads_id": {
+                    "CHAV6L61GEN.P": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "eee7f6f7-68fa-4522-a63e-c913274b2b74": {
+        "description": "Actions curatives :\n- Fermeture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'\n",
+        "description_unitaire": "Fermeture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GROSNY762": 1
+                },
+                "lines_ex_id": {
+                    "GROSNY762": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 6218,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 62.4359875489507,
+        "VoltageLevelId": "GROSNP6"
+    },
+    "7df42528-9e37-41f2-9111-eecaf1b242a6_LOUHAP3": {
+        "description": "Part 1 - VoltageLevel:LOUHAP3 - Actions curatives :\n- Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'\n- Ouverture OC 'PYMON3SAISS.1 DJ_OC' dans le poste 'PYMONP3'\n- Ouverture OC 'MACON3TR632 DJ_OC' dans le poste 'MACONP3'\n- Ouverture OC 'PYMON6VOUGL.1 DJ_OC' dans le poste 'PYMONP6'\n",
+        "description_unitaire": "Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "FRON5L31LOUHA": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "LOUHAP3"
+    },
+    "7df42528-9e37-41f2-9111-eecaf1b242a6_PYMONP3": {
+        "description": "Part 2 - VoltageLevel:PYMONP3 - Actions curatives :\n- Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'\n- Ouverture OC 'PYMON3SAISS.1 DJ_OC' dans le poste 'PYMONP3'\n- Ouverture OC 'MACON3TR632 DJ_OC' dans le poste 'MACONP3'\n- Ouverture OC 'PYMON6VOUGL.1 DJ_OC' dans le poste 'PYMONP6'\n",
+        "description_unitaire": "Ouverture OC 'PYMON3SAISS.1 DJ_OC' dans le poste 'PYMONP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "PYMONL31SAISS": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "PYMONP3"
+    },
+    "7df42528-9e37-41f2-9111-eecaf1b242a6_PYMONP6": {
+        "description": "Part 3 - VoltageLevel:PYMONP6 - Actions curatives :\n- Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'\n- Ouverture OC 'PYMON3SAISS.1 DJ_OC' dans le poste 'PYMONP3'\n- Ouverture OC 'MACON3TR632 DJ_OC' dans le poste 'MACONP3'\n- Ouverture OC 'PYMON6VOUGL.1 DJ_OC' dans le poste 'PYMONP6'\n",
+        "description_unitaire": "Ouverture OC 'PYMON6VOUGL.1 DJ_OC' dans le poste 'PYMONP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "PYMONL61VOUGL": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "PYMONP6"
+    },
+    "dea6513a-a617-41b4-89c2-04fce0258768_PYMONP3": {
+        "description": "Part 1 - VoltageLevel:PYMONP3 - Actions curatives :\n- Ouverture OC 'PYMON3TR631 DJ_OC' dans le poste 'PYMONP3'\n- Ouverture OC 'LOUHA3SSUSU.1 DJ_OC' dans le poste 'LOUHAP3'\n",
+        "description_unitaire": "Ouverture OC 'PYMON3TR631 DJ_OC' dans le poste 'PYMONP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "PYMONY631": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "PYMONP3"
+    },
+    "dea6513a-a617-41b4-89c2-04fce0258768_LOUHAP3": {
+        "description": "Part 2 - VoltageLevel:LOUHAP3 - Actions curatives :\n- Ouverture OC 'PYMON3TR631 DJ_OC' dans le poste 'PYMONP3'\n- Ouverture OC 'LOUHA3SSUSU.1 DJ_OC' dans le poste 'LOUHAP3'\n",
+        "description_unitaire": "Ouverture OC 'LOUHA3SSUSU.1 DJ_OC' dans le poste 'LOUHAP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "LOUHAL31SSUSU": -1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "LOUHAP3"
+    },
+    "45275a87-4096-4632-9a31-127fdb03d9e2": {
+        "description": "Actions curatives :\n- Ouverture OC 'SSAMO6CUS.P.1 DJ_OC' dans le poste 'SSAMOP6'\n- Ouverture OC 'MACON6GROSN.1 DJ_OC' dans le poste 'MACONP6'\n",
+        "description_unitaire": "Ouverture OC 'MACON6GROSN.1 DJ_OC' dans le poste 'MACONP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "GROSNL61MACON": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "MACONP6"
+    },
+    "5e41ee90-d8cc-4900-800a-ebb8fe30bd20": {
+        "description": "Actions curatives :\n- Ouverture OC 'PYMON6COUPL DJ_OC' dans le poste 'PYMONP6'\n",
+        "description_unitaire": "Ouverture OC 'PYMON6COUPL DJ_OC' dans le poste 'PYMONP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "PYMONL61VOUGL": 1,
+                    "PYMONY631": 1,
+                    "PYMONY632": 2
+                },
+                "lines_ex_id": {
+                    "CPVANL61PYMON": 2
+                },
+                "loads_id": {
+                    "PYMON6TR613.C": 2,
+                    "PYMON6TR613.F": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 1328,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 13.33467215583894,
+        "VoltageLevelId": "PYMONP6"
+    },
+    "623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b": {
+        "description": "Actions curatives :\n- Ouverture OC 'CPVAN3TR631 DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'\n",
+        "description_unitaire": "Ouverture OC 'CPVAN3TR631 DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CPVANY631": -1,
+                    "CPVANY632": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CPVANP3"
+    },
+    "256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6": {
+        "description": "Part 1 - VoltageLevel:VOUGLP6 - Actions curatives :\n- Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6'\n- Ouverture OC 'VIELM7GEN.P.3 DJ_OC' dans le poste 'VIELMP7'\n- Ouverture OC 'MACON6COUPL DJ_OC' dans le poste 'MACONP6'\n",
+        "description_unitaire": "Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "VOUGLY611": 1,
+                    "VOUGLY612": 2,
+                    "VOUGLY631": 2,
+                    "VOUGLY632": 1
+                },
+                "lines_ex_id": {
+                    "FLEYRL61VOUGL": 1,
+                    "GEN.PL61VOUGL": 2,
+                    "PYMONL61VOUGL": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 618,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 6.20544231348529,
+        "VoltageLevelId": "VOUGLP6"
+    },
+    "256668ce-2a62-46c0-ba88-8001837b497f_MACONP6": {
+        "description": "Part 2 - VoltageLevel:MACONP6 - Actions curatives :\n- Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6'\n- Ouverture OC 'VIELM7GEN.P.3 DJ_OC' dans le poste 'VIELMP7'\n- Ouverture OC 'MACON6COUPL DJ_OC' dans le poste 'MACONP6'\n",
+        "description_unitaire": "Ouverture OC 'MACON6COUPL DJ_OC' dans le poste 'MACONP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "MACONL61ZJOUX": 2
+                },
+                "lines_ex_id": {
+                    "GROSNL61MACON": 1
+                },
+                "loads_id": {
+                    "MACON6TR611": 2,
+                    "MACONY631": 2,
+                    "MACONY632": 1,
+                    "MACONY633": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 618,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 6.20544231348529,
+        "VoltageLevelId": "MACONP6"
+    },
+    "427f8e78-62e6-4252-8bb5-f5bff7216eb2": {
+        "description": "Actions pr\u00e9ventives :\n- Ouverture OC 'VIELM3VERRE.1 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'VIELM3VERRE.2 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'MAROL3ZBASI.1 DJ_OC' dans le poste 'MAROLP3'\nActions curatives :\n- Ouverture OC 'REVIG6COUPL DJ_OC' dans le poste 'REVIGP6'\n",
+        "description_unitaire": "Ouverture OC 'VIELM3VERRE.1 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'VIELM3VERRE.2 DJ_OC' dans le poste 'VIELMP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "VERREL32VIELM": -1,
+                    "VERREL31VIELM": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "VIELMP3"
+    },
+    "7fb5aef8-56b2-4efa-9c72-3a9dd789c8e2": {
+        "description": "Actions curatives :\n- Modification conso CERN7 CLIENT :\n  * Actif cibl\u00e9 : 70.0 MW\n- Ouverture OC 'GEN.P7VIELM.1 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P7VIELM.3 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P7CREYS.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'GEN.P6CORNI.2 DJ_OC' dans le poste 'GEN.PP6'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6CORNI.2 DJ_OC' dans le poste 'GEN.PP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "CORNIL62GEN.P": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "e22a4410-377e-4766-8f79-965dee1c644e": {
+        "description": "Actions curatives :\n- Ouverture OC 'CPVAN3ZBRE6.1 DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'ARBOI3CPVAN.1 DJ_OC' dans le poste 'ARBOIP3'\n- Ouverture OC 'CPVAN3MESNA.1 DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'FRASN7AT761 DJ_OC' dans le poste 'FRASNP7'\n",
+        "description_unitaire": "Ouverture OC 'CPVAN3ZBRE6.1 DJ_OC' dans le poste 'CPVANP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "CPVANL31ZBRE6": -1
+                },
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CPVANP3"
+    },
+    "520f39f3-08f2-40c5-b7de-ef39df38ce23": {
+        "description": "Actions curatives :\n- Ouverture OC 'MACON6TR632 DJ_OC' dans le poste 'MACONP6'\n- Ouverture OC 'H.PAU7AT762 DJ_OC' dans le poste 'H.PAUP7'\n\nVariante: Actions curatives :\n- Ouverture OC 'MACON6TR632 DJ_OC' dans le poste 'MACONP6'\n- Ouverture OC 'GROSN7AT762 DJ_OC' dans le poste 'GROSNP7'\n",
+        "description_unitaire": "Ouverture OC 'MACON6TR632 DJ_OC' dans le poste 'MACONP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "MACONY632": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "MACONP6"
+    },
+    "45f03f2e-eb41-4eb1-9032-56c0d36b18c0": {
+        "description": "Actions curatives :\n- Fermeture OC 'LOUHA3CHALO.1 DJ_OC' dans le poste 'LOUHAP3'\n",
+        "description_unitaire": "Fermeture OC 'LOUHA3CHALO.1 DJ_OC' dans le poste 'LOUHAP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOL31LOUHA": 1
+                },
+                "lines_ex_id": {
+                    "CHALOL31LOUHA": 1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 5295,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 53.16798875389095,
+        "VoltageLevelId": "LOUHAP3"
+    },
+    "17f1470c-b017-4de0-8ab0-04ae464ea600": {
+        "description": "Actions curatives :\n- Fermeture OC 'CPNOL3ARBOI.1 DJ_OC' dans le poste 'CPNOLP3'\n- Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'\n",
+        "description_unitaire": "Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CPVANY632": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CPVANP3"
+    },
+    "db848308-8580-4f16-a433-c54ae3cf208c": {
+        "description": "Actions curatives :\n- Fermeture OC 'SSVIT3R.NE5.1 DJ_OC' dans le poste 'SSVITP3'\n- Ouverture OC 'CPVAN3TR631 DJ_OC' dans le poste 'CPVANP3'\n",
+        "description_unitaire": "Ouverture OC 'CPVAN3TR631 DJ_OC' dans le poste 'CPVANP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CPVANY631": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CPVANP3"
+    },
+    "cb77fdd0-05d7-4ef9-ab25-46936a16b4da_PYMONP6": {
+        "description": "Part 1 - VoltageLevel:PYMONP6 - Actions curatives :\n- Ouverture OC 'GEN.P7CREYS.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'CORNI7M.LAN.1 DJ_OC' dans le poste 'CORNIP7'\n- Ouverture OC 'ALBER6CHAV6.1 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'PYMON6CPVAN.1 DJ_OC' dans le poste 'PYMONP6'\n- Ouverture OC 'C.FOU3MERVA.1 DJ_OC' dans le poste 'C.FOUP3'\n- Ouverture OC 'MALGO6COUPL DJ_OC' dans le poste 'MALGOP6'\n- Ouverture OC 'GEN.P6ZCRUS.1 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'CORNI6GEN.P.2 DJ_OC' dans le poste 'CORNIP6'\n- Fermeture OC 'ALBER7COUPL.A DJ_OC' dans le poste 'ALBERP7'\n",
+        "description_unitaire": "Ouverture OC 'PYMON6CPVAN.1 DJ_OC' dans le poste 'PYMONP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "CPVANL61PYMON": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "PYMONP6"
+    },
+    "cb77fdd0-05d7-4ef9-ab25-46936a16b4da_GEN.PP6": {
+        "description": "Part 3 - VoltageLevel:GEN.PP6 - Actions curatives :\n- Ouverture OC 'GEN.P7CREYS.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'CORNI7M.LAN.1 DJ_OC' dans le poste 'CORNIP7'\n- Ouverture OC 'ALBER6CHAV6.1 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'PYMON6CPVAN.1 DJ_OC' dans le poste 'PYMONP6'\n- Ouverture OC 'C.FOU3MERVA.1 DJ_OC' dans le poste 'C.FOUP3'\n- Ouverture OC 'MALGO6COUPL DJ_OC' dans le poste 'MALGOP6'\n- Ouverture OC 'GEN.P6ZCRUS.1 DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'CORNI6GEN.P.2 DJ_OC' dans le poste 'CORNIP6'\n- Fermeture OC 'ALBER7COUPL.A DJ_OC' dans le poste 'ALBERP7'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6ZCRUS.1 DJ_OC' dans le poste 'GEN.PP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {},
+                "loads_id": {
+                    "GEN.PL61ZCRUS": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "142f9394-9d45-4b0b-9017-21768a04f1ea_VOUGLP6": {
+        "description": "Part 2 - VoltageLevel:VOUGLP6 - Actions curatives :\n- Ouverture OC 'GEN.P6AT761 DJ_OC' dans le poste 'GEN.PP6'\n- Fermeture OC 'ALBER6AT762 DJ_OC' dans le poste 'ALBERP6'\n- Ouverture OC 'GEN.P7COUPL.2 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6'\n- Ouverture OC 'CORNI6COUPL.1 DJ_OC' dans le poste 'CORNIP6'\n",
+        "description_unitaire": "Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6' avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "VOUGLY612": 1,
+                    "VOUGLY631": 1,
+                    "VOUGLY632": 2
+                },
+                "lines_ex_id": {
+                    "FLEYRL61VOUGL": 2,
+                    "GEN.PL61VOUGL": 1,
+                    "PYMONL61VOUGL": 2
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 966,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 9.699769053117784,
+        "VoltageLevelId": "VOUGLP6"
+    },
+    "466bde62-0d1f-4bc5-abfd-f12bcdc9b7b1": {
+        "description": "Actions curatives :\n- Ouverture OC 'MTAGN3BXNE5.1 DJ_OC' dans le poste 'MTAGNP3'\n",
+        "description_unitaire": "Actions curatives :\n- Ouverture OC 'MTAGN3BXNE5.1 DJ_OC' dans le poste 'MTAGNP3'\n",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {},
+                "lines_ex_id": {
+                    "BXNE5L31MTAGN": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "MTAGNP3"
+    },
+    "9514fa13-6261-41ae-9b1a-a55a11170ae9": {
+        "description": "Actions curatives :\n- Fermeture OC 'C.SAU3ZCRIM.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+        "description_unitaire": "Actions curatives :\n- Fermeture OC 'C.SAU3ZCRIM.1 DJ_OC' dans le poste 'C.SAUP3'(reconnection sur noeuds 1 aux 2 postes extremites)\n",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31ZCRIM": 1
+                },
+                "lines_ex_id": {
+                    "C.SAUL31ZCRIM": 1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "C.SAUP3"
+    },
+    "36e6a547-35f7-4848-95ae-f285f7d91eb1": {
+        "description": "Actions curatives :\n- Fermeture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'\n",
+        "description_unitaire": "Actions curatives :\n- Fermeture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3' (reconnection sur noeuds 1 aux 2 postes extremites)\n",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY633": 1
+                },
+                "lines_ex_id": {
+                    "CHALOY633": 1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 9959,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 100.0,
+        "VoltageLevelId": "CHALOP3"
+    },
+    "180c19aa-762d-4d6f-a74c-4fd5432aa5d1": {
+        "description": "Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'PALEN3ZGENE.1 DJ_OC' dans le poste 'PALENP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPNOL6GEN.P.1 DJ_OC' dans le poste 'CPNOLP6'\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'FRASN6AT761 DJ_OC' dans le poste 'FRASNP6'\n- Ouverture OC 'GY   3ZGENE.1 DJ_OC' dans le poste 'GY   P3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'GY   3ZGENE.1 DJ_OC' dans le poste 'GY   P3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPNOL3ARBOI.1 DJ_OC' dans le poste 'CPNOLP3'\n",
+        "description_unitaire": "Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n avec possible requinconcage preventif",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL31RIBAU": 2
+                },
+                "lines_ex_id": {
+                    "BEON L31CPVAN": 2,
+                    "CPVANY631": 2,
+                    "CPVANY632": 1,
+                    "CPVANY633": 2
+                },
+                "loads_id": {
+                    "ARBOIL31CPVAN": 1,
+                    "BREVAL31CPVAN": 2,
+                    "CPDIVL32CPVAN": 2,
+                    "CPVANL31MESNA": 1,
+                    "CPVANL31ZBRE6": 1,
+                    "CPVAN3TR312": 1,
+                    "CPVAN3TR311": 2
+                },
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "occurrence_count": 2,
+        "total_occurrences": 9959,
+        "occurrence_percentage": 0.02008233758409479,
+        "VoltageLevelId": "CPVANP3"
+    }
+}

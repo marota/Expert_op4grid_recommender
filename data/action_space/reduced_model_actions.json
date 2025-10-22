@@ -1,0 +1,1038 @@
+{
+  "fb2a0db8-20cf-4ef7-940d-22dc59de7d9a": {
+    "description": "Actions curatives :\n- Fermeture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'SIERE7COUPL DJ_OC' dans le poste 'SIEREP7'\n- Ouverture OC 'MARL67VIGY.1 DJ_OC' dans le poste 'MARL6P7'\n- Fermeture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n",
+    "description_unitaire": "Fermeture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "VIELMY762": 1
+        },
+        "lines_ex_id": {
+          "VIELMY762": 1
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 5141,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 51.62164875991565,
+    "VoltageLevelId": "VIELMP6",
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhMBoCIyUEGJE8isxGEh5STAAKXAAD"
+  },
+  "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+    "description": "Actions curatives :\n- Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'GEN.P7CREYS.1 DJ_OC' dans le poste 'GEN.PP7'\n- Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'\n",
+    "description_unitaire": "Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CHALOY631": -1
+        },
+        "lines_ex_id": {
+          "CHALOY631": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "CHALOP3",
+    "encoding": "eAFjYBgFoyFAOAT+AwE2VbjEsakdFRsNgdEQGA2B0RAYDQFqhwAAa0AH+Q=="
+  },
+  "01c3d31d-ad19-489f-b668-011b797a0ab1": {
+    "description": "Actions curatives :\n- Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'\n",
+    "description_unitaire": "Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "GROSNY762": -1
+        },
+        "lines_ex_id": {
+          "GROSNY762": -1
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "GROSNP6",
+    "encoding": "eAFjYBgFoyEwGgKjITD4Q+A/EMBcicyGiY3SoyEwGgIjMwQAjgQH+Q=="
+  },
+  "8d4d2a13-7dfe-4fb4-a788-4524568634a0": {
+    "description": "Actions curatives :\n- Ouverture OC 'LOUHA3CHALO.1 DJ_OC' dans le poste 'LOUHAP3'\n",
+    "description_unitaire": "Ouverture OC 'LOUHA3CHALO.1 DJ_OC' dans le poste 'LOUHAP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CHALOL31LOUHA": -1
+        },
+        "lines_ex_id": {
+          "CHALOL31LOUHA": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "LOUHAP3",
+    "encoding": "eAFjYBgFoyGAOwT+AwFu2VGZ0RAYeSEwmidGXpyP+nhwhwAAxjwH+Q=="
+  },
+  "a707a8e3-1aa2-42a4-8652-32e11cc212c2": {
+    "description": "Actions curatives :\n- Fermeture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'\n",
+    "description_unitaire": "Fermeture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CHALOY631": 1
+        },
+        "lines_ex_id": {
+          "CHALOY631": 1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 3576,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 35.907219600361486,
+    "VoltageLevelId": "CHALOP3",
+    "encoding": "eAFjYBgFoyFAOAQYcSjBJY5D+ajwaAiMhsBoCIyGwGgIUDUEABXwAAM="
+  },
+  "9874592b-f131-4525-bca1-97c508c15d64": {
+    "description": "Actions curatives :\n- Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'\n",
+    "description_unitaire": "Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CHALOY633": -1
+        },
+        "lines_ex_id": {
+          "CHALOY633": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "CHALOP3",
+    "encoding": "eAFjYBgFoyFAfAj8BwJsqnGJY1M7KjYaAqMhMBoCoyEwGgLUCgEAK4AH+Q=="
+  },
+  "443eb893-09f7-4fd6-b5d6-f7aeafd6b3ad": {
+    "description": "Actions curatives :\n- Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'\n",
+    "description_unitaire": "Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "FRON5L31LOUHA": -1
+        },
+        "lines_ex_id": {
+          "FRON5L31LOUHA": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "LOUHAP3",
+    "encoding": "eAFjYBgFoyEwGgL0CoH/QEAvu0btoV0IjMYj7cJ21OTRECA1BAB7QQf5"
+  },
+  "6e0cde42-fe88-436f-911d-5a4807396f3b_N.GEOP3": {
+    "description": "Part 1 - VoltageLevel:N.GEOP3 - Actions curatives :\n- Ouverture OC 'N.GEO3GEVRE.2 DJ_OC' dans le poste 'N.GEOP3'\n- Ouverture OC 'COUCH6VIELM.1 DJ_OC' dans le poste 'COUCHP6'\n",
+    "description_unitaire": "Ouverture OC 'N.GEO3GEVRE.2 DJ_OC' dans le poste 'N.GEOP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "GEVREL32N.GEO": -1
+        },
+        "lines_ex_id": {
+          "GEVREL32N.GEO": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "N.GEOP3",
+    "encoding": "eAFjYBgFoyEwGgKjITCwIfAfCAbWBaO2j8bBaBoYqiEAANJ5B/k="
+  },
+  "6e0cde42-fe88-436f-911d-5a4807396f3b_COUCHP6": {
+    "description": "Part 2 - VoltageLevel:COUCHP6 - Actions curatives :\n- Ouverture OC 'N.GEO3GEVRE.2 DJ_OC' dans le poste 'N.GEOP3'\n- Ouverture OC 'COUCH6VIELM.1 DJ_OC' dans le poste 'COUCHP6'\n",
+    "description_unitaire": "Ouverture OC 'COUCH6VIELM.1 DJ_OC' dans le poste 'COUCHP6'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "COUCHL61VIELM": -1
+        },
+        "lines_ex_id": {
+          "COUCHL61VIELM": -1
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "COUCHP6",
+    "encoding": "eAFjYBgFoyEwdELgPxAMHdeOunQ0BEZDYDQEBk8IDNfyEwCiqQf5"
+  },
+  "106a8bae-e761-41d5-9903-d363c85955e0": {
+    "description": "Actions curatives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\n\nVariante: Actions préventives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\nActions curatives :\n- Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n\nVariante: Actions préventives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\nActions curatives :\n- Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'DARCE6ZC.SE.1 DJ_OC' dans le poste 'DARCEP6'\n\nVariante: Actions préventives :\n- Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'\nActions curatives :\n- Ouverture OC 'IZERN3TR631 DJ_OC' dans le poste 'IZERNP3'\n",
+    "description_unitaire": "Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CHALOY632": -1
+        },
+        "lines_ex_id": {
+          "CHALOY632": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "CHALOP3",
+    "encoding": "eAFjYBgFoyFAXAj8BwJsKnGJY1M7KjYaAqMhMBoCoyEwGgLUDAEAS2AH+Q=="
+  },
+  "f4205550-e5d9-4d85-bcdd-504c3d8992b4": {
+    "description": "Actions curatives :\n- Ouverture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+    "description_unitaire": " Ouverture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "C.SAUL31MAGNY": -1
+        },
+        "lines_ex_id": {
+          "C.SAUL31MAGNY": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "C.SAUP3",
+    "encoding": "eAFjYBgFwykE/gPBcPLPqF9GQ2CkhsBoXh6pMT/qb1JDAABmnAf5"
+  },
+  "8ce1b409-b39c-46e7-98c7-e22d9af731b9": {
+    "description": "Actions curatives :\n- Fermeture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+    "description_unitaire": " Fermeture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "C.SAUL31MAGNY": 1
+        },
+        "lines_ex_id": {
+          "C.SAUL31MAGNY": 1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 5224,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 52.45506576965558,
+    "VoltageLevelId": "C.SAUP3",
+    "encoding": "eAFjYBgFwykEGIeTZ0b9MhoCIzgERvPyCI78Ua+TFAIAEuwAAw=="
+  },
+  "01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6": {
+    "description": "Part 2 - VoltageLevel:VIELMP6 - Actions curatives :\n- Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'\n- Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'\n",
+    "description_unitaire": " Ouverture OC 'VIELM6AT763 DJ_OC' dans le poste 'VIELMP6'\n- Ouverture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "VIELMY762": -1,
+          "VIELMY763": -1
+        },
+        "lines_ex_id": {
+          "VIELMY762": -1,
+          "VIELMY763": -1
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "VIELMP6",
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhMBoCIyUE/kMByL/I7KHqfwBlFA/x"
+  },
+  "eee7f6f7-68fa-4522-a63e-c913274b2b74": {
+    "description": "Actions curatives :\n- Fermeture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'\n",
+    "description_unitaire": " Fermeture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "GROSNY762": 1
+        },
+        "lines_ex_id": {
+          "GROSNY762": 1
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 6218,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 62.4359875489507,
+    "VoltageLevelId": "GROSNP6",
+    "encoding": "eAFjYBgFoyEwGgKjITD4Q4ARyYnIbCThUeZoCIyGwAgMAQAQ9AAD"
+  },
+  "623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b": {
+    "description": "Actions curatives :\n- Ouverture OC 'CPVAN3TR631 DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'\n",
+    "description_unitaire": " Ouverture OC 'CPVAN3TR631 DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CPVANY631": -1,
+          "CPVANY632": -1
+        },
+        "lines_ex_id": {
+          "CPVANY631": -1,
+          "CPVANY632": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "CPVANP3",
+    "encoding": "eAFjYBgFoyEwfEPgPxSg+xCXOLq6Uf5oCIyGwGgIjIbA4A4BADizD/E="
+  },
+  "17f1470c-b017-4de0-8ab0-04ae464ea600": {
+    "description": "Actions curatives :\n- Fermeture OC 'CPNOL3ARBOI.1 DJ_OC' dans le poste 'CPNOLP3'\n- Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'\n",
+    "description_unitaire": " Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CPVANY632": -1
+        },
+        "lines_ex_id": {
+          "CPVANY632": -1
+        },
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "CPVANP3",
+    "encoding": "eAFjYBgFoyEwvEPgPxBg8yEucWxqR8VGQ2A0BEZDYDQEBmcIAACQxgf5"
+  },
+  "466bde62-0d1f-4bc5-abfd-f12bcdc9b7b1": {
+    "description": "Actions curatives :\n- Ouverture OC 'MTAGN3BXNE5.1 DJ_OC' dans le poste 'MTAGNP3'\n",
+    "description_unitaire": "Actions curatives :\n- Ouverture OC 'MTAGN3BXNE5.1 DJ_OC' dans le poste 'MTAGNP3'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "BXNE5L31MTAGN": -1
+        },
+        "lines_ex_id": {
+          "BXNE5L31MTAGN": -1
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "MTAGNP3",
+    "encoding": "eAFjYBgF1A6B/0BAbTNHzRsNgdEQGA0BSkJgtFyiJPRG9Q7mEAAAFfsH+Q=="
+  },
+  "9514fa13-6261-41ae-9b1a-a55a11170ae9": {
+    "description": "Actions curatives :\n- Fermeture OC 'C.SAU3ZCRIM.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+    "description_unitaire": "Actions curatives :\n- Fermeture OC 'C.SAU3ZCRIM.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "C.SAUL31ZCRIM": 1
+        },
+        "lines_ex_id": {},
+        "loads_id": {},
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 9959,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 100.0,
+    "VoltageLevelId": "C.SAUP3",
+    "encoding": "eAFjYBgFwy0EGIebh0b9MxoCoyEwGgKjITAaAjhCAAAPvAAC"
+  },
+  "180c19aa-762d-4d6f-a74c-4fd5432aa5d1": {
+    "description": "Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'PALEN3ZGENE.1 DJ_OC' dans le poste 'PALENP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPNOL6GEN.P.1 DJ_OC' dans le poste 'CPNOLP6'\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'FRASN6AT761 DJ_OC' dans le poste 'FRASNP6'\n- Ouverture OC 'GY   3ZGENE.1 DJ_OC' dans le poste 'GY   P3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'GY   3ZGENE.1 DJ_OC' dans le poste 'GY   P3'\n\nVariante: Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPNOL3ARBOI.1 DJ_OC' dans le poste 'CPNOLP3'\n",
+    "description_unitaire": "Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CPVANL31RIBAU": 2
+        },
+        "lines_ex_id": {
+          "BEON L31CPVAN": 2,
+          "CPVANY631": 2,
+          "CPVANY632": 1,
+          "CPVANY633": 2
+        },
+        "loads_id": {
+          "ARBOIL31CPVAN": 1,
+          "BREVAL31CPVAN": 2,
+          "CPDIVL32CPVAN": 2,
+          "CPVANL31MESNA": 1,
+          "CPVANL31ZBRE6": 1,
+          "CPVAN3TR312": 1,
+          "CPVAN3TR311": 2
+        },
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 2,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.02008233758409479,
+    "VoltageLevelId": "CPVANP3",
+    "encoding": "eAFjYBgFoyEwNEOAEehsJiQM4sMwujiIPwpGQ2A0BEZDYDQEhl8IAAB6AAAU"
+  },
+  "466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8": {
+    "description": "Part 2 - VoltageLevel:C.REGP6 - Actions curatives :\n- Ouverture OC 'VIELM3B.ROC.2 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "C.REGL61VIELM": 1,
+          "C.REGL61ZMAGN": 2,
+          "C.REGY631": 1,
+          "C.REGY633": 2
+        },
+        "lines_ex_id": {},
+        "loads_id": {
+          "C.REG6TR615": 1,
+          "C.REG6TR614": 2,
+          "C.REG6TR613": 2
+        },
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 8,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.08032935033637915,
+    "VoltageLevelId": "C.REGP6",
+    "description_unitaire": "Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'",
+    "encoding": "eAFjYBgFQyEEmICOBGFGKAaxQQDEh7HBAqPEaAiMhsBoCIyGwGgIjKAQAABWnAAM"
+  },
+  "466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23": {
+    "description": "Part 2 - VoltageLevel:C.REGP6 - Actions curatives :\n- Ouverture OC 'VIELM3B.ROC.2 DJ_OC' dans le poste 'VIELMP3'\n- Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "C.REGL61ZMAGN": 1,
+          "C.REGL62VIELM": 1,
+          "C.REGY631": 2
+        },
+        "lines_ex_id": {},
+        "loads_id": {
+          "C.REG6TR615": 2,
+          "C.REG6TR614": 1,
+          "C.REG6TR613": 1
+        },
+        "shunts_id": {},
+        "generators_id": {}
+      }
+    },
+    "occurrence_count": 23,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.23094688221709006,
+    "VoltageLevelId": "C.REGP6",
+    "description_unitaire": "Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'",
+    "encoding": "eAFjYBgFQyEEGIGOBGEmqGPR+UPBD6NuHA2B0RAYDYHREBgNAWqHAABBYAAJ"
+  },
+  "463179d8-be4e-4293-b42c-b53db763272b_variant_203": {
+    "description": "Actions curatives :\n- Ouverture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6TRO.2AB DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'SSAL53ZC.BA.1 DJ_OC' dans le poste 'SSAL5P3'\n- Ouverture OC 'SERRI3CULOZ.1 DJ_OC' dans le poste 'SERRIP3'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "GEN.PL61GENIS": 1,
+          "GEN.PL61IZERN": 1,
+          "GEN.PL61VOUGL": 2,
+          "GEN.PL62GENIS": 1,
+          "GEN.PL64GENIS": 2,
+          "GEN.PL65GENIS": 1,
+          "GEN.PL66GENIS": 1
+        },
+        "lines_ex_id": {
+          "BOISSL61GEN.P": 1,
+          "GEN.PY761": 2
+        },
+        "loads_id": {
+          ".VERBL62GEN.P": 2,
+          "ARLODL61GEN.P": 2,
+          "CHAV6L61GEN.P": 1,
+          "CORNIL62GEN.P": 1,
+          "GEN.PL61SERRI": 1,
+          "GEN.PL61ZCRUS": 1
+        },
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 203,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 2.038357264785621,
+    "VoltageLevelId": "GEN.PP6",
+    "description_unitaire": "Ouverture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6TRO.2AB DJ_OC' dans le poste 'GEN.PP6'\n",
+    "encoding": "eAFjYBgFoyEwGgKDMQSYgI4CYUYoBrkRxobRMHmQHIyNLAcSHwWjITAaAqMhMJxDAABtvAAV"
+  },
+  "3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75": {
+    "description": "Part 1 - VoltageLevel:CPVANP6 - Actions curatives :\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n- Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CPVANL61PYMON": 1,
+          "CPVANL61TAVAU": 2,
+          "CPVANL61ZMAGN": 1,
+          "CPVANY631": 1,
+          "CPVANY632": 2,
+          "CPVANY633": 2
+        },
+        "lines_ex_id": {
+          "COUCHL61CPVAN": 2
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 75,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.7530876594035546,
+    "VoltageLevelId": "CPVANP6",
+    "description_unitaire": "Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'",
+    "encoding": "eAFjYBgFoyEwMkKAEehNJiAG0TA2iA8CMBrCGyVHQ2A0BEZDYDQEhkoIAABIoAAM"
+  },
+  "3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42": {
+    "description": "Part 2 - VoltageLevel:VIELMP6 - Actions curatives :\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n- Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "VIELMY634": 1,
+          "VIELMY635": 2
+        },
+        "lines_ex_id": {
+          "C.REGL61VIELM": 2,
+          "C.REGL62VIELM": 1,
+          "COUCHL61VIELM": 2,
+          "VIELMY761": 1,
+          "VIELMY763": 1
+        },
+        "loads_id": {
+          "DARCEL61VIELM": 2,
+          "SARRYL61VIELM": 1
+        },
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 42,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.42172908926599056,
+    "VoltageLevelId": "VIELMP6",
+    "description_unitaire": "Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'",
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhMBoCwyEEmICeYIRiEBvGB/kNmQ1SM1wAABRUAA4="
+  },
+  "3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40": {
+    "description": "Part 2 - VoltageLevel:VIELMP6 - Actions curatives :\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n- Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "VIELMY634": 2,
+          "VIELMY635": 1
+        },
+        "lines_ex_id": {
+          "C.REGL61VIELM": 1,
+          "COMMUL61VIELM": 2,
+          "COUCHL61VIELM": 1,
+          "VIELMY761": 2,
+          "VIELMY762": 1,
+          "VIELMY763": 2
+        },
+        "loads_id": {
+          "DARCEL61VIELM": 1,
+          "SARRYL61VIELM": 2
+        },
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 40,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.40164675168189573,
+    "VoltageLevelId": "VIELMP6",
+    "description_unitaire": "Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'",
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhMBoCwyEEGIGeYIJiEBuEQQAkBpOD0WCJYUAAABXgABA="
+  },
+  "3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18": {
+    "description": "Part 1 - VoltageLevel:CPVANP6 - Actions curatives :\n- Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'\n- Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CPVANL61PYMON": 1,
+          "CPVANL61TAVAU": 2,
+          "CPVANL61ZMAGN": 1,
+          "CPVANY631": 1,
+          "CPVANY632": 2,
+          "CPVANY633": 2
+        },
+        "lines_ex_id": {
+          "CHALOL61CPVAN": 2
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 18,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.18074103825685311,
+    "VoltageLevelId": "CPVANP6",
+    "description_unitaire": "Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'",
+    "encoding": "eAFjYBgFoyEwMkKAEehNJiAG0TA2iA/Co2A0BEZDYDQERkNgaIYAAEioAAw="
+  },
+  "f344b395-9908-43c2-bca0-75c5f298465e_variant_190": {
+    "description": "Actions curatives :\n- Ouverture OC 'COUCH6COUPL DJ_OC' dans le poste 'COUCHP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "COUCHL61VIELM": 2,
+          "COUCHY631": 1
+        },
+        "lines_ex_id": {},
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 190,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 1.907822070489005,
+    "VoltageLevelId": "COUCHP6",
+    "description_unitaire": "Ouverture OC 'COUCH6COUPL DJ_OC' dans le poste 'COUCHP6'",
+    "encoding": "eAFjYBgFoyEwdEKACehUxqHj3FGXjobAaAiMhsBoCNA4BAAbDAAE"
+  },
+  "f344b395-9908-43c2-bca0-75c5f298465e_variant_18": {
+    "description": "Actions curatives :\n- Ouverture OC 'COUCH6COUPL DJ_OC' dans le poste 'COUCHP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "COUCHL61VIELM": 1,
+          "COUCHY631": 2,
+          "COUCHY632": 1
+        },
+        "lines_ex_id": {},
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 18,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.18074103825685311,
+    "VoltageLevelId": "COUCHP6",
+    "description_unitaire": "Ouverture OC 'COUCH6COUPL DJ_OC' dans le poste 'COUCHP6'",
+    "encoding": "eAFjYBgFoyEwdEKAEehUJiAG0aNgNARGQ2A0BEZDYDQEACEYAAU="
+  },
+  "6ba7e0a3-2c1a-4dd5-b85c-5cf83d8c0358_variant_53": {
+    "description": "Actions curatives :\n- Ouverture OC 'TABAR7COUPL.B DJ_OC' dans le poste 'TABARP7'\n- Ouverture OC 'TABAR7COUPL.A DJ_OC' dans le poste 'TABARP7'\n- Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'\n\nVariante: Actions curatives :\n- Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "GROSNL61GUEUG": 2,
+          "GROSNL61MACON": 1,
+          "GROSNL61ZCUR5": 2
+        },
+        "lines_ex_id": {
+          "CHALOL61GROSN": 2,
+          "CHALOL62GROSN": 2,
+          "CURTIL61GROSN": 1,
+          "GROSNY761": 2,
+          "GROSNY762": 1
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 53,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.5321819459785119,
+    "VoltageLevelId": "GROSNP6",
+    "description_unitaire": "Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'",
+    "encoding": "eAFjYBgFoyEwGgKjITA4QoAJ6AxGIAbRMAzjg+hRMBoCoyEwGgLoIQAAPvQADg=="
+  },
+  "7a26cdec-15b8-4e98-a695-bf9cd379cbf3_variant_10": {
+    "description": "Actions curatives :\n- Ouverture OC 'PYMON3COUPL DJ_OC' dans le poste 'PYMONP3'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "PYMONL31SAISS": 1
+        },
+        "lines_ex_id": {
+          "LOUHAL31PYMON": 2,
+          "PYMONY632": 1
+        },
+        "loads_id": {
+          "L.SAUL31PYMON": 1,
+          "L.SAUL32PYMON": 2,
+          "L.SAUL33PYMON": 1
+        },
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 10,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.10041168792047393,
+    "VoltageLevelId": "PYMONP3",
+    "description_unitaire": " Ouverture OC 'PYMON3COUPL DJ_OC' dans le poste 'PYMONP3'",
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhQN8QYARaxwTEIBrGBrkAxB4FoyFASggAABrUAAk="
+  },
+  "5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52": {
+    "description": "Actions curatives :\n- Ouverture OC 'PYMON6COUPL DJ_OC' dans le poste 'PYMONP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "PYMONL61VOUGL": 2,
+          "PYMONY632": 1
+        },
+        "lines_ex_id": {
+          "CPVANL61PYMON": 1
+        },
+        "loads_id": {
+          "PYMON6TR613.C": 1,
+          "PYMON6TR613.F": 1
+        },
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 52,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.5221407771864645,
+    "VoltageLevelId": "PYMONP6",
+    "description_unitaire": " Ouverture OC 'PYMON6COUPL DJ_OC' dans le poste 'PYMONP6'",
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhMHhCgBHoFBCGASYoA10cJj9Kj+wQAAAVkAAH"
+  },
+  "256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6": {
+    "description": "Part 1 - VoltageLevel:VOUGLP6 - Actions curatives :\n- Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6'\n- Ouverture OC 'VIELM7GEN.P.3 DJ_OC' dans le poste 'VIELMP7'\n- Ouverture OC 'MACON6COUPL DJ_OC' dans le poste 'MACONP6'\n",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "VOUGLY612": 1,
+          "VOUGLY631": 1,
+          "VOUGLY632": 2
+        },
+        "lines_ex_id": {
+          "GEN.PL61VOUGL": 1,
+          "PYMONL61VOUGL": 2
+        },
+        "loads_id": {},
+        "generators_id": {},
+        "shunts_id": {}
+      }
+    },
+    "occurrence_count": 6,
+    "total_occurrences": 9959,
+    "occurrence_percentage": 0.06024701275228436,
+    "VoltageLevelId": "VOUGLP6",
+    "description_unitaire": " Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6'",
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhMBoCoyFA3xBgBFoHwkxQa5HZpLgEAAp0AAg="
+  },
+  "reco_AUXONL31RIBAU": {
+    "description": "reconnection de l'ouvrage AUXONL31RIBAU aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "AUXONL31RIBAU": 1
+        },
+        "lines_ex_id": {
+          "AUXONL31RIBAU": 1
+        }
+      }
+    },
+    "encoding": "eAFjYKAeYKSeUaMmjYbAaAiMhsBoCIyGAM4QGK1vcAbNiJMAABNQAAM="
+  },
+  "disco_BEON L31CPVAN": {
+    "description": "deconnection de l'ouvrage BEON L31CPVAN",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "BEON L31CPVAN": -1
+        },
+        "lines_ex_id": {
+          "BEON L31CPVAN": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgY8B8IBsbmUVtHSgiMprGREtOj/hwNgdEQGMkhAAC3LAf5"
+  },
+  "reco_BOISSL61GEN.P": {
+    "description": "reconnection de l'ouvrage BOISSL61GEN.P aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "BOISSL61GEN.P": 1
+        },
+        "lines_ex_id": {
+          "BOISSL61GEN.P": 1
+        }
+      }
+    },
+    "encoding": "eAFjYBhegHF4eWfUN6MhQFYIjOYDsoJtVNNoCIyGwBAMAQAVsAAD"
+  },
+  "reco_BXNE5L31VOSNE": {
+    "description": "reconnection de l'ouvrage BXNE5L31VOSNE aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "BXNE5L31VOSNE": 1
+        },
+        "lines_ex_id": {
+          "BXNE5L31VOSNE": 1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFtAgBRloYOmrmaAiMhsBoCIyGwGgIDHAIDLb6DQAQyAAD"
+  },
+  "disco_C.FOUL31NAVIL": {
+    "description": "deconnection de l'ouvrage C.FOUL31NAVIL",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "C.FOUL31NAVIL": -1
+        },
+        "lines_ex_id": {
+          "C.FOUL31NAVIL": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFAxEC/4FgIOwdtXM0BEZDYDQEqBkCo2UZNUNz1CxyQgAAJ80H+Q=="
+  },
+  "reco_COLLOL31GENLI": {
+    "description": "reconnection de l'ouvrage COLLOL31GENLI aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "COLLOL31GENLI": 1
+        },
+        "lines_ex_id": {
+          "COLLOL31GENLI": 1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyFAuxBgpJ3RoyYP4RAYTRdDOPJGnT4aAoMsBAATgAAD"
+  },
+  "disco_CORGOL32N.GEO": {
+    "description": "deconnection de l'ouvrage CORGOL32N.GEO",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CORGOL32N.GEO": -1
+        },
+        "lines_ex_id": {
+          "CORGOL32N.GEO": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyEw8CHwHwgG3hWjLhgNgZEZAqP5b2TG+3DxNQDa4Qf5"
+  },
+  "disco_CPVANL61ZMAGN": {
+    "description": "deconnection de l'ouvrage CPVANL61ZMAGN",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CPVANL61ZMAGN": -1
+        },
+        "lines_ex_id": {
+          "CPVANL61ZMAGN": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyEwskLgPxCMLB+P+nY0BEZDYDQEhl8IwMpyAFa9B/k="
+  },
+  "reco_GEVREL32N.GEO": {
+    "description": "reconnection de l'ouvrage GEVREL32N.GEO aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "GEVREL32N.GEO": 1
+        },
+        "lines_ex_id": {
+          "GEVREL32N.GEO": 1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyEwGgKjITCwIcA4sNaP2g4MgdE4GE0GQzUEAA/EAAM="
+  },
+  "reco_LOUHAL31PYMON": {
+    "description": "reconnection de l'ouvrage LOUHAL31PYMON aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "LOUHAL31PYMON": 1
+        },
+        "lines_ex_id": {
+          "LOUHAL31PYMON": 1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyEwGgKjITAaAoRCgJGQglF5ikJgNHwpCr4RrRkADqAAAw=="
+  },
+  "reco_LOUHAL31SSUSU": {
+    "description": "reconnection de l'ouvrage LOUHAL31SSUSU aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "LOUHAL31SSUSU": 1
+        },
+        "lines_ex_id": {
+          "LOUHAL31SSUSU": 1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyEwGgKjITAaAsSEACMxikbVDLkQGI3XIRdlKA4GAA4gAAM="
+  },
+  "disco_NAVILL31P.SAO": {
+    "description": "deconnection de l'ouvrage NAVILL31P.SAO",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "NAVILL31P.SAO": -1
+        },
+        "lines_ex_id": {
+          "NAVILL31P.SAO": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhQHoI/AcCbLpwiWNTOyo2GgKUhgAAyhEH+Q=="
+  },
+  "reco_P.SAOL31RONCI": {
+    "description": "reconnection de l'ouvrage P.SAOL31RONCI aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "P.SAOL31RONCI": 1
+        },
+        "lines_ex_id": {
+          "P.SAOL31RONCI": 1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhQHkIMFJuBNVNGIxuoronR7iBAA0kAAM="
+  },
+  "disco_BXNE5L32MTAGN": {
+    "description": "deconnection de l'ouvrage BXNE5L32MTAGN",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "BXNE5L32MTAGN": -1
+        },
+        "lines_ex_id": {
+          "BXNE5L32MTAGN": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFtAyB/0BAS/NHzR4NgdEQGA0BYkNgtDwiNqRG1Q2lEAAA1iwH+Q=="
+  },
+  "disco_BXNE5L32CORGO": {
+    "description": "deconnection de l'ouvrage BXNE5L32CORGO",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "BXNE5L32CORGO": -1
+        },
+        "lines_ex_id": {
+          "BXNE5L32CORGO": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFtAqB/0BAK7OHo7mj4TUcY3XUT6MhMBoCoyFA2xAAAGleB/k="
+  },
+  "disco_VIELMY634": {
+    "description": "deconnection de l'ouvrage VIELMY634",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "VIELMY634": -1
+        },
+        "lines_ex_id": {
+          "VIELMY634": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyEwGgKjITAaAqMhMBoCQzkE/gMBsvvR+chyw40NAJWdB/k="
+  },
+  "disco_C.REGY631": {
+    "description": "deconnection de l'ouvrage C.REGY631",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "C.REGY631": -1
+        },
+        "lines_ex_id": {
+          "C.REGY631": -1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFgzkE/gMBPvcRksend1RuNARGQ2A0BEZDYDQEhnoIAACHXAf5"
+  },
+  "reco_CHALOY632": {
+    "description": "reconnection de l'ouvrage CHALOY632 aux noeuds 1 a chaque extremite",
+    "content": {
+      "set_bus": {
+        "lines_or_id": {
+          "CHALOY632": 1
+        },
+        "lines_ex_id": {
+          "CHALOY632": 1
+        }
+      }
+    },
+    "encoding": "eAFjYBgFoyFAXAgw4lCGSxyH8lHh0RAYDYHREBgNgdEQoFoIAAAV6AAD"
+  }
+}
