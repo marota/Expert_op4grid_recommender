@@ -32,7 +32,7 @@ from expert_op4grid_recommender.graph_analysis.processor import (
     pre_process_graph_alphadeesp
 )
 from expert_op4grid_recommender.graph_analysis.visualization import make_overflow_graph_visualization, get_graph_file_name
-from expert_op4grid_recommender.action_evaluation.rules import categorize_action_space
+from expert_op4grid_recommender.action_evaluation.rules import ActionRuleValidator
 from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
 
 # --- Define Default Values ---
@@ -153,9 +153,22 @@ def main():
         g_distribution_graph, obs, lines_overloaded_ids, lines_overloaded_ids_kept
     )
 
-    actions_to_filter, actions_unfiltered = categorize_action_space(
-        dict_action, hubs, ((lines_blue_paths, nodes_blue_path), (lines_dispatch, nodes_dispatch_path)),
-        obs, current_timestep, current_lines_defaut, env.action_space, lines_overloaded_ids, maintenance_to_reco_at_t,
+    # Instantiate the validator with context
+    validator = ActionRuleValidator(
+        obs=obs,
+        action_space=env.action_space,
+        hubs=hubs,
+        paths=((lines_blue_paths, nodes_blue_path), (lines_dispatch, nodes_dispatch_path)),
+        by_description=config.CHECK_WITH_ACTION_DESCRIPTION  # Get from config
+    )
+
+    # Call the categorization method, passing simulation context
+    actions_to_filter, actions_unfiltered = validator.categorize_actions(
+        dict_action=dict_action,
+        timestep=current_timestep,
+        defauts=current_lines_defaut,
+        overload_ids=lines_overloaded_ids,
+        lines_reco_maintenance=maintenance_to_reco_at_t,
         lines_we_care_about=lines_we_care_about
     )
 
