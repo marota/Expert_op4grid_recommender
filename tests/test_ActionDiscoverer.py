@@ -128,6 +128,7 @@ class MockDistributionGraph:
     def get_constrained_edges_nodes(self): return [], [], [], []
 
 from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
+from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 ## Section 3: ActionDiscoverer Internal Method Tests ##
 # These tests now use an instance of ActionDiscoverer
 
@@ -138,7 +139,7 @@ def basic_discoverer():
     mock_env = MockEnv(name_line=mock_obs.name_line, name_sub=mock_obs.name_sub)
     mock_g_overflow = MockOverflowGraph(edge_data={ (0, 1): {0:{"name":"L1"}}, (1, 2): {0:{"name":"L2"}} }) # Edges A-B, B-C
     mock_g_dist = MockDistributionGraph()
-    return ActionDiscoverer( env=mock_env, obs=mock_obs, obs_defaut=mock_obs, timestep=0, lines_defaut=[], lines_overloaded_ids=[], act_reco_maintenance=MockActionObject(), non_connected_reconnectable_lines=[], all_disconnected_lines=[], dict_action={}, actions_unfiltered=set(), hubs=[], g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist, simulator_data={})
+    return ActionDiscoverer( env=mock_env, obs=mock_obs,classifier=ActionClassifier(MockActionSpace()), obs_defaut=mock_obs, timestep=0, lines_defaut=[], lines_overloaded_ids=[], act_reco_maintenance=MockActionObject(), non_connected_reconnectable_lines=[], all_disconnected_lines=[], dict_action={}, actions_unfiltered=set(), hubs=[], g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist, simulator_data={})
 
 def test_internal_is_sublist(basic_discoverer):
     assert basic_discoverer._is_sublist(["B", "C"], ["A", "B", "C", "D"]) is True
@@ -221,7 +222,8 @@ def discoverer_instance(monkeypatch):
     mock_g_overflow = MockOverflowGraph()
     mock_g_dist = MockDistributionGraph()
 
-    discoverer = ActionDiscoverer( env=mock_env, obs=mock_obs, obs_defaut=mock_obs, timestep=0, lines_defaut=[], lines_overloaded_ids=[0], act_reco_maintenance=MockActionObject(), non_connected_reconnectable_lines=["L1"], all_disconnected_lines=[],
+    discoverer = ActionDiscoverer( env=mock_env, obs=mock_obs, obs_defaut=mock_obs,classifier=ActionClassifier(MockActionSpace()),
+                                   timestep=0, lines_defaut=[], lines_overloaded_ids=[0], act_reco_maintenance=MockActionObject(), non_connected_reconnectable_lines=["L1"], all_disconnected_lines=[],
                                    dict_action={
                                        "reco_L1": {
                                            "type": "close_line",
