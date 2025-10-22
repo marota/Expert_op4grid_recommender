@@ -32,6 +32,7 @@ from expert_op4grid_recommender.graph_analysis.processor import (
     pre_process_graph_alphadeesp
 )
 from expert_op4grid_recommender.graph_analysis.visualization import make_overflow_graph_visualization, get_graph_file_name
+from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from expert_op4grid_recommender.action_evaluation.rules import ActionRuleValidator
 from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
 
@@ -88,6 +89,9 @@ def main():
     #       For now, assuming it uses the date passed to get_env_first_obs correctly.
     #       Let's modify setup_environment_configs to accept the date.
     env, obs, path_chronic, chronic_name, custom_layout, dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment_configs(analysis_date) # Pass date here
+
+    # --- Instantiate Classifier ---
+    classifier = ActionClassifier(grid2op_action_space=env.action_space)
 
     act_reco_maintenance, maintenance_to_reco_at_t = get_maintenance_timestep(
         current_timestep, lines_non_reconnectable, env, config.DO_RECO_MAINTENANCE
@@ -157,6 +161,7 @@ def main():
     validator = ActionRuleValidator(
         obs=obs,
         action_space=env.action_space,
+        classifier=classifier,
         hubs=hubs,
         paths=((lines_blue_paths, nodes_blue_path), (lines_dispatch, nodes_dispatch_path)),
         by_description=config.CHECK_WITH_ACTION_DESCRIPTION  # Get from config
@@ -186,6 +191,7 @@ def main():
         lines_defaut=current_lines_defaut,
         lines_overloaded_ids=lines_overloaded_ids,
         act_reco_maintenance=act_reco_maintenance,
+        classifier=classifier,
         non_connected_reconnectable_lines=non_connected_reconnectable_lines,
         all_disconnected_lines=lines_non_reconnectable + non_connected_reconnectable_lines,
         dict_action=dict_action,

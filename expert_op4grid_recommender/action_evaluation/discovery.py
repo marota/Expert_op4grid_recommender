@@ -14,7 +14,7 @@ import numpy as np
 from alphaDeesp.core.alphadeesp import AlphaDeesp_warmStart
 from expert_op4grid_recommender.utils.simulation import check_rho_reduction, create_default_action
 from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, sort_actions_by_score, add_prioritized_actions
-from .classifier import identify_action_type
+from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph # For type hinting
 
@@ -78,13 +78,14 @@ class ActionDiscoverer:
                  lines_defaut: List[str],
                  lines_overloaded_ids: List[int],
                  act_reco_maintenance: Any,
+                 classifier: ActionClassifier,  # Accept classifier instance
                  non_connected_reconnectable_lines: List[str],
                  all_disconnected_lines: List[str],
                  dict_action: Dict,
                  actions_unfiltered: Set[str],
-                 hubs: List[str], # Should be names
-                 g_overflow: OverFlowGraph, # Processed graph (integer nodes)
-                 g_distribution_graph: Structured_Overload_Distribution_Graph, # Processed graph
+                 hubs: List[str],
+                 g_overflow: OverFlowGraph,
+                 g_distribution_graph: Structured_Overload_Distribution_Graph,
                  simulator_data: Dict,
                  check_action_simulation: bool = True,
                  lines_we_care_about: Optional[List[str]] = None):
@@ -99,6 +100,7 @@ class ActionDiscoverer:
             lines_defaut: Lines defining the initial contingency.
             lines_overloaded_ids: Indices of overloaded lines.
             act_reco_maintenance: Action for maintenance reconnections.
+            classifier: An initialized ActionClassifier instance. # Added classifier
             non_connected_reconnectable_lines: Allowed lines for reconnection.
             all_disconnected_lines: All currently disconnected lines.
             dict_action: Dictionary of candidate action descriptions.
@@ -118,6 +120,7 @@ class ActionDiscoverer:
         self.lines_defaut = lines_defaut
         self.lines_overloaded_ids = lines_overloaded_ids
         self.act_reco_maintenance = act_reco_maintenance
+        self.classifier = classifier  # Store the classifier instance
         self.non_connected_reconnectable_lines = non_connected_reconnectable_lines
         self.all_disconnected_lines = all_disconnected_lines
         self.dict_action = dict_action
@@ -129,7 +132,7 @@ class ActionDiscoverer:
         self.check_action_simulation = check_action_simulation
         self.lines_we_care_about = lines_we_care_about
 
-        # Initialize results holders
+        # Initialize results holders (remain the same)
         self.identified_reconnections = {}
         self.effective_reconnections = []
         self.ineffective_reconnections = []
@@ -309,7 +312,7 @@ class ActionDiscoverer:
         print(f"Evaluating {len(self.actions_unfiltered)} potential disconnections...")
         for action_id in self.actions_unfiltered:
             action_desc = self.dict_action[action_id]
-            action_type = identify_action_type(action_desc, by_description=True, grid2op_action_space=self.action_space)
+            action_type = self.classifier.identify_action_type(action_desc, by_description=True)
 
             if "open_line" in action_type:
                 content = action_desc.get("content", {}).get("set_bus", {})
@@ -384,7 +387,9 @@ class ActionDiscoverer:
             if action_id not in self.actions_unfiltered:
                  ignored_actions.append(action_desc)
                  continue
-            action_type=identify_action_type(action_desc, by_description=True, grid2op_action_space=self.action_space)
+
+            action_type = self.classifier.identify_action_type(action_desc, by_description=True)
+
             if "open_coupling" in action_type:
                 action = self.action_space(action_desc["content"])
                 #_, subs_impacted_bool = action.get_topological_impact()

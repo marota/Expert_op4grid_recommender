@@ -12,7 +12,7 @@
 import numpy as np
 from expert_op4grid_recommender.utils.data_utils import StateInfo
 from expert_op4grid_recommender.utils.load_training_data import aux_prevent_asset_reconnection
-from expert_op4grid_recommender.action_evaluation.classifier import identify_action_type
+from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier #identify_action_type
 from expert_op4grid_recommender.utils.simulation import check_rho_reduction, create_default_action
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 
@@ -24,11 +24,12 @@ class ActionRuleValidator:
     and provides methods to apply filtering rules to a set of candidate actions.
     The main method is `categorize_actions`, which iterates through actions,
     verifies them against rules, and optionally simulates filtered actions to
-    check for potential effectiveness.
+    check for potential effectiveness. It uses an ActionClassifier instance to determine action types.
 
     Attributes:
         obs (Any): The Grid2Op observation object for the current state.
         action_space (Callable): The Grid2Op action space object.
+        classifier (ActionClassifier): An initialized ActionClassifier instance.
         hubs (List[str]): List of critical hub substation names.
         lines_constrained_path (List[str]): Lines on the constrained path.
         nodes_constrained_path (List[str]): Nodes on the constrained path.
@@ -36,10 +37,10 @@ class ActionRuleValidator:
         nodes_dispatch_path (List[str]): Nodes on dispatch paths.
         by_description (bool): Flag indicating how to identify action types.
     """
-
     def __init__(self,
-                 obs: Any, # grid2op.Observation or similar mock
+                 obs: Any,  # grid2op.Observation or similar mock
                  action_space: Callable,
+                 classifier: ActionClassifier,  # Accept classifier instance
                  hubs: List[str],
                  paths: Tuple[Tuple[List[str], List[str]], Tuple[List[str], List[str]]],
                  by_description: bool = True):
@@ -47,20 +48,20 @@ class ActionRuleValidator:
         Initializes the ActionRuleValidator.
 
         Args:
-            obs: The Grid2Op observation object representing the current grid state.
+            obs: The Grid2Op observation object.
             action_space: The Grid2Op action space object.
-            hubs: List of substation names identified as critical hubs.
-            paths: A tuple containing two tuples representing critical paths:
-                   `((lines_constrained, nodes_constrained), (lines_dispatch, nodes_dispatch))`.
-            by_description: Flag passed to `identify_action_type`. Defaults to True.
+            classifier: An initialized ActionClassifier instance.
+            hubs: List of critical hub substation names.
+            paths: Tuple containing constrained and dispatch paths.
+            by_description: Flag passed to the classifier's identify_action_type.
         """
         self.obs = obs
         self.action_space = action_space
+        self.classifier = classifier  # Store the classifier instance
         self.hubs = hubs
-        # Unpack path information for easier access
         self.lines_constrained_path, self.nodes_constrained_path = paths[0]
         self.lines_dispatch, self.nodes_dispatch_path = paths[1]
-        self.by_description = by_description
+        self.by_description = by_description  # Store preference for classifier
 
     def localize_line_action(self, lines: List[str]) -> str:
         """
@@ -147,7 +148,7 @@ class ActionRuleValidator:
         Returns:
             Tuple (do_filter_action, broken_rule).
         """
-        action_type = identify_action_type(action_desc, self.by_description, self.action_space)
+        action_type = self.classifier.identify_action_type(action_desc, self.by_description)
 
         do_filter_action = False
         broken_rule = None
