@@ -51,6 +51,7 @@ def get_env_first_obs(env_folder, env_name, use_evaluation_config, date, is_DC=F
         if is_DC:
             env_params = env.parameters
             env_params.ENV_DC = True
+            # WARNING: the switch to DC does not seem to be working for now with pypowsybl2grid, for instance COUCHL31VOSNE, TIMESTEP = 18, datetime(2024, 11, 27)
             env = make_grid2op_assistant_env(env_folder, env_name, params=env_params)
     else:
         env = make_grid2op_training_env(env_folder, env_name)

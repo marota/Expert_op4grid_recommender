@@ -24,7 +24,7 @@ from expert_op4grid_recommender import config
 # Import the specific defaults needed for argparse
 from expert_op4grid_recommender.config import DATE as DEFAULT_DATE, TIMESTEP as DEFAULT_TIMESTEP, LINES_DEFAUT as DEFAULT_LINES_DEFAUT
 
-from expert_op4grid_recommender.environment import setup_environment_configs, switch_to_dc_load_flow
+from expert_op4grid_recommender.environment import setup_environment_configs, switch_to_dc_load_flow, get_env_first_obs
 # The incorrect import from data_loader has been removed from here
 from expert_op4grid_recommender.utils.simulation import simulate_contingency, check_simu_overloads, create_default_action
 from expert_op4grid_recommender.utils.helpers import get_maintenance_timestep, print_filtered_out_action, save_data_for_test
@@ -179,6 +179,11 @@ def main():
     # Pre-process graph for AlphaDeesp
     g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_graph_alphadeesp(g_overflow, overflow_sim, node_name_mapping)
 
+    if use_dc:
+        print("Warning: you have used the DC load flow, so results are more approximate")
+        env, obs, path_chronic = get_env_first_obs(config.ENV_FOLDER, config.ENV_NAME, config.USE_EVALUATION_CONFIG,
+                                                   analysis_date)
+
     # Instantiate the discoverer with all necessary context
     discoverer = ActionDiscoverer(
         env=env,
@@ -210,14 +215,20 @@ def main():
 
     #reassess the prioritized actions
     act_defaut = create_default_action(env.action_space, current_lines_defaut)
+
     for action_id, action  in prioritized_actions.items():
+
         print(f"{action_id}")
-        #print(action)
+        if action_id in dict_action:
+            action_desc=dict_action[action_id]
+            if "description_unitaire" in action_desc:
+                print(action_desc["description_unitaire"])
 
         is_rho_reduction, _ = check_rho_reduction(
             obs, current_timestep, act_defaut, action, lines_overloaded_ids,
             act_reco_maintenance, lines_we_care_about
         )
+    ###################
 
 
 if __name__ == "__main__":
