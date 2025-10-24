@@ -280,7 +280,7 @@ class ActionDiscoverer:
             # Iterate using original descending score order from sort_actions_by_score
             for action_id, line_reco, score in zip(actions.keys(), lines_impacted, scores):
                 action = actions[action_id]
-                is_rho_reduction, _ = check_rho_reduction(
+                is_rho_reduction, obs_simu_action = check_rho_reduction(
                     self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
                     self.act_reco_maintenance, self.lines_we_care_about
                 )
@@ -310,7 +310,7 @@ class ActionDiscoverer:
         act_defaut = create_default_action(self.action_space, self.lines_defaut)
 
         print(f"Evaluating {len(self.actions_unfiltered)} potential disconnections...")
-        for action_id in self.actions_unfiltered:
+        for action_id in sorted(list(self.actions_unfiltered)):#as order in a set is no fixed, and since the order will matter in the subset of actions selected, fix the order for full reproducibility
             action_desc = self.dict_action[action_id]
             action_type = self.classifier.identify_action_type(action_desc, by_description=True)
 
@@ -557,7 +557,7 @@ class ActionDiscoverer:
 
         # --- Call Discovery Methods ---
         print("\n--- Verifying relevant line reconnections ---")
-        interesting_lines_to_reconnect = set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))
+        interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
         self.verify_relevant_reconnections(interesting_lines_to_reconnect, red_loop_paths_names)
         self.prioritized_actions = add_prioritized_actions(
             self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max
