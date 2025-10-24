@@ -86,7 +86,7 @@ def get_graph_file_name(lines_defaut, chronic_name, timestep, use_dc_load_flow):
     return graph_file_name
 
 
-def make_overflow_graph_visualization(env, overflow_sim, g_overflow, obs_simu, save_folder, graph_file_name,
+def make_overflow_graph_visualization(env, overflow_sim, g_overflow,hubs, obs_simu, save_folder, graph_file_name,
                                       lines_swapped, custom_layout=None):
     """
     Generates and saves a visualization of the overflow graph with various annotations.
@@ -106,6 +106,7 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, obs_simu, s
             generate the graph, containing simulation results like `obs_linecut`.
         g_overflow (alphaDeesp.OverFlowGraph): The overflow graph object to be visualized.
             This object will be modified with annotations.
+        hubs (list[str]):  A list of hubs to highlight with a specific shape (diamond)
         obs_simu (grid2op.Observation): The Grid2Op observation object representing the grid state
             *before* the simulated overload disconnection (used for 'before' line loading).
         save_folder (str): The path to the directory where the output PDF should be saved.
@@ -145,9 +146,7 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, obs_simu, s
     g_overflow.set_electrical_node_number(number_nodal_dict)
 
     # Add hubs
-    # Check if g_distribution exists before accessing hubs
-    if hasattr(overflow_sim, 'g_distribution') and overflow_sim.g_distribution:
-        g_overflow.set_hubs_shape(overflow_sim.g_distribution.hubs, shape_hub=shape_hub)
+    g_overflow.set_hubs_shape(hubs, shape_hub=shape_hub)
 
     # Highlight swapped flows
     g_overflow.highlight_swapped_flows(lines_swapped)

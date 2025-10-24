@@ -141,7 +141,7 @@ def main():
     save_folder = config.SAVE_FOLDER_VISUALIZATION
     lines_swapped = list(df_of_g[df_of_g.new_flows_swapped].line_name)
     make_overflow_graph_visualization(
-        env, overflow_sim, g_overflow, obs_simu_defaut, save_folder, graph_file_name, lines_swapped, custom_layout
+        env, overflow_sim, g_overflow,hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped, custom_layout
     )
 
     # Save data for tests if enabled - construct case name from args
