@@ -134,7 +134,7 @@ def main():
     # Pass current_timestep
     df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
         env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable, current_timestep
-    )
+    ,do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH)
 
     # Visualize graph - pass current args
     graph_file_name = get_graph_file_name(current_lines_defaut, chronic_name, current_timestep, use_dc)
