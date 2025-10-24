@@ -39,6 +39,8 @@ from expert_op4grid_recommender.environment import make_grid2op_training_env, ma
     get_first_obs_on_chronic
 from expert_op4grid_recommender.utils.load_evaluation_data import list_all_chronics,load_interesting_lines
 from expert_op4grid_recommender.graph_analysis.builder import build_overflow_graph
+from expert_op4grid_recommender.environment import switch_to_dc_load_flow,setup_environment_configs,get_env_first_obs
+from expert_op4grid_recommender import config
 
 from packaging.version import Version as version_packaging
 from importlib.metadata import version
@@ -789,26 +791,178 @@ def test_get_maintenance_timestep():
     assert (maintenance_to_reco_at_t == [])
 
 
-#def test_rules():
-#    test_no_broken_rule_multi_node_dispatch_path()
-#    test_broken_rule_open_line_dispatch_path()
-#    test_broken_rule_close_line_constrained_path()
-#    test_broken_rule_close_coupling_constrained_path()
-#    test_broken_rule_open_coupling_dispatch_path()
-#    test_load_action_no_filter()
-#
-#if __name__ == "__main__":
-#
-#    print("STARTING TESTS")
-#    test_get_subs_islanded_by_overload_disconnections()
-#    test_get_subs_islanded_by_overload_disconnections_2()
-#    test_get_n_connected_components_graph_with_overloads()
-#    test_get_n_connected_components_graph_with_overloads_2()
-#    test_identify_overload_lines_to_keep_overflow_graph_connected()
-#    test_overflow_graph_actions_filtered()
-#    test_overflow_graph_actions_filtered(check_with_action_description=False)
-#    test_grid2op_action_types()
-#    test_overflow_graph_construction()
-#    test_action_types()
-#    test_rules()
-#    print("ENDING TESTS")
+###########
+# TEST reproductibilité prioritized actions
+#1)
+#date = datetime(2024, 12, 7)
+#timestep = 22
+#lines_defaut = ["CPVANY633"]
+#['180c19aa-762d-4d6f-a74c-4fd5432aa5d1', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75', '623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b', 'disco_BEON L31CPVAN']
+
+# --- Test Case Definitions ---
+# Each tuple represents: (test_id, date_str, timestep, lines_defaut_list, expected_keys_set)
+# Add your known scenarios and their expected prioritized action keys here.
+REPRODUCIBILITY_CASES = [
+    (
+        "Case_CPVANY633_T22",
+        "2024-12-7",
+        22,
+        ["CPVANY633"],
+        # Replace with expected keys for this second case
+        {'180c19aa-762d-4d6f-a74c-4fd5432aa5d1', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75', '623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b', 'disco_BEON L31CPVAN'}
+        #TODO inspect this
+        #warning not always reproductible...
+       #'623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b' vs 'disco_CPVANL61ZMAGN',
+    ),
+    (
+        "Case_C.REGL61ZMAGN_T1",
+        "2024-9-19",
+        1,
+        ["C.REGL61ZMAGN"],
+        # Replace with expected keys for this second case
+        {'reco_CHALOL31LOUHA', 'reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8',
+         '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23',
+         '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40'}
+
+    ),
+    (
+        "Case_CPVANL61ZMAGN_T1",
+        "2024-9-19",
+        1,
+        ["CPVANL61ZMAGN"],
+    {'reco_CHALOL31LOUHA', 'reco_BOISSL61GEN.P', '180c19aa-762d-4d6f-a74c-4fd5432aa5d1', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40'}
+    ),
+    (
+        "Case_MAGNYY633_T14",
+        "2024-12-9",
+        14,
+        ["MAGNYY633"],
+        {'reco_CHALOL31LOUHA', 'reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40', '5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52'}
+    ),
+    (
+        "Case_CHALOY631_T32",
+        "2024-8-29",
+        32,
+        ["CHALOY631"],
+        {'reco_CHALOY632', 'reco_BOISSL61GEN.P', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42', 'f344b395-9908-43c2-bca0-75c5f298465e_variant_190', 'f344b395-9908-43c2-bca0-75c5f298465e_variant_18'}
+    ),
+    (
+        "Case_P.SAOL31RONCI_T47",
+        "2024-8-28",
+        47,
+        ["P.SAOL31RONCI"],
+        {'reco_CHALOL31LOUHA', 'reco_GEN.PY762', 'node_merging_PYMONP3', '256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42'}
+    ),
+    (
+        "Case_COUCHL31VOSNE_T18",
+        "2024-11-27",
+        18,
+        ["COUCHL31VOSNE"],
+        {'reco_CHALOY632', 'reco_VIELMY762', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42', 'f344b395-9908-43c2-bca0-75c5f298465e_variant_18', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40'}
+    ),
+        (
+        "Case_CHALOL61CPVAN_T9",
+        "2024-12-7",
+        9,
+        ["CHALOL61CPVAN"],
+        {'reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8', '256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6', '5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52', '01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
+    )
+    #sometimes in this case, non reproductibility
+    #"01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6" not considered and "disco_CPVANL61ZMAGN" added
+    # Add more test cases here following the same tuple format
+    # (test_id, date_str, timestep, lines_defaut_list, expected_keys_set),
+]
+
+
+# --- Pytest Parametrization ---
+@pytest.mark.parametrize(
+    "test_id, date_str, timestep, lines_defaut, expected_keys_set",
+    REPRODUCIBILITY_CASES
+)
+@pytest.mark.slow # Mark as slow because it loads the environment and runs analysis
+def test_reproducibility(test_id, date_str, timestep, lines_defaut, expected_keys_set):
+    """
+    Tests if the prioritized action keys match the expected set for a given scenario.
+    """
+    print(f"\n--- Running Reproducibility Test: {test_id} ---")
+    print(f"Date: {date_str}, Timestep: {timestep}, Contingency: {lines_defaut}")
+
+    try:
+        analysis_date = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        pytest.fail(f"Invalid date format in test case {test_id}: {date_str}")
+
+    # --- Replicate Core Logic from main.py ---
+    # (Error handling might be simplified for testing focus)
+    try:
+        env, obs, path_chronic, chronic_name, custom_layout, dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment_configs(analysis_date)
+    except FileNotFoundError as e:
+         pytest.skip(f"Skipping test {test_id}: Required environment or chronic file not found. {e}")
+    except Exception as e:
+         pytest.fail(f"Failed during environment setup for {test_id}: {e}")
+
+    classifier = ActionClassifier(grid2op_action_space=env.action_space)
+
+    act_reco_maintenance, maintenance_to_reco_at_t = get_maintenance_timestep(
+        timestep, lines_non_reconnectable, env, config.DO_RECO_MAINTENANCE # Use config for flags
+    )
+
+    obs_simu_defaut, has_converged = simulate_contingency(env, obs, lines_defaut, act_reco_maintenance, timestep)
+    if not has_converged:
+        pytest.fail(f"Initial contingency simulation failed for {test_id}")
+
+    lines_overloaded_ids = [i for i, l in enumerate(obs_simu_defaut.name_line) if l in lines_we_care_about and obs_simu_defaut.rho[i] >= 1]
+    non_connected_reconnectable_lines = [ln for i, ln in enumerate(env.name_line) if ln not in lines_defaut and ln not in lines_non_reconnectable and not obs_simu_defaut.line_status[i]]
+
+    lines_overloaded_ids_kept, _ = identify_overload_lines_to_keep_overflow_graph_connected(
+        obs_simu_defaut, lines_overloaded_ids, config.DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART
+    )
+
+    if not lines_overloaded_ids_kept:
+        # If no lines kept, the expected keys should probably be empty
+        actual_keys_set = set()
+        assert actual_keys_set == expected_keys_set, f"[{test_id}] Expected empty prioritized actions due to grid break, but got {expected_keys_set}"
+        return # Test passes if expectation is empty set
+
+    has_converged_check, _ = check_simu_overloads(obs, obs_simu_defaut, env.action_space, timestep, lines_defaut, lines_overloaded_ids_kept, maintenance_to_reco_at_t)
+    use_dc = config.USE_DC_LOAD_FLOW
+    if not has_converged_check and not config.DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART:
+        use_dc = True
+        try:
+            env, obs, obs_simu_defaut = switch_to_dc_load_flow(env, analysis_date, timestep, lines_defaut, lines_overloaded_ids_kept, maintenance_to_reco_at_t)
+        except SystemExit: # Catch exit if DC also fails
+             pytest.fail(f"Simulation failed even in DC mode for {test_id}")
+
+    try:
+        df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
+            env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable, timestep,do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH
+        )
+        lines_blue_paths, nodes_blue_path, lines_dispatch, nodes_dispatch_path = get_constrained_and_dispatch_paths(
+            g_distribution_graph, obs, lines_overloaded_ids, lines_overloaded_ids_kept
+        )
+        validator = ActionRuleValidator(obs=obs, action_space=env.action_space, classifier=classifier, hubs=hubs, paths=((lines_blue_paths, nodes_blue_path), (lines_dispatch, nodes_dispatch_path)), by_description=config.CHECK_WITH_ACTION_DESCRIPTION)
+        actions_to_filter, actions_unfiltered = validator.categorize_actions(dict_action=dict_action, timestep=timestep, defauts=lines_defaut, overload_ids=lines_overloaded_ids, lines_reco_maintenance=maintenance_to_reco_at_t, lines_we_care_about=lines_we_care_about)
+        g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_graph_alphadeesp(g_overflow, overflow_sim, node_name_mapping)
+    except Exception as e:
+        pytest.fail(f"Error during graph processing or validation for {test_id}: {e}")
+
+    if use_dc:
+        print("Warning: you have used the DC load flow, so results are more approximate")
+        env, obs, path_chronic = get_env_first_obs(config.ENV_FOLDER, config.ENV_NAME, config.USE_EVALUATION_CONFIG,
+                                                   analysis_date)
+    discoverer = ActionDiscoverer(
+        env=env, obs=obs, obs_defaut=obs_simu_defaut, timestep=timestep, lines_defaut=lines_defaut, lines_overloaded_ids=lines_overloaded_ids, act_reco_maintenance=act_reco_maintenance, classifier=classifier, non_connected_reconnectable_lines=non_connected_reconnectable_lines, all_disconnected_lines=lines_non_reconnectable + non_connected_reconnectable_lines, dict_action=dict_action, actions_unfiltered=set(actions_unfiltered.keys()), hubs=hubs, g_overflow=g_overflow_processed, g_distribution_graph=g_distribution_graph_processed, simulator_data=simulator_data, check_action_simulation=config.CHECK_ACTION_SIMULATION, lines_we_care_about=lines_we_care_about
+    )
+
+    try:
+        prioritized_actions = discoverer.discover_and_prioritize(n_action_max=config.N_PRIORITIZED_ACTIONS)
+    except Exception as e:
+        pytest.fail(f"Error during action discovery for {test_id}: {e}")
+
+    # --- Assertion ---
+    actual_keys_set = set(prioritized_actions.keys())
+
+    assert actual_keys_set == expected_keys_set, \
+        f"[{test_id}] Prioritized action keys mismatch.\nExpected: {sorted(list(expected_keys_set))}\nActual:   {sorted(list(actual_keys_set))}"
+
+    print(f"--- Test Passed: {test_id} ---")
