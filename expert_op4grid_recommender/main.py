@@ -12,6 +12,7 @@ import sys
 import os
 import argparse  # Import argparse
 from datetime import datetime  # Import datetime for date parsing
+import numpy as np
 
 # This adds the parent directory (your project root) to the Python path
 # so that the 'expert_op4grid_recommender' package can be found.
@@ -42,8 +43,33 @@ from expert_op4grid_recommender.action_evaluation.rules import ActionRuleValidat
 from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
 from expert_op4grid_recommender.utils.simulation import check_rho_reduction
 
+def set_thermal_limits(n_grid,env,thresold_thermal_limit=0.95):
+    ### Set thermal limits
+    default_th_lim_value = 9999.
 
-def run_analysis(analysis_date, current_timestep, current_lines_defaut):
+    thermal_limits_df = n_grid.get_operational_limits().reset_index()  # get_current_limits().reset_index()
+    branches = thermal_limits_df.element_id.unique()
+    thermal_limits_df.head()
+
+    all_branches = set(
+        list(n_grid.get_lines().index) + list(n_grid.get_2_windings_transformers().index))  # -set(branches)
+    dict_thermal_limits = {name: default_th_lim_value for name in all_branches}
+
+    for branch in branches:
+        thermal_limits_branch = thermal_limits_df[thermal_limits_df.element_id == branch]
+        dict_thermal_limits[branch] = np.round(
+            thresold_thermal_limit * thermal_limits_branch[thermal_limits_branch.name == "permanent_limit"][
+                "value"].min())
+
+    th_lim_dict_day_arr = [dict_thermal_limits[l] for l in env.name_line]
+    env.set_thermal_limit(th_lim_dict_day_arr)
+
+    #env.reset()
+
+    return env
+
+
+def run_analysis(analysis_date, current_timestep, current_lines_defaut,env_path=None,env_name=None):
     """
     Runs the expert system analysis for a given date, timestep, and contingency.
     This function is importable and raises exceptions on failure instead of exiting.
@@ -55,6 +81,8 @@ def run_analysis(analysis_date, current_timestep, current_lines_defaut):
             - If datetime, it is used directly.
         current_timestep (int): Timestep index within the chronic.
         current_lines_defaut (list[str]): List of line names for the N-1 contingency.
+        env_path: (str): Root path of the environment to use if you want to override the default environment.
+        env_name: (str): Name of the environment to use if you want to override the default environment.
 
     Raises:
         ValueError: If the date string is malformed.
@@ -63,8 +91,11 @@ def run_analysis(analysis_date, current_timestep, current_lines_defaut):
 
     # --- Argument Handling ---
     # Handle the 'date=None' case by falling back to the default
+    is_bare_env=False
+
     if analysis_date is None:
-        analysis_date = DEFAULT_DATE
+        is_bare_env=True
+        #analysis_date = DEFAULT_DATE
     # Handle string-based date (e.g., from argparse)
     elif isinstance(analysis_date, str):
         try:
@@ -75,20 +106,37 @@ def run_analysis(analysis_date, current_timestep, current_lines_defaut):
     elif not isinstance(analysis_date, datetime):
         raise TypeError("analysis_date must be a datetime object, string, or None")
     # --- End Argument Handling ---
+    if analysis_date is not None:
+        print(f"Running analysis for Date: {analysis_date.strftime('%Y-%m-%d')}, Timestep: {current_timestep}, Contingency: {current_lines_defaut}")
 
-    print(
-        f"Running analysis for Date: {analysis_date.strftime('%Y-%m-%d')}, Timestep: {current_timestep}, Contingency: {current_lines_defaut}")
+    if env_name is not None:
+        config.ENV_NAME = env_name
+    if env_path is not None:
+        config.ENV_PATH = env_path
 
     # Load setup - Pass the date argument to setup
     env, obs, path_chronic, chronic_name, custom_layout, dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment_configs(
         analysis_date)  # Pass date here
 
+    #######################
+    ########
+    # Temproraire, a mieux reintégrer
+    if np.mean(env.get_thermal_limit())>=10**4:#thermal limits have been set to default 99999 value
+        n_grid=env.backend._grid.network
+        env=set_thermal_limits(n_grid,env,thresold_thermal_limit=0.95)
+        obs=env.reset()
+    #############################
+
     # --- Instantiate Classifier ---
     classifier = ActionClassifier(grid2op_action_space=env.action_space)
 
-    act_reco_maintenance, maintenance_to_reco_at_t = get_maintenance_timestep(
+    if is_bare_env:
+        act_reco_maintenance=env.action_space({})
+        maintenance_to_reco_at_t=[]
+    else:
+        act_reco_maintenance, maintenance_to_reco_at_t = get_maintenance_timestep(
         current_timestep, lines_non_reconnectable, env, config.DO_RECO_MAINTENANCE
-    )
+         )
 
     # Use current_lines_defaut
     obs_simu_defaut, has_converged = simulate_contingency(env, obs, current_lines_defaut, act_reco_maintenance,

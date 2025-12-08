@@ -22,6 +22,7 @@ from expert_op4grid_recommender.data_loader import load_interesting_lines, DELET
 from expert_op4grid_recommender.utils.simulation import simulate_contingency, check_simu_overloads
 
 
+
 def get_env_first_obs(env_folder, env_name, use_evaluation_config, date=None, is_DC=False):
     """
     Creates a Grid2Op environment and retrieves the first observation for a specific chronic.
@@ -60,10 +61,11 @@ def get_env_first_obs(env_folder, env_name, use_evaluation_config, date=None, is
             env_params.ENV_DC = True
             env = make_grid2op_training_env(env_folder, env_name, params=env_params)
 
-    path_chronic = [path for path in env.chronics_handler.real_data.subpaths if date.strftime('%Y%m%d') in path][0]
     if date is None:
         obs=env.get_obs()
+        path_chronic=env_folder
     else:
+        path_chronic = [path for path in env.chronics_handler.real_data.subpaths if date.strftime('%Y%m%d') in path][0]
         obs = get_first_obs_on_chronic(date, env, path_thermal_limits=path_chronic)
     return env, obs, path_chronic
 
