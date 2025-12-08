@@ -26,11 +26,6 @@ def inhibit_swapped_flows(df_of_g):
 def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected_reconnectable_lines,
                          lines_non_reconnectable, timestep, do_consolidate_graph=True,
                          inhibit_swapped_flow_reversion=True, node_renaming=True,param_options=PARAM_OPTIONS_EXPERT_OP):
-    overflow_sim = Grid2opSimulation(
-        obs_overloaded, env.action_space, env.observation_space,
-        param_options=param_options, debug=False,
-        ltc=overloaded_line_ids, plot=True, simu_step=timestep
-    )
     """
     Constructs and refines an overflow graph based on a Grid2Op simulation state.
 
@@ -76,6 +71,11 @@ def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected
               distribution graph object derived from the refined `g_overflow`.
             - node_name_mapping (dict): A dictionary mapping original node indices to substation names.
     """
+    overflow_sim = Grid2opSimulation(
+        obs_overloaded, env.action_space, env.observation_space,
+        param_options=param_options, debug=False,
+        ltc=overloaded_line_ids, plot=True, simu_step=timestep
+    )
     df_of_g = overflow_sim.get_dataframe()
     df_of_g["line_name"] = obs_overloaded.name_line
 
@@ -89,6 +89,7 @@ def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected
         g_overflow.g = nx.relabel_nodes(g_overflow.g, node_name_mapping, copy=True)
 
     g_distribution_graph = Structured_Overload_Distribution_Graph(g_overflow.g)
+    c_path_init = g_distribution_graph.constrained_path.full_n_constrained_path()
 
     if len(g_distribution_graph.g_only_red_components.nodes) != 0 and do_consolidate_graph:
         g_overflow.consolidate_graph(g_distribution_graph,
@@ -102,6 +103,6 @@ def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected
     g_overflow.add_relevant_null_flow_lines_all_paths(g_distribution_graph,
                                                       non_connected_lines=non_connected_reconnectable_lines,
                                                       non_reconnectable_lines=lines_non_reconnectable)
-    g_distribution_graph = Structured_Overload_Distribution_Graph(g_overflow.g)
+    g_distribution_graph = Structured_Overload_Distribution_Graph(g_overflow.g,possible_hubs=c_path_init)
 
     return df_of_g, overflow_sim, g_overflow, real_hubs, g_distribution_graph, node_name_mapping
