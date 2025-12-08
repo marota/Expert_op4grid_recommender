@@ -10,6 +10,7 @@ from grid2op.Environment import Environment
 from expert_op4grid_recommender.utils.make_env_utils import (make_backend_kwargs_data,
                                                              make_default_params)
 
+from grid2op.Chronics import ChangeNothing
 
     
 def make_grid2op_training_env(path_env: str,
@@ -25,12 +26,25 @@ def make_grid2op_training_env(path_env: str,
 
     if params is None:
         params = make_default_params()
-    env = grid2op.make(path,
-                       backend=backend,
-                       allow_detachment=allow_detachment,
-                       n_busbar=backend_kwargs_data["loader_kwargs"]["n_busbar_per_sub"],
-                       param=params
-                       )
+
+    backend._prevent_automatic_disconnection = False
+
+    if os.path.isdir(os.path.join(path,"chronics")):
+        env = grid2op.make(path,
+                           backend=backend,
+                           allow_detachment=allow_detachment,
+                           n_busbar=backend_kwargs_data["loader_kwargs"]["n_busbar_per_sub"],
+                           param=params
+                           )
+    else:
+        print("Warning: this is a bare environment with no chronics")
+        env = grid2op.make(path,
+                   backend=backend,
+                   allow_detachment=allow_detachment,
+                   n_busbar=backend_kwargs_data["loader_kwargs"]["n_busbar_per_sub"],
+                   param=params,
+                   chronics_class=ChangeNothing
+                   )
     return env
 
 
