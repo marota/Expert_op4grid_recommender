@@ -10,7 +10,7 @@ from pypowsybl2grid import PyPowSyBlBackend
 from expert_op4grid_recommender.utils.make_env_utils import (N_BUSBAR_PER_SUB,
                                                              make_default_params,
                                                              create_olf_rte_parameter)
-
+from grid2op.Chronics import ChangeNothing
 
 def create_pypowsybl_backend(n_busbar_per_sub,
                              check_isolated_and_disconnected_injections) -> Backend:
@@ -32,16 +32,29 @@ def make_grid2op_assistant_env(path_env,
                                 n_busbar=N_BUSBAR_PER_SUB) -> Environment:
     backend = create_pypowsybl_backend(n_busbar_per_sub=n_busbar,
                                        check_isolated_and_disconnected_injections=False)
-    
+    backend._prevent_automatic_disconnection = False
+
     path = os.path.join(path_env, nm_env)
     if params is None:
         params = make_default_params()
-    env = grid2op.make(path,
+
+    #if bare env with no chronics
+    if os.path.isdir(os.path.join(path,"chronics")):
+        env = grid2op.make(path,
                        backend=backend,
                        allow_detachment=allow_detachment,
                        n_busbar=n_busbar,
                        param=params
                        )
+    else:
+        print("Warning: this is a bare environment with no chronics")
+        env = grid2op.make(path,
+                   backend=backend,
+                   allow_detachment=allow_detachment,
+                   n_busbar=n_busbar,
+                   param=params,
+                   chronics_class=ChangeNothing
+                   )
     return env
 
 
