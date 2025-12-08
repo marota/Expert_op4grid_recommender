@@ -199,8 +199,10 @@ def mock_rho_reduction_discovery(obs, timestep, act_defaut, action, *args, **kwa
     elif hasattr(action, 'lines_or_id') and action.lines_or_id.get("L1") == -1:
          is_effective = True
     # Check for reconnection of L1
-    elif hasattr(action, 'set_line_status') and action.set_line_status == [("L1", 1)]:
-         is_effective = True
+    #elif hasattr(action, 'set_line_status') and action.set_line_status == [("L1", 1)]:
+    elif hasattr(action, 'lines_ex_id') and action.lines_ex_id.get("L1") == 1:
+         if hasattr(action, 'lines_or_id') and action.lines_or_id.get("L1") == 1:
+            is_effective = True
 
     return is_effective, obs
 
@@ -228,7 +230,8 @@ def discoverer_instance(monkeypatch):
                                        "reco_L1": {
                                            "type": "close_line",
                                            "description_unitaire": "Fermeture L1",  # Added
-                                           "content": {"set_line_status": [("L1", 1)], "set_bus": {}}},
+                                           "content": {"set_bus": {"lines_ex_id": {"L1": 1}},
+                                                       "lines_or_id": {"L1": 1}}},#{"set_line_status": [("L1", 1)], "set_bus": {}}},
                                        "disco_L1": {
                                            "type": "open_line",
                                            "description_unitaire": "Ouverture L1",  # Added
