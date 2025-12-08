@@ -211,7 +211,7 @@ def aux_prevent_line_reconnection(obs: BaseObservation,
     
     # obs is here for the date time
     if state.should_not_reco is None:
-        should_not_reco = DELETED_LINE_NAME
+        should_not_reco = [line for line in DELETED_LINE_NAME if line in obs.name_line]
     else:
         should_not_reco = state.should_not_reco
 
@@ -239,7 +239,10 @@ def load_interesting_lines(path : Optional[str]=None, file_name : str ="lignes_a
         path = os.path.abspath(".")
     fn_ = os.path.join(path, file_name)
     if not os.path.exists(fn_):
-        raise RuntimeError(f"Impossible to locate the file describing the interesting lines, looked at {fn_}")
+        #raise RuntimeError(f"Impossible to locate the file describing the interesting lines, looked at {fn_}")
+        print(f"Impossible to locate the file describing the interesting lines, looked at {fn_}")
+        print("these will not be considered")
+        return np.array([])
     return np.array([el.rstrip().lstrip() for el in pd.read_csv(fn_)["branches"].values])
         
 
