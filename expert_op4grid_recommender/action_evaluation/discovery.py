@@ -256,7 +256,7 @@ class ActionDiscoverer:
                     line_id = np.where(self.obs.name_line == line_reco)[0][0]
                     delta_theta = abs(get_delta_theta_line(self.obs_defaut, line_id))
                     map_action_score["reco_" + line_reco] = {
-                        "action": self.action_space({"set_line_status": [(line_reco, 1)]}),
+                        "action": self.action_space({"set_bus":{"lines_or_id": {line_reco: 1},"lines_ex_id": {line_reco: 1}}}),#self.action_space({"set_line_status": [(line_reco, 1)]}),
                         "score": delta_theta,
                         "line_impacted": line_reco
                     }
@@ -558,6 +558,7 @@ class ActionDiscoverer:
         # --- Call Discovery Methods ---
         print("\n--- Verifying relevant line reconnections ---")
         interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
+        print(interesting_lines_to_reconnect)
         self.verify_relevant_reconnections(interesting_lines_to_reconnect, red_loop_paths_names)
         self.prioritized_actions = add_prioritized_actions(
             self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max

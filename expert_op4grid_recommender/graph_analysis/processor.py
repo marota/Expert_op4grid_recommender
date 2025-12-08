@@ -43,7 +43,17 @@ def get_n_connected_components_graph_with_overloads(obs_simu, lines_overloaded_i
               after removing all edges corresponding to the lines listed in
               `lines_overloaded_ids`.
     """
-    obs_graph = obs_simu.get_energy_graph()
+    #TODO: adapt by simplifying, just get topo graph and add it a_or and rho attributes per edges
+    # 2. List of edges: (Node1, Node2, {attributes})
+    edge_list = [("subid_"+str(or_subid)+"_bus_"+str(or_bus),"subid_"+str(ex_subid)+"_bus_"+str(ex_bus),{'name': edge_name,"a_or": a_or,"rho":rho})
+                 for edge_name, or_subid, or_bus, ex_subid, ex_bus, line_status, a_or, rho in
+                 zip(obs_simu.name_line, obs_simu.line_or_to_subid, obs_simu.line_or_bus, obs_simu.line_ex_to_subid,
+                     obs_simu.line_ex_bus,obs_simu.line_status,obs_simu.a_or,obs_simu.rho)]# if line_status]
+
+    obs_graph=nx.from_edgelist(edge_list)
+
+    #previous approach with energy graph, wass buggy in French grid
+    #obs_graph = obs_simu.get_energy_graph()
     max_rho = max([obs_simu.rho[i] for i in lines_overloaded_ids])
     edges_disconnected = [edge for edge, a_or in nx.get_edge_attributes(obs_graph, 'a_or').items() if
                           np.round(a_or, 3) == 0]
@@ -64,7 +74,7 @@ def get_n_connected_components_graph_with_overloads(obs_simu, lines_overloaded_i
     graph.remove_edges_from(recover_other_overload_edge)
     comps_wo_all_overloads = list(nx.connected_components(graph))
 
-    return comps_init, comps_wo_max_overload, comps_wo_all_overloads
+    return sorted(comps_init, key=len,reverse=True), sorted(comps_wo_max_overload, key=len,reverse=True), sorted(comps_wo_all_overloads, key=len,reverse=True)
 
 
 def get_subs_islanded_by_overload_disconnections(obs_simu, comps_init, comp_overloads, max_overload_name):
@@ -94,11 +104,16 @@ def get_subs_islanded_by_overload_disconnections(obs_simu, comps_init, comp_over
                    the simulated disconnections.
     """
     n_subs = len(obs_simu.name_sub)
-    subs_broken_apart_ids = comps_init[0] - comp_overloads[0]
-    identified_subs_broken_apart = [obs_simu.name_sub[i] for i in subs_broken_apart_ids if i < n_subs]
+    if type(list(comps_init[0])[0])==int:
+        subs_broken_apart_ids = comps_init[0] - comp_overloads[0]
+    else:
+        identified_subs_broken_text = list(comps_init[0] - comp_overloads[0])
+        subs_broken_apart_ids=[int(subs_text.split('_')[1]) for subs_text in identified_subs_broken_text]
 
+    identified_subs_broken_apart = [obs_simu.name_sub[i] for i in subs_broken_apart_ids if i < n_subs]
     print(
         f"These identified substations are broken apart by only disconnecting the max overload {max_overload_name}: {identified_subs_broken_apart}")
+
     if len(identified_subs_broken_apart) < len(subs_broken_apart_ids):
         print(
             f"These non-identified multi-node IDs are broken apart: {[i for i in subs_broken_apart_ids if i >= n_subs]}")
