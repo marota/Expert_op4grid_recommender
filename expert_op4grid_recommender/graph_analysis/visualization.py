@@ -136,8 +136,17 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow,hubs, obs_si
     # STEP 2: Use the path from the config file, not env.path
     df_volt_dict = get_zone_voltage_levels(config.ENV_PATH)
 
-    voltage_colors = {400: "red", 225: "darkgreen", 90: "gold", 63: "purple", 20: "pink", 24: "pink", 10: "pink",
+    voltage_levels=set(df_volt_dict.values())
+    voltage_colors = {400: "red",350: "red", 225: "darkgreen", 150: "turquoise",110: "orange",90: "gold", 63: "purple", 20: "pink", 24: "pink", 10: "pink",
                       15: "pink", 33: "pink"}
+    #add default colors if missing in dictionnary
+    for voltage in voltage_levels:
+        if voltage not in voltage_colors:
+           if voltage <63:
+               voltage_colors[voltage]="pink"
+           else:
+               voltage_colors[voltage] = "grey"
+    #set colors
     g_overflow.set_voltage_level_color(df_volt_dict, voltage_colors)
 
     # Add node numbers
