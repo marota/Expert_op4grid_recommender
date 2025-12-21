@@ -17,6 +17,7 @@ from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, sort_
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph # For type hinting
+import networkx as nx
 
 class ActionDiscoverer:
     """
@@ -254,6 +255,7 @@ class ActionDiscoverer:
             if has_found_effective_path:
                 try:
                     line_id = np.where(self.obs.name_line == line_reco)[0][0]
+                    #TODO: could make this stronger by considering the direction of delta theta, not only the absolute value, as it would give and indidation if flow will make it in or out
                     delta_theta = abs(get_delta_theta_line(self.obs_defaut, line_id))
                     map_action_score["reco_" + line_reco] = {
                         "action": self.action_space({"set_bus":{"lines_or_id": {line_reco: 1},"lines_ex_id": {line_reco: 1}}}),#self.action_space({"set_line_status": [(line_reco, 1)]}),
@@ -458,7 +460,7 @@ class ActionDiscoverer:
         self.scores_splits = scores
 
 
-    def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str]):
+    def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str], percentage_threshold_min_dispatch_flow=0.1):
         """
         Finds and evaluates relevant node merging actions on dispatch paths.
 
@@ -466,8 +468,11 @@ class ActionDiscoverer:
 
         Args:
             nodes_dispatch_path_names: List of substation names on dispatch paths.
+            percentage_threshold_min_dispatch_flow: float between 0 and 1. threshold to filter out unsignificant node merging actions given not significant enough dispatch flow
         """
         identified, effective, ineffective = {}, [], []
+        capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
+        max_dispatch_flow=max([abs(val) for val in capacity_dict.values()])
 
         print(f"Evaluating node merging for {len(nodes_dispatch_path_names)} substations...")
         for sub_name in nodes_dispatch_path_names:
@@ -478,19 +483,25 @@ class ActionDiscoverer:
             connected_buses = set(current_sub_topo) - {-1, 0}
 
             if len(connected_buses) >= 2:
-                topo_target = [1 if bus_id >= 2 else bus_id for bus_id in current_sub_topo]
-                action = self.action_space({"set_bus": {"substations_id": [(sub_id, topo_target)]}})
-                action_id = f"node_merging_{sub_name}"
-                identified[action_id] = action
+                #check if significant enough, that is with some minimal redispatch flow
+                sub_edges=list(self.g_overflow.g.out_edges(sub_id, keys=True))+list(self.g_overflow.g.in_edges(sub_id, keys=True))
 
-                if self.check_action_simulation:
-                    act_defaut = create_default_action(self.action_space, self.lines_defaut)
-                    is_rho_reduction, _ = check_rho_reduction(
-                        self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                        self.act_reco_maintenance, self.lines_we_care_about
-                    )
-                    (effective if is_rho_reduction else ineffective).append(action)
-                    print(f"  {'Effective' if is_rho_reduction else 'Ineffective'} node merge: {action_id}")
+                max_dispatch_flow_node=max([abs(capacity_dict[edge]) for edge in sub_edges])
+
+                if max_dispatch_flow_node>=max_dispatch_flow*percentage_threshold_min_dispatch_flow:
+                    topo_target = [1 if bus_id >= 2 else bus_id for bus_id in current_sub_topo]
+                    action = self.action_space({"set_bus": {"substations_id": [(sub_id, topo_target)]}})
+                    action_id = f"node_merging_{sub_name}"
+                    identified[action_id] = action
+
+                    if self.check_action_simulation:
+                        act_defaut = create_default_action(self.action_space, self.lines_defaut)
+                        is_rho_reduction, _ = check_rho_reduction(
+                            self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
+                            self.act_reco_maintenance, self.lines_we_care_about
+                        )
+                        (effective if is_rho_reduction else ineffective).append(action)
+                        print(f"  {'Effective' if is_rho_reduction else 'Ineffective'} node merge: {action_id}")
 
         self.identified_merges = identified
         self.effective_merges = effective
