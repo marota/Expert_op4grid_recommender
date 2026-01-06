@@ -69,7 +69,7 @@ class MockObservation:
         self.name_sub = np.array(kwargs.get('name_sub', []))
         self.sub_topologies = kwargs.get('sub_topologies', {})
         self.topo_vect = np.array(kwargs.get('topo_vect', []))
-        self.sub_info = np.array(kwargs.get('sub_info', np.ones(len(self.name_sub))))
+        self.sub_info = np.array(kwargs.get('sub_info', np.ones(len(self.name_sub))))#[k for k, v in sorted(data.items()) for _ in v]
         self.name_line = np.array(kwargs.get('name_line', []))
         num_lines = len(self.name_line)
         self.rho = kwargs.get('rho', np.zeros(num_lines))
@@ -90,7 +90,7 @@ class MockObservation:
 
         self._simulate_return = kwargs.get('simulate_return')
 
-    def sub_topology(self, sub_id): return self.sub_topologies.get(sub_id, [])
+    def sub_topology(self, sub_id): return np.array(self.sub_topologies.get(sub_id, []))
     def simulate(self, action, time_step): return self._simulate_return or (self, 0.0, False, {"exception": []})
     def __add__(self, action):
         if hasattr(action, 'substations_id') and action.substations_id:
@@ -118,6 +118,12 @@ class MockGraph:
     def __init__(self, edge_data=None): self.edge_data = edge_data or {}; self._edges = list(self.edge_data.keys())
     def get_edge_data(self, u, v): return self.edge_data.get((u, v))
     def has_edge(self, u, v): return (u,v) in self._edges or (v,u) in self._edges
+    def is_multigraph(self): return True
+    def edges(self,keys,data):
+        if data==True:
+            return self.edge_data
+        else:
+            return self._edges
 
 class MockOverflowGraph:
     def __init__(self, edge_data=None): self.g = MockGraph(edge_data=edge_data)
@@ -206,6 +212,43 @@ def mock_rho_reduction_discovery(obs, timestep, act_defaut, action, *args, **kwa
 
     return is_effective, obs
 
+# 1. Define the mock implementation for _edge_names_buses_dict
+    def mock_edge_names_buses_dict(self, obs, action_topo_vect, sub_impacted_id):
+        """
+        Mocked version of _edge_names_buses_dict provided by the user.
+        """
+        dict_edge_names_buses = {}
+
+        length = len(action_topo_vect)
+        sub_info = obs.sub_info
+        # Ensure sub_impacted_id is valid for sub_info, default to 0 if out of bounds for the mock
+        if sub_impacted_id >= len(sub_info):
+            start = 0
+        else:
+            start = int(np.sum(sub_info[:sub_impacted_id]))
+
+        for i in range(length):
+            topo_vect_pos = start + i
+            element = obs.topo_vect_element(topo_vect_pos)
+
+            # Check if the element corresponds to a line (not a load or gen)
+            if 'line_id' in element:
+                if 'line_or_id' in element:
+                    line_id = element['line_or_id']  # Origin
+                else:
+                    line_id = element['line_ex_id']  # Extremity
+
+                # Ensure line_id is within bounds for the mock observation
+                if line_id < len(obs.name_line):
+                    line_name = obs.name_line[line_id]
+                    dict_edge_names_buses[line_name] = action_topo_vect[i]
+
+        return dict_edge_names_buses
+def mock_compute_node_splitting_action_score_value(overflow_graph, g_distribution_graph, node: int,
+                                                  dict_edge_names_buses=None): return 1.0 if node == 0 else 0.5
+
+def mock_edge_names_buses_dict(obs, action_topo_vect, sub_impacted_id): return {line_name:1 for line_name in obs.name_line}
+
 @pytest.fixture
 def discoverer_instance(monkeypatch):
     """Provides a configured ActionDiscoverer instance with mocks for testing discovery methods."""
@@ -219,7 +262,7 @@ def discoverer_instance(monkeypatch):
         return {k: v['action'] for k,v in items}, [v.get('sub_impacted') or v.get('line_impacted') for k,v in items], [v['score'] for k,v in items]
     monkeypatch.setattr("expert_op4grid_recommender.utils.helpers.sort_actions_by_score", mock_sort)
 
-    mock_obs = MockObservation(name_sub=["Sub0", "Sub1", "Sub3"], name_line=["L1", "L2"], sub_topologies={0: [1, 2, 2], 1: [1, 1], 2: [2, 1, 2]}, sub_info=[2,2,2], topo_vect=[1,2, 1,1, 2,1])
+    mock_obs = MockObservation(name_sub=["Sub0", "Sub1", "Sub3"], name_line=["L1", "L2"], sub_topologies={0: [1, 2, 2], 1: [1, 1], 2: [2, 1, 2]}, sub_info=[3,2,3], topo_vect=np.array([1,2,1, 1,1, 2,1,1]))
     mock_env = MockEnv(name_line=mock_obs.name_line, name_sub=mock_obs.name_sub)
     mock_g_overflow = MockOverflowGraph()
     mock_g_dist = MockDistributionGraph()
@@ -254,6 +297,9 @@ def discoverer_instance(monkeypatch):
                                            "content": {"set_bus": {"lines_ex_id": {"L2": -1}}}},
                                    },
                       actions_unfiltered={"reco_L1", "disco_L1", "merge_S0", "split_S0", "split_S1", "disco_L2"}, hubs=["Sub0"], g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist, simulator_data={}, check_action_simulation=True )
+
+    monkeypatch.setattr(discoverer, '_edge_names_buses_dict', mock_edge_names_buses_dict)
+    monkeypatch.setattr(discoverer, 'compute_node_splitting_action_score_value', mock_compute_node_splitting_action_score_value)
     return discoverer
 
 def test_discoverer_find_relevant_node_merging(discoverer_instance):
