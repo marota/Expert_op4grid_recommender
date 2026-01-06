@@ -16,6 +16,7 @@ import json
 import time
 from datetime import datetime
 import numpy as np
+import pypowsybl as pp
 
 # This adds the parent directory (your project root) to the Python path
 # so that the 'expert_op4grid_recommender' package can be found.
@@ -49,6 +50,7 @@ from expert_op4grid_recommender.utils.simulation import check_rho_reduction
 # Imports for Action Rebuilding
 from expert_op4grid_recommender.utils import repas
 from expert_op4grid_recommender.utils.conversion_actions_repas import convert_repas_actions_to_grid2op_actions
+from expert_op4grid_recommender.data_loader import load_actions
 
 # --- Performance Monitoring Tool ---
 class Timer:
@@ -137,13 +139,13 @@ def rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action):
     return new_dict_actions
 
 
-def run_rebuild_actions(env, dict_action, repas_file_path, voltage_filter_threshold=300):
+def run_rebuild_actions(n_grid, dict_action, repas_file_path, voltage_filter_threshold=300):
     """
     Orchestrates the action rebuilding process using the environment's grid.
     """
     print(
         f"Rebuilding action dictionary based on current grid snapshot using REPAS file: {repas_file_path} with voltage threshold < {voltage_filter_threshold}...")
-    n_grid = env.backend._grid.network
+    #n_grid = env.backend._grid.network
 
     output_file_path = os.path.join("data", "action_space",
                                     f"reduced_model_actions_{datetime.now().strftime('%Y%m%dT%H%MZ')}.json")
@@ -196,8 +198,7 @@ def set_thermal_limits(n_grid, env, thresold_thermal_limit=0.95):
     return env
 
 
-def run_analysis(analysis_date, current_timestep, current_lines_defaut, env_path=None, env_name=None,
-                 do_rebuild_actions=False, repas_file_path=None, voltage_filter_threshold=300):
+def run_analysis(analysis_date, current_timestep, current_lines_defaut, env_path=None, env_name=None):
     """
     Runs the expert system analysis for a given date, timestep, and contingency.
     """
@@ -236,12 +237,6 @@ def run_analysis(analysis_date, current_timestep, current_lines_defaut, env_path
             env = set_thermal_limits(n_grid, env, thresold_thermal_limit=0.95)
             obs = env.reset()
         #############################
-
-    # --- Rebuild Action Dictionary if requested ---
-    if do_rebuild_actions:
-        dict_action = run_rebuild_actions(env, dict_action, repas_file_path, voltage_filter_threshold)
-        print("Action rebuilding process complete. Stopping analysis as requested.")
-        return  # EXIT EARLY
 
     # --- Instantiate Classifier ---
     classifier = ActionClassifier(grid2op_action_space=env.action_space)
@@ -445,6 +440,11 @@ def main():
         help="Path to the REPAS actions file (default: data/action_space/allLogics.2024.12.10.json)"
     )
     parser.add_argument(
+        "--grid-snapshot-file",
+        default=os.path.join("data", "snapshot", "pf_20240828T0100Z_20240828T0100Z.xiidm"),
+        help="Path to the snaphsot grid file in detailed topology format with switches, to rebuild action dictionnary on(default: data/snapshot/pf_20240828T0100Z_20240828T0100Z.xiidm)"
+    )
+    parser.add_argument(
         "--voltage-threshold",
         type=float,
         default=300.0,
@@ -460,13 +460,20 @@ def main():
     # --- Call the core logic function ---
     try:
         with Timer("Total Execution"):
-            run_analysis(
+            if args.rebuild_actions:
+                grid_snapshot_file_path=args.grid_snapshot_file
+                n_grid=pp.network.load(grid_snapshot_file_path)
+                dict_action = load_actions(config.ACTION_FILE_PATH)
+
+                dict_action = run_rebuild_actions(n_grid, dict_action, args.repas_file, args.voltage_threshold)
+                print("Action rebuilding process complete. Stopping analysis as requested.")
+
+                return  # EXIT EARLY
+            else:
+                run_analysis(
                 analysis_date=date_arg,
                 current_timestep=args.timestep,
-                current_lines_defaut=args.lines_defaut,
-                do_rebuild_actions=args.rebuild_actions,
-                repas_file_path=args.repas_file,
-                voltage_filter_threshold=args.voltage_threshold
+                current_lines_defaut=args.lines_defaut
             )
     except (ValueError, RuntimeError, TypeError) as e:
         print(f"Analysis failed: {e}", file=sys.stderr)

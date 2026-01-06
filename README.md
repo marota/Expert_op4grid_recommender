@@ -71,6 +71,12 @@ The script will:
 
 -----
 
+An option that can be activated for specific use is to rebuild an action space from one segmentation of a grid to another or the full grid
+```bash
+python expert_op4grid_analyzer/main.py --rebuild-actions --repas-file allLogics.json --grid-snapshot-file data/snapshot/pf_20240828T0100Z_20240828T0100Z.xiidm
+````
+From all known logics on the full grid, and targeted action ids in the ACTION_FILE, it rebuilds the actions to be applied on the grid snapshot (in detailed topology format with switches) at the date of interest
+
 ## Configuration ⚙️
 
 Key parameters can be adjusted in `expert_op4grid_analyzer/config.py`:
