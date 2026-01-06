@@ -186,7 +186,8 @@ class ActionRuleValidator:
                             defauts: List[str],
                             overload_ids: List[int],
                             lines_reco_maintenance: List[str],
-                            lines_we_care_about: Optional[List[str]] = None
+                            lines_we_care_about: Optional[List[str]] = None,
+                            do_simulation_checks: bool = True,
                             ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]]]:
         """
         Categorizes actions from a dictionary into 'filtered' and 'unfiltered' sets.
@@ -222,24 +223,26 @@ class ActionRuleValidator:
             description = action_desc.get("description_unitaire", action_desc.get("description", ""))
 
             if do_filter_action:
-                act_defaut = create_default_action(self.action_space, defauts)
-                try:
-                    action = self.action_space(action_desc["content"])
-                except Exception as e:
-                    print(f"Warning: Could not create action object for {action_id}: {e}")
-                    # Decide how to handle this - skip simulation?
-                    is_rho_reduction = None # Mark as unknown
-                else:
-                    state = StateInfo()
-                    action = aux_prevent_asset_reconnection(self.obs, state, action)
-                    act_reco_main_obj = self.action_space({"set_line_status": [(lr, 1) for lr in lines_reco_maintenance]})
-                    is_rho_reduction, _ = check_rho_reduction(
-                        self.obs, timestep, act_defaut, action, overload_ids,
-                        act_reco_main_obj, lines_we_care_about
-                    )
+                is_rho_reduction=None
+                if do_simulation_checks:
+                    act_defaut = create_default_action(self.action_space, defauts)
+                    try:
+                        action = self.action_space(action_desc["content"])
+                    except Exception as e:
+                        print(f"Warning: Could not create action object for {action_id}: {e}")
+                        # Decide how to handle this - skip simulation?
+                        is_rho_reduction = None # Mark as unknown
+                    else:
+                        state = StateInfo()
+                        action = aux_prevent_asset_reconnection(self.obs, state, action)
+                        act_reco_main_obj = self.action_space({"set_line_status": [(lr, 1) for lr in lines_reco_maintenance]})
+                        is_rho_reduction, _ = check_rho_reduction(
+                            self.obs, timestep, act_defaut, action, overload_ids,
+                            act_reco_main_obj, lines_we_care_about
+                        )
 
-                if is_rho_reduction:
-                    print(f"INFO: Action '{description}' was filtered by rule '{broken_rule}' but showed potential rho reduction.")
+                    if is_rho_reduction:
+                        print(f"INFO: Action '{description}' was filtered by rule '{broken_rule}' but showed potential rho reduction.")
 
                 actions_to_filter[action_id] = {
                     "description_unitaire": description,
