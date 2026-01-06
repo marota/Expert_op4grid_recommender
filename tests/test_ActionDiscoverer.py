@@ -5,6 +5,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd # Import pandas for MockDistributionGraph
+import networkx as nx
 
 # --- Test Setup: Add Project Root to Python path ---
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -69,7 +70,7 @@ class MockObservation:
         self.name_sub = np.array(kwargs.get('name_sub', []))
         self.sub_topologies = kwargs.get('sub_topologies', {})
         self.topo_vect = np.array(kwargs.get('topo_vect', []))
-        self.sub_info = np.array(kwargs.get('sub_info', np.ones(len(self.name_sub))))
+        self.sub_info = np.array(kwargs.get('sub_info', np.ones(len(self.name_sub))))#[k for k, v in sorted(data.items()) for _ in v]
         self.name_line = np.array(kwargs.get('name_line', []))
         num_lines = len(self.name_line)
         self.rho = kwargs.get('rho', np.zeros(num_lines))
@@ -90,7 +91,7 @@ class MockObservation:
 
         self._simulate_return = kwargs.get('simulate_return')
 
-    def sub_topology(self, sub_id): return self.sub_topologies.get(sub_id, [])
+    def sub_topology(self, sub_id): return np.array(self.sub_topologies.get(sub_id, []))
     def simulate(self, action, time_step): return self._simulate_return or (self, 0.0, False, {"exception": []})
     def __add__(self, action):
         if hasattr(action, 'substations_id') and action.substations_id:
@@ -114,13 +115,30 @@ class MockEnv:
 class MockAlphaDeesp:
     def rank_current_topo_at_node_x(self, g, sub_id, **kwargs): return 1.0 if sub_id == 0 else 0.5
 
-class MockGraph:
-    def __init__(self, edge_data=None): self.edge_data = edge_data or {}; self._edges = list(self.edge_data.keys())
-    def get_edge_data(self, u, v): return self.edge_data.get((u, v))
-    def has_edge(self, u, v): return (u,v) in self._edges or (v,u) in self._edges
+class MockGraph(nx.MultiDiGraph):
+    def __init__(self, edge_data=None, **attr):
+        super().__init__(**attr)
+        if edge_data:
+            for (u, v), data in edge_data.items():
+                # Check if data is a dictionary of attributes or a dictionary of edge_ids
+                # If 'data' has integer keys (like 0, 1), it's likely {edge_key: {attributes}}
+
+                if isinstance(data, dict):
+                    for key, attributes in data.items():
+                        if isinstance(key, int) and isinstance(attributes, dict):
+                            # Case: {0: {'name': 'L1'}} -> key=0 is the edge_key (multigraph index)
+                            self.add_edge(u, v, key=key, **attributes)
+                        else:
+                            # Case: {'weight': 10} -> standard attributes
+                            # We can't unpack 'data' directly if it has int keys, so we check carefully
+                            self.add_edge(u, v, **data)
+                            break  # Stop loop if we treated 'data' as flat attributes
+                else:
+                    self.add_edge(u, v)
 
 class MockOverflowGraph:
-    def __init__(self, edge_data=None): self.g = MockGraph(edge_data=edge_data)
+    def __init__(self, name_line=None,edge_data=None):
+        self.g = MockGraph(edge_data=edge_data)
 
 class MockDistributionGraph:
     def __init__(self): self.red_loops = pd.DataFrame(columns=["Path"])
@@ -206,6 +224,11 @@ def mock_rho_reduction_discovery(obs, timestep, act_defaut, action, *args, **kwa
 
     return is_effective, obs
 
+def mock_compute_node_splitting_action_score_value(overflow_graph, g_distribution_graph, node: int,
+                                                  dict_edge_names_buses=None): return 1.0 if node == 0 else 0.5
+
+def mock_edge_names_buses_dict(obs, action_topo_vect, sub_impacted_id): return {line_name:1 for line_name in obs.name_line}
+
 @pytest.fixture
 def discoverer_instance(monkeypatch):
     """Provides a configured ActionDiscoverer instance with mocks for testing discovery methods."""
@@ -219,9 +242,10 @@ def discoverer_instance(monkeypatch):
         return {k: v['action'] for k,v in items}, [v.get('sub_impacted') or v.get('line_impacted') for k,v in items], [v['score'] for k,v in items]
     monkeypatch.setattr("expert_op4grid_recommender.utils.helpers.sort_actions_by_score", mock_sort)
 
-    mock_obs = MockObservation(name_sub=["Sub0", "Sub1", "Sub3"], name_line=["L1", "L2"], sub_topologies={0: [1, 2, 2], 1: [1, 1], 2: [2, 1, 2]}, sub_info=[2,2,2], topo_vect=[1,2, 1,1, 2,1])
+    name_line=["L1", "L2"]
+    mock_obs = MockObservation(name_sub=["Sub0", "Sub1", "Sub3"], name_line=name_line, sub_topologies={0: [1, 2, 2], 1: [1, 1], 2: [2, 1, 2]}, sub_info=[3,2,3], topo_vect=np.array([1,2,1, 1,1, 2,1,1]))
     mock_env = MockEnv(name_line=mock_obs.name_line, name_sub=mock_obs.name_sub)
-    mock_g_overflow = MockOverflowGraph()
+    mock_g_overflow = MockOverflowGraph(edge_data={ (0, 1): {0:{"name":"L1","capacity":1}}, (1, 2): {0:{"name":"L2","capacity":2}} })
     mock_g_dist = MockDistributionGraph()
 
     discoverer = ActionDiscoverer( env=mock_env, obs=mock_obs, obs_defaut=mock_obs,classifier=ActionClassifier(MockActionSpace()),
@@ -254,6 +278,9 @@ def discoverer_instance(monkeypatch):
                                            "content": {"set_bus": {"lines_ex_id": {"L2": -1}}}},
                                    },
                       actions_unfiltered={"reco_L1", "disco_L1", "merge_S0", "split_S0", "split_S1", "disco_L2"}, hubs=["Sub0"], g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist, simulator_data={}, check_action_simulation=True )
+
+    monkeypatch.setattr(discoverer, '_edge_names_buses_dict', mock_edge_names_buses_dict)
+    monkeypatch.setattr(discoverer, 'compute_node_splitting_action_score_value', mock_compute_node_splitting_action_score_value)
     return discoverer
 
 def test_discoverer_find_relevant_node_merging(discoverer_instance):

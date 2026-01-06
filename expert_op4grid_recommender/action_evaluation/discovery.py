@@ -17,6 +17,7 @@ from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, sort_
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph # For type hinting
+import networkx as nx
 
 class ActionDiscoverer:
     """
@@ -232,7 +233,7 @@ class ActionDiscoverer:
 
     # --- Action Discovery Methods (Public) ---
 
-    def verify_relevant_reconnections(self, lines_to_reconnect: Set[str], red_loop_paths: List[List[str]]):
+    def verify_relevant_reconnections(self, lines_to_reconnect: Set[str], red_loop_paths: List[List[str]], percentage_threshold_min_dispatch_flow=0.1):
         """
         Finds and evaluates relevant line reconnections based on path checks and scoring.
 
@@ -245,23 +246,48 @@ class ActionDiscoverer:
         """
         map_action_score = {}
         red_loop_paths_sorted = sorted(red_loop_paths, key=len)
+        capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
+        max_dispatch_flow=max([abs(val) for val in capacity_dict.values()])
 
         print(f"Evaluating {len(lines_to_reconnect)} potential reconnections...")
         for line_reco in lines_to_reconnect:
             has_found_effective_path, other_line = self._check_other_reconnectable_line_on_path(
                 line_reco, red_loop_paths_sorted
             )
+
             if has_found_effective_path:
-                try:
-                    line_id = np.where(self.obs.name_line == line_reco)[0][0]
-                    delta_theta = abs(get_delta_theta_line(self.obs_defaut, line_id))
-                    map_action_score["reco_" + line_reco] = {
-                        "action": self.action_space({"set_bus":{"lines_or_id": {line_reco: 1},"lines_ex_id": {line_reco: 1}}}),#self.action_space({"set_line_status": [(line_reco, 1)]}),
-                        "score": delta_theta,
-                        "line_impacted": line_reco
-                    }
-                except (IndexError, ValueError) as e:
-                     print(f"Warning: Could not process line {line_reco}: {e}")
+                line_id = np.where(self.obs.name_line == line_reco)[0][0]
+                # check dispatch flow at substation extremities are significant enough
+
+                max_dispatch_flow_line_nodes = 0
+                for sub_id in [self.obs_defaut.line_or_to_subid[line_id],
+                               self.obs_defaut.line_ex_to_subid[line_id]]:
+                    sub_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + list(
+                        self.g_overflow.g.in_edges(sub_id, keys=True))
+                    max_dispatch_flow_node = max([abs(capacity_dict[edge]) for edge in sub_edges])
+                    if max_dispatch_flow_node >= max_dispatch_flow_line_nodes:
+                        max_dispatch_flow_line_nodes = max_dispatch_flow_node
+
+                if max_dispatch_flow_line_nodes <= max_dispatch_flow * percentage_threshold_min_dispatch_flow:
+                    print(f"  Skipping {line_reco}: Path not significant enough with max redispatch flow of only blocked by {max_dispatch_flow_line_nodes} MW.")
+                else:
+                    try:
+
+                        #TODO: could make this stronger by considering the direction of delta theta, not only the absolute value, as it would give and indidation if flow will make it in or out
+                        #Example on contingency P.SAOLRONCI 20240828T0100Z, reco_line 'CREYSL71G.ILE', Theta CRESEY:-0.012, Theta G.ILE: -0.10.
+                        #Reconnection will create a flow from CRESEY to G.ILE whie the other direction would have brought more flow on CRESEY loop path
+                        #which would have been benefitial. So this action should have been filtered out.
+                        #Also most influential reconnections are the ones connecting constrained path and loop path, directly in parallel to the constrained path
+                        #TODO: actually rather than looking at phases, see if both extreities of path containing the line to reconnect have some influential dispatch flows.
+                        #If yes this is a very good sign that it could be influential
+                        delta_theta = abs(get_delta_theta_line(self.obs_defaut, line_id))
+                        map_action_score["reco_" + line_reco] = {
+                            "action": self.action_space({"set_bus":{"lines_or_id": {line_reco: 1},"lines_ex_id": {line_reco: 1}}}),#self.action_space({"set_line_status": [(line_reco, 1)]}),
+                            "score": delta_theta,
+                            "line_impacted": line_reco
+                        }
+                    except (IndexError, ValueError) as e:
+                         print(f"Warning: Could not process line {line_reco}: {e}")
             else:
                 print(f"  Skipping {line_reco}: Path potentially blocked by {other_line}.")
 
@@ -345,6 +371,320 @@ class ActionDiscoverer:
         self.ignored_disconnections = ignored
 
 
+    def identify_bus_of_interest_in_node_splitting_(self, node_type, buses, buses_negative_inflow,
+                                                    buses_negative_out_flow):
+        """
+        Identifies the specific bus within a split node that is most critical for relieving the constraint.
+
+        The logic depends on whether the node is upstream (amont) or downstream (aval) of the constraint:
+        - **Amont (Upstream):** We look for the bus with the most negative dispatch outflow (pushing flow away).
+        - **Aval (Downstream):** We look for the bus with the most negative dispatch inflow.
+
+        Args:
+            node_type (str): The classification of the node ('amont', 'aval', or other).
+            buses (list): List of bus identifiers involved in the split (e.g., [1, 2]).
+            buses_negative_inflow (list or np.array): Magnitude of negative inflow for each bus.
+            buses_negative_out_flow (list or np.array): Magnitude of negative outflow for each bus.
+
+        Returns:
+            int: The identifier of the bus of interest (e.g., 1 or 2).
+        """
+        bus_of_interest = 1
+        buses_negative_inflow = np.array(buses_negative_inflow)
+        buses_negative_out_flow = np.array(buses_negative_out_flow)
+
+        # Check if there is any negative flow to analyze
+        if np.sum(buses_negative_inflow) != 0 or np.sum(buses_negative_out_flow) != 0:
+            if node_type == "amont":
+                # a) is_Amont: At least one out_edge belongs to the constrained path.
+                # Strategy: Identify the bus with the most negative dispatch outflow.
+                bus_of_interest = buses[np.argmax(buses_negative_out_flow - buses_negative_inflow)]
+            elif node_type == "aval":
+                # b) is_Aval: At least one in_edge belongs to the constrained path.
+                # Strategy: Identify the bus with the most negative dispatch inflow.
+                bus_of_interest = buses[np.argmax(buses_negative_inflow - buses_negative_out_flow)]
+            else:
+                # Fallback for loop nodes or unclassified nodes: find max absolute difference
+                id_of_interest = np.argmax(abs(buses_negative_inflow - buses_negative_out_flow))
+                bus_of_interest = buses[id_of_interest]
+        else:
+            print("Warning: no negative flow detected")
+
+        return bus_of_interest
+
+    def computing_buses_values_of_interest(self, graph, node, dict_edge_names_buses):
+        """
+        Aggregates flow attributes for all buses within a specific node (substation).
+
+        Calculates total positive/negative inflows and outflows for every bus configuration
+        in the provided graph.
+
+        Args:
+            graph (nx.Graph): The network graph containing edge attributes (flow values).
+            node (int): The ID of the node (substation) being analyzed.
+            dict_edge_names_buses (dict): Mapping of line names to their assigned bus (1 or 2).
+
+        Returns:
+            tuple:
+                - buses (list): Unique bus IDs (excluding 0 or -1 which represent disconnection).
+                - buses_negative_inflow (list): Sum of negative inflows per bus.
+                - buses_negative_out_flow (list): Sum of negative outflows per bus.
+                - buses_positive_inflow (list): Sum of positive inflows per bus.
+                - buses_positive_out_flow (list): Sum of positive outflows per bus.
+        """
+        all_edges_value_attributes = nx.get_edge_attributes(graph, "label")  # dict[edge_tuple] -> flow value
+        all_edges_names = nx.get_edge_attributes(graph, "name")
+
+        # Filter for valid buses (Grid2Op buses usually start at 1; 0/-1 are disconnected)
+        buses = list(set(dict_edge_names_buses.values()) - set([0, -1]))
+
+        # Helper function to sum flows based on direction and sign
+        # Note: 'keys=True' is used because this is likely a MultiGraph
+        buses_negative_inflow = [
+            np.sum([abs(float(all_edges_value_attributes[edge]))
+                    for edge in graph.in_edges(node, keys=True)
+                    if dict_edge_names_buses[all_edges_names[edge]] == bus
+                    and float(all_edges_value_attributes[edge]) < 0])
+            for bus in buses
+        ]
+
+        buses_negative_out_flow = [
+            np.sum([abs(float(all_edges_value_attributes[edge]))
+                    for edge in graph.out_edges(node, keys=True)
+                    if dict_edge_names_buses[all_edges_names[edge]] == bus
+                    and float(all_edges_value_attributes[edge]) < 0])
+            for bus in buses
+        ]
+
+        buses_positive_inflow = [
+            np.sum([abs(float(all_edges_value_attributes[edge]))
+                    for edge in graph.in_edges(node, keys=True)
+                    if dict_edge_names_buses[all_edges_names[edge]] == bus
+                    and float(all_edges_value_attributes[edge]) >= 0])
+            for bus in buses
+        ]
+
+        buses_positive_out_flow = [
+            np.sum([abs(float(all_edges_value_attributes[edge]))
+                    for edge in graph.out_edges(node, keys=True)
+                    if dict_edge_names_buses[all_edges_names[edge]] == bus
+                    and float(all_edges_value_attributes[edge]) >= 0])
+            for bus in buses
+        ]
+
+        return buses, buses_negative_inflow, buses_negative_out_flow, buses_positive_inflow, buses_positive_out_flow
+
+    def identify_node_splitting_type(self, node, g_distribution_graph):
+        """
+        Classifies a node based on its position relative to the constrained path.
+
+        Args:
+            node (int): The node ID.
+            g_distribution_graph (object): An object containing the constrained path and loop data.
+
+        Returns:
+            str: Node type ('amont', 'aval', 'loop', or None).
+        """
+        constrained_path = g_distribution_graph.get_constrained_path()
+        red_loops = g_distribution_graph.get_loops()
+        red_loops_nodes = set([x for loop in range(len(red_loops.Path)) for x in red_loops.Path[loop]])
+
+        node_type = None
+        if node in constrained_path.n_amont():
+            node_type = "amont"  # Upstream
+        elif node in constrained_path.n_aval():
+            node_type = "aval"  # Downstream
+        elif node in red_loops_nodes:
+            node_type = "loop"  # Part of a topological loop
+
+        return node_type
+
+    def compute_node_splitting_action_bus_score(self, node_type, bus_of_interest, buses,
+                                                buses_negative_inflow, buses_negative_out_flow,
+                                                buses_positive_inflow, buses_positive_out_flow):
+        """
+        Calculates a heuristic score for a splitting action on a specific bus.
+
+        The score represents how effectively the split separates "helpful" flows (negative dispatch)
+        from "harmful" flows. It uses a combination of a weight factor and a repulsion factor.
+
+        Score Formula:
+            $$Score = WeightFactor \times Repulsion$$
+
+        Where for **Amont** (Upstream):
+            - $WeightFactor = \frac{NegOut - (NegIn + PosIn + PosOut)}{TotalFlow}$
+            - $Repulsion = NegOut - PosOut$
+
+        Args:
+            node_type (str): 'amont', 'aval', or implied by flow direction.
+            bus_of_interest (int): The bus ID being scored.
+            buses (list): List of all bus IDs.
+            buses_negative_inflow (list): Negative inflow values per bus.
+            buses_negative_out_flow (list): Negative outflow values per bus.
+            buses_positive_inflow (list): Positive inflow values per bus.
+            buses_positive_out_flow (list): Positive outflow values per bus.
+
+        Returns:
+            float: The calculated score. Higher is better.
+        """
+        idx_bus_of_interest = [i for i, bus in enumerate(buses) if bus == bus_of_interest][0]
+
+        # Extract flows for the specific bus
+        bus_negative_inflow = buses_negative_inflow[idx_bus_of_interest]
+        bus_negative_out_flow = buses_negative_out_flow[idx_bus_of_interest]
+        bus_positive_inflow = buses_positive_inflow[idx_bus_of_interest]
+        bus_positive_out_flow = buses_positive_out_flow[idx_bus_of_interest]
+
+        TotalInOutDispatchFlow = bus_negative_inflow + bus_negative_out_flow + bus_positive_inflow + bus_positive_out_flow
+
+        harmonized_node_type = node_type
+
+        # If not explicitly Amont or Aval, infer type based on dominant negative flow direction
+        if node_type not in ["amont", "aval"]:
+            # TODO: interesting cases to test for
+            # 1) GEN.PP6 on Full France for SAOL31RONCI contingency on case 20240828T0100Z => should not be effective
+            # 2) FRON5L31LOUHA_chronic_20240828_0000_timestep_36 and subs CREYSP7, MAGNYP3, GEN.PP6, FLEYRP6
+            # 3) P.SAOL31RONCI_chronic_20240828_0000_timestep_1 and sub MAGNYP6
+            # 4) a case where VOUGLP6 is in the middle of loop paths but with negative dispatch flows. But which case was this ? There is P.SAOL31RONCI so should probably be BEON L31CPVAN contingency
+            if bus_negative_out_flow >= bus_negative_inflow:
+                harmonized_node_type = "amont"  # Treat as upstream (negative out edge is dominant)
+            else:
+                harmonized_node_type = "aval"
+
+        weight_factor = 0
+        repulsion = 0
+
+        if harmonized_node_type == "amont":
+            # Strategy: Separate negative outflow from all other flows.
+            # Repulsion: Contrast negative outflow against positive outflow (separation of paths).
+            repulsion = bus_negative_out_flow - bus_positive_out_flow
+            # Weight: Ratio of the desired flow vs everything else.
+            weight_factor = (bus_negative_out_flow - (
+                        bus_negative_inflow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
+
+        elif harmonized_node_type == "aval":
+            # Strategy: Separate negative inflow from all other flows.
+            repulsion = bus_negative_inflow - bus_positive_inflow
+            weight_factor = (bus_negative_inflow - (
+                        bus_negative_out_flow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
+
+        score = weight_factor * repulsion
+
+        # Penalize configurations where the split results in opposing indicators (both negative)
+        if weight_factor < 0 and repulsion < 0:
+            score = -score
+
+        return score
+
+    def compute_node_splitting_action_score_value(self, overflow_graph, g_distribution_graph, node: int,
+                                                  dict_edge_names_buses=None):
+        """
+        Main orchestration function to score a specific node splitting topology.
+
+        Steps:
+        1. Identify the node type (Upstream, Downstream, Loop).
+        2. Compute flow values for all buses in the proposed split.
+        3. Identify the 'bus of interest' (the one carrying the relieving flow).
+        4. Compute the score based on flow separation logic.
+
+        Args:
+            overflow_graph (nx.Graph): Graph representing flows and overflows.
+            g_distribution_graph (object): Object containing path constraints and loops.
+            node (int): The ID of the substation being split.
+            topo_vect_buses (list): The topology vector representing the split (e.g., [1, 1, 2, 2]).
+            dict_edge_names_buses (dict): Mapping of edge names to bus IDs.
+
+        Returns:
+            float: The final score for this splitting action.
+        """
+        # 1) Identify node type
+        node_type = self.identify_node_splitting_type(node, g_distribution_graph)
+
+        # 2) Compute buses values of interest (aggregate flows)
+        buses, buses_negative_inflow, buses_negative_out_flow, buses_positive_inflow, buses_positive_out_flow = \
+            self.computing_buses_values_of_interest(overflow_graph, node, dict_edge_names_buses)
+
+        # 3) Detect bus of interest
+        bus_of_interest = self.identify_bus_of_interest_in_node_splitting_(
+            node_type, buses, buses_negative_inflow, buses_negative_out_flow
+        )
+
+        # 4) Compute score
+        bus_of_interest_score = self.compute_node_splitting_action_bus_score(
+            node_type, bus_of_interest, buses,
+            buses_negative_inflow, buses_negative_out_flow,
+            buses_positive_inflow, buses_positive_out_flow
+        )
+
+        return bus_of_interest_score
+
+    def _get_action_topo_vect(self, sub_impacted_id, action):
+        """
+        Retrieves the topology vector for a specific substation after an action is applied.
+
+        This handles the Grid2Op topology vector format, merging the action's changes
+        with the default state.
+
+        Args:
+            sub_impacted_id (int): The ID of the impacted substation.
+            action (Action): The Grid2Op action being evaluated.
+
+        Returns:
+            tuple:
+                - action_topo_vect (np.array): The new topology vector for the substation.
+                - is_single_node (bool): True if the substation remains a single bus (no split).
+        """
+        topo_vect_init = self.obs_defaut.sub_topology(sub_id=sub_impacted_id)
+        is_single_node = len(set(topo_vect_init) - {0, -1}) == 1
+
+        impact_obs = self.obs_defaut + action
+        sub_info = self.obs_defaut.sub_info
+
+        # Calculate start and end indices in the global topology vector
+        start = int(np.sum(sub_info[:sub_impacted_id]))
+        length = int(sub_info[sub_impacted_id])
+
+        action_topo_vect = impact_obs.topo_vect[start:start + length]
+
+        # Preserve disconnected status from initial state if applicable
+        action_topo_vect[topo_vect_init <= 0] = topo_vect_init[topo_vect_init <= 0]
+
+        return action_topo_vect, is_single_node
+
+    def _edge_names_buses_dict(self, obs, action_topo_vect, sub_impacted_id):
+        """
+        Creates a mapping between line names and their bus assignments.
+
+        Args:
+            obs (Observation): The Grid2Op observation object.
+            action_topo_vect (np.array): The topology vector of the substation.
+            sub_impacted_id (int): The ID of the substation.
+
+        Returns:
+            dict: Keys are line names, Values are bus IDs (e.g., {'Line_A': 1, 'Line_B': 2}).
+        """
+        dict_edge_names_buses = {}
+
+        length = len(action_topo_vect)
+        sub_info = obs.sub_info
+        start = int(np.sum(sub_info[:sub_impacted_id]))
+
+        for i in range(length):
+            topo_vect_pos = start + i
+            element = obs.topo_vect_element(topo_vect_pos)
+
+            # Check if the element corresponds to a line (not a load or gen)
+            if 'line_id' in element:
+                if 'line_or_id' in element:
+                    line_id = element['line_or_id']  # Origin
+                else:
+                    line_id = element['line_ex_id']  # Extremity
+
+                line_name = obs.name_line[line_id]
+                dict_edge_names_buses[line_name] = action_topo_vect[i]
+
+        return dict_edge_names_buses
+
     def compute_node_splitting_action_score(self, action: Any, sub_impacted_id: int, alphaDeesp_ranker: Any) -> float:
         """
         Computes the heuristic score for a single node splitting action.
@@ -357,17 +697,21 @@ class ActionDiscoverer:
         Returns:
             The heuristic score as a float.
         """
-        topo_vect_init = self.obs_defaut.sub_topology(sub_id=sub_impacted_id)
-        is_single_node = len(set(topo_vect_init) - {0, -1}) == 1
-        impact_obs = self.obs_defaut + action
-        sub_info = self.obs_defaut.sub_info
-        start = int(np.sum(sub_info[:sub_impacted_id]))
-        length = int(sub_info[sub_impacted_id])
-        action_topo_vect = impact_obs.topo_vect[start:start + length] - 1
-        return alphaDeesp_ranker.rank_current_topo_at_node_x(
+
+        action_topo_vect,is_single_node=self._get_action_topo_vect(sub_impacted_id,action)
+        action_topo_vect_alphadeesp=action_topo_vect-1
+
+        #########"
+        dict_edge_names_buses=self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
+
+        ############"
+        score_alphaDeesp_ranker = alphaDeesp_ranker.rank_current_topo_at_node_x(
             self.g_overflow.g, sub_impacted_id, isSingleNode=is_single_node,
-            topo_vect=action_topo_vect, is_score_specific_substation=False
+            topo_vect=action_topo_vect_alphadeesp, is_score_specific_substation=False
         )
+        score_expert_recommender=self.compute_node_splitting_action_score_value(self.g_overflow.g,self.g_distribution_graph,node=sub_impacted_id, dict_edge_names_buses=dict_edge_names_buses)
+
+        return score_expert_recommender#score_alphaDeesp_ranker
 
 
     def identify_and_score_node_splitting_actions(self, hubs_names: List[str], nodes_blue_path_names: List[str], alphaDeesp_ranker: Any) -> Tuple[Dict, List]:
@@ -408,6 +752,8 @@ class ActionDiscoverer:
                 if sub_impacted_name in hubs_names or sub_impacted_name in nodes_blue_path_names:
                     score = self.compute_node_splitting_action_score(action, sub_impacted_id, alphaDeesp_ranker)
                     map_action_score[action_id] = {"action": action, "score": score, "sub_impacted": sub_impacted_name}
+                    #print(action_desc["content"]["set_bus"])
+                    #print(action_id+": "+str(score))
                 else:
                     ignored_actions.append(action_desc)
             else:
@@ -458,7 +804,7 @@ class ActionDiscoverer:
         self.scores_splits = scores
 
 
-    def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str]):
+    def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str], percentage_threshold_min_dispatch_flow=0.1):
         """
         Finds and evaluates relevant node merging actions on dispatch paths.
 
@@ -466,8 +812,11 @@ class ActionDiscoverer:
 
         Args:
             nodes_dispatch_path_names: List of substation names on dispatch paths.
+            percentage_threshold_min_dispatch_flow: float between 0 and 1. threshold to filter out unsignificant node merging actions given not significant enough dispatch flow
         """
         identified, effective, ineffective = {}, [], []
+        capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
+        max_dispatch_flow=max([abs(val) for val in capacity_dict.values()])
 
         print(f"Evaluating node merging for {len(nodes_dispatch_path_names)} substations...")
         for sub_name in nodes_dispatch_path_names:
@@ -478,19 +827,25 @@ class ActionDiscoverer:
             connected_buses = set(current_sub_topo) - {-1, 0}
 
             if len(connected_buses) >= 2:
-                topo_target = [1 if bus_id >= 2 else bus_id for bus_id in current_sub_topo]
-                action = self.action_space({"set_bus": {"substations_id": [(sub_id, topo_target)]}})
-                action_id = f"node_merging_{sub_name}"
-                identified[action_id] = action
+                #check if significant enough, that is with some minimal redispatch flow
+                sub_edges=list(self.g_overflow.g.out_edges(sub_id, keys=True))+list(self.g_overflow.g.in_edges(sub_id, keys=True))
 
-                if self.check_action_simulation:
-                    act_defaut = create_default_action(self.action_space, self.lines_defaut)
-                    is_rho_reduction, _ = check_rho_reduction(
-                        self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                        self.act_reco_maintenance, self.lines_we_care_about
-                    )
-                    (effective if is_rho_reduction else ineffective).append(action)
-                    print(f"  {'Effective' if is_rho_reduction else 'Ineffective'} node merge: {action_id}")
+                max_dispatch_flow_node=max([abs(capacity_dict[edge]) for edge in sub_edges])
+
+                if max_dispatch_flow_node>=max_dispatch_flow*percentage_threshold_min_dispatch_flow:
+                    topo_target = [1 if bus_id >= 2 else bus_id for bus_id in current_sub_topo]
+                    action = self.action_space({"set_bus": {"substations_id": [(sub_id, topo_target)]}})
+                    action_id = f"node_merging_{sub_name}"
+                    identified[action_id] = action
+
+                    if self.check_action_simulation:
+                        act_defaut = create_default_action(self.action_space, self.lines_defaut)
+                        is_rho_reduction, _ = check_rho_reduction(
+                            self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
+                            self.act_reco_maintenance, self.lines_we_care_about
+                        )
+                        (effective if is_rho_reduction else ineffective).append(action)
+                        print(f"  {'Effective' if is_rho_reduction else 'Ineffective'} node merge: {action_id}")
 
         self.identified_merges = identified
         self.effective_merges = effective
