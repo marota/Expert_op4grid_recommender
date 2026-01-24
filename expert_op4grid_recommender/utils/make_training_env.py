@@ -42,8 +42,7 @@ def make_grid2op_training_env(path_env: str,
                    backend=backend,
                    allow_detachment=allow_detachment,
                    n_busbar=backend_kwargs_data["loader_kwargs"]["n_busbar_per_sub"],
-                   param=params,
-                   chronics_class=ChangeNothing
+                   param=params
                    )
     return env
 
