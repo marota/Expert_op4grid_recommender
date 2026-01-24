@@ -14,6 +14,7 @@ import os
 import json
 import pandas as pd
 from typing import Dict, Any, List, Tuple, Optional, Callable
+import time
 
 
 def get_theta_node(obs: Any, sub_id: int, bus: int) -> float:
@@ -313,3 +314,18 @@ def save_data_for_test(env_path: str, case_name: str, df_of_g: pd.DataFrame, ove
 
     except Exception as e:
         print(f"Error saving test data for case {case_name}: {e}")
+
+class Timer:
+    """Context manager to measure execution time of code blocks."""
+    def __init__(self, name="Task"):
+        self.name = name
+        self.start_time = None
+
+    def __enter__(self):
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        end_time = time.perf_counter()
+        elapsed_time = end_time - self.start_time
+        print(f"[Timer] {self.name} took {elapsed_time:.4f}s")
