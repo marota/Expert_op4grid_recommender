@@ -20,9 +20,7 @@ This module tests:
 import pytest
 import os
 import sys
-import json
-import tempfile
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from pathlib import Path
 from datetime import datetime
 
@@ -424,85 +422,85 @@ class TestRebuildActionDictForSnapshot:
 # --- Tests for run_rebuild_actions ---
 
 class TestRunRebuildActions:
-    """Tests for the run_rebuild_actions function."""
+    """Tests for the run_rebuild_actions function.
     
+    Note: These tests use tmp_path fixture from pytest to create temporary directories.
+    This ensures we never accidentally delete real project directories.
+    """
+    
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.json.dump')
     @patch('expert_op4grid_recommender.utils.action_rebuilder.build_action_dict_for_snapshot_from_scratch')
     @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.os.path.join')
     @patch('builtins.open', create=True)
-    def test_from_scratch_mode(self, mock_open, mock_parse, mock_build, mock_network, tmp_path):
+    def test_from_scratch_mode(self, mock_open, mock_path_join, mock_parse, mock_build, mock_json_dump, mock_network, tmp_path):
         """Test that from_scratch mode calls build_action_dict_for_snapshot_from_scratch."""
+        # Setup mocks
         mock_parse.return_value = [Mock()]
         mock_build.return_value = {"action": {}}
+        mock_path_join.return_value = str(tmp_path / "output.json")
         mock_open.return_value.__enter__ = Mock(return_value=Mock())
         mock_open.return_value.__exit__ = Mock(return_value=False)
         
-        # Create temp directory structure
-        os.makedirs(os.path.join("data", "action_space"), exist_ok=True)
+        run_rebuild_actions(
+            mock_network,
+            do_from_scratch=True,
+            repas_file_path="fake_repas.json"
+        )
         
-        try:
-            run_rebuild_actions(
-                mock_network,
-                do_from_scratch=True,
-                repas_file_path="fake_repas.json"
-            )
-            
-            mock_build.assert_called_once()
-        finally:
-            # Cleanup
-            if os.path.exists(os.path.join("data", "action_space")):
-                import shutil
-                shutil.rmtree("data", ignore_errors=True)
+        mock_build.assert_called_once()
     
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.json.dump')
     @patch('expert_op4grid_recommender.utils.action_rebuilder.rebuild_action_dict_for_snapshot')
     @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.os.path.join')
     @patch('builtins.open', create=True)
-    def test_rebuild_mode(self, mock_open, mock_parse, mock_rebuild, mock_network, tmp_path):
+    def test_rebuild_mode(self, mock_open, mock_path_join, mock_parse, mock_rebuild, mock_json_dump, mock_network, tmp_path):
         """Test that non-from_scratch mode calls rebuild_action_dict_for_snapshot."""
+        # Setup mocks
         mock_parse.return_value = [Mock()]
         mock_rebuild.return_value = {"action": {}}
+        mock_path_join.return_value = str(tmp_path / "output.json")
         mock_open.return_value.__enter__ = Mock(return_value=Mock())
         mock_open.return_value.__exit__ = Mock(return_value=False)
         
-        os.makedirs(os.path.join("data", "action_space"), exist_ok=True)
+        run_rebuild_actions(
+            mock_network,
+            do_from_scratch=False,
+            repas_file_path="fake_repas.json",
+            dict_action_to_filter_on={"existing": {}}
+        )
         
-        try:
-            run_rebuild_actions(
-                mock_network,
-                do_from_scratch=False,
-                repas_file_path="fake_repas.json",
-                dict_action_to_filter_on={"existing": {}}
-            )
-            
-            mock_rebuild.assert_called_once()
-        finally:
-            import shutil
-            shutil.rmtree("data", ignore_errors=True)
+        mock_rebuild.assert_called_once()
     
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.json.dump')
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.build_action_dict_for_snapshot_from_scratch')
     @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
-    def test_voltage_filter_threshold(self, mock_parse, mock_network):
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.os.path.join')
+    @patch('builtins.open', create=True)
+    def test_voltage_filter_threshold(self, mock_open, mock_path_join, mock_parse, mock_build, mock_json_dump, mock_network, tmp_path):
         """Test that voltage filter threshold is passed to parse_json."""
+        # Setup mocks
         mock_parse.return_value = []
+        mock_build.return_value = {}
+        mock_path_join.return_value = str(tmp_path / "output.json")
+        mock_open.return_value.__enter__ = Mock(return_value=Mock())
+        mock_open.return_value.__exit__ = Mock(return_value=False)
         
-        os.makedirs(os.path.join("data", "action_space"), exist_ok=True)
+        run_rebuild_actions(
+            mock_network,
+            do_from_scratch=True,
+            repas_file_path="fake_repas.json",
+            voltage_filter_threshold=225
+        )
         
-        try:
-            run_rebuild_actions(
-                mock_network,
-                do_from_scratch=True,
-                repas_file_path="fake_repas.json",
-                voltage_filter_threshold=225
-            )
-            
-            # Check that parse_json was called with a filter function
-            call_args = mock_parse.call_args
-            filter_func = call_args[0][2]
-            
-            # Test the filter function
-            assert filter_func(("id", {"nominal_v": 100})) == True  # 100 < 225
-            assert filter_func(("id", {"nominal_v": 300})) == False  # 300 >= 225
-        finally:
-            import shutil
-            shutil.rmtree("data", ignore_errors=True)
+        # Check that parse_json was called with a filter function
+        call_args = mock_parse.call_args
+        filter_func = call_args[0][2]
+        
+        # Test the filter function
+        assert filter_func(("id", {"nominal_v": 100})) == True  # 100 < 225
+        assert filter_func(("id", {"nominal_v": 300})) == False  # 300 >= 225
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
     def test_returns_original_on_failure(self, mock_parse, mock_network):
@@ -520,35 +518,35 @@ class TestRunRebuildActions:
         
         assert result == original_dict
     
-    def test_default_dict_action_is_empty(self, mock_network):
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
+    def test_default_dict_action_is_empty(self, mock_parse, mock_network):
         """Test that default dict_action_to_filter_on is empty dict."""
-        with patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json') as mock_parse:
-            mock_parse.side_effect = Exception("Parse error")
-            
-            result = run_rebuild_actions(
-                mock_network,
-                do_from_scratch=True,
-                repas_file_path="fake_repas.json"
-            )
-            
-            assert result == {}
+        mock_parse.side_effect = Exception("Parse error")
+        
+        result = run_rebuild_actions(
+            mock_network,
+            do_from_scratch=True,
+            repas_file_path="fake_repas.json"
+        )
+        
+        assert result == {}
     
-    def test_prints_rebuild_message(self, mock_network, capsys):
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
+    def test_prints_rebuild_message(self, mock_parse, mock_network, capsys):
         """Test that informative message is printed at start."""
-        with patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json') as mock_parse:
-            mock_parse.side_effect = Exception("Stop early")
-            
-            run_rebuild_actions(
-                mock_network,
-                do_from_scratch=True,
-                repas_file_path="test_repas.json",
-                voltage_filter_threshold=400
-            )
-            
-            captured = capsys.readouterr()
-            assert "Rebuilding action dictionary" in captured.out
-            assert "test_repas.json" in captured.out
-            assert "400" in captured.out
+        mock_parse.side_effect = Exception("Stop early")
+        
+        run_rebuild_actions(
+            mock_network,
+            do_from_scratch=True,
+            repas_file_path="test_repas.json",
+            voltage_filter_threshold=400
+        )
+        
+        captured = capsys.readouterr()
+        assert "Rebuilding action dictionary" in captured.out
+        assert "test_repas.json" in captured.out
+        assert "400" in captured.out
 
 
 # --- Integration Tests (marked as slow) ---
