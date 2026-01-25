@@ -83,7 +83,7 @@ def make_raw_all_actions_dict(all_actions):
     return all_actions_dict
 
 
-def build_action_dict_for_snapshot_from_scratch(n_grid, all_actions, add_reco_disco_actions=False, filter_voltage_levels=None):
+def build_action_dict_for_snapshot_from_scratch(n_grid, all_actions, add_reco_disco_actions=False, filter_voltage_levels=[]):
     """
     Builds the action dictionary based on the current network grid snapshot.
     Converts all actions involving coupling breakers from REPAS format to Grid2Op format where necessary.
@@ -116,7 +116,7 @@ def build_action_dict_for_snapshot_from_scratch(n_grid, all_actions, add_reco_di
             if "COUPL" in switches_str or "TRO." in switches_str:
                 actions_to_convert.append(all_actions_dict[action_key])
 
-        converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert)
+        converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert,use_analytical=True)
 
         if add_reco_disco_actions:
             dict_extra_disco_reco_actions = create_dict_disco_reco_lines_disco(
@@ -252,7 +252,7 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
 
             # Rebuild dictionary
             if do_from_scratch:
-                new_dict_actions = build_action_dict_for_snapshot_from_scratch(n_grid, all_actions)
+                new_dict_actions = build_action_dict_for_snapshot_from_scratch(n_grid, all_actions,add_reco_disco_actions=True)
             else:
                 new_dict_actions = rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action_to_filter_on)
 
