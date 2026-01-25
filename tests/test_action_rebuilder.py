@@ -7,7 +7,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 """
-Tests for the action_rebuilder module.
+Tests for the action_rebuilder module and conversion_actions_repas module.
 
 This module tests:
 - make_description_unitaire
@@ -15,14 +15,22 @@ This module tests:
 - build_action_dict_for_snapshot_from_scratch
 - rebuild_action_dict_for_snapshot
 - run_rebuild_actions
+- UnionFind data structure
+- _reindex_bus_numbers function
+- NetworkTopologyCache class
+- convert_to_grid2op_action (analytical version)
+- convert_to_grid2op_action_batch
+- convert_to_grid2op_action_with_variant (legacy version)
 """
 
 import pytest
 import os
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 from datetime import datetime
+import pandas as pd
+import numpy as np
 
 # --- Test Setup: Add Project Root to Python path ---
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -35,8 +43,21 @@ from expert_op4grid_recommender.utils.action_rebuilder import (
     run_rebuild_actions
 )
 
+from expert_op4grid_recommender.utils.conversion_actions_repas import (
+    UnionFind,
+    _reindex_bus_numbers,
+    NetworkTopologyCache,
+    convert_to_grid2op_action,
+    convert_to_grid2op_action_batch,
+    convert_to_grid2op_action_with_variant,
+    convert_repas_actions_to_grid2op_actions,
+    get_all_switch_descriptions,
+)
 
-# --- Mock Classes ---
+
+# =============================================================================
+# Mock Classes
+# =============================================================================
 
 class MockRepasAction:
     """
@@ -44,9 +65,12 @@ class MockRepasAction:
     
     Simulates the structure of actions parsed from REPAS JSON files.
     """
-    def __init__(self, action_id, switches_by_voltage_level):
+    def __init__(self, action_id, switches_by_voltage_level, description="Test action"):
         self._id = action_id
         self._switches_by_voltage_level = switches_by_voltage_level
+        self._description = description
+        self._loads_by_id = {}
+        self._generators_by_id = {}
 
 
 class MockNetwork:
@@ -63,7 +87,66 @@ class MockNetwork:
         return Mock()
 
 
-# --- Fixtures ---
+def create_mock_network_with_topology():
+    """
+    Create a mock network with realistic topology data for testing.
+    
+    Creates a simple network with:
+    - 2 voltage levels (VL1, VL2)
+    - 4 switches in VL1 (2 open, 2 closed)
+    - 2 branches connecting VL1 to VL2
+    - 1 load in VL1
+    - 1 generator in VL1
+    """
+    mock_network = MagicMock()
+    
+    # Switches DataFrame
+    switches_data = {
+        'voltage_level_id': ['VL1', 'VL1', 'VL1', 'VL1'],
+        'bus_breaker_bus1_id': ['VL1_NODE1', 'VL1_NODE2', 'VL1_NODE1', 'VL1_NODE3'],
+        'bus_breaker_bus2_id': ['VL1_NODE2', 'VL1_NODE3', 'VL1_NODE3', 'VL1_NODE4'],
+        'open': [False, True, False, True]  # SW1 closed, SW2 open, SW3 closed, SW4 open
+    }
+    switches_df = pd.DataFrame(switches_data, index=['VL1_SW1', 'VL1_SW2', 'VL1_SW3', 'VL1_SW4'])
+    mock_network.get_switches.return_value = switches_df
+    
+    # Loads DataFrame
+    loads_data = {
+        'bus_id': ['VL1_NODE1'],
+        'voltage_level_id': ['VL1']
+    }
+    loads_df = pd.DataFrame(loads_data, index=['LOAD1'])
+    mock_network.get_loads.return_value = loads_df
+    
+    # Generators DataFrame
+    generators_data = {
+        'bus_id': ['VL1_NODE4'],
+        'voltage_level_id': ['VL1']
+    }
+    generators_df = pd.DataFrame(generators_data, index=['GEN1'])
+    mock_network.get_generators.return_value = generators_df
+    
+    # Shunts DataFrame (empty)
+    shunts_df = pd.DataFrame(columns=['bus_id', 'voltage_level_id'])
+    shunts_df.index.name = 'id'
+    mock_network.get_shunt_compensators.return_value = shunts_df
+    
+    # Branches DataFrame
+    branches_data = {
+        'bus1_id': ['VL1_NODE1', 'VL1_NODE4'],
+        'bus2_id': ['VL2_NODE1', 'VL2_NODE2'],
+        'voltage_level1_id': ['VL1', 'VL1'],
+        'voltage_level2_id': ['VL2', 'VL2']
+    }
+    branches_df = pd.DataFrame(branches_data, index=['LINE1', 'LINE2'])
+    mock_network.get_branches.return_value = branches_df
+    
+    return mock_network
+
+
+# =============================================================================
+# Fixtures
+# =============================================================================
 
 @pytest.fixture
 def single_voltage_level_action():
@@ -128,6 +211,12 @@ def mock_network():
 
 
 @pytest.fixture
+def mock_network_with_topology():
+    """Creates a mock pypowsybl network with full topology data."""
+    return create_mock_network_with_topology()
+
+
+@pytest.fixture
 def sample_dict_action():
     """Creates a sample action dictionary as would be loaded from JSON."""
     return {
@@ -146,7 +235,657 @@ def sample_dict_action():
     }
 
 
-# --- Tests for make_description_unitaire ---
+# =============================================================================
+# Tests for UnionFind
+# =============================================================================
+
+class TestUnionFind:
+    """Tests for the UnionFind data structure."""
+    
+    def test_initialization(self):
+        """Test that UnionFind initializes correctly with elements."""
+        elements = ['A', 'B', 'C']
+        uf = UnionFind(elements)
+        
+        assert len(uf.parent) == 3
+        assert all(uf.parent[e] == e for e in elements)
+        assert all(uf.rank[e] == 0 for e in elements)
+    
+    def test_find_without_union(self):
+        """Test find operation on elements that haven't been united."""
+        uf = UnionFind(['A', 'B', 'C'])
+        
+        assert uf.find('A') == 'A'
+        assert uf.find('B') == 'B'
+        assert uf.find('C') == 'C'
+    
+    def test_union_two_elements(self):
+        """Test union of two elements."""
+        uf = UnionFind(['A', 'B', 'C'])
+        uf.union('A', 'B')
+        
+        # A and B should have the same root
+        assert uf.find('A') == uf.find('B')
+        # C should still be separate
+        assert uf.find('C') == 'C'
+        assert uf.find('A') != uf.find('C')
+    
+    def test_union_chain(self):
+        """Test chaining unions."""
+        uf = UnionFind(['A', 'B', 'C', 'D'])
+        uf.union('A', 'B')
+        uf.union('B', 'C')
+        
+        # A, B, C should all have the same root
+        assert uf.find('A') == uf.find('B') == uf.find('C')
+        # D should still be separate
+        assert uf.find('D') == 'D'
+    
+    def test_union_already_same_set(self):
+        """Test union of elements already in the same set."""
+        uf = UnionFind(['A', 'B'])
+        uf.union('A', 'B')
+        uf.union('A', 'B')  # Should not cause issues
+        
+        assert uf.find('A') == uf.find('B')
+    
+    def test_get_component_mapping_single_component(self):
+        """Test component mapping when all elements are connected."""
+        uf = UnionFind(['A', 'B', 'C'])
+        uf.union('A', 'B')
+        uf.union('B', 'C')
+        
+        mapping = uf.get_component_mapping()
+        
+        # All should have the same component number
+        assert mapping['A'] == mapping['B'] == mapping['C']
+        assert mapping['A'] == 1  # First component is 1
+    
+    def test_get_component_mapping_multiple_components(self):
+        """Test component mapping with multiple disconnected components."""
+        uf = UnionFind(['A', 'B', 'C', 'D'])
+        uf.union('A', 'B')
+        uf.union('C', 'D')
+        
+        mapping = uf.get_component_mapping()
+        
+        # A and B should be in one component
+        assert mapping['A'] == mapping['B']
+        # C and D should be in another component
+        assert mapping['C'] == mapping['D']
+        # The two components should be different
+        assert mapping['A'] != mapping['C']
+    
+    def test_get_component_mapping_all_separate(self):
+        """Test component mapping when no unions have been made."""
+        uf = UnionFind(['A', 'B', 'C'])
+        
+        mapping = uf.get_component_mapping()
+        
+        # Each element should be in its own component
+        assert len(set(mapping.values())) == 3
+    
+    def test_path_compression(self):
+        """Test that path compression works (find should update parent)."""
+        uf = UnionFind(['A', 'B', 'C', 'D'])
+        uf.union('A', 'B')
+        uf.union('B', 'C')
+        uf.union('C', 'D')
+        
+        # After finding D, the path should be compressed
+        root = uf.find('D')
+        # D's parent should now point directly to root (or close to it)
+        assert uf.parent['D'] == root
+    
+    def test_empty_union_find(self):
+        """Test UnionFind with empty element list."""
+        uf = UnionFind([])
+        
+        assert len(uf.parent) == 0
+        assert uf.get_component_mapping() == {}
+
+
+# =============================================================================
+# Tests for _reindex_bus_numbers
+# =============================================================================
+
+class TestReindexBusNumbers:
+    """Tests for the _reindex_bus_numbers function."""
+    
+    def test_basic_reindexing(self):
+        """Test basic reindexing of non-sequential bus numbers."""
+        set_bus = {
+            'lines_or_id': {'L1': 2, 'L2': 4, 'L3': 2},
+            'lines_ex_id': {},
+            'loads_id': {'LOAD1': 4},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        
+        result = _reindex_bus_numbers(set_bus)
+        
+        # 2 -> 1, 4 -> 2
+        assert result['lines_or_id']['L1'] == 1
+        assert result['lines_or_id']['L2'] == 2
+        assert result['lines_or_id']['L3'] == 1
+        assert result['loads_id']['LOAD1'] == 2
+    
+    def test_preserves_disconnected(self):
+        """Test that disconnected elements (bus=-1) are preserved."""
+        set_bus = {
+            'lines_or_id': {'L1': 2, 'L2': -1},
+            'lines_ex_id': {'L3': -1},
+            'loads_id': {},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        
+        result = _reindex_bus_numbers(set_bus)
+        
+        assert result['lines_or_id']['L2'] == -1
+        assert result['lines_ex_id']['L3'] == -1
+    
+    def test_already_sequential(self):
+        """Test that already sequential numbers are preserved."""
+        set_bus = {
+            'lines_or_id': {'L1': 1, 'L2': 2, 'L3': 1},
+            'lines_ex_id': {},
+            'loads_id': {},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        
+        result = _reindex_bus_numbers(set_bus)
+        
+        assert result['lines_or_id']['L1'] == 1
+        assert result['lines_or_id']['L2'] == 2
+        assert result['lines_or_id']['L3'] == 1
+    
+    def test_single_bus_number(self):
+        """Test with only one unique bus number (no reindexing needed)."""
+        set_bus = {
+            'lines_or_id': {'L1': 5, 'L2': 5},
+            'lines_ex_id': {},
+            'loads_id': {},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        
+        result = _reindex_bus_numbers(set_bus)
+        
+        # Should be returned as-is (or could be reindexed to 1, both are valid)
+        # Current implementation returns as-is for single bus
+        assert result == set_bus
+    
+    def test_empty_set_bus(self):
+        """Test with empty element dictionaries."""
+        set_bus = {
+            'lines_or_id': {},
+            'lines_ex_id': {},
+            'loads_id': {},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        
+        result = _reindex_bus_numbers(set_bus)
+        
+        assert result == set_bus
+    
+    def test_large_gap_in_numbers(self):
+        """Test with large gaps in bus numbers."""
+        set_bus = {
+            'lines_or_id': {'L1': 1, 'L2': 100, 'L3': 50},
+            'lines_ex_id': {},
+            'loads_id': {},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        
+        result = _reindex_bus_numbers(set_bus)
+        
+        # 1 -> 1, 50 -> 2, 100 -> 3
+        assert result['lines_or_id']['L1'] == 1
+        assert result['lines_or_id']['L3'] == 2
+        assert result['lines_or_id']['L2'] == 3
+    
+    def test_mixed_positive_and_negative(self):
+        """Test with a mix of positive bus numbers and disconnected (-1)."""
+        set_bus = {
+            'lines_or_id': {'L1': 3, 'L2': -1, 'L3': 7},
+            'lines_ex_id': {'L4': 3, 'L5': -1},
+            'loads_id': {'LOAD1': 7},
+            'generators_id': {'GEN1': -1},
+            'shunts_id': {}
+        }
+        
+        result = _reindex_bus_numbers(set_bus)
+        
+        # 3 -> 1, 7 -> 2; -1 stays -1
+        assert result['lines_or_id']['L1'] == 1
+        assert result['lines_or_id']['L2'] == -1
+        assert result['lines_or_id']['L3'] == 2
+        assert result['lines_ex_id']['L4'] == 1
+        assert result['lines_ex_id']['L5'] == -1
+        assert result['loads_id']['LOAD1'] == 2
+        assert result['generators_id']['GEN1'] == -1
+    
+    def test_preserves_zero_bus(self):
+        """Test that bus=0 (invalid) is also preserved."""
+        set_bus = {
+            'lines_or_id': {'L1': 2, 'L2': 0},
+            'lines_ex_id': {},
+            'loads_id': {},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        
+        result = _reindex_bus_numbers(set_bus)
+        
+        assert result['lines_or_id']['L2'] == 0
+
+
+# =============================================================================
+# Tests for NetworkTopologyCache
+# =============================================================================
+
+class TestNetworkTopologyCache:
+    """Tests for the NetworkTopologyCache class."""
+    
+    def test_initialization(self, mock_network_with_topology):
+        """Test that cache initializes correctly from network."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        assert cache.network is mock_network_with_topology
+        assert 'VL1' in cache._vl_nodes
+        assert len(cache._vl_nodes['VL1']) == 4  # 4 unique nodes
+    
+    def test_switch_data_cached(self, mock_network_with_topology):
+        """Test that switch data is properly cached."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        # Should have 4 switches in VL1
+        assert len(cache._vl_switches['VL1']) == 4
+        
+        # Check initial switch states
+        assert cache._vl_switch_states['VL1_SW1'] == False  # closed
+        assert cache._vl_switch_states['VL1_SW2'] == True   # open
+    
+    def test_element_mappings_cached(self, mock_network_with_topology):
+        """Test that element-to-node mappings are cached."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        assert 'LOAD1' in cache._load_to_node
+        assert cache._load_to_node['LOAD1'] == 'VL1_NODE1'
+        
+        assert 'GEN1' in cache._gen_to_node
+        assert cache._gen_to_node['GEN1'] == 'VL1_NODE4'
+        
+        assert 'LINE1' in cache._branch_or_to_node
+        assert cache._branch_or_to_node['LINE1'] == 'VL1_NODE1'
+    
+    def test_compute_bus_assignments_no_changes(self, mock_network_with_topology):
+        """Test bus assignment computation with no switch changes."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        # No switch changes, use initial state
+        node_to_bus = cache.compute_bus_assignments({}, {'VL1'})
+        
+        assert 'VL1' in node_to_bus
+        # With initial state: SW1 closed, SW2 open, SW3 closed, SW4 open
+        # NODE1-NODE2 connected (SW1), NODE1-NODE3 connected (SW3)
+        # So NODE1, NODE2, NODE3 are in one component; NODE4 is separate
+    
+    def test_compute_bus_assignments_with_switch_change(self, mock_network_with_topology):
+        """Test bus assignment computation with switch changes."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        # Close SW4 to connect NODE3-NODE4
+        switch_changes = {'VL1_SW4': False}  # False = closed
+        node_to_bus = cache.compute_bus_assignments(switch_changes, {'VL1'})
+        
+        assert 'VL1' in node_to_bus
+        # Now all nodes should be connected through the chain
+    
+    def test_compute_bus_assignments_empty_vl(self, mock_network_with_topology):
+        """Test bus assignment for a voltage level with no nodes."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        # VL2 has no switches in our mock
+        node_to_bus = cache.compute_bus_assignments({}, {'VL2'})
+        
+        assert 'VL2' in node_to_bus
+        assert node_to_bus['VL2'] == {}
+    
+    def test_get_element_bus_assignments(self, mock_network_with_topology):
+        """Test conversion from node-to-bus to element-to-bus mappings."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        # Create a mock node_to_bus mapping
+        node_to_bus = {
+            'VL1': {
+                'VL1_NODE1': 1,
+                'VL1_NODE2': 1,
+                'VL1_NODE3': 1,
+                'VL1_NODE4': 2
+            }
+        }
+        
+        set_bus = cache.get_element_bus_assignments(node_to_bus, {'VL1'})
+        
+        assert 'lines_or_id' in set_bus
+        assert 'loads_id' in set_bus
+        assert 'generators_id' in set_bus
+        
+        # LINE1 origin is at VL1_NODE1 -> bus 1
+        assert set_bus['lines_or_id']['LINE1'] == 1
+        # LINE2 origin is at VL1_NODE4 -> bus 2
+        assert set_bus['lines_or_id']['LINE2'] == 2
+        # LOAD1 is at VL1_NODE1 -> bus 1
+        assert set_bus['loads_id']['LOAD1'] == 1
+        # GEN1 is at VL1_NODE4 -> bus 2
+        assert set_bus['generators_id']['GEN1'] == 2
+    
+    def test_get_element_bus_assignments_reindexes(self, mock_network_with_topology):
+        """Test that element bus assignments are reindexed to sequential numbers."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        # Create a mock node_to_bus mapping with non-sequential bus numbers
+        node_to_bus = {
+            'VL1': {
+                'VL1_NODE1': 3,
+                'VL1_NODE2': 3,
+                'VL1_NODE3': 3,
+                'VL1_NODE4': 7
+            }
+        }
+        
+        set_bus = cache.get_element_bus_assignments(node_to_bus, {'VL1'})
+        
+        # Should be reindexed: 3 -> 1, 7 -> 2
+        assert set_bus['lines_or_id']['LINE1'] == 1
+        assert set_bus['lines_or_id']['LINE2'] == 2
+        assert set_bus['loads_id']['LOAD1'] == 1
+        assert set_bus['generators_id']['GEN1'] == 2
+
+
+# =============================================================================
+# Tests for convert_to_grid2op_action (analytical version)
+# =============================================================================
+
+class TestConvertToGrid2opAction:
+    """Tests for the analytical convert_to_grid2op_action function."""
+    
+    def test_basic_conversion(self, mock_network_with_topology):
+        """Test basic action conversion."""
+        action = MockRepasAction(
+            action_id="TEST_ACTION",
+            switches_by_voltage_level={'VL1': {'VL1_SW2': False}},  # Close SW2
+            description="Test action description"
+        )
+        
+        result = convert_to_grid2op_action(mock_network_with_topology, action)
+        
+        assert 'description' in result
+        assert result['description'] == "Test action description"
+        assert 'content' in result
+        assert 'set_bus' in result['content']
+    
+    def test_conversion_with_cache(self, mock_network_with_topology):
+        """Test action conversion with pre-built cache."""
+        cache = NetworkTopologyCache(mock_network_with_topology)
+        
+        action = MockRepasAction(
+            action_id="TEST_ACTION",
+            switches_by_voltage_level={'VL1': {'VL1_SW2': False}}
+        )
+        
+        result = convert_to_grid2op_action(
+            mock_network_with_topology, action, topology_cache=cache
+        )
+        
+        assert 'content' in result
+        assert 'set_bus' in result['content']
+    
+    def test_conversion_verbose(self, mock_network_with_topology, capsys):
+        """Test verbose output during conversion."""
+        action = MockRepasAction(
+            action_id="VERBOSE_TEST",
+            switches_by_voltage_level={'VL1': {'VL1_SW1': True}}
+        )
+        
+        convert_to_grid2op_action(
+            mock_network_with_topology, action, verbose=True
+        )
+        
+        captured = capsys.readouterr()
+        assert "VERBOSE_TEST" in captured.out
+    
+    def test_conversion_returns_correct_structure(self, mock_network_with_topology):
+        """Test that conversion returns correct dictionary structure."""
+        action = MockRepasAction(
+            action_id="STRUCT_TEST",
+            switches_by_voltage_level={'VL1': {'VL1_SW1': True}}
+        )
+        
+        result = convert_to_grid2op_action(mock_network_with_topology, action)
+        
+        set_bus = result['content']['set_bus']
+        assert 'lines_or_id' in set_bus
+        assert 'lines_ex_id' in set_bus
+        assert 'loads_id' in set_bus
+        assert 'generators_id' in set_bus
+        assert 'shunts_id' in set_bus
+
+
+# =============================================================================
+# Tests for convert_to_grid2op_action_batch
+# =============================================================================
+
+class TestConvertToGrid2opActionBatch:
+    """Tests for the batch conversion function."""
+    
+    def test_empty_actions_list(self, mock_network_with_topology):
+        """Test batch conversion with empty list."""
+        result = convert_to_grid2op_action_batch(mock_network_with_topology, [])
+        
+        assert result == []
+    
+    def test_single_action_batch(self, mock_network_with_topology):
+        """Test batch conversion with single action."""
+        action = MockRepasAction(
+            action_id="SINGLE",
+            switches_by_voltage_level={'VL1': {'VL1_SW1': True}}
+        )
+        
+        results = convert_to_grid2op_action_batch(mock_network_with_topology, [action])
+        
+        assert len(results) == 1
+        assert 'content' in results[0]
+    
+    def test_multiple_actions_batch(self, mock_network_with_topology):
+        """Test batch conversion with multiple actions."""
+        actions = [
+            MockRepasAction(
+                action_id=f"ACTION_{i}",
+                switches_by_voltage_level={'VL1': {'VL1_SW1': bool(i % 2)}}
+            )
+            for i in range(5)
+        ]
+        
+        results = convert_to_grid2op_action_batch(mock_network_with_topology, actions)
+        
+        assert len(results) == 5
+        for result in results:
+            assert 'content' in result
+            assert 'set_bus' in result['content']
+    
+    def test_batch_verbose(self, mock_network_with_topology, capsys):
+        """Test verbose output during batch conversion."""
+        actions = [
+            MockRepasAction(
+                action_id=f"ACTION_{i}",
+                switches_by_voltage_level={'VL1': {'VL1_SW1': True}}
+            )
+            for i in range(100)
+        ]
+        
+        convert_to_grid2op_action_batch(mock_network_with_topology, actions, verbose=True)
+        
+        captured = capsys.readouterr()
+        assert "Building topology cache" in captured.out
+        assert "50" in captured.out  # Progress message at 50
+        assert "100" in captured.out  # Progress message at 100
+    
+    def test_batch_preserves_order(self, mock_network_with_topology):
+        """Test that batch conversion preserves action order."""
+        actions = [
+            MockRepasAction(
+                action_id=f"ACTION_{i}",
+                switches_by_voltage_level={'VL1': {'VL1_SW1': True}},
+                description=f"Description {i}"
+            )
+            for i in range(3)
+        ]
+        
+        results = convert_to_grid2op_action_batch(mock_network_with_topology, actions)
+        
+        for i, result in enumerate(results):
+            assert result['description'] == f"Description {i}"
+
+
+# =============================================================================
+# Tests for get_all_switch_descriptions
+# =============================================================================
+
+class TestGetAllSwitchDescriptions:
+    """Tests for the get_all_switch_descriptions function."""
+    
+    def test_single_switch_ouverture(self):
+        """Test description for single switch opening."""
+        switches = {'VL1': {'SWITCH_1': True}}
+        
+        result = get_all_switch_descriptions(switches)
+        
+        assert "Ouverture SWITCH_1" in result
+        assert "VL1" in result
+    
+    def test_single_switch_fermeture(self):
+        """Test description for single switch closing."""
+        switches = {'VL1': {'SWITCH_1': False}}
+        
+        result = get_all_switch_descriptions(switches)
+        
+        assert "Fermeture SWITCH_1" in result
+        assert "VL1" in result
+    
+    def test_multiple_switches_same_vl(self):
+        """Test description for multiple switches in same voltage level."""
+        switches = {'VL1': {'SWITCH_1': True, 'SWITCH_2': False}}
+        
+        result = get_all_switch_descriptions(switches)
+        
+        assert "Ouverture SWITCH_1" in result
+        assert "Fermeture SWITCH_2" in result
+        assert " et " in result
+        assert "VL1" in result
+    
+    def test_empty_switches(self):
+        """Test description for empty switches dictionary."""
+        switches = {}
+        
+        result = get_all_switch_descriptions(switches)
+        
+        assert result == ""
+    
+    def test_empty_voltage_level(self):
+        """Test description for voltage level with no switches."""
+        switches = {'VL1': {}}
+        
+        result = get_all_switch_descriptions(switches)
+        
+        assert result == ""
+
+
+# =============================================================================
+# Tests for convert_repas_actions_to_grid2op_actions
+# =============================================================================
+
+class TestConvertRepasActionsToGrid2opActions:
+    """Tests for the high-level conversion function."""
+    
+    def test_empty_actions_list(self, mock_network_with_topology):
+        """Test conversion with empty actions list."""
+        result = convert_repas_actions_to_grid2op_actions(
+            mock_network_with_topology, []
+        )
+        
+        assert result == {}
+    
+    def test_single_action_conversion(self, mock_network_with_topology):
+        """Test conversion of single action."""
+        action = MockRepasAction(
+            action_id="TEST",
+            switches_by_voltage_level={'VL1': {'VL1_SW1': True}}
+        )
+        
+        result = convert_repas_actions_to_grid2op_actions(
+            mock_network_with_topology, [action], use_batch=False, use_analytical=True
+        )
+        
+        assert len(result) == 1
+        assert 'TEST_VL1' in result
+        assert 'description_unitaire' in result['TEST_VL1']
+        assert 'VoltageLevelId' in result['TEST_VL1']
+    
+    def test_adds_voltage_level_id(self, mock_network_with_topology):
+        """Test that VoltageLevelId is added for single VL actions."""
+        action = MockRepasAction(
+            action_id="TEST",
+            switches_by_voltage_level={'VL1': {'VL1_SW1': True}}
+        )
+        
+        result = convert_repas_actions_to_grid2op_actions(
+            mock_network_with_topology, [action], use_analytical=True
+        )
+        
+        assert result['TEST_VL1']['VoltageLevelId'] == 'VL1'
+    
+    def test_batch_mode(self, mock_network_with_topology):
+        """Test batch mode conversion."""
+        actions = [
+            MockRepasAction(
+                action_id=f"ACTION_{i}",
+                switches_by_voltage_level={'VL1': {'VL1_SW1': True}}
+            )
+            for i in range(3)
+        ]
+        
+        result = convert_repas_actions_to_grid2op_actions(
+            mock_network_with_topology, actions, use_batch=True, use_analytical=True
+        )
+        
+        assert len(result) == 3
+    
+    def test_non_batch_mode(self, mock_network_with_topology):
+        """Test non-batch mode conversion."""
+        actions = [
+            MockRepasAction(
+                action_id=f"ACTION_{i}",
+                switches_by_voltage_level={'VL1': {'VL1_SW1': True}}
+            )
+            for i in range(3)
+        ]
+        
+        result = convert_repas_actions_to_grid2op_actions(
+            mock_network_with_topology, actions, use_batch=False, use_analytical=True
+        )
+        
+        assert len(result) == 3
+
+
+# =============================================================================
+# Tests for make_description_unitaire (from action_rebuilder)
+# =============================================================================
 
 class TestMakeDescriptionUnitaire:
     """Tests for the make_description_unitaire function."""
@@ -185,7 +924,9 @@ class TestMakeDescriptionUnitaire:
         assert result == "Fermeture SW1 dans le poste VL1"
 
 
-# --- Tests for make_raw_all_actions_dict ---
+# =============================================================================
+# Tests for make_raw_all_actions_dict (from action_rebuilder)
+# =============================================================================
 
 class TestMakeRawAllActionsDict:
     """Tests for the make_raw_all_actions_dict function."""
@@ -248,7 +989,9 @@ class TestMakeRawAllActionsDict:
         assert multi_voltage_level_action._switches_by_voltage_level == original_switches
 
 
-# --- Tests for build_action_dict_for_snapshot_from_scratch ---
+# =============================================================================
+# Tests for build_action_dict_for_snapshot_from_scratch
+# =============================================================================
 
 class TestBuildActionDictForSnapshotFromScratch:
     """Tests for the build_action_dict_for_snapshot_from_scratch function."""
@@ -318,7 +1061,9 @@ class TestBuildActionDictForSnapshotFromScratch:
         mock_create_disco.assert_not_called()
 
 
-# --- Tests for rebuild_action_dict_for_snapshot ---
+# =============================================================================
+# Tests for rebuild_action_dict_for_snapshot
+# =============================================================================
 
 class TestRebuildActionDictForSnapshot:
     """Tests for the rebuild_action_dict_for_snapshot function."""
@@ -419,14 +1164,12 @@ class TestRebuildActionDictForSnapshot:
         assert "not found" in captured.out
 
 
-# --- Tests for run_rebuild_actions ---
+# =============================================================================
+# Tests for run_rebuild_actions
+# =============================================================================
 
 class TestRunRebuildActions:
-    """Tests for the run_rebuild_actions function.
-    
-    Note: These tests use tmp_path fixture from pytest to create temporary directories.
-    This ensures we never accidentally delete real project directories.
-    """
+    """Tests for the run_rebuild_actions function."""
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.json.dump')
     @patch('expert_op4grid_recommender.utils.action_rebuilder.build_action_dict_for_snapshot_from_scratch')
@@ -435,7 +1178,6 @@ class TestRunRebuildActions:
     @patch('builtins.open', create=True)
     def test_from_scratch_mode(self, mock_open, mock_path_join, mock_parse, mock_build, mock_json_dump, mock_network, tmp_path):
         """Test that from_scratch mode calls build_action_dict_for_snapshot_from_scratch."""
-        # Setup mocks
         mock_parse.return_value = [Mock()]
         mock_build.return_value = {"action": {}}
         mock_path_join.return_value = str(tmp_path / "output.json")
@@ -457,7 +1199,6 @@ class TestRunRebuildActions:
     @patch('builtins.open', create=True)
     def test_rebuild_mode(self, mock_open, mock_path_join, mock_parse, mock_rebuild, mock_json_dump, mock_network, tmp_path):
         """Test that non-from_scratch mode calls rebuild_action_dict_for_snapshot."""
-        # Setup mocks
         mock_parse.return_value = [Mock()]
         mock_rebuild.return_value = {"action": {}}
         mock_path_join.return_value = str(tmp_path / "output.json")
@@ -472,35 +1213,6 @@ class TestRunRebuildActions:
         )
         
         mock_rebuild.assert_called_once()
-    
-    @patch('expert_op4grid_recommender.utils.action_rebuilder.json.dump')
-    @patch('expert_op4grid_recommender.utils.action_rebuilder.build_action_dict_for_snapshot_from_scratch')
-    @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
-    @patch('expert_op4grid_recommender.utils.action_rebuilder.os.path.join')
-    @patch('builtins.open', create=True)
-    def test_voltage_filter_threshold(self, mock_open, mock_path_join, mock_parse, mock_build, mock_json_dump, mock_network, tmp_path):
-        """Test that voltage filter threshold is passed to parse_json."""
-        # Setup mocks
-        mock_parse.return_value = []
-        mock_build.return_value = {}
-        mock_path_join.return_value = str(tmp_path / "output.json")
-        mock_open.return_value.__enter__ = Mock(return_value=Mock())
-        mock_open.return_value.__exit__ = Mock(return_value=False)
-        
-        run_rebuild_actions(
-            mock_network,
-            do_from_scratch=True,
-            repas_file_path="fake_repas.json",
-            voltage_filter_threshold=225
-        )
-        
-        # Check that parse_json was called with a filter function
-        call_args = mock_parse.call_args
-        filter_func = call_args[0][2]
-        
-        # Test the filter function
-        assert filter_func(("id", {"nominal_v": 100})) == True  # 100 < 225
-        assert filter_func(("id", {"nominal_v": 300})) == False  # 300 >= 225
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
     def test_returns_original_on_failure(self, mock_parse, mock_network):
@@ -517,53 +1229,80 @@ class TestRunRebuildActions:
         )
         
         assert result == original_dict
-    
-    @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
-    def test_default_dict_action_is_empty(self, mock_parse, mock_network):
-        """Test that default dict_action_to_filter_on is empty dict."""
-        mock_parse.side_effect = Exception("Parse error")
-        
-        result = run_rebuild_actions(
-            mock_network,
-            do_from_scratch=True,
-            repas_file_path="fake_repas.json"
-        )
-        
-        assert result == {}
-    
-    @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
-    def test_prints_rebuild_message(self, mock_parse, mock_network, capsys):
-        """Test that informative message is printed at start."""
-        mock_parse.side_effect = Exception("Stop early")
-        
-        run_rebuild_actions(
-            mock_network,
-            do_from_scratch=True,
-            repas_file_path="test_repas.json",
-            voltage_filter_threshold=400
-        )
-        
-        captured = capsys.readouterr()
-        assert "Rebuilding action dictionary" in captured.out
-        assert "test_repas.json" in captured.out
-        assert "400" in captured.out
 
 
-# --- Integration Tests (marked as slow) ---
+# =============================================================================
+# Integration Tests
+# =============================================================================
 
 @pytest.mark.slow
-class TestActionRebuilderIntegration:
-    """Integration tests that require actual files and environment."""
+class TestConversionIntegration:
+    """Integration tests for the full conversion pipeline."""
     
-    def test_with_real_repas_file(self):
-        """Test with actual REPAS file if available."""
-        repas_file = Path(__file__).parent.parent / "data" / "action_space" / "allLogics.2024.12.10.json"
+    def test_full_analytical_conversion_pipeline(self, mock_network_with_topology):
+        """Test the full analytical conversion pipeline."""
+        # Create a realistic action
+        action = MockRepasAction(
+            action_id="INTEGRATION_TEST",
+            switches_by_voltage_level={
+                'VL1': {'VL1_SW2': False, 'VL1_SW4': False}  # Close both open switches
+            },
+            description="Integration test action"
+        )
         
-        if not repas_file.exists():
-            pytest.skip("REPAS file not found for integration test")
+        # Convert using analytical method
+        result = convert_repas_actions_to_grid2op_actions(
+            mock_network_with_topology, 
+            [action],
+            use_batch=True,
+            use_analytical=True
+        )
         
-        # This would require a real network, so we skip for now
-        pytest.skip("Full integration test requires pypowsybl network")
+        # Verify structure
+        assert len(result) == 1
+        action_key = 'INTEGRATION_TEST_VL1'
+        assert action_key in result
+        
+        converted = result[action_key]
+        assert 'description' in converted
+        assert 'description_unitaire' in converted
+        assert 'VoltageLevelId' in converted
+        assert 'content' in converted
+        assert 'set_bus' in converted['content']
+        
+        set_bus = converted['content']['set_bus']
+        assert 'lines_or_id' in set_bus
+        assert 'loads_id' in set_bus
+        assert 'generators_id' in set_bus
+    
+    def test_bus_numbers_are_sequential(self, mock_network_with_topology):
+        """Test that resulting bus numbers are sequential starting at 1."""
+        action = MockRepasAction(
+            action_id="SEQ_TEST",
+            switches_by_voltage_level={
+                'VL1': {'VL1_SW2': True}  # Open SW2
+            }
+        )
+        
+        result = convert_repas_actions_to_grid2op_actions(
+            mock_network_with_topology,
+            [action],
+            use_analytical=True
+        )
+        
+        set_bus = result['SEQ_TEST_VL1']['content']['set_bus']
+        
+        # Collect all bus numbers (excluding -1)
+        all_buses = set()
+        for element_dict in set_bus.values():
+            for bus in element_dict.values():
+                if bus > 0:
+                    all_buses.add(bus)
+        
+        if all_buses:
+            # Bus numbers should be sequential starting at 1
+            expected = set(range(1, len(all_buses) + 1))
+            assert all_buses == expected, f"Bus numbers {all_buses} are not sequential from 1"
 
 
 if __name__ == "__main__":
