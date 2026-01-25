@@ -26,6 +26,7 @@ dependencies = [
     "pypowsybl>= 1.13.0", # Make sure you have the correct package name and version specifier if needed
     "pypowsybl2grid>=0.2.1",
     "expertop4grid>=0.2.8", # Your original dependency check
+    "matplotlib>=3.8.0",
     # Add any other libraries used (e.g., matplotlib if plotting outside grid2op)
 ]
 
