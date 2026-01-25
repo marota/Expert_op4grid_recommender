@@ -93,6 +93,65 @@ class UnionFind:
 
 
 # =============================================================================
+# Bus number reindexing utility
+# =============================================================================
+
+def _reindex_bus_numbers(set_bus: Dict[str, Dict[str, int]]) -> Dict[str, Dict[str, int]]:
+    """
+    Reindex bus numbers to sequential values starting at 1.
+    
+    This function takes a set_bus dictionary where bus numbers may have gaps
+    (e.g., [2, 4, 7]) and reindexes them to sequential numbers starting at 1
+    (e.g., [1, 2, 3]). Disconnected elements (bus = -1) are preserved as -1.
+    
+    Parameters
+    ----------
+    set_bus : Dict[str, Dict[str, int]]
+        Dictionary with keys 'lines_or_id', 'lines_ex_id', 'loads_id', 
+        'generators_id', 'shunts_id', each mapping element IDs to bus numbers.
+        
+    Returns
+    -------
+    Dict[str, Dict[str, int]]
+        Same structure with bus numbers reindexed to 1, 2, 3, ...
+        
+    Example
+    -------
+    >>> set_bus = {'lines_or_id': {'L1': 2, 'L2': 4, 'L3': 2}, 'lines_ex_id': {'L1': -1}}
+    >>> _reindex_bus_numbers(set_bus)
+    {'lines_or_id': {'L1': 1, 'L2': 2, 'L3': 1}, 'lines_ex_id': {'L1': -1}}
+    """
+    # Collect all unique bus numbers (excluding -1 which means disconnected)
+    all_bus_numbers = set()
+    for element_dict in set_bus.values():
+        for bus_num in element_dict.values():
+            if bus_num > 0:  # Exclude disconnected (-1) and invalid (0) buses
+                all_bus_numbers.add(bus_num)
+    
+    # If no valid buses or only one bus, no reindexing needed
+    if len(all_bus_numbers) <= 1:
+        return set_bus
+    
+    # Create mapping from old bus numbers to new sequential numbers
+    # Sort to ensure consistent ordering: smallest old number -> 1, next -> 2, etc.
+    sorted_buses = sorted(all_bus_numbers)
+    bus_mapping = {old_bus: new_bus for new_bus, old_bus in enumerate(sorted_buses, start=1)}
+    
+    # Apply the mapping to all elements
+    reindexed_set_bus = {}
+    for key, element_dict in set_bus.items():
+        reindexed_set_bus[key] = {}
+        for element_id, bus_num in element_dict.items():
+            if bus_num > 0:
+                reindexed_set_bus[key][element_id] = bus_mapping[bus_num]
+            else:
+                # Preserve disconnected status (-1) or invalid (0)
+                reindexed_set_bus[key][element_id] = bus_num
+    
+    return reindexed_set_bus
+
+
+# =============================================================================
 # Cached Network Topology Data
 # =============================================================================
 
@@ -228,6 +287,9 @@ class NetworkTopologyCache:
         """
         Convert node-to-bus mappings to element-to-bus mappings.
         
+        The bus numbers are reindexed to sequential numbers starting at 1,
+        so that if the raw bus numbers are [2, 4, 7], they become [1, 2, 3].
+        
         Parameters
         ----------
         node_to_bus : Dict[str, Dict[str, int]]
@@ -293,13 +355,17 @@ class NetworkTopologyCache:
                 elif node:
                     shunts_id[shunt_id] = -1
         
-        return {
+        # Reindex bus numbers to sequential values starting at 1
+        # This ensures bus numbers like [2, 4, 7] become [1, 2, 3]
+        set_bus = {
             'lines_or_id': lines_or_id,
             'lines_ex_id': lines_ex_id,
             'loads_id': loads_id,
             'generators_id': generators_id,
             'shunts_id': shunts_id
         }
+        
+        return _reindex_bus_numbers(set_bus)
 
 
 # =============================================================================
