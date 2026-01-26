@@ -16,6 +16,7 @@ jobs:
             python -m pip install --upgrade pip
             # Install package and test dependencies from pyproject.toml
             pip install -r requirements.txt
+            pip install numpy==2.3.0
       - run:
           name: Run Unit Tests (Exclude Slow)
           # Modify the pytest command here

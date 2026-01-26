@@ -1,4 +1,3 @@
-numpy== 2.3.0,
 scipy>= 1.13.0,
 grid2op==1.12.1,
 LightSim2Grid==0.10.3,
