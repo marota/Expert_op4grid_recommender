@@ -48,131 +48,9 @@ from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscove
 from expert_op4grid_recommender.utils.simulation import check_rho_reduction
 
 # Imports for Action Rebuilding
-from expert_op4grid_recommender.utils import repas
-from expert_op4grid_recommender.utils.conversion_actions_repas import convert_repas_actions_to_grid2op_actions
+from expert_op4grid_recommender.utils.helpers import Timer
+from expert_op4grid_recommender.utils.action_rebuilder import run_rebuild_actions
 from expert_op4grid_recommender.data_loader import load_actions
-
-# --- Performance Monitoring Tool ---
-class Timer:
-    """Context manager to measure execution time of code blocks."""
-    def __init__(self, name="Task"):
-        self.name = name
-        self.start_time = None
-
-    def __enter__(self):
-        self.start_time = time.perf_counter()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        end_time = time.perf_counter()
-        elapsed_time = end_time - self.start_time
-        print(f"[Timer] {self.name} took {elapsed_time:.4f}s")
-
-
-def rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action):
-    """
-    Rebuilds the action dictionary based on the current network grid snapshot.
-    Converts actions from REPAS format to Grid2Op format where necessary.
-    """
-    with Timer("Rebuilding Action Dictionary"):
-        # Create dictionary, first with combined actions and then for single actions
-        all_actions_dict = {}
-        for action in all_actions:
-            if len(action._switches_by_voltage_level) == 1:
-                all_actions_dict[action._id] = action
-            elif len(action._switches_by_voltage_level) >= 2:
-                for voltage_level in action._switches_by_voltage_level.keys():
-                    action_key = action._id + "_" + voltage_level
-
-                    new_action = copy.deepcopy(action)
-                    filtered_switch_action = new_action._switches_by_voltage_level[voltage_level]
-                    new_action._switches_by_voltage_level = {voltage_level: filtered_switch_action}
-
-                    all_actions_dict[action_key] = new_action
-
-        actions_to_convert = []
-        actions_to_keep_as_is = {}
-
-        # Recover pypowsybl actions from dict action
-        for action_full_id, action in dict_action.items():
-            action_id_split = action_full_id.split('_')  # [0]
-
-            description = action["description"]
-            if "description_unitaire" in action:
-                description = action["description_unitaire"]
-
-            if "COUPL" in description or "TRO." in description:
-                action_key = action_id_split[0]
-                if action_key not in all_actions_dict:
-                    action_key += "_" + action["VoltageLevelId"]
-
-                if action_key in all_actions_dict:
-                    actions_to_convert.append(all_actions_dict[action_key])
-                else:
-                    print(f"Warning: Action {action_key} not found in REPAS actions. Skipping conversion.")
-            else:
-                actions_to_keep_as_is[action_full_id] = action
-
-        converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert)
-
-        # Add description unitaire
-        for action_full_id, action in converted_actions.items():
-            action_id = action_full_id.split('_')[0]
-            Voltage_level = action_full_id.split('_')[1]
-            possible_keys = [key for key in dict_action.keys() if action_id in key]
-
-            if not possible_keys:
-                continue
-
-            action_key = possible_keys[0]
-            if len(possible_keys) >= 2:
-                filtered_keys = [key for key in possible_keys if Voltage_level in key]
-                if len(filtered_keys) > 0:
-                    action_key = filtered_keys[0]
-
-            if action_key in dict_action and "description_unitaire" in dict_action[action_key]:
-                action["description_unitaire"] = dict_action[action_key]["description_unitaire"]
-
-        new_dict_actions = actions_to_keep_as_is
-        new_dict_actions |= converted_actions
-
-    return new_dict_actions
-
-
-def run_rebuild_actions(n_grid, dict_action, repas_file_path, voltage_filter_threshold=300):
-    """
-    Orchestrates the action rebuilding process using the environment's grid.
-    """
-    print(
-        f"Rebuilding action dictionary based on current grid snapshot using REPAS file: {repas_file_path} with voltage threshold < {voltage_filter_threshold}...")
-    #n_grid = env.backend._grid.network
-
-    output_file_path = os.path.join("data", "action_space",
-                                    f"reduced_model_actions_{datetime.now().strftime('%Y%m%dT%H%MZ')}.json")
-
-    try:
-        with Timer("Total Rebuild Process"):
-            # Load REPAS actions
-            with Timer("Parse REPAS JSON"):
-                all_actions = repas.parse_json(
-                    repas_file_path,
-                    n_grid,
-                    lambda t: t[1]['nominal_v'] < voltage_filter_threshold
-                )
-
-            # Rebuild dictionary
-            new_dict_actions = rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action)
-
-        # Save to file
-        with open(output_file_path, "w") as json_file:
-            json.dump(new_dict_actions, json_file, indent=4)
-
-        print(f"Successfully rebuilt actions. Saved to: {output_file_path}")
-        return new_dict_actions
-
-    except Exception as e:
-        print(f"Error rebuilding actions: {e}")
-        return dict_action  # Return original on failure
 
 
 def set_thermal_limits(n_grid, env, thresold_thermal_limit=0.95):
@@ -463,9 +341,17 @@ def main():
             if args.rebuild_actions:
                 grid_snapshot_file_path=args.grid_snapshot_file
                 n_grid=pp.network.load(grid_snapshot_file_path)
-                dict_action = load_actions(config.ACTION_FILE_PATH)
 
-                dict_action = run_rebuild_actions(n_grid, dict_action, args.repas_file, args.voltage_threshold)
+                dict_action={}
+                do_from_sratch=False
+                if config.ACTION_FILE_PATH is not None and os.path.exists(config.ACTION_FILE_PATH):
+                    dict_action = load_actions(config.ACTION_FILE_PATH)
+                else:
+                    do_from_sratch=True
+
+                dict_action =run_rebuild_actions(n_grid, do_from_sratch, args.repas_file, dict_action_to_filter_on=dict_action,
+                                    voltage_filter_threshold=args.voltage_threshold, output_file_base_name="reduced_model_actions")
+
                 print("Action rebuilding process complete. Stopping analysis as requested.")
 
                 return  # EXIT EARLY

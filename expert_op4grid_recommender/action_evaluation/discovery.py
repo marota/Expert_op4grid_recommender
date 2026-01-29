@@ -216,20 +216,20 @@ class ActionDiscoverer:
         try:
             line_subs = self._get_line_substations(line_reco)
         except ValueError:
-            return False, None # Line not found
+            return False,None, None # Line not found
 
         found_paths = self._find_paths_for_line(line_subs, red_loop_paths)
         if not found_paths:
-            return False, None
+            return False,None, None
 
         blocker = None
         for path in found_paths:
             is_blocked, current_blocker = self._has_blocking_disconnected_line(path, line_reco)
             if not is_blocked:
-                return True, None
+                return True, path, None
             if blocker is None:
                  blocker = current_blocker
-        return False, blocker
+        return False,None, blocker
 
     # --- Action Discovery Methods (Public) ---
 
@@ -251,7 +251,7 @@ class ActionDiscoverer:
 
         print(f"Evaluating {len(lines_to_reconnect)} potential reconnections...")
         for line_reco in lines_to_reconnect:
-            has_found_effective_path, other_line = self._check_other_reconnectable_line_on_path(
+            has_found_effective_path,path, other_line = self._check_other_reconnectable_line_on_path(
                 line_reco, red_loop_paths_sorted
             )
 
@@ -260,8 +260,9 @@ class ActionDiscoverer:
                 # check dispatch flow at substation extremities are significant enough
 
                 max_dispatch_flow_line_nodes = 0
-                for sub_id in [self.obs_defaut.line_or_to_subid[line_id],
-                               self.obs_defaut.line_ex_to_subid[line_id]]:
+                start_path_sub_id=np.where(self.obs.name_sub==path[0])[0][0]
+                end_path_sub_id = np.where(self.obs.name_sub == path[-1])[0][0]
+                for sub_id in [start_path_sub_id,end_path_sub_id]:
                     sub_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + list(
                         self.g_overflow.g.in_edges(sub_id, keys=True))
                     max_dispatch_flow_node = max([abs(capacity_dict[edge]) for edge in sub_edges])

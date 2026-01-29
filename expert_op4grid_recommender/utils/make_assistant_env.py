@@ -52,8 +52,7 @@ def make_grid2op_assistant_env(path_env,
                    backend=backend,
                    allow_detachment=allow_detachment,
                    n_busbar=n_busbar,
-                   param=params,
-                   chronics_class=ChangeNothing
+                   param=params
                    )
     return env
 

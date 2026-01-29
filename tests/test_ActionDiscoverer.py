@@ -195,11 +195,11 @@ def test_internal_check_other_reconnectable_line(basic_discoverer):
     # Path A-B-C exists, L1 connects A-B, L2 connects B-C
     # Case 1: No parallel edge for L2 -> blocked
     basic_discoverer.g_overflow = MockOverflowGraph(edge_data={ (0, 1): {0:{"name":"L1"}}})
-    has_path, blocker = basic_discoverer._check_other_reconnectable_line_on_path("L1", [["A", "B", "C"]])
+    has_path,path, blocker = basic_discoverer._check_other_reconnectable_line_on_path("L1", [["A", "B", "C"]])
     assert has_path is False and blocker == "L2"
     # Case 2: Add parallel edge L3 for L2 -> not blocked
     basic_discoverer.g_overflow = MockOverflowGraph(edge_data={ (0, 1): {0:{"name":"L1"}}, (1,2): {0:{"name":"L3"}} })
-    has_path, blocker = basic_discoverer._check_other_reconnectable_line_on_path("L1", [["A", "B", "C"]])
+    has_path,path, blocker = basic_discoverer._check_other_reconnectable_line_on_path("L1", [["A", "B", "C"]])
     assert has_path is True and blocker is None
 
 ## Section 4: Discovery Class Method Unit Tests (using fixture) ##
@@ -290,7 +290,7 @@ def test_discoverer_find_relevant_node_merging(discoverer_instance):
     assert discoverer_instance.effective_merges[0].substations_id[0][0] == 0
 
 def test_discoverer_verify_relevant_reconnections(discoverer_instance, monkeypatch):
-    def mock_path_check(*args): return True, None # Assume path is always clear
+    def mock_path_check(*args): return True, ["Sub0", "Sub1", "Sub3"], None # Assume path is always clear
     monkeypatch.setattr(discoverer_instance, "_check_other_reconnectable_line_on_path", mock_path_check)
     discoverer_instance.verify_relevant_reconnections(lines_to_reconnect={"L1"}, red_loop_paths=[])
     assert "reco_L1" in discoverer_instance.identified_reconnections
