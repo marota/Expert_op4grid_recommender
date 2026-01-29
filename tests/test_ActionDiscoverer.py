@@ -290,7 +290,7 @@ def test_discoverer_find_relevant_node_merging(discoverer_instance):
     assert discoverer_instance.effective_merges[0].substations_id[0][0] == 0
 
 def test_discoverer_verify_relevant_reconnections(discoverer_instance, monkeypatch):
-    def mock_path_check(*args): return True, None # Assume path is always clear
+    def mock_path_check(*args): return True, ["Sub0", "Sub1", "Sub3"], None # Assume path is always clear
     monkeypatch.setattr(discoverer_instance, "_check_other_reconnectable_line_on_path", mock_path_check)
     discoverer_instance.verify_relevant_reconnections(lines_to_reconnect={"L1"}, red_loop_paths=[])
     assert "reco_L1" in discoverer_instance.identified_reconnections
