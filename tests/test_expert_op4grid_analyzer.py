@@ -839,60 +839,194 @@ REPRODUCIBILITY_CASES = [
         1,
         ["C.REGL61ZMAGN"],
         # Replace with expected keys for this second case
-        {'reco_CHALOL31LOUHA',  '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8',#'reco_BOISSL61GEN.P',
-         '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23',
-         '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40','01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
+        {'reco_CHALOL31LOUHA','reco_BOISSL61GEN.P','466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8',
+         '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23','5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52'}
+         #'3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40','01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
 
     ),
+        #  Simulating effectiveness...
+        #✅ Rho reduction from [1.02 1.03] to [0.98 0.99]. New max rho is 0.99 on line C.SAUL31ZCRIM.
+        #    Effective: CHALOL31LOUHA (Score: 0.13)
+        #✅ Rho reduction from [1.02 1.03] to [1.01 1.01]. New max rho is 1.01 on line C.SAUL31ZCRIM.
+        #    Effective: BOISSL61GEN.P (Score: 0.08)
+        #✅ Rho reduction from [1.02 1.03] to [0.62 0.63]. New max rho is 0.69 on line P.SAOL31RONCI.
+        #    Effective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23 at C.REGP6 (hub: False)
+        #✅ Rho reduction from [1.02 1.03] to [0.59 0.59]. New max rho is 0.68 on line P.SAOL31RONCI.
+        #    Effective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8 at C.REGP6 (hub: False)
+        #✅ Rho reduction from [1.02 1.03] to [0.95 0.96]. New max rho is 0.96 on line C.SAUL31ZCRIM.
+        #    Effective node split: 5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52 at PYMONP6 (hub: False)
+        #✅ Rho reduction from [1.02 1.03] to [0.95 0.96]. New max rho is 0.96 on line C.SAUL31ZCRIM.
+        #    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40 at VIELMP6 (hub: True)
+        #✅ Rho reduction from [1.02 1.03] to [0.99 1.  ]. New max rho is 1.00 on line C.SAUL31ZCRIM.
+        #    Effective node split: 256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6 at VOUGLP6 (hub: False)
+        #✅ Rho reduction from [1.02 1.03] to [1.01 1.02]. New max rho is 1.02 on line C.SAUL31ZCRIM.
+        #    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42 at VIELMP6 (hub: True)
+        #    Ineffective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75 at CPVANP6 (hub: False)
+        #✅ Rho reduction from [1.02 1.03] to [0.95 0.95]. New max rho is 0.95 on line C.SAUL31ZCRIM.
+        #    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18 at CPVANP6 (hub: False)
     (
         "Case_CPVANL61ZMAGN_T1",
         "2024-9-19",
         1,
         ["CPVANL61ZMAGN"],
-    {'reco_CHALOL31LOUHA', '180c19aa-762d-4d6f-a74c-4fd5432aa5d1', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8',
-     '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40','01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
+    {'reco_CHALOL31LOUHA','reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8',
+     '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40','466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23'}
     ),
+#    Simulating effectiveness...
+#✅ Rho reduction from [1.03] to [0.92]. New max rho is 0.92 on line P.SAOL31RONCI.
+#    Effective: CHALOL31LOUHA (Score: 0.12)
+#✅ Rho reduction from [1.03] to [1.01]. New max rho is 1.01 on line P.SAOL31RONCI.
+#    Effective: BOISSL61GEN.P (Score: 0.08)
+#✅ Rho reduction from [1.03] to [0.5]. New max rho is 0.72 on line C.SAUL31ZCRIM.
+#    Effective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8 at C.REGP6 (hub: False)
+#✅ Rho reduction from [1.03] to [0.98]. New max rho is 0.98 on line P.SAOL31RONCI.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40 at VIELMP6 (hub: True)
+#✅ Rho reduction from [1.03] to [0.96]. New max rho is 0.96 on line P.SAOL31RONCI.
+#    Effective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23 at C.REGP6 (hub: False)
+#✅ Rho reduction from [1.03] to [0.99]. New max rho is 0.99 on line P.SAOL31RONCI.
+#    Effective node split: 5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52 at PYMONP6 (hub: False)
+#✅ Rho reduction from [1.03] to [1.01]. New max rho is 1.01 on line P.SAOL31RONCI.
+#    Effective node split: 256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6 at VOUGLP6 (hub: False)
+#✅ Rho reduction from [1.03] to [1.01]. New max rho is 1.01 on line P.SAOL31RONCI.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42 at VIELMP6 (hub: True)
+#    Ineffective node split: 463179d8-be4e-4293-b42c-b53db763272b_variant_203 at GEN.PP6 (hub: False)
+#✅ Rho reduction from [1.03] to [0.91]. New max rho is 0.91 on line P.SAOL31RONCI.
+#    Effective node split: 180c19aa-762d-4d6f-a74c-4fd5432aa5d1 at CPVANP3 (hub: False)
+
     (
         "Case_MAGNYY633_T14",
         "2024-12-9",
         14,
         ["MAGNYY633"],
-        {'reco_CHALOL31LOUHA', 'reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40', '5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52'}
+        {'reco_CHALOL31LOUHA','reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40', '5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52'}#,'01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
     ),
+
+#Evaluating 2 potential reconnections...
+#  Simulating effectiveness...
+#✅ Rho reduction from [1.03 1.03] to [0.98 0.98]. New max rho is 0.98 on line C.SAUL31ZCRIM.
+#    Effective: CHALOL31LOUHA (Score: 0.18)
+#✅ Rho reduction from [1.03 1.03] to [1.02 1.02]. New max rho is 1.02 on line C.SAUL31ZCRIM.
+#    Effective: BOISSL61GEN.P (Score: 0.17)
+#✅ Rho reduction from [1.03 1.03] to [0.85 0.85]. New max rho is 0.85 on line C.SAUL31ZCRIM.
+#    Effective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23 at C.REGP6 (hub: True)
+#✅ Rho reduction from [1.03 1.03] to [1. 1.]. New max rho is 1.00 on line C.SAUL31ZCRIM.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40 at VIELMP6 (hub: True)
+#    Ineffective node split: 5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52 at PYMONP6 (hub: False)
+#    Ineffective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42 at VIELMP6 (hub: True)
+#    Ineffective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8 at C.REGP6 (hub: True)
+#✅ Rho reduction from [1.03 1.03] to [1.02 1.02]. New max rho is 1.02 on line C.SAUL31ZCRIM.
+#    Effective node split: 256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6 at VOUGLP6 (hub: False)
+
     (
         "Case_CHALOY631_T32",
         "2024-8-29",
         32,
         ["CHALOY631"],
         {'reco_CHALOY632', "reco_CURTIL61ZCUR5",#'reco_BOISSL61GEN.P' in the case max_null_flow_path_length=10 for add_relevant_null_flow_lines - red_only
-         '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42', 'f344b395-9908-43c2-bca0-75c5f298465e_variant_190',
+         '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42', "3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18",#'f344b395-9908-43c2-bca0-75c5f298465e_variant_190',
          'f344b395-9908-43c2-bca0-75c5f298465e_variant_18'}
     ),
+#  Simulating effectiveness...
+#✅ Rho reduction from [1.01 1.01] to [0.77 0.77]. New max rho is 0.77 on line CORGOL32MTAGN.
+#    Effective: CHALOY632 (Score: 0.15)
+#    Ineffective: CURTIL61ZCUR5 (Score: 0.01)
+#✅ Rho reduction from [1.01 1.01] to [0.88 0.88]. New max rho is 0.88 on line CORGOL32MTAGN.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42 at VIELMP6 (hub: True)
+#✅ Rho reduction from [1.01 1.01] to [0.88 0.88]. New max rho is 0.88 on line CORGOL32N.GEO.
+#    Effective node split: f344b395-9908-43c2-bca0-75c5f298465e_variant_18 at COUCHP6 (hub: True)
+#    Ineffective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18 at CPVANP6 (hub: False)
+#✅ Rho reduction from [1.01 1.01] to [0.94 0.94]. New max rho is 0.94 on line CORGOL32MTAGN.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40 at VIELMP6 (hub: True)
+#✅ Rho reduction from [1.01 1.01] to [0.82 0.82]. New max rho is 0.99 on line C.REGL61ZMAGN.
+#    Effective node split: f344b395-9908-43c2-bca0-75c5f298465e_variant_190 at COUCHP6 (hub: True)
+#✅ Rho reduction from [1.01 1.01] to [0.95 0.95]. New max rho is 0.95 on line CORGOL32N.GEO.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75 at CPVANP6 (hub: False)
+
+
     (
         "Case_P.SAOL31RONCI_T47",
         "2024-8-28",
         47,
         ["P.SAOL31RONCI"],
-        {'reco_CHALOL31LOUHA', 'reco_GEN.PY762', 'node_merging_PYMONP3', '256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42'}
+        {'reco_CHALOL31LOUHA', 'reco_GEN.PY762', 'node_merging_PYMONP3', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42','466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8'}
     ),
+#Evaluating 4 potential reconnections...
+#  Skipping CHALOY632: Path potentially blocked by CHALOL31LOUHA.
+#  Simulating effectiveness...
+#✅ Rho reduction from [1.15] to [0.91]. New max rho is 0.91 on line BEON L31CPVAN.
+#    Effective: CHALOL31LOUHA (Score: 0.14)
+#✅ Rho reduction from [1.15] to [1.11]. New max rho is 1.11 on line BEON L31CPVAN.
+#    Effective: GEN.PY762 (Score: 0.03)
+#    Ineffective: BOISSL61GEN.P (Score: 0.03)
+#-- Verifying relevant node merging ---
+#Evaluating node merging for 18 substations...
+#✅ Rho reduction from [1.15] to [0.87]. New max rho is 0.87 on line BEON L31CPVAN.
+#  Effective node merge: node_merging_PYMONP3
+#
+#✅ Rho reduction from [1.15] to [1.08]. New max rho is 1.08 on line BEON L31CPVAN.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42 at VIELMP6 (hub: True)
+#✅ Rho reduction from [1.15] to [1.04]. New max rho is 1.04 on line BEON L31CPVAN.
+#    Effective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8 at C.REGP6 (hub: False)
+#✅ Rho reduction from [1.15] to [1.09]. New max rho is 1.09 on line BEON L31CPVAN.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40 at VIELMP6 (hub: True)
+#✅ Rho reduction from [1.15] to [1.08]. New max rho is 1.08 on line BEON L31CPVAN.
+#    Effective node split: f344b395-9908-43c2-bca0-75c5f298465e_variant_190 at COUCHP6 (hub: False)
+#    Ineffective node split: 6ba7e0a3-2c1a-4dd5-b85c-5cf83d8c0358_variant_53 at GROSNP6 (hub: False)
+#    Ineffective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75 at CPVANP6 (hub: False)
+#✅ Rho reduction from [1.15] to [1.13]. New max rho is 1.13 on line BEON L31CPVAN.
+#    Effective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18 at CPVANP6 (hub: False)
+#    Ineffective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23 at C.REGP6 (hub: False)
+#    Ineffective node split: 180c19aa-762d-4d6f-a74c-4fd5432aa5d1 at CPVANP3 (hub: True)
+#    Ineffective node split: f344b395-9908-43c2-bca0-75c5f298465e_variant_18 at COUCHP6 (hub: False)
+#✅ Rho reduction from [1.15] to [1.08]. New max rho is 1.08 on line BEON L31CPVAN.
+#    Effective node split: 256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6 at VOUGLP6 (hub: False) => WARNING = illegal PYMONL61VOUGL reconnection
+
+
+
     (
         "Case_COUCHL31VOSNE_T18",
         "2024-11-27",
         18,
         ["COUCHL31VOSNE"],
         {'reco_CHALOY632', 'reco_VIELMY762', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42', 'f344b395-9908-43c2-bca0-75c5f298465e_variant_18', '3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40'}
-    ),
+    ),#divergence now with new library versions in load flow after contingency
+
         (
         "Case_CHALOL61CPVAN_T9",
         "2024-12-7",
         9,
         ["CHALOL61CPVAN"],
-        {'reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8', '256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6', '5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52', '01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
+        {'reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75',#'256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6',
+         '5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52', '01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
     )
     #sometimes in this case, non reproductibility
     #"01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6" not considered and "disco_CPVANL61ZMAGN" added
+    #Evaluating 1 potential reconnections...
+    #  Simulating effectiveness...
+    #✅ Rho reduction from [1.04] to [0.99]. New max rho is 0.99 on line C.REGL61ZMAGN.
+    #    Effective: BOISSL61GEN.P (Score: 0.20)
+    #Simulating effectiveness...
+    #-- Verifying relevant node splitting ---
+    #  Simulating effectiveness...
+    #ERROR: Candidate action simulation failed in check_rho_reduction: [Grid2OpException BackendError DivergingPowerflow DivergingPowerflow()]
+    #    Ineffective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8 at C.REGP6 (hub: True)
+    #    Ineffective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75 at CPVANP6 (hub: True)
+    #✅ Rho reduction from [1.04] to [0.71]. New max rho is 0.71 on line C.REGL61ZMAGN.
+    #    Effective node split: 5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52 at PYMONP6 (hub: False)
+    #✅ Rho reduction from [1.04] to [0.82]. New max rho is 0.82 on line C.REGL61ZMAGN.
+    #    Effective node split: 256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6 at VOUGLP6 (hub: False)
+    #    Ineffective node split: 466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_23 at C.REGP6 (hub: True)
+    #ERROR: Candidate action simulation failed in check_rho_reduction: [Grid2OpException BackendError DivergingPowerflow DivergingPowerflow()]
+    #    Ineffective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_40 at VIELMP6 (hub: True)
+    #ERROR: Candidate action simulation failed in check_rho_reduction: [Grid2OpException BackendError DivergingPowerflow DivergingPowerflow()]
+    #    Ineffective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18 at CPVANP6 (hub: True)
+    #    Ineffective node split: 3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6_variant_42 at VIELMP6 (hub: True)
+    #✅ Rho reduction from [1.04] to [1.01]. New max rho is 1.01 on line C.REGL61ZMAGN.
+    #    Effective node split: 463179d8-be4e-4293-b42c-b53db763272b_variant_203 at GEN.PP6 (hub: True)
+
     # Add more test cases here following the same tuple format
     # (test_id, date_str, timestep, lines_defaut_list, expected_keys_set),
+
 ]
 
 
