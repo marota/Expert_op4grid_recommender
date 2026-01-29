@@ -516,10 +516,16 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
             non_connected_lines=non_connected_reconnectable_lines,
             non_reconnectable_lines=lines_non_reconnectable
         )
-        g_distribution_graph = Structured_Overload_Distribution_Graph(
-            g_overflow.g, 
-            possible_hubs=c_path_init
-        )
+        # Recreate distribution graph after adding lines
+        # Note: possible_hubs parameter may not be supported in all alphaDeesp versions
+        try:
+            g_distribution_graph = Structured_Overload_Distribution_Graph(
+                g_overflow.g, 
+                possible_hubs=c_path_init
+            )
+        except TypeError:
+            # Fallback for older alphaDeesp versions without possible_hubs support
+            g_distribution_graph = Structured_Overload_Distribution_Graph(g_overflow.g)
     
     return df_of_g, overflow_sim, g_overflow, real_hubs, g_distribution_graph, node_name_mapping
 
