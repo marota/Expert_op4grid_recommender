@@ -605,10 +605,23 @@ class ActionDiscoverer:
         buses, buses_negative_inflow, buses_negative_out_flow, buses_positive_inflow, buses_positive_out_flow = \
             self.computing_buses_values_of_interest(overflow_graph, node, dict_edge_names_buses)
 
+        # Handle edge case: no valid buses found (all disconnected or empty)
+        if not buses:
+            print(f"Warning: No valid buses found for node {node}, returning score 0")
+            return 0.0
+
         # 3) Detect bus of interest
         bus_of_interest = self.identify_bus_of_interest_in_node_splitting_(
             node_type, buses, buses_negative_inflow, buses_negative_out_flow
         )
+
+        # Handle edge case: bus_of_interest not in buses list
+        # This can happen when identify_bus_of_interest returns default value 1
+        # but the actual buses are different (e.g., [2] or [2, 3])
+        if bus_of_interest not in buses:
+            # Fall back to the first available bus
+            bus_of_interest = buses[0]
+            print(f"Warning: Default bus_of_interest not in buses list, using {bus_of_interest}")
 
         # 4) Compute score
         bus_of_interest_score = self.compute_node_splitting_action_bus_score(
@@ -686,34 +699,137 @@ class ActionDiscoverer:
 
         return dict_edge_names_buses
 
-    def compute_node_splitting_action_score(self, action: Any, sub_impacted_id: int, alphaDeesp_ranker: Any) -> float:
+    def _edge_names_buses_dict_new(self, action_dict):
+        """
+        Creates a mapping between line names and their bus assignments.
+
+        Args:
+            obs (Observation): The Grid2Op observation object.
+            action_topo_vect (np.array): The topology vector of the substation.
+            sub_impacted_id (int): The ID of the substation.
+
+        Returns:
+            dict: Keys are line names, Values are bus IDs (e.g., {'Line_A': 1, 'Line_B': 2}).
+        """
+        dict_edge_names_buses = {}
+        dict_edge_names_buses.update(action_dict["set_bus"]['lines_or_id'])
+        dict_edge_names_buses.update(action_dict["set_bus"]['lines_ex_id'])
+
+        return dict_edge_names_buses
+
+        #length = len(action_topo_vect)
+        #sub_info = obs.sub_info
+        #start = int(np.sum(sub_info[:sub_impacted_id]))
+#
+        #for i in range(length):
+        #    topo_vect_pos = start + i
+        #    element = obs.topo_vect_element(topo_vect_pos)
+#
+        #    # Check if the element corresponds to a line (not a load or gen)
+        #    if 'line_id' in element:
+        #        if 'line_or_id' in element:
+        #            line_id = element['line_or_id']  # Origin
+        #        else:
+        #            line_id = element['line_ex_id']  # Extremity
+#
+        #        line_name = obs.name_line[line_id]
+        #        dict_edge_names_buses[line_name] = action_topo_vect[i]
+#
+        #return dict_edge_names_buses
+
+    def compute_node_splitting_action_score(self, action_dict: Any, sub_impacted_id: int, alphaDeesp_ranker: Any) -> float:
         """
         Computes the heuristic score for a single node splitting action.
 
         Args:
-            action: The Grid2Op node splitting action object.
+            action_dict: The Grid2Op node splitting action dictionary.
             sub_impacted_id: The integer index of the affected substation.
             alphaDeesp_ranker: The initialized AlphaDeesp ranker.
 
         Returns:
             The heuristic score as a float.
         """
-
+        action = self.action_space(action_dict)
         action_topo_vect,is_single_node=self._get_action_topo_vect(sub_impacted_id,action)
         action_topo_vect_alphadeesp=action_topo_vect-1
 
         #########"
-        dict_edge_names_buses=self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
+        dict_edge_names_buses=self._edge_names_buses_dict(self.obs_defaut, action_topo_vect, sub_impacted_id)
+        #dict_edge_names_buses=self._edge_names_buses_dict_new(action_dict)#self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
 
         ############"
-        score_alphaDeesp_ranker = alphaDeesp_ranker.rank_current_topo_at_node_x(
-            self.g_overflow.g, sub_impacted_id, isSingleNode=is_single_node,
-            topo_vect=action_topo_vect_alphadeesp, is_score_specific_substation=False
-        )
+        #score_alphaDeesp_ranker = alphaDeesp_ranker.rank_current_topo_at_node_x(
+        #    self.g_overflow.g, sub_impacted_id, isSingleNode=is_single_node,
+        #    topo_vect=action_topo_vect_alphadeesp, is_score_specific_substation=False
+        #)
         score_expert_recommender=self.compute_node_splitting_action_score_value(self.g_overflow.g,self.g_distribution_graph,node=sub_impacted_id, dict_edge_names_buses=dict_edge_names_buses)
 
         return score_expert_recommender#score_alphaDeesp_ranker
 
+
+    def _get_subs_impacted_from_action_desc(self, action_desc: Dict) -> List[int]:
+        """
+        Extract impacted substation IDs from an action description.
+        
+        This is a backend-agnostic way to find which substations are affected
+        by a topology action, without relying on grid2op's impact_on_objects().
+        
+        Args:
+            action_desc: Action description dictionary with 'content' key
+            
+        Returns:
+            List of substation IDs that are impacted by this action
+        """
+        subs_impacted = set()
+        content = action_desc.get("content", {})
+        set_bus = content.get("set_bus", {})
+        
+        # Check for substations_id (direct substation topology changes)
+        if "substations_id" in set_bus:
+            for sub_id, _ in set_bus["substations_id"]:
+                subs_impacted.add(sub_id)
+        
+        # Check for lines_or_id (line origin bus changes)
+        if "lines_or_id" in set_bus:
+            for line_name, bus in set_bus["lines_or_id"].items():
+                # Find substation for this line's origin
+                line_id_array = np.where(self.obs_defaut.name_line == line_name)[0]
+                if line_id_array.size > 0:
+                    line_id = line_id_array[0]
+                    sub_id = self.obs_defaut.line_or_to_subid[line_id]
+                    subs_impacted.add(sub_id)
+        
+        # Check for lines_ex_id (line extremity bus changes)
+        if "lines_ex_id" in set_bus:
+            for line_name, bus in set_bus["lines_ex_id"].items():
+                # Find substation for this line's extremity
+                line_id_array = np.where(self.obs_defaut.name_line == line_name)[0]
+                if line_id_array.size > 0:
+                    line_id = line_id_array[0]
+                    sub_id = self.obs_defaut.line_ex_to_subid[line_id]
+                    subs_impacted.add(sub_id)
+        
+        # Check for loads_id (load bus changes)
+        if "loads_id" in set_bus:
+            for load_name, bus in set_bus["loads_id"].items():
+                # Find substation for this load
+                load_id_array = np.where(self.obs_defaut.name_load == load_name)[0]
+                if load_id_array.size > 0 and hasattr(self.obs_defaut, 'load_to_subid'):
+                    load_id = load_id_array[0]
+                    sub_id = self.obs_defaut.load_to_subid[load_id]
+                    subs_impacted.add(sub_id)
+        
+        # Check for generators_id (generator bus changes)
+        if "generators_id" in set_bus:
+            for gen_name, bus in set_bus["generators_id"].items():
+                # Find substation for this generator
+                gen_id_array = np.where(self.obs_defaut.name_gen == gen_name)[0]
+                if gen_id_array.size > 0 and hasattr(self.obs_defaut, 'gen_to_subid'):
+                    gen_id = gen_id_array[0]
+                    sub_id = self.obs_defaut.gen_to_subid[gen_id]
+                    subs_impacted.add(sub_id)
+        
+        return list(subs_impacted)
 
     def identify_and_score_node_splitting_actions(self, hubs_names: List[str], nodes_blue_path_names: List[str], alphaDeesp_ranker: Any) -> Tuple[Dict, List]:
         """
@@ -737,21 +853,21 @@ class ActionDiscoverer:
 
             if "open_coupling" in action_type:
                 action = self.action_space(action_desc["content"])
-                #_, subs_impacted_bool = action.get_topological_impact()
-                #sub_impacted_id_array = np.where(subs_impacted_bool)[0]
-                #if sub_impacted_id_array.size == 0:
-                #     ignored_actions.append(action_desc)
-                #     continue
-                #sub_impacted_id = sub_impacted_id_array[0]
-
-                #WARNING: Other approach if some issues are observed above, like returning always the first substation
-                topology_impact = action.impact_on_objects()["topology"]
-                subs_impacted = list(set([assignment['substation'] for assignment in topology_impact["assigned_bus"]]))
+                
+                # Get impacted substations from action description (backend-agnostic)
+                #topology_impact = action.impact_on_objects()["topology"] if grid2op
+                #subs_impacted = list(set([assignment['substation'] for assignment in topology_impact["assigned_bus"]]))
+                #sub_impacted_id = subs_impacted[0]
+                subs_impacted = self._get_subs_impacted_from_action_desc(action_desc)
+                if not subs_impacted:
+                    ignored_actions.append(action_desc)
+                    continue
+                
                 sub_impacted_id = subs_impacted[0]
                 sub_impacted_name = self.obs_defaut.name_sub[sub_impacted_id]
 
                 if sub_impacted_name in hubs_names or sub_impacted_name in nodes_blue_path_names:
-                    score = self.compute_node_splitting_action_score(action, sub_impacted_id, alphaDeesp_ranker)
+                    score = self.compute_node_splitting_action_score(action_desc["content"], sub_impacted_id, alphaDeesp_ranker)
                     map_action_score[action_id] = {"action": action, "score": score, "sub_impacted": sub_impacted_name}
                     #print(action_desc["content"]["set_bus"])
                     #print(action_id+": "+str(score))
