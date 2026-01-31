@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
+from math import fabs
 import pypowsybl as pp
 import pypowsybl.loadflow as lf
 
@@ -44,7 +45,8 @@ class OverflowSimulator:
     def __init__(self, 
                  network_manager: 'NetworkManager',
                  obs: 'PypowsyblObservation',
-                 use_dc: bool = False):
+                 use_dc: bool = False,
+                 param_options: Optional[Dict] = None):
         """
         Initialize the overflow simulator.
         
@@ -52,15 +54,36 @@ class OverflowSimulator:
             network_manager: NetworkManager instance
             obs: Current observation (after initial contingency)
             use_dc: If True, use DC load flow. If False, use AC (default).
+            param_options: Configuration parameters (thresholds, etc.)
         """
         self._nm = network_manager
         self._obs = obs
         self._net = network_manager.network
         self._use_dc = use_dc
+        self._param_options = param_options or {}
         
-        # Get current line flows
-        self._base_flows = self._get_line_flows()
-        self._base_currents = self._get_line_currents()
+        # Get current line flows FROM THE OBSERVATION (not network)
+        # This ensures we have the correct base flows even if the observation
+        # was captured at a different network state
+        self._base_flows = self._get_flows_from_obs(obs)
+        self._base_currents = self._get_currents_from_obs(obs)
+    
+    def _get_flows_from_obs(self, obs: 'PypowsyblObservation') -> Dict[str, float]:
+        """Get active power flows from observation's p_or values."""
+        flows = {}
+        for i, line_id in enumerate(self._nm.name_line):
+            flows[line_id] = obs.p_or[i]
+        return flows
+    
+    def _get_currents_from_obs(self, obs: 'PypowsyblObservation') -> Dict[str, float]:
+        """Get current magnitudes from observation's a_or values."""
+        currents = {}
+        for i, line_id in enumerate(self._nm.name_line):
+            # Use max of a_or and a_ex like we do elsewhere
+            i_or = obs.a_or[i] if hasattr(obs, 'a_or') else 0.0
+            i_ex = obs.a_ex[i] if hasattr(obs, 'a_ex') else 0.0
+            currents[line_id] = max(abs(i_or), abs(i_ex))
+        return currents
     
     def _run_load_flow(self) -> lf.ComponentResult:
         """Run load flow with configured mode (AC or DC)."""
@@ -172,21 +195,13 @@ class OverflowSimulator:
         """
         Compute flow changes when specified lines are disconnected.
         
+        This method replicates alphaDeesp's Simulation.create_df() logic exactly.
+        
         Args:
             lines_to_disconnect: List of line IDs to disconnect
             
         Returns:
-            DataFrame with columns:
-            - line_name: Line identifier
-            - flow_before: Flow before disconnection (MW)
-            - flow_after: Flow after disconnection (MW)
-            - delta_flows: Change in flow (MW)
-            - current_before: Current before disconnection (A)
-            - current_after: Current after disconnection (A)
-            - idx_or: Origin substation index
-            - idx_ex: Extremity substation index
-            - new_flows_swapped: True if flow direction reversed
-            - is_disconnected: True if this line was disconnected
+            DataFrame with columns matching alphaDeesp's Grid2opSimulation format
         """
         # Create variant
         variant_id = "flow_change_analysis"
@@ -194,43 +209,53 @@ class OverflowSimulator:
         self._nm.set_working_variant(variant_id)
         
         try:
-            # Disconnect all specified lines
+            # IMPORTANT: First, re-apply any lines that are already disconnected in the observation
+            # The observation was created from a simulated state (with contingency applied),
+            # but the network manager's base variant doesn't have those disconnections.
+            for i, line_id in enumerate(self._nm.name_line):
+                if not self._obs.line_status[i]:  # Line is disconnected in observation
+                    self._nm.disconnect_line(line_id)
+            
+            # Run load flow to verify we match the observation state
+            result = self._run_load_flow()
+            
+            if result is None or result.status != lf.ComponentStatus.CONVERGED:
+                print(f"Warning: Load flow did not converge when re-applying contingency state")
+            
+            # Now disconnect the additional lines (overloaded lines)
             for line_id in lines_to_disconnect:
                 self._nm.disconnect_line(line_id)
             
-            # Run load flow
+            # Run load flow again after disconnecting overloaded lines
             result = self._run_load_flow()
             
             converged = (result is not None and result.status == lf.ComponentStatus.CONVERGED)
             
-            # Get new flows
+            # Get new flows (signed values, like alphaDeesp's cut_lines_and_recomputes_flows)
             if converged:
-                new_flows = self._get_line_flows()
-                new_currents = self._get_line_currents()
+                new_flows_dict = {}
+                lines_df = self._net.get_lines()
+                trafos_df = self._net.get_2_windings_transformers()
+                
+                for line_id in self._nm.name_line:
+                    if line_id in lines_df.index:
+                        p1 = lines_df.loc[line_id, 'p1']
+                        new_flows_dict[line_id] = p1 if not np.isnan(p1) else 0.0
+                    elif line_id in trafos_df.index:
+                        p1 = trafos_df.loc[line_id, 'p1']
+                        new_flows_dict[line_id] = p1 if not np.isnan(p1) else 0.0
+                    else:
+                        new_flows_dict[line_id] = 0.0
             else:
-                # Return base state with NaN for new values
-                new_flows = {k: np.nan for k in self._base_flows}
-                new_currents = {k: np.nan for k in self._base_currents}
+                new_flows_dict = {k: 0.0 for k in self._base_flows}
             
-            # Build result DataFrame
+            # ===== STEP 1: Build initial DataFrame (like alphaDeesp's d["edges"]) =====
             data = []
             for line_id in self._nm.name_line:
                 flow_before = self._base_flows.get(line_id, 0.0)
-                flow_after = new_flows.get(line_id, 0.0)
-                current_before = self._base_currents.get(line_id, 0.0)
-                current_after = new_currents.get(line_id, 0.0)
-                
-                # Handle NaN for flow_before
                 if np.isnan(flow_before):
                     flow_before = 0.0
                 
-                # Compute delta (may be NaN if didn't converge)
-                if np.isnan(flow_after):
-                    delta = np.nan
-                else:
-                    delta = flow_after - flow_before
-                
-                # Get substation indices
                 or_sub = self._nm._line_or_sub.get(line_id, '')
                 ex_sub = self._nm._line_ex_sub.get(line_id, '')
                 
@@ -243,27 +268,106 @@ class OverflowSimulator:
                 except ValueError:
                     idx_ex = -1
                 
-                # Check if flow direction swapped
-                swapped = False
-                if not np.isnan(flow_after):
-                    swapped = (flow_before * flow_after < 0) and abs(flow_after) > 1e-6
-                
                 data.append({
-                    'line_name': line_id,
-                    'flow_before': flow_before,
-                    'flow_after': flow_after,
-                    'delta_flows': delta,
-                    'current_before': current_before,
-                    'current_after': current_after,
                     'idx_or': idx_or,
                     'idx_ex': idx_ex,
-                    'new_flows_swapped': swapped,
-                    'is_disconnected': line_id in lines_to_disconnect,
-                    'converged': converged,
-                    'gray_edges': False,  # Required by alphaDeesp OverFlowGraph
+                    'init_flows': flow_before,  # Signed value initially
+                    'line_name': line_id,
                 })
             
-            return pd.DataFrame(data)
+            df = pd.DataFrame(data)
+            
+            # ===== STEP 2: branch_direction_swaps - swap when init_flows < 0 =====
+            swapped = []
+            for i, row in df.iterrows():
+                a = row["init_flows"]
+                if a < 0 and a != 0.:
+                    # Swap origin and extremity
+                    idx_or = row["idx_or"]
+                    df.at[i, "idx_or"] = row["idx_ex"]
+                    df.at[i, "idx_ex"] = idx_or
+                    df.at[i, "init_flows"] = fabs(row["init_flows"])
+                    swapped.append(True)
+                else:
+                    swapped.append(False)
+            df["swapped"] = swapped
+            
+            # ===== STEP 3: Get new_flows and apply swapped correction =====
+            n_flows = []
+            for line_id, is_swapped in zip(self._nm.name_line, df["swapped"]):
+                f = new_flows_dict.get(line_id, 0.0)
+                if np.isnan(f):
+                    f = 0.0
+                if is_swapped:
+                    n_flows.append(f * -1)
+                else:
+                    n_flows.append(f)
+            df["new_flows"] = n_flows
+            
+            # ===== STEP 4: Compute new_flows_swapped =====
+            # True if new_flows < 0 AND |new_flows| > |init_flows|
+            new_flows_swapped = []
+            for i, row in df.iterrows():
+                if row["new_flows"] < 0 and fabs(row["new_flows"]) > fabs(row["init_flows"]):
+                    new_flows_swapped.append(True)
+                else:
+                    new_flows_swapped.append(False)
+            df["new_flows_swapped"] = new_flows_swapped
+            
+            # ===== STEP 5: Compute delta_flows (exactly like alphaDeesp) =====
+            delta_flo = []
+            for i, row in df.iterrows():
+                if row["new_flows_swapped"]:
+                    # Flow reversed and is stronger - positive delta, swap indices
+                    delta_flo.append(fabs(row["new_flows"]) + fabs(row["init_flows"]))
+                    # Swap origin and extremity
+                    idx_or = row["idx_or"]
+                    df.at[i, "idx_or"] = row["idx_ex"]
+                    df.at[i, "idx_ex"] = idx_or
+                    df.at[i, "init_flows"] = fabs(row["init_flows"])
+                elif (np.sign(row["new_flows"]) != np.sign(row["init_flows"])) and \
+                     (row["new_flows"] != 0) and (row["init_flows"] != 0):
+                    # Signs differ but new flow is weaker - negative delta (flow relieved)
+                    delta_flo.append(-(fabs(row["new_flows"]) + fabs(row["init_flows"])))
+                else:
+                    # Same direction - simple difference
+                    delta_flo.append(fabs(row["new_flows"]) - fabs(row["init_flows"]))
+            df["delta_flows"] = delta_flo
+            
+            # ===== STEP 6: Compute gray_edges based on significance (like alphaDeesp) =====
+            # gray_edges = True when |delta_flows| < ltc_report * ThresholdReportOfLine
+            # ltc_report is the delta_flows of the first line to cut
+            if lines_to_disconnect:
+                # Get the index of the first line to cut
+                first_ltc_idx = None
+                for i, line_id in enumerate(self._nm.name_line):
+                    if line_id == lines_to_disconnect[0]:
+                        first_ltc_idx = i
+                        break
+                
+                if first_ltc_idx is not None:
+                    ltc_report = fabs(df["delta_flows"].iloc[first_ltc_idx])
+                else:
+                    ltc_report = df["delta_flows"].abs().max()
+            else:
+                ltc_report = df["delta_flows"].abs().max()
+            
+            # Get threshold from param_options
+            threshold = self._param_options.get("ThresholdReportOfLine", 0.05)
+            max_overload = ltc_report * float(threshold)
+            
+            gray_edges = []
+            for delta in df["delta_flows"]:
+                if fabs(delta) < max_overload:
+                    gray_edges.append(True)
+                else:
+                    gray_edges.append(False)
+            df["gray_edges"] = gray_edges
+            
+            # NOTE: new_flows stays as signed value (not converted to absolute)
+            # This matches alphaDeesp behavior where new_flows can be negative
+            
+            return df
             
         finally:
             self._nm.set_working_variant(self._nm.base_variant_id)
@@ -276,12 +380,11 @@ class OverflowSimulator:
         Provides interface compatible with alphaDeesp's Grid2opSimulation.
         
         Returns:
-            DataFrame with flow information for all lines
+            DataFrame with flow information for all lines in alphaDeesp format
         """
         data = []
         for line_id in self._nm.name_line:
             flow = self._base_flows.get(line_id, 0.0)
-            current = self._base_currents.get(line_id, 0.0)
             
             or_sub = self._nm._line_or_sub.get(line_id, '')
             ex_sub = self._nm._line_ex_sub.get(line_id, '')
@@ -295,15 +398,19 @@ class OverflowSimulator:
             except ValueError:
                 idx_ex = -1
             
+            # Determine if flow is "swapped" (negative = flow from ex to or)
+            swapped = flow < 0
+            
             data.append({
-                'line_name': line_id,
-                'p_or': flow,
-                'i_or': current,
                 'idx_or': idx_or,
                 'idx_ex': idx_ex,
-                'delta_flows': 0.0,  # No disconnection yet
+                'init_flows': abs(flow),
+                'swapped': swapped,
+                'new_flows': abs(flow),  # Same as init when no disconnection
                 'new_flows_swapped': False,
-                'gray_edges': False,  # Required by alphaDeesp OverFlowGraph
+                'delta_flows': 0.0,  # No disconnection yet
+                'gray_edges': False,
+                'line_name': line_id,
             })
         
         return pd.DataFrame(data)
@@ -369,7 +476,7 @@ class OverflowGraphBuilder:
         max_delta = df['delta_flows'].abs().max() if not df.empty else 1.0
         
         for _, row in df.iterrows():
-            if row['is_disconnected']:
+            if row['gray_edges']:  # Skip disconnected lines (marked as gray)
                 continue  # Skip disconnected lines
             
             delta = row['delta_flows']
@@ -398,8 +505,8 @@ class OverflowGraphBuilder:
                        name=row['line_name'],
                        capacity=delta,
                        label=f"{delta:.0f}",
-                       flow_before=row['flow_before'],
-                       flow_after=row['flow_after'])
+                       flow_before=row['init_flows'],
+                       flow_after=row['new_flows'])
         
         return G, df
     
@@ -478,7 +585,8 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
     df_of_g = overflow_sim.get_dataframe()
     df_of_g["line_name"] = obs.name_line
     
-    # Apply flow swap correction (same as grid2op version)
+    # Apply flow swap correction - this negates delta_flows for lines where
+    # new_flows_swapped=True, making them negative (blue) instead of positive (red)
     df_of_g = _inhibit_swapped_flows(df_of_g)
     
     # Build topology info for alphaDeesp
@@ -535,6 +643,9 @@ def _inhibit_swapped_flows(df_of_g: pd.DataFrame) -> pd.DataFrame:
     Correct flow direction swapping in the DataFrame.
     
     When flows are swapped, the delta_flows sign and idx_or/idx_ex need to be corrected.
+    
+    NOTE: This function is kept for compatibility but may not be needed when using
+    the new compute_flow_changes_after_disconnection which handles swapping internally.
     
     Args:
         df_of_g: DataFrame with flow changes
@@ -629,11 +740,15 @@ class AlphaDeespAdapter:
         # Store ltc for visualization
         self.ltc = ltc or []
         
+        # Store param_options for create_df compatibility
+        self.param_options = param_options
+        
         # Create overflow simulator
         self._overflow_sim = OverflowSimulator(
             network_manager=obs._network_manager,
             obs=obs,
-            use_dc=use_dc
+            use_dc=use_dc,
+            param_options=param_options
         )
         
         # Build topology info
@@ -738,11 +853,21 @@ class AlphaDeespAdapter:
         nm.set_working_variant(variant_id)
         
         try:
-            # Disconnect the lines
+            # IMPORTANT: First, re-apply any lines that are already disconnected in the observation
+            # The observation was created from a simulated state (with contingency applied),
+            # but the network manager's base variant doesn't have those disconnections.
+            for i, line_id in enumerate(nm.name_line):
+                if not obs.line_status[i]:  # Line is disconnected in observation
+                    nm.disconnect_line(line_id)
+            
+            # Run load flow to get to the observation state
+            nm.run_load_flow(dc=self._use_dc)
+            
+            # Now disconnect the additional lines (overloaded lines)
             for line_id in lines_to_cut:
                 nm.disconnect_line(line_id)
             
-            # Run load flow
+            # Run load flow after cutting the overloaded lines
             result = nm.run_load_flow(dc=self._use_dc)
             
             # Create a simple object with rho attribute
@@ -751,8 +876,14 @@ class AlphaDeespAdapter:
                     self.rho = rho_values
             
             if result is not None and result.status == lf.ComponentStatus.CONVERGED:
-                # Get thermal limits
-                thermal_limits = nm.get_thermal_limits()
+                # Use the same thermal limits as the original observation
+                # This ensures consistent rho calculations
+                thermal_limits = obs._thermal_limits
+                
+                # Get transformer IDs to handle them differently
+                net = nm.network
+                trafos_df = net.get_2_windings_transformers()
+                trafo_ids = set(trafos_df.index)
                 
                 # Get line flows and compute rho
                 line_flows = nm.get_line_flows()
@@ -764,11 +895,18 @@ class AlphaDeespAdapter:
                         i2 = abs(line_flows.loc[line_id, 'i2'])
                         i1 = i1 if not np.isnan(i1) else 0.0
                         i2 = i2 if not np.isnan(i2) else 0.0
-                        i_max = max(i1, i2)
+                        
+                        if line_id in trafo_ids:
+                            # For transformers: use i1 (side 1 = high voltage side)
+                            # Thermal limits are defined for side 1 in pypowsybl
+                            i_for_rho = i1
+                        else:
+                            # For AC lines: use max of both terminals
+                            i_for_rho = max(i1, i2)
                         
                         thermal_limit = thermal_limits.get(line_id, 9999.0)
                         if thermal_limit > 0:
-                            rho[i] = i_max / thermal_limit
+                            rho[i] = i_for_rho / thermal_limit
                 
                 return ObsLineCut(rho)
             else:

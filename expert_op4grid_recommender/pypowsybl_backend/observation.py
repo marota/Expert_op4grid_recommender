@@ -86,19 +86,23 @@ class PypowsyblObservation:
         self._gen_q = net.get_generators()['q'].values
     
     def _compute_rho(self):
-        """Compute line loading ratios."""
-        rho = np.zeros(self._network_manager.n_line)
+        """Compute line loading ratios.
         
-        for i, line_id in enumerate(self._network_manager.name_line):
+        Uses i1 (side 1 current) for rho calculation since thermal limits 
+        are defined for side 1 in pypowsybl convention.
+        """
+        nm = self._network_manager
+        
+        rho = np.zeros(nm.n_line)
+        
+        for i, line_id in enumerate(nm.name_line):
             if line_id in self._line_flows.index:
-                # Use maximum current at either terminal
                 i1 = abs(self._line_flows.loc[line_id, 'i1'])
-                i2 = abs(self._line_flows.loc[line_id, 'i2'])
-                i_max = max(i1, i2) if not np.isnan(i1) and not np.isnan(i2) else 0.0
+                i1 = i1 if not np.isnan(i1) else 0.0
                 
                 thermal_limit = self._thermal_limits.get(line_id, 9999.0)
                 if thermal_limit > 0:
-                    rho[i] = i_max / thermal_limit
+                    rho[i] = i1 / thermal_limit
                 else:
                     rho[i] = 0.0
             else:
