@@ -365,15 +365,18 @@ def run_analysis(analysis_date: Optional[datetime],
             current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH
         )
 
-    # Visualize graph
-    with Timer("Visualization"):
-        graph_file_name = get_graph_file_name(current_lines_defaut, chronic_name, current_timestep, use_dc)
-        save_folder = config.SAVE_FOLDER_VISUALIZATION
-        lines_swapped = list(df_of_g[df_of_g.new_flows_swapped].line_name)
-        make_overflow_graph_visualization(
-            env, overflow_sim, g_overflow, hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped,
-            custom_layout
-        )
+    # Visualize graph (only if enabled in config)
+    if config.DO_VISUALIZATION:
+        with Timer("Visualization"):
+            graph_file_name = get_graph_file_name(current_lines_defaut, chronic_name, current_timestep, use_dc)
+            save_folder = config.SAVE_FOLDER_VISUALIZATION
+            lines_swapped = list(df_of_g[df_of_g.new_flows_swapped].line_name)
+            make_overflow_graph_visualization(
+                env, overflow_sim, g_overflow, hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped,
+                custom_layout
+            )
+    else:
+        print("Skipping visualization (DO_VISUALIZATION=False)")
 
     # Save data for tests
     if config.DO_SAVE_DATA_FOR_TEST:
