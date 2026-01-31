@@ -17,19 +17,33 @@ class MockAction:
         defaults = {'line_or_set_bus': [0], 'line_ex_set_bus': [0], 'line_set_status': [0], 'load_set_bus': [0], 'line_or_change_bus': [0], 'line_ex_change_bus': [0], 'line_change_status': [0], 'load_change_bus': [0], '_set_topo_vect': [0], '_topo_vect_to_sub': [0]}
         for key, value in defaults.items(): setattr(self, key, np.array(kwargs.get(key, value)))
 
+
 class MockActionObject:
     """Mocks the higher-level action object returned by an action_space."""
+
     def __init__(self, substations_id=None, lines_ex_id=None, lines_or_id=None, set_line_status=None):
         self.substations_id = substations_id or []
         self.lines_ex_id = lines_ex_id or {}
         self.lines_or_id = lines_or_id or {}
         self.set_line_status = set_line_status or []
-        self.content = {'set_line_status': self.set_line_status, 'set_bus': {'substations_id': self.substations_id}}
+
+        # Ensure content reflects all input arguments so .get() returns expected structure
+        self.content = {
+            'set_line_status': self.set_line_status,
+            'set_bus': {
+                'substations_id': self.substations_id,
+                'lines_ex_id': self.lines_ex_id,
+                'lines_or_id': self.lines_or_id
+            }
+        }
+
+    # Add this method to satisfy the .get() call in the code under test
+    def get(self, key, default=None):
+        return self.content.get(key, default)
 
     def __add__(self, other):
-        return self # For tests, a simple return is sufficient.
+        return self  # For tests, a simple return is sufficient.
 
-    # Modify this method
     def impact_on_objects(self):
         """Mocks the impact_on_objects method, focusing on topology impact."""
         assigned_bus_list = []
@@ -37,17 +51,12 @@ class MockActionObject:
             # Assumes the action affects only one substation for simplicity in mock
             sub_id = self.substations_id[0][0]
             # Create a dummy assignment structure expected by the code
-            # We just need one entry with the correct substation ID
             assigned_bus_list.append({'substation': sub_id})
-            # Add more dummy assignments if the code iterates over elements within the sub
 
-        # Return a dictionary with the expected "assigned_bus" key
         return {
             "topology": {
                 "assigned_bus": assigned_bus_list
-                # 'substation_ids' key might no longer be needed if the code only uses 'assigned_bus'
             }
-            # Add other keys like 'powerlines', 'loads' if needed
         }
 
     def as_dict(self):
@@ -388,3 +397,168 @@ def test_internal_identify_and_score_node_splitting_actions(discoverer_instance,
     assert "disco_L2" in ignored_ids
     assert "merge_S0" in ignored_ids # Ignored because it's not "open_coupling" type
     assert "split_S2" in ignored_ids #Ignored because not on constrained path
+
+
+# =============================================================================
+# Tests for _get_subs_impacted_from_action_desc (new backend-agnostic method)
+# =============================================================================
+
+class TestGetSubsImpactedFromActionDesc:
+    """Tests for the _get_subs_impacted_from_action_desc method in ActionDiscoverer."""
+    
+    @pytest.fixture
+    def discoverer_for_subs_impacted(self):
+        """Create a discoverer with proper observation setup for testing."""
+        mock_obs = MockObservation(
+            name_sub=["Sub0", "Sub1", "Sub2", "Sub3"],
+            name_line=["L1", "L2", "L3"],
+            line_or_to_subid=[0, 1, 2],  # L1->Sub0, L2->Sub1, L3->Sub2
+            line_ex_to_subid=[1, 2, 3]   # L1->Sub1, L2->Sub2, L3->Sub3
+        )
+        mock_env = MockEnv(name_line=mock_obs.name_line, name_sub=mock_obs.name_sub)
+        mock_g_overflow = MockOverflowGraph()
+        mock_g_dist = MockDistributionGraph()
+        
+        discoverer = ActionDiscoverer(
+            env=mock_env,
+            obs=mock_obs,
+            obs_defaut=mock_obs,
+            classifier=ActionClassifier(MockActionSpace()),
+            timestep=0,
+            lines_defaut=[],
+            lines_overloaded_ids=[],
+            act_reco_maintenance=MockActionObject(),
+            non_connected_reconnectable_lines=[],
+            all_disconnected_lines=[],
+            dict_action={},
+            actions_unfiltered=set(),
+            hubs=[],
+            g_overflow=mock_g_overflow,
+            g_distribution_graph=mock_g_dist,
+            simulator_data={}
+        )
+        return discoverer
+    
+    def test_substations_id_direct(self, discoverer_for_subs_impacted):
+        """Test extraction from substations_id (direct substation topology changes)."""
+        action_desc = {
+            "content": {
+                "set_bus": {
+                    "substations_id": [(0, [1, 2, 1]), (2, [1, 1])]
+                }
+            }
+        }
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        assert set(subs) == {0, 2}
+    
+    def test_lines_or_id(self, discoverer_for_subs_impacted):
+        """Test extraction from lines_or_id (line origin bus changes)."""
+        action_desc = {
+            "content": {
+                "set_bus": {
+                    "lines_or_id": {"L1": 1, "L2": 2}
+                }
+            }
+        }
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        # L1 origin is Sub0, L2 origin is Sub1
+        assert set(subs) == {0, 1}
+    
+    def test_lines_ex_id(self, discoverer_for_subs_impacted):
+        """Test extraction from lines_ex_id (line extremity bus changes)."""
+        action_desc = {
+            "content": {
+                "set_bus": {
+                    "lines_ex_id": {"L1": -1, "L3": 1}
+                }
+            }
+        }
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        # L1 extremity is Sub1, L3 extremity is Sub3
+        assert set(subs) == {1, 3}
+    
+    def test_combined_lines_or_and_ex(self, discoverer_for_subs_impacted):
+        """Test extraction from both lines_or_id and lines_ex_id."""
+        action_desc = {
+            "content": {
+                "set_bus": {
+                    "lines_or_id": {"L1": 1},
+                    "lines_ex_id": {"L2": 2}
+                }
+            }
+        }
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        # L1 origin is Sub0, L2 extremity is Sub2
+        assert set(subs) == {0, 2}
+    
+    def test_empty_action_desc(self, discoverer_for_subs_impacted):
+        """Test with empty action description."""
+        action_desc = {"content": {}}
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        assert subs == []
+    
+    def test_empty_set_bus(self, discoverer_for_subs_impacted):
+        """Test with empty set_bus dictionary."""
+        action_desc = {"content": {"set_bus": {}}}
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        assert subs == []
+    
+    def test_unknown_line_name(self, discoverer_for_subs_impacted):
+        """Test with unknown line name (should be skipped)."""
+        action_desc = {
+            "content": {
+                "set_bus": {
+                    "lines_or_id": {"UNKNOWN_LINE": 1, "L1": 1}
+                }
+            }
+        }
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        # Should only include Sub0 from L1, ignore unknown line
+        assert set(subs) == {0}
+    
+    def test_all_fields_combined(self, discoverer_for_subs_impacted):
+        """Test with all possible fields combined."""
+        action_desc = {
+            "content": {
+                "set_bus": {
+                    "substations_id": [(3, [1, 1])],
+                    "lines_or_id": {"L1": 1},
+                    "lines_ex_id": {"L2": 2}
+                }
+            }
+        }
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        # Sub3 from substations_id, Sub0 from L1 origin, Sub2 from L2 extremity
+        assert set(subs) == {0, 2, 3}
+    
+    def test_duplicate_substations_deduplicated(self, discoverer_for_subs_impacted):
+        """Test that duplicate substations are deduplicated."""
+        action_desc = {
+            "content": {
+                "set_bus": {
+                    "lines_or_id": {"L1": 1},  # Sub0
+                    "lines_ex_id": {"L1": 1}   # Sub1
+                }
+            }
+        }
+        
+        subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
+        
+        # Should be deduplicated (using set internally)
+        assert len(subs) == len(set(subs))

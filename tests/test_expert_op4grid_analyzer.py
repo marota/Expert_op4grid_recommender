@@ -40,7 +40,8 @@ from expert_op4grid_recommender.environment import make_grid2op_training_env, ma
 from expert_op4grid_recommender.utils.load_evaluation_data import list_all_chronics,load_interesting_lines
 from expert_op4grid_recommender.graph_analysis.builder import build_overflow_graph
 from expert_op4grid_recommender.environment import switch_to_dc_load_flow,setup_environment_configs,get_env_first_obs
-from expert_op4grid_recommender import config
+from tests import config_test
+from expert_op4grid_recommender.main import run_analysis,Backend
 
 from packaging.version import Version as version_packaging
 from importlib.metadata import version
@@ -1037,100 +1038,13 @@ REPRODUCIBILITY_CASES = [
 )
 @pytest.mark.slow # Mark as slow because it loads the environment and runs analysis
 def test_reproducibility(test_id, date_str, timestep, lines_defaut, expected_keys_set):
-    """
-    Tests if the prioritized action keys match the expected set for a given scenario.
-    """
-    print(f"\n--- Running Reproducibility Test: {test_id} ---")
-    print(f"Date: {date_str}, Timestep: {timestep}, Contingency: {lines_defaut}")
 
-    try:
-        analysis_date = datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError:
-        pytest.fail(f"Invalid date format in test case {test_id}: {date_str}")
-
-    # --- Replicate Core Logic from main.py ---
-    # (Error handling might be simplified for testing focus)
-    try:
-        env, obs, path_chronic, chronic_name, custom_layout, dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment_configs(analysis_date)
-    except FileNotFoundError as e:
-         pytest.skip(f"Skipping test {test_id}: Required environment or chronic file not found. {e}")
-    except Exception as e:
-         pytest.fail(f"Failed during environment setup for {test_id}: {e}")
-
-    classifier = ActionClassifier(grid2op_action_space=env.action_space)
-
-    act_reco_maintenance, maintenance_to_reco_at_t = get_maintenance_timestep(
-        timestep, lines_non_reconnectable, env, config.DO_RECO_MAINTENANCE # Use config for flags
+    prioritized_actions=run_analysis(
+        analysis_date=date_str,
+        current_timestep=timestep,
+        current_lines_defaut=lines_defaut,
+        backend=Backend.GRID2OP
     )
-
-    obs_simu_defaut, has_converged = simulate_contingency(env, obs, lines_defaut, act_reco_maintenance, timestep)
-    if not has_converged:
-        pytest.fail(f"Initial contingency simulation failed for {test_id}")
-
-    lines_overloaded_ids = [i for i, l in enumerate(obs_simu_defaut.name_line) if l in lines_we_care_about and obs_simu_defaut.rho[i] >= 1]
-    non_connected_reconnectable_lines = [ln for i, ln in enumerate(env.name_line) if ln not in lines_defaut and ln not in lines_non_reconnectable and not obs_simu_defaut.line_status[i]]
-
-    lines_overloaded_ids_kept, _ = identify_overload_lines_to_keep_overflow_graph_connected(
-        obs_simu_defaut, lines_overloaded_ids, config.DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART
-    )
-
-    if not lines_overloaded_ids_kept:
-        # If no lines kept, the expected keys should probably be empty
-        actual_keys_set = set()
-        assert actual_keys_set == expected_keys_set, f"[{test_id}] Expected empty prioritized actions due to grid break, but got {expected_keys_set}"
-        return # Test passes if expectation is empty set
-
-    has_converged_check, _ = check_simu_overloads(obs, obs_simu_defaut, env.action_space, timestep, lines_defaut, lines_overloaded_ids_kept, maintenance_to_reco_at_t)
-    use_dc = config.USE_DC_LOAD_FLOW
-    if not has_converged_check and not config.DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART:
-        use_dc = True
-        try:
-            env, obs, obs_simu_defaut = switch_to_dc_load_flow(env, analysis_date, timestep, lines_defaut, lines_overloaded_ids_kept, maintenance_to_reco_at_t)
-        except SystemExit: # Catch exit if DC also fails
-             pytest.fail(f"Simulation failed even in DC mode for {test_id}")
-
-    try:
-        df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
-            env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable, timestep,do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH
-        )
-        lines_blue_paths, nodes_blue_path, lines_dispatch, nodes_dispatch_path = get_constrained_and_dispatch_paths(
-            g_distribution_graph, obs, lines_overloaded_ids, lines_overloaded_ids_kept
-        )
-        validator = ActionRuleValidator(obs=obs, action_space=env.action_space, classifier=classifier, hubs=hubs, paths=((lines_blue_paths, nodes_blue_path), (lines_dispatch, nodes_dispatch_path)), by_description=config.CHECK_WITH_ACTION_DESCRIPTION)
-        actions_to_filter, actions_unfiltered = validator.categorize_actions(dict_action=dict_action, timestep=timestep, defauts=lines_defaut, overload_ids=lines_overloaded_ids, lines_reco_maintenance=maintenance_to_reco_at_t, lines_we_care_about=lines_we_care_about)
-        g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_graph_alphadeesp(g_overflow, overflow_sim, node_name_mapping)
-    except Exception as e:
-        pytest.fail(f"Error during graph processing or validation for {test_id}: {e}")
-
-    if use_dc:
-        print("Warning: you have used the DC load flow, so results are more approximate")
-        env, obs, path_chronic = get_env_first_obs(config.ENV_FOLDER, config.ENV_NAME, config.USE_EVALUATION_CONFIG,
-                                                   analysis_date)
-    discoverer = ActionDiscoverer(
-        env=env, obs=obs, obs_defaut=obs_simu_defaut, timestep=timestep, lines_defaut=lines_defaut, lines_overloaded_ids=lines_overloaded_ids, act_reco_maintenance=act_reco_maintenance, classifier=classifier, non_connected_reconnectable_lines=non_connected_reconnectable_lines, all_disconnected_lines=lines_non_reconnectable + non_connected_reconnectable_lines, dict_action=dict_action, actions_unfiltered=set(actions_unfiltered.keys()), hubs=hubs, g_overflow=g_overflow_processed, g_distribution_graph=g_distribution_graph_processed, simulator_data=simulator_data, check_action_simulation=config.CHECK_ACTION_SIMULATION, lines_we_care_about=lines_we_care_about
-    )
-
-    try:
-        prioritized_actions = discoverer.discover_and_prioritize(n_action_max=config.N_PRIORITIZED_ACTIONS)
-    except Exception as e:
-        pytest.fail(f"Error during action discovery for {test_id}: {e}")
-
-    #print the effect the prioritized actions
-    act_defaut = create_default_action(env.action_space, lines_defaut)
-
-    for action_id, action  in prioritized_actions.items():
-
-        print(f"{action_id}")
-        if action_id in dict_action:
-            action_desc=dict_action[action_id]
-            if "description_unitaire" in action_desc:
-                print(action_desc["description_unitaire"])
-
-        is_rho_reduction, _ = check_rho_reduction(
-            obs, timestep, act_defaut, action, lines_overloaded_ids,
-            act_reco_maintenance, lines_we_care_about
-        )
-    ###################
 
     # --- Assertion ---
     actual_keys_set = set(prioritized_actions.keys())
@@ -1139,3 +1053,101 @@ def test_reproducibility(test_id, date_str, timestep, lines_defaut, expected_key
         f"[{test_id}] Prioritized action keys mismatch.\nExpected: {sorted(list(expected_keys_set))}\nActual:   {sorted(list(actual_keys_set))}"
 
     print(f"--- Test Passed: {test_id} ---")
+
+
+@pytest.mark.slow
+def test_reproducibility_bare_env_small_grid_test():
+    """
+    Reproducibility test using bare_env_small_grid_test environment.
+    
+    This test overrides config_test.py settings to use:
+    - Environment: bare_env_small_grid_test
+    - Line defaut: P.SAOL31RONCI
+    - Timestep: 0
+    - Action space file: reduced_model_actions_test.json
+    - Expected prioritized actions: 5 specific actions (see expected_keys_set)
+    
+    NOTE: conftest.py replaces expert_op4grid_recommender.config with tests.config_test
+    via sys.modules, so we are actually modifying tests/config_test.py values here.
+    Config overrides are restored after test execution via try/finally.
+    """
+    # NOTE: Due to conftest.py replacing the config module via sys.modules,
+    # 'expert_op4grid_recommender.config' actually points to 'tests.config_test'
+    import expert_op4grid_recommender.config as config
+    
+    # Test parameters
+    test_id = "Case_BareEnvSmallGrid_T0"
+    timestep = 0
+    lines_defaut = ["P.SAOL31RONCI"]
+    
+    # OVERRIDE config settings for this test
+    # Save original values to restore after test
+    original_env_name = config.ENV_NAME
+    original_file_action_space = config.FILE_ACTION_SPACE_DESC
+    original_action_file_path = config.ACTION_FILE_PATH
+    original_timestep = config.TIMESTEP
+    original_lines_defaut = config.LINES_DEFAUT
+    
+    try:
+        # Override config for this test
+        # These overrides modify the config that run_analysis will use
+        config.ENV_NAME = "bare_env_small_grid_test"  # Override environment
+        config.FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json"  # Override action file
+        # CRITICAL: Must recompute ACTION_FILE_PATH since it depends on FILE_ACTION_SPACE_DESC
+        config.ACTION_FILE_PATH = config.ACTION_SPACE_FOLDER / config.FILE_ACTION_SPACE_DESC
+        config.TIMESTEP = timestep
+        config.LINES_DEFAUT = lines_defaut
+        
+        # Expected prioritized actions for this scenario
+        expected_keys_set = {
+            '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6', 'f344b395-9908-43c2-bca0-75c5f298465e_COUCHP6',
+             'node_merging_PYMONP3', 'reco_CHALOL31LOUHA', 'reco_GEN.PL73VIELM'
+        }
+        
+        print(f"\n--- Running: {test_id} ---")
+        print(f"Config file being used: {config.__file__}")
+        print(f"Environment: {config.ENV_NAME}")
+        print(f"Action file path: {config.ACTION_FILE_PATH}")
+        print(f"Timestep: {timestep}")
+        print(f"Line defaut: {lines_defaut}")
+        
+        # Verify the config values are what we expect BEFORE calling run_analysis
+        assert config.ENV_NAME == "bare_env_small_grid_test", \
+            f"Config override failed! ENV_NAME is '{config.ENV_NAME}' instead of 'bare_env_small_grid_test'"
+        assert "reduced_model_actions_test.json" in str(config.ACTION_FILE_PATH), \
+            f"Config override failed! ACTION_FILE_PATH is '{config.ACTION_FILE_PATH}'"
+        
+        # Run analysis - will now use overridden config values
+        prioritized_actions = run_analysis(
+            analysis_date=None,  # None means bare environment
+            current_timestep=timestep,
+            current_lines_defaut=lines_defaut,
+            backend=Backend.GRID2OP
+        )
+        
+        # Get actual keys from result
+        actual_keys_set = set(prioritized_actions.keys())
+        
+        # Print results for debugging
+        print(f"\nExpected actions: {sorted(list(expected_keys_set))}")
+        print(f"Actual actions:   {sorted(list(actual_keys_set))}")
+        
+        # Assertion with detailed error message
+        assert actual_keys_set == expected_keys_set, \
+            f"[{test_id}] Prioritized action keys mismatch.\n" \
+            f"Expected ({len(expected_keys_set)} actions): {sorted(list(expected_keys_set))}\n" \
+            f"Actual ({len(actual_keys_set)} actions):   {sorted(list(actual_keys_set))}\n" \
+            f"Missing: {sorted(list(expected_keys_set - actual_keys_set))}\n" \
+            f"Extra: {sorted(list(actual_keys_set - expected_keys_set))}"
+        
+        print(f"\n✅ Test Passed: {test_id}")
+        print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
+        
+    finally:
+        # IMPORTANT: Restore original config values after test
+        # This ensures other tests are not affected by our overrides
+        config.ENV_NAME = original_env_name
+        config.FILE_ACTION_SPACE_DESC = original_file_action_space
+        config.ACTION_FILE_PATH = original_action_file_path
+        config.TIMESTEP = original_timestep
+        config.LINES_DEFAUT = original_lines_defaut
