@@ -1055,7 +1055,6 @@ def test_reproducibility(test_id, date_str, timestep, lines_defaut, expected_key
     print(f"--- Test Passed: {test_id} ---")
 
 
-@pytest.mark.slow
 def test_reproducibility_bare_env_small_grid_test():
     """
     Reproducibility test using bare_env_small_grid_test environment.
