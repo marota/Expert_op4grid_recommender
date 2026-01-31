@@ -142,6 +142,100 @@ class TestActionSpace:
             
             assert combined is not None
             assert len(combined._modifications) == 2
+    
+    def test_switch_action_creation(self, env_with_action_space):
+        """Test creating a switch action for topology changes."""
+        nm, action_space = env_with_action_space
+        
+        # Create action with switches field (short names)
+        switch_states = {
+            "SWITCH_1": True,   # Open
+            "SWITCH_2": False,  # Closed
+        }
+        action = action_space({"switches": switch_states})
+        
+        assert action is not None
+        assert len(action._modifications) > 0
+    
+    def test_switch_action_empty_dict(self, env_with_action_space):
+        """Test creating a switch action with empty switches dict."""
+        nm, action_space = env_with_action_space
+        
+        # Empty switches should not add modifications
+        action = action_space({"switches": {}})
+        
+        assert action is not None
+        # Empty switches dict should not add a SwitchAction
+        assert len(action._modifications) == 0
+    
+    def test_combined_bus_and_switch_action(self, env_with_action_space):
+        """Test creating an action with both set_bus and switches."""
+        nm, action_space = env_with_action_space
+        
+        if nm.n_line > 0:
+            first_line = nm.name_line[0]
+            action = action_space({
+                "set_bus": {
+                    "lines_or_id": {first_line: 1},
+                    "lines_ex_id": {first_line: 1}
+                },
+                "switches": {
+                    "SWITCH_1": True,
+                }
+            })
+            
+            assert action is not None
+            # Should have both BusAction and SwitchAction modifications
+            assert len(action._modifications) == 2
+    
+    def test_switch_action_with_line_status(self, env_with_action_space):
+        """Test creating an action combining line status and switches."""
+        nm, action_space = env_with_action_space
+        
+        if nm.n_line > 0:
+            first_line = nm.name_line[0]
+            action = action_space({
+                "set_line_status": [(first_line, -1)],
+                "switches": {
+                    "SWITCH_1": True,
+                }
+            })
+            
+            assert action is not None
+            assert len(action._modifications) == 2
+    
+    def test_switches_by_voltage_level_action(self, env_with_action_space):
+        """Test creating an action using switches at top level (full IDs)."""
+        nm, action_space = env_with_action_space
+        
+        # Create action with switches at top level (full switch IDs)
+        # This is the new format from conversion_actions_repas
+        action_dict = {
+            "content": {"set_bus": {}},
+            "switches": {
+                "VL1_SWITCH_1": True,
+                "VL1_SWITCH_2": False,
+                "VL2_COUPL_DJ": True,
+            }
+        }
+        action = action_space(action_dict)
+        
+        assert action is not None
+        assert len(action._modifications) > 0
+    
+    def test_switches_at_top_level(self, env_with_action_space):
+        """Test that switches at top level are correctly handled."""
+        nm, action_space = env_with_action_space
+        
+        # New format: switches outside content
+        action = action_space({
+            "content": {"set_bus": {}},
+            "switches": {"VL1_SW1": True}
+        })
+        
+        assert action is not None
+        # Should have one switch action
+        assert len(action._modifications) == 1
 
 
 class TestObservation:
@@ -301,6 +395,82 @@ class TestOverflowAnalysis:
             assert len(df) == nm.n_line
 
 
+class TestSwitchAction:
+    """Tests for the SwitchAction class."""
+    
+    def test_switch_action_import(self):
+        """Test that SwitchAction can be imported."""
+        from expert_op4grid_recommender.pypowsybl_backend.action_space import SwitchAction
+        assert SwitchAction is not None
+    
+    def test_switch_action_creation(self):
+        """Test creating a SwitchAction with switch states."""
+        from expert_op4grid_recommender.pypowsybl_backend.action_space import SwitchAction
+        
+        switch_states = {
+            "SWITCH_1": True,   # Open
+            "SWITCH_2": False,  # Closed
+        }
+        action = SwitchAction(switch_states)
+        
+        assert action is not None
+        assert len(action._modifications) == 1
+    
+    def test_switch_action_empty_dict(self):
+        """Test creating a SwitchAction with empty dict."""
+        from expert_op4grid_recommender.pypowsybl_backend.action_space import SwitchAction
+        
+        action = SwitchAction({})
+        
+        assert action is not None
+        assert len(action._modifications) == 1
+    
+    def test_switch_action_combination_with_pypowsybl_action(self):
+        """Test combining SwitchAction with PypowsyblAction."""
+        from expert_op4grid_recommender.pypowsybl_backend.action_space import (
+            SwitchAction, PypowsyblAction
+        )
+        
+        switch_action = SwitchAction({"SW1": True})
+        other_action = PypowsyblAction()
+        
+        combined = switch_action + other_action
+        
+        assert combined is not None
+        assert len(combined._modifications) >= 1
+    
+    def test_switch_action_with_real_network(self):
+        """Test SwitchAction with a real pypowsybl network."""
+        from expert_op4grid_recommender.pypowsybl_backend import NetworkManager
+        from expert_op4grid_recommender.pypowsybl_backend.action_space import SwitchAction
+        
+        network = pypowsybl.network.create_ieee9()
+        nm = NetworkManager(network=network)
+        
+        # Get actual switch IDs from the network
+        switches_df = network.get_switches()
+        if len(switches_df) > 0:
+            switch_id = switches_df.index[0]
+            switch_states = {switch_id: True}  # Open the switch
+            
+            action = SwitchAction(switch_states)
+            
+            # Create a variant to test
+            nm.create_variant("test_switch")
+            nm.set_working_variant("test_switch")
+            
+            # Apply the action
+            action.apply(nm)
+            
+            # Verify the switch state changed
+            new_switches = network.get_switches()
+            assert new_switches.loc[switch_id, 'open'] == True
+            
+            # Cleanup
+            nm.reset_to_base()
+            nm.remove_variant("test_switch")
+
+
 class TestIntegration:
     """Integration tests comparing pypowsybl backend behavior."""
     
@@ -337,6 +507,33 @@ class TestIntegration:
                 # Find overloaded lines
                 overloaded = np.where(obs_simu.rho >= 1.0)[0]
                 print(f"Overloaded lines after contingency: {len(overloaded)}")
+    
+    def test_action_with_switches_workflow(self):
+        """Test workflow using action with switches field."""
+        from expert_op4grid_recommender.pypowsybl_backend import SimulationEnvironment
+        
+        network = pypowsybl.network.create_ieee9()
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            network_path = Path(tmpdir) / "test_network.xiidm"
+            network.save(str(network_path))
+            
+            env = SimulationEnvironment(network_path=network_path)
+            
+            # Get actual switches from the network
+            switches_df = env.network_manager.network.get_switches()
+            
+            if len(switches_df) > 0:
+                switch_id = switches_df.index[0]
+                original_state = switches_df.loc[switch_id, 'open']
+                
+                # Create action with switches field
+                action = env.action_space({
+                    "switches": {switch_id: not original_state}
+                })
+                
+                assert action is not None
+                assert len(action._modifications) > 0
 
 
 if __name__ == "__main__":
