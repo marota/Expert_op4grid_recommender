@@ -36,6 +36,28 @@ class LineStatusAction(PypowsyblAction):
         self._modifications.append(apply_line_changes)
 
 
+class SwitchAction(PypowsyblAction):
+    """Action to change switch states (open/close) for topology changes."""
+    
+    def __init__(self, switch_states: Dict[str, bool]):
+        """
+        Args:
+            switch_states: Dict mapping switch_id -> open (True=open, False=closed)
+        """
+        super().__init__()
+        self.switch_states = switch_states
+        
+        def apply_switch_changes(nm: 'NetworkManager'):
+            net = nm.network
+            for switch_id, is_open in self.switch_states.items():
+                try:
+                    net.update_switches(id=switch_id, open=is_open)
+                except Exception as e:
+                    print(f"Warning: Could not update switch {switch_id}: {e}")
+        
+        self._modifications.append(apply_switch_changes)
+
+
 class BusAction(PypowsyblAction):
     """Action to change bus assignments (topology changes)."""
     
@@ -145,6 +167,12 @@ class ActionSpace:
         - {"set_bus": {"lines_or_id": {name: bus}, "lines_ex_id": {name: bus}, ...}}
         - {"set_bus": {"substations_id": [(sub_id, [topo_vector]), ...]}}
         
+        And pypowsybl-specific switch actions:
+        - {"switches": {switch_id: open_state, ...}}  # Full switch IDs
+        
+        Also handles action dicts from conversion_actions_repas:
+        - {"content": {"set_bus": {...}}, "switches": {...}}
+        
         Args:
             action_dict: Dictionary specifying the action
             
@@ -153,16 +181,36 @@ class ActionSpace:
         """
         combined_action = PypowsyblAction()
         
+        # Handle nested content structure from conversion_actions_repas
+        # set_bus is inside content, switches is at top level
+        working_dict = action_dict
+        if "content" in action_dict and isinstance(action_dict["content"], dict):
+            # Merge content with top-level for set_bus access
+            working_dict = {**action_dict, **action_dict["content"]}
+        
         # Handle set_line_status
-        if "set_line_status" in action_dict:
-            line_changes = action_dict["set_line_status"]
+        if "set_line_status" in working_dict:
+            line_changes = working_dict["set_line_status"]
             if line_changes:
                 line_action = LineStatusAction(line_changes)
                 combined_action = combined_action + line_action
         
+        # Handle switches (full switch IDs)
+        # Check top-level first (new format from conversion_actions_repas)
+        # Then check inside working_dict (legacy format)
+        switch_states = None
+        if "switches" in action_dict:
+            switch_states = action_dict["switches"]
+        elif "switches" in working_dict:
+            switch_states = working_dict["switches"]
+        
+        if switch_states:
+            switch_action = SwitchAction(switch_states)
+            combined_action = combined_action + switch_action
+        
         # Handle set_bus
-        if "set_bus" in action_dict:
-            bus_config = action_dict["set_bus"]
+        if "set_bus" in working_dict:
+            bus_config = working_dict["set_bus"]
             
             lines_or_bus = {}
             lines_ex_bus = {}
