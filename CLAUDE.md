@@ -306,7 +306,11 @@ combined = action1 + action2
 
 5. **alphaDeesp dependency**: `expertop4grid >= 0.2.8` is required for `AlphaDeesp_warmStart`.
 
-6. **pypowsybl2grid backend patch**: The `PyPowSyBlBackend.update_integer_value` method has an issue with zero-value handling. A runtime patch is automatically applied in `tests/conftest.py`. The original code `changed[value == 0] = False` is replaced with `value[value == 0] = -1`. See `scripts/apply_pypowsybl2grid_patch.py` for details.
+6. **pypowsybl2grid backend patch**: The `PyPowSyBlBackend.update_integer_value` method has an issue with zero-value handling. The original code `changed[value == 0] = False` must be replaced with `value[value == 0] = -1`. **This patch must be applied to the installed package file before running tests**:
+   ```bash
+   python scripts/patch_pypowsybl2grid_file.py
+   ```
+   In CircleCI, this is done automatically in `.circleci/config.yml`. Runtime monkey-patching doesn't work because modules are imported before conftest.py runs.
 
 ---
 
