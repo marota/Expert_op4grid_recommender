@@ -62,17 +62,20 @@ def write_file(filepath, content):
         f.write(content)
 
 
-# Pattern to find the original problematic code
-ORIGINAL_PATTERN = r'(\s*)changed\[value\s*==\s*0\]\s*=\s*False'
-# The patched replacement
-PATCHED_CODE = r'\1# PATCHED: Original was "changed[value == 0] = False"\n\1value[value == 0] = -1'
+# Pattern to find the original code (the direct pass-through)
+ORIGINAL_PATTERN = r'(def update_integer_value\(self, value_type: Grid2opUpdateIntegerValueType, value: np\.ndarray, changed: np\.ndarray\) -> None:\n)(\s*)(_pypowsybl\.update_grid2op_integer_value\(self\._handle, value_type, value, changed\))'
+
+# The patched replacement - adds value[value==0] = -1 before the call
+PATCHED_CODE = r'''\1\2# PATCHED: Convert 0 values to -1 for proper topology handling
+\2value[value==0] = -1
+\2\3'''
 
 # Pattern to detect if already patched
-PATCH_MARKER = '# PATCHED: Original was "changed[value == 0] = False"'
+PATCH_MARKER = '# PATCHED: Convert 0 values to -1'
 
 # Pattern to revert the patch
-REVERT_PATTERN = r'\s*# PATCHED: Original was "changed\[value == 0\] = False"\n(\s*)value\[value\s*==\s*0\]\s*=\s*-1'
-ORIGINAL_CODE = r'\1changed[value == 0] = False'
+REVERT_PATTERN = r'(def update_integer_value\(self, value_type: Grid2opUpdateIntegerValueType, value: np\.ndarray, changed: np\.ndarray\) -> None:\n)(\s*)# PATCHED: Convert 0 values to -1 for proper topology handling\n\s*value\[value==0\] = -1\n(\s*)(_pypowsybl\.update_grid2op_integer_value\(self\._handle, value_type, value, changed\))'
+ORIGINAL_CODE = r'\1\3\4'
 
 
 def is_patched(content):
@@ -86,7 +89,16 @@ def apply_patch(content):
         return content, False, "Already patched"
     
     # Check if the original pattern exists
-    if not re.search(ORIGINAL_PATTERN, content):
+    match = re.search(ORIGINAL_PATTERN, content)
+    if not match:
+        # Debug: show what we're looking for
+        if 'def update_integer_value' in content:
+            # Find the actual method signature for debugging
+            import re as re_debug
+            method_match = re_debug.search(r'def update_integer_value[^:]+:[^\n]*\n[^\n]+', content)
+            if method_match:
+                print(f"Found method but pattern didn't match. Actual code:")
+                print(f"  {method_match.group()[:200]}...")
         return content, False, "Original pattern not found - file may have different version"
     
     # Apply the patch
