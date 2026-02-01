@@ -12,7 +12,9 @@ __author__ = "marota"
 
 import numpy as np
 from alphaDeesp.core.alphadeesp import AlphaDeesp_warmStart
-from expert_op4grid_recommender.utils.simulation import check_rho_reduction, create_default_action
+# Default imports for grid2op backend - can be overridden via constructor
+from expert_op4grid_recommender.utils.simulation import check_rho_reduction as _default_check_rho_reduction
+from expert_op4grid_recommender.utils.simulation import create_default_action as _default_create_default_action
 from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, sort_actions_by_score, add_prioritized_actions
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
@@ -89,7 +91,9 @@ class ActionDiscoverer:
                  g_distribution_graph: Structured_Overload_Distribution_Graph,
                  simulator_data: Dict,
                  check_action_simulation: bool = True,
-                 lines_we_care_about: Optional[List[str]] = None):
+                 lines_we_care_about: Optional[List[str]] = None,
+                 check_rho_reduction_func: Optional[Callable] = None,
+                 create_default_action_func: Optional[Callable] = None):
         """
         Initializes the ActionDiscoverer with the necessary context and parameters.
 
@@ -112,6 +116,10 @@ class ActionDiscoverer:
             simulator_data: Data required by AlphaDeesp ranker.
             check_action_simulation: Flag to enable/disable simulation checks.
             lines_we_care_about: Specific lines to monitor.
+            check_rho_reduction_func: Function to check if an action reduces line loading.
+                                      Defaults to grid2op version if not provided.
+            create_default_action_func: Function to create a default (contingency) action.
+                                        Defaults to grid2op version if not provided.
         """
         self.env = env
         self.obs = obs
@@ -132,6 +140,10 @@ class ActionDiscoverer:
         self.simulator_data = simulator_data
         self.check_action_simulation = check_action_simulation
         self.lines_we_care_about = lines_we_care_about
+
+        # Store backend-specific simulation functions (use defaults for grid2op if not provided)
+        self._check_rho_reduction = check_rho_reduction_func or _default_check_rho_reduction
+        self._create_default_action = create_default_action_func or _default_create_default_action
 
         # Initialize results holders (remain the same)
         self.identified_reconnections = {}
@@ -303,11 +315,11 @@ class ActionDiscoverer:
 
         if self.check_action_simulation:
             print("  Simulating effectiveness...")
-            act_defaut = create_default_action(self.action_space, self.lines_defaut)
+            act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
             # Iterate using original descending score order from sort_actions_by_score
             for action_id, line_reco, score in zip(actions.keys(), lines_impacted, scores):
                 action = actions[action_id]
-                is_rho_reduction, obs_simu_action = check_rho_reduction(
+                is_rho_reduction, obs_simu_action = self._check_rho_reduction(
                     self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
                     self.act_reco_maintenance, self.lines_we_care_about
                 )
@@ -334,7 +346,7 @@ class ActionDiscoverer:
             lines_constrained_path_names (List[str]): List of line names on the constrained path.
         """
         identified, effective, ineffective, ignored = {}, [], [], []
-        act_defaut = create_default_action(self.action_space, self.lines_defaut)
+        act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
 
         print(f"Evaluating {len(self.actions_unfiltered)} potential disconnections...")
         for action_id in sorted(list(self.actions_unfiltered)):#as order in a set is no fixed, and since the order will matter in the subset of actions selected, fix the order for full reproducibility
@@ -350,7 +362,7 @@ class ActionDiscoverer:
                     action = self.action_space(action_desc["content"])
                     identified[action_id] = action
                     if self.check_action_simulation:
-                        is_rho_reduction, _ = check_rho_reduction(
+                        is_rho_reduction, _ = self._check_rho_reduction(
                             self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
                             self.act_reco_maintenance, self.lines_we_care_about
                         )
@@ -749,22 +761,18 @@ class ActionDiscoverer:
         Returns:
             The heuristic score as a float.
         """
-        action = self.action_space(action_dict)
-        action_topo_vect,is_single_node=self._get_action_topo_vect(sub_impacted_id,action)
-        action_topo_vect_alphadeesp=action_topo_vect-1
+        # Extract bus assignments directly from action dictionary (backend-agnostic)
+        # This avoids relying on topology vector operations which may not be available
+        # in all backends (e.g., pypowsybl)
+        dict_edge_names_buses = self._edge_names_buses_dict_new(action_dict)
 
-        #########"
-        dict_edge_names_buses=self._edge_names_buses_dict(self.obs_defaut, action_topo_vect, sub_impacted_id)
-        #dict_edge_names_buses=self._edge_names_buses_dict_new(action_dict)#self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
+        score_expert_recommender = self.compute_node_splitting_action_score_value(
+            self.g_overflow.g, self.g_distribution_graph,
+            node=sub_impacted_id,
+            dict_edge_names_buses=dict_edge_names_buses
+        )
 
-        ############"
-        #score_alphaDeesp_ranker = alphaDeesp_ranker.rank_current_topo_at_node_x(
-        #    self.g_overflow.g, sub_impacted_id, isSingleNode=is_single_node,
-        #    topo_vect=action_topo_vect_alphadeesp, is_score_specific_substation=False
-        #)
-        score_expert_recommender=self.compute_node_splitting_action_score_value(self.g_overflow.g,self.g_distribution_graph,node=sub_impacted_id, dict_edge_names_buses=dict_edge_names_buses)
-
-        return score_expert_recommender#score_alphaDeesp_ranker
+        return score_expert_recommender
 
 
     def _get_subs_impacted_from_action_desc(self, action_desc: Dict) -> List[int]:
@@ -899,10 +907,10 @@ class ActionDiscoverer:
         effective, ineffective = [], []
         if self.check_action_simulation and actions:
             print("  Simulating effectiveness...")
-            act_defaut = create_default_action(self.action_space, self.lines_defaut)
+            act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
             for action_id, sub_impacted in zip(actions.keys(), subs_impacted):
                 action = actions[action_id]
-                is_rho_reduction, _ = check_rho_reduction(
+                is_rho_reduction, _ = self._check_rho_reduction(
                     self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
                     self.act_reco_maintenance, self.lines_we_care_about
                 )
@@ -956,8 +964,8 @@ class ActionDiscoverer:
                     identified[action_id] = action
 
                     if self.check_action_simulation:
-                        act_defaut = create_default_action(self.action_space, self.lines_defaut)
-                        is_rho_reduction, _ = check_rho_reduction(
+                        act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+                        is_rho_reduction, _ = self._check_rho_reduction(
                             self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
                             self.act_reco_maintenance, self.lines_we_care_about
                         )

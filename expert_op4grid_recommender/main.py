@@ -447,7 +447,9 @@ def run_analysis(analysis_date: Optional[datetime],
             g_distribution_graph=g_distribution_graph_processed,
             simulator_data=simulator_data,
             check_action_simulation=config.CHECK_ACTION_SIMULATION,
-            lines_we_care_about=lines_we_care_about
+            lines_we_care_about=lines_we_care_about,
+            check_rho_reduction_func=check_rho_reduction,
+            create_default_action_func=create_default_action
         )
 
         prioritized_actions = discoverer.discover_and_prioritize(
