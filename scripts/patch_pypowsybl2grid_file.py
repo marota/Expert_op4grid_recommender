@@ -21,25 +21,32 @@ from pathlib import Path
 
 
 def find_backend_file():
-    """Find the pypowsybl2grid backend.py file."""
+    """Find the pypowsybl backend.py file (in pypowsybl/grid2op/impl/)."""
     try:
-        import pypowsybl2grid
-        package_dir = Path(pypowsybl2grid.__file__).parent
-        backend_file = package_dir / "backend.py"
+        import pypowsybl
+        package_dir = Path(pypowsybl.__file__).parent
+        
+        # The backend is in pypowsybl/grid2op/impl/backend.py
+        backend_file = package_dir / "grid2op" / "impl" / "backend.py"
         
         if backend_file.exists():
             return backend_file
-        else:
-            # Try grid2op subdir
-            backend_file = package_dir / "grid2op" / "impl" / "backend.py"
+        
+        # Fallback: try pypowsybl2grid package location
+        try:
+            import pypowsybl2grid
+            pypowsybl2grid_dir = Path(pypowsybl2grid.__file__).parent
+            backend_file = pypowsybl2grid_dir / "backend.py"
             if backend_file.exists():
                 return backend_file
+        except ImportError:
+            pass
                 
-        print(f"Could not find backend.py in {package_dir}")
+        print(f"Could not find backend.py in {package_dir}/grid2op/impl/")
         return None
         
     except ImportError:
-        print("pypowsybl2grid is not installed")
+        print("pypowsybl is not installed")
         return None
 
 
