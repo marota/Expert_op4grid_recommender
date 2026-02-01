@@ -22,7 +22,8 @@ jobs:
           command: |
             # Patch the pypowsybl2grid backend to fix zero-value handling issue
             # This modifies the installed package file directly
-            python scripts/patch_pypowsybl2grid_file.py
+            # Use --debug to show detailed file content analysis
+            python scripts/patch_pypowsybl2grid_file.py --debug
       - run:
           name: Run Unit Tests (Exclude Slow)
           # Modify the pytest command here
