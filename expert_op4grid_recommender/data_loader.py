@@ -35,7 +35,11 @@ def load_actions(file_path):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"The action file {file_path} does not exist.")
     with open(file_path, 'r') as file:
-        return json.load(file)
+        dict_actions = json.load(file)
+        for action_id,action in dict_actions.items():
+            if "switches" in action and "content" in action:
+                action["content"]["switches"]=action["switches"]#make switches directly available in action content as well
+        return dict_actions
 
 def load_interesting_lines(path=None, file_name=None):
     """

@@ -5,6 +5,8 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import time
+
+from expert_op4grid_recommender.pypowsybl_backend import PypowsyblAction
 from expert_op4grid_recommender.utils.data_utils import StateInfo
 from grid2op.Environment import Environment
 from grid2op.Action import BaseAction
@@ -94,25 +96,38 @@ def aux_prevent_prod_conso_reconnection(obs : BaseObservation,
     .. danger::
         act arg is updated in place !
     """
-    # state is not used currently, but could be used for refinements later if we want to let the reconnection happen under some conditions
-    #also added to have same signature as aux_prevent_line_reconnection
-    if act.gen_change_bus.any():
-        raise RuntimeError("Change bus action for generators are not expected for the action space we defined")
+    # Convert action to dict for safer inspection across different action types
+    if isinstance(act, PypowsyblAction):
+        return act #don't know how to check prod, conso reconnection yet in that case
+    else:
+        act_dict = act.as_dict()
 
-    if act.load_change_bus.any():
-        raise RuntimeError("Change bus action for generators are not expected for the action space we defined")
+        # Check for bus changes in generators
+        if "set_bus" in act_dict and "generators_id" in act_dict["set_bus"]:
+            # If your logic forbids any bus changes for generators:
+            if len(act_dict["set_bus"]["generators_id"]) > 0:
+                # If you only want to block 'change' but allow 'set',
+                # you'd refine this check. For now, matching your error logic:
+                raise RuntimeError("Bus action for generators are not expected")
 
-    gen_disco_obs_co_act = (obs.gen_bus == -1) & (act.gen_set_bus >= 1)
-    if gen_disco_obs_co_act.any():
-        disco_gens = [(gen_id, 0) for gen_id in gen_disco_obs_co_act.nonzero()[0]]
-        act.update({"set_bus": {"generators_id": disco_gens}})
-        
-    load_disco_obs_co_act = (obs.load_bus == -1) & (act.load_set_bus >= 1)
-    if load_disco_obs_co_act.any():
-        disco_loads = [(load_id, 0) for load_id in load_disco_obs_co_act.nonzero()[0]]
-        act.update({"set_bus": {"loads_id": disco_loads}})
+        # Check for bus changes in loads
+        if "set_bus" in act_dict and "loads_id" in act_dict["set_bus"]:
+            if len(act_dict["set_bus"]["loads_id"]) > 0:
+                raise RuntimeError("Bus action for loads are not expected")
 
-    return act
+        # Logic for preventing reconnection
+        # Note: Ensure act.gen_set_bus exists, otherwise use act_dict logic here too
+        gen_disco_obs_co_act = (obs.gen_bus == -1) & (act.gen_set_bus >= 1)
+        if gen_disco_obs_co_act.any():
+            disco_gens = [(int(gen_id), 0) for gen_id in gen_disco_obs_co_act.nonzero()[0]]
+            act.update({"set_bus": {"generators_id": disco_gens}})
+
+        load_disco_obs_co_act = (obs.load_bus == -1) & (act.load_set_bus >= 1)
+        if load_disco_obs_co_act.any():
+            disco_loads = [(int(load_id), 0) for load_id in load_disco_obs_co_act.nonzero()[0]]
+            act.update({"set_bus": {"loads_id": disco_loads}})
+
+        return act
 
 
 def aux_prevent_line_reconnection_cond1(obs: BaseObservation,
@@ -208,23 +223,25 @@ def aux_prevent_line_reconnection(obs: BaseObservation,
     .. danger::
         act arg is updated in place !    
     """
-    
-    # obs is here for the date time
-    if state.should_not_reco is None:
-        should_not_reco = [line for line in DELETED_LINE_NAME if line in obs.name_line]
+    if isinstance(act, PypowsyblAction):
+        return act
     else:
-        should_not_reco = state.should_not_reco
+        # obs is here for the date time
+        if state.should_not_reco is None:
+            should_not_reco = [line for line in DELETED_LINE_NAME if line in obs.name_line]
+        else:
+            should_not_reco = state.should_not_reco
 
 
-    # check if the action affect any lines that should not
-    # be reconnected
-    # case 1)
-    act, lines_treated = aux_prevent_line_reconnection_cond1(obs, should_not_reco, act)
-    
-    # implement condition 2:
-    act = aux_prevent_line_reconnection_cond2(obs, lines_treated, act)
-    
-    return act
+        # check if the action affect any lines that should not
+        # be reconnected
+        # case 1)
+        act, lines_treated = aux_prevent_line_reconnection_cond1(obs, should_not_reco, act)
+
+        # implement condition 2:
+        act = aux_prevent_line_reconnection_cond2(obs, lines_treated, act)
+
+        return act
 
 def aux_prevent_asset_reconnection(obs : BaseObservation,
                                    state :StateInfo,
