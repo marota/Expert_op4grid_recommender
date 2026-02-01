@@ -1150,3 +1150,109 @@ def test_reproducibility_bare_env_small_grid_test():
         config.ACTION_FILE_PATH = original_action_file_path
         config.TIMESTEP = original_timestep
         config.LINES_DEFAUT = original_lines_defaut
+
+
+def test_reproducibility_bare_env_small_grid_test_pypowsybl():
+    """
+    Reproducibility test using bare_env_small_grid_test environment with PYPOWSYBL backend.
+    
+    This test is identical to test_reproducibility_bare_env_small_grid_test but uses
+    the pypowsybl backend instead of grid2op. The expected results should be the same
+    as both backends should produce equivalent analysis results.
+    
+    This test overrides config_test.py settings to use:
+    - Environment: bare_env_small_grid_test
+    - Line defaut: P.SAOL31RONCI
+    - Timestep: 0
+    - Action space file: reduced_model_actions_test.json
+    - Backend: PYPOWSYBL
+    - Expected prioritized actions: Same as grid2op backend test
+    
+    NOTE: conftest.py replaces expert_op4grid_recommender.config with tests.config_test
+    via sys.modules, so we are actually modifying tests/config_test.py values here.
+    Config overrides are restored after test execution via try/finally.
+    """
+    # NOTE: Due to conftest.py replacing the config module via sys.modules,
+    # 'expert_op4grid_recommender.config' actually points to 'tests.config_test'
+    import expert_op4grid_recommender.config as config
+    
+    # Test parameters - same as grid2op test
+    test_id = "Case_BareEnvSmallGrid_T0_pypowsybl"
+    timestep = 0
+    lines_defaut = ["P.SAOL31RONCI"]
+    
+    # OVERRIDE config settings for this test
+    # Save original values to restore after test
+    original_env_name = config.ENV_NAME
+    original_file_action_space = config.FILE_ACTION_SPACE_DESC
+    original_action_file_path = config.ACTION_FILE_PATH
+    original_timestep = config.TIMESTEP
+    original_lines_defaut = config.LINES_DEFAUT
+    
+    try:
+        # Override config for this test
+        # These overrides modify the config that run_analysis will use
+        config.ENV_NAME = "bare_env_small_grid_test"  # Override environment
+        config.FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json"  # Override action file
+        # CRITICAL: Must recompute ACTION_FILE_PATH since it depends on FILE_ACTION_SPACE_DESC
+        config.ACTION_FILE_PATH = config.ACTION_SPACE_FOLDER / config.FILE_ACTION_SPACE_DESC
+        config.TIMESTEP = timestep
+        config.LINES_DEFAUT = lines_defaut
+        
+        # Expected prioritized actions for this scenario
+        # IMPORTANT: These should be the SAME as the grid2op backend test
+        # Both backends should produce equivalent results
+        expected_keys_set = {
+            '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6', 'f344b395-9908-43c2-bca0-75c5f298465e_COUCHP6',
+             'node_merging_PYMONP3', 'reco_CHALOL31LOUHA', 'reco_GEN.PL73VIELM'
+        }
+        
+        print(f"\n--- Running: {test_id} ---")
+        print(f"Config file being used: {config.__file__}")
+        print(f"Environment: {config.ENV_NAME}")
+        print(f"Action file path: {config.ACTION_FILE_PATH}")
+        print(f"Timestep: {timestep}")
+        print(f"Line defaut: {lines_defaut}")
+        print(f"Backend: PYPOWSYBL")
+        
+        # Verify the config values are what we expect BEFORE calling run_analysis
+        assert config.ENV_NAME == "bare_env_small_grid_test", \
+            f"Config override failed! ENV_NAME is '{config.ENV_NAME}' instead of 'bare_env_small_grid_test'"
+        assert "reduced_model_actions_test.json" in str(config.ACTION_FILE_PATH), \
+            f"Config override failed! ACTION_FILE_PATH is '{config.ACTION_FILE_PATH}'"
+        
+        # Run analysis with PYPOWSYBL backend - this is the key difference from grid2op test
+        prioritized_actions = run_analysis(
+            analysis_date=None,  # None means bare environment
+            current_timestep=timestep,
+            current_lines_defaut=lines_defaut,
+            backend=Backend.PYPOWSYBL  # Use pypowsybl backend
+        )
+        
+        # Get actual keys from result
+        actual_keys_set = set(prioritized_actions.keys())
+        
+        # Print results for debugging
+        print(f"\nExpected actions: {sorted(list(expected_keys_set))}")
+        print(f"Actual actions:   {sorted(list(actual_keys_set))}")
+        
+        # Assertion with detailed error message
+        assert actual_keys_set == expected_keys_set, \
+            f"[{test_id}] Prioritized action keys mismatch.\n" \
+            f"Expected ({len(expected_keys_set)} actions): {sorted(list(expected_keys_set))}\n" \
+            f"Actual ({len(actual_keys_set)} actions):   {sorted(list(actual_keys_set))}\n" \
+            f"Missing: {sorted(list(expected_keys_set - actual_keys_set))}\n" \
+            f"Extra: {sorted(list(actual_keys_set - expected_keys_set))}"
+        
+        print(f"\n✅ Test Passed: {test_id}")
+        print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
+        print(f"pypowsybl backend produces same results as grid2op backend.")
+        
+    finally:
+        # IMPORTANT: Restore original config values after test
+        # This ensures other tests are not affected by our overrides
+        config.ENV_NAME = original_env_name
+        config.FILE_ACTION_SPACE_DESC = original_file_action_space
+        config.ACTION_FILE_PATH = original_action_file_path
+        config.TIMESTEP = original_timestep
+        config.LINES_DEFAUT = original_lines_defaut
