@@ -416,18 +416,83 @@ class PypowsyblObservation:
     def sub_topology(self, sub_id: int) -> np.ndarray:
         """
         Get topology vector for a specific substation.
-        
+
+        Returns bus assignments for all elements connected to this substation.
+        Elements are ordered as: loads, generators, lines_or, lines_ex
+
         Args:
             sub_id: Substation index
-            
+
         Returns:
-            Array of bus assignments for elements in this substation
+            Array of bus assignments for elements in this substation.
+            Values: 1 or 2 for connected buses, -1 for disconnected.
         """
-        # Placeholder implementation
-        # In full implementation, need to track which elements
-        # are connected to which bus within each voltage level
-        n_elements = int(self.sub_info[sub_id])
-        return np.ones(n_elements, dtype=int)
+        sub_name = self.name_sub[sub_id]
+        bus_assignments = []
+
+        nm = self._network_manager
+        net = nm.network
+
+        # Find loads in this substation
+        loads_df = net.get_loads()
+        for i, (load_id, row) in enumerate(loads_df.iterrows()):
+            if row.get('voltage_level_id') == sub_name:
+                # Get bus assignment from bus_id
+                bus_id = row.get('bus_id')
+                if pd.isna(bus_id) or not row.get('connected', True):
+                    bus_assignments.append(-1)
+                else:
+                    bus_num = self._get_local_bus_number(bus_id, sub_name)
+                    bus_assignments.append(bus_num)
+
+        # Find generators in this substation
+        gens_df = net.get_generators()
+        for i, (gen_id, row) in enumerate(gens_df.iterrows()):
+            if row.get('voltage_level_id') == sub_name:
+                bus_id = row.get('bus_id')
+                if pd.isna(bus_id) or not row.get('connected', True):
+                    bus_assignments.append(-1)
+                else:
+                    bus_num = self._get_local_bus_number(bus_id, sub_name)
+                    bus_assignments.append(bus_num)
+
+        # Find line origins in this substation
+        for i, line_id in enumerate(nm.name_line):
+            if nm._line_or_sub.get(line_id) == sub_name:
+                bus_assignments.append(int(self._line_or_bus[i]))
+
+        # Find line extremities in this substation
+        for i, line_id in enumerate(nm.name_line):
+            if nm._line_ex_sub.get(line_id) == sub_name:
+                bus_assignments.append(int(self._line_ex_bus[i]))
+
+        return np.array(bus_assignments, dtype=int)
+
+    def _get_local_bus_number(self, bus_id: str, vl_id: str) -> int:
+        """
+        Convert a pypowsybl bus_id to a local bus number (1 or 2) within a voltage level.
+
+        Args:
+            bus_id: The pypowsybl bus ID
+            vl_id: The voltage level (substation) ID
+
+        Returns:
+            Local bus number (1 or 2)
+        """
+        net = self._network_manager.network
+        buses_df = net.get_buses()
+
+        # Get all buses in this voltage level
+        vl_buses = []
+        for bid, row in buses_df.iterrows():
+            if row.get('voltage_level_id') == vl_id:
+                vl_buses.append(bid)
+
+        vl_buses = sorted(vl_buses)  # Consistent ordering
+
+        if bus_id in vl_buses:
+            return vl_buses.index(bus_id) + 1  # 1-indexed
+        return 1  # Default to bus 1
     
     def get_obj_connect_to(self, substation_id: int) -> Dict[str, List[int]]:
         """
