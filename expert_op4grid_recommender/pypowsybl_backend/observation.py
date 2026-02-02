@@ -136,9 +136,9 @@ class PypowsyblObservation:
                     continue
                 
                 if pd.notna(bus1_id) and bus1_id in buses_df.index:
-                    self._theta_or[i] = buses_df.loc[bus1_id, 'v_angle']
+                    self._theta_or[i] = buses_df.loc[bus1_id, 'v_angle']/360*2*np.pi#to have values in radians
                 if pd.notna(bus2_id) and bus2_id in buses_df.index:
-                    self._theta_ex[i] = buses_df.loc[bus2_id, 'v_angle']
+                    self._theta_ex[i] = buses_df.loc[bus2_id, 'v_angle']/360*2*np.pi
             except (KeyError, TypeError):
                 pass
     
