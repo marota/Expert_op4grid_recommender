@@ -128,7 +128,32 @@ class BusAction(PypowsyblAction):
                     net.update_generators(id=gen_name, connected=False)
                 elif bus >= 1:
                     net.update_generators(id=gen_name, connected=True)
-        
+
+            # Handle full substation topology changes
+            # This implements node merging/splitting via coupler switch manipulation
+            for sub_id, topo_vector in self.substations.items():
+                # Get substation name from ID
+                sub_name = nm.name_sub[sub_id]
+
+                # Determine if this is a merge (all connected elements on bus 1)
+                # or split (elements on different buses)
+                connected_buses = set(b for b in topo_vector if b >= 1)
+                is_merge = len(connected_buses) <= 1 and (not connected_buses or 1 in connected_buses)
+
+                # Find coupler switches in this substation
+                switches_df = net.get_switches()
+                sub_switches = switches_df[switches_df['voltage_level_id'] == sub_name]
+
+                # Look for coupler switches (containing "COUPL" in name)
+                for switch_id, row in sub_switches.iterrows():
+                    switch_name = row.get('name', switch_id)
+                    if 'COUPL' in switch_name.upper():
+                        # For node merging: close the coupler (open=False)
+                        # For node splitting: open the coupler (open=True)
+                        if row['kind'] == 'BREAKER':
+                            # This is the main coupler breaker
+                            net.update_switches(id=switch_id, open=not is_merge)
+
         self._modifications.append(apply_bus_changes)
 
 
