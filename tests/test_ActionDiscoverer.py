@@ -241,7 +241,7 @@ def mock_edge_names_buses_dict(obs, action_topo_vect, sub_impacted_id): return {
 @pytest.fixture
 def discoverer_instance(monkeypatch):
     """Provides a configured ActionDiscoverer instance with mocks for testing discovery methods."""
-    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.check_rho_reduction", mock_rho_reduction_discovery)
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery._default_check_rho_reduction", mock_rho_reduction_discovery)
     monkeypatch.setattr("expert_op4grid_recommender.utils.simulation.create_default_action", lambda *args: MockActionObject())
     monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.AlphaDeesp_warmStart", lambda *args: MockAlphaDeesp())
     #def mock_id(desc, **kwargs): return desc.get("type", "unknown")

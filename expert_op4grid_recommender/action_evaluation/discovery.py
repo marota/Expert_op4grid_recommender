@@ -764,7 +764,14 @@ class ActionDiscoverer:
         # Extract bus assignments directly from action dictionary (backend-agnostic)
         # This avoids relying on topology vector operations which may not be available
         # in all backends (e.g., pypowsybl)
-        dict_edge_names_buses = self._edge_names_buses_dict_new(action_dict)
+
+        action = self.action_space(action_dict)
+        action_topo_vect,is_single_node=self._get_action_topo_vect(sub_impacted_id,action)
+        action_topo_vect_alphadeesp=action_topo_vect-1
+
+        #########"
+        dict_edge_names_buses=self._edge_names_buses_dict(self.obs_defaut, action_topo_vect, sub_impacted_id)
+        #dict_edge_names_buses=self._edge_names_buses_dict_new(action_dict)#self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
 
         score_expert_recommender = self.compute_node_splitting_action_score_value(
             self.g_overflow.g, self.g_distribution_graph,
