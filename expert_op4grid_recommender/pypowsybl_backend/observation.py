@@ -390,28 +390,73 @@ class PypowsyblObservation:
         """Number of substations."""
         return self._network_manager.n_sub
     
+    def _count_sub_elements(self, sub_id: int) -> int:
+        """
+        Count the number of elements in a substation.
+
+        Elements include loads, generators, line origins, and line extremities.
+        This must match the ordering used in sub_topology().
+
+        Args:
+            sub_id: Substation index
+
+        Returns:
+            Number of elements in this substation
+        """
+        sub_name = self.name_sub[sub_id]
+        nm = self._network_manager
+        net = nm.network
+        count = 0
+
+        # Count loads in this substation
+        loads_df = net.get_loads()
+        for load_id, row in loads_df.iterrows():
+            if row.get('voltage_level_id') == sub_name:
+                count += 1
+
+        # Count generators in this substation
+        gens_df = net.get_generators()
+        for gen_id, row in gens_df.iterrows():
+            if row.get('voltage_level_id') == sub_name:
+                count += 1
+
+        # Count line origins in this substation
+        for line_id in nm.name_line:
+            if nm._line_or_sub.get(line_id) == sub_name:
+                count += 1
+
+        # Count line extremities in this substation
+        for line_id in nm.name_line:
+            if nm._line_ex_sub.get(line_id) == sub_name:
+                count += 1
+
+        return count
+
     @property
     def sub_info(self) -> np.ndarray:
         """
         Number of elements per substation.
-        
-        Note: This is a simplified version - in grid2op this includes
-        all elements (gens, loads, lines_or, lines_ex) per substation.
+
+        Counts all elements (gens, loads, lines_or, lines_ex) per substation,
+        matching the ordering in sub_topology().
         """
-        # For now, return a placeholder - needs proper implementation
-        # based on how elements map to substations
-        return np.ones(self.n_sub, dtype=int) * 10  # Placeholder
-    
+        counts = np.array([
+            self._count_sub_elements(sub_id)
+            for sub_id in range(self.n_sub)
+        ], dtype=int)
+        return counts
+
     @property
     def topo_vect(self) -> np.ndarray:
         """
         Topology vector (bus assignment for all elements).
-        
-        Note: This requires tracking bus assignments in pypowsybl.
-        Simplified implementation - full version needs bus/breaker model.
+
+        Concatenates the topology vectors for all substations in order.
+        Each element's value indicates which bus (1 or 2) it is connected to,
+        or -1 if disconnected.
         """
-        # Placeholder - needs proper implementation
-        return np.ones(sum(self.sub_info), dtype=int)
+        topo_arrays = [self.sub_topology(sub_id) for sub_id in range(self.n_sub)]
+        return np.concatenate(topo_arrays) if topo_arrays else np.array([], dtype=int)
     
     def sub_topology(self, sub_id: int) -> np.ndarray:
         """
@@ -540,15 +585,89 @@ class PypowsyblObservation:
     def topo_vect_element(self, topo_vect_pos: int) -> Dict[str, Any]:
         """
         Get element information for a topology vector position.
-        
+
+        The topology vector ordering matches sub_topology():
+        loads, generators, lines_or, lines_ex for each substation.
+
         Args:
             topo_vect_pos: Position in the topology vector
-            
+
         Returns:
-            Dictionary with element type and ID
+            Dictionary with element type and ID. For lines:
+            - {'line_id': True, 'line_or_id': line_idx} for line origins
+            - {'line_id': True, 'line_ex_id': line_idx} for line extremities
         """
-        # Placeholder - needs proper implementation based on
-        # how elements are ordered in the topology vector
+        nm = self._network_manager
+        net = nm.network
+
+        # Find which substation this position belongs to
+        sub_info = self.sub_info
+        cumsum = 0
+        sub_id = 0
+        for i, count in enumerate(sub_info):
+            if cumsum + count > topo_vect_pos:
+                sub_id = i
+                break
+            cumsum += count
+
+        # Local position within the substation
+        local_pos = topo_vect_pos - cumsum
+        sub_name = self.name_sub[sub_id]
+
+        # Count elements in this substation to find what's at local_pos
+        # Order: loads, generators, lines_or, lines_ex
+        loads_df = net.get_loads()
+        gens_df = net.get_generators()
+
+        # Count loads in this substation
+        load_count = 0
+        load_ids_in_sub = []
+        for i, (load_id, row) in enumerate(loads_df.iterrows()):
+            if row.get('voltage_level_id') == sub_name:
+                load_ids_in_sub.append(i)
+                load_count += 1
+
+        if local_pos < load_count:
+            return {'type': 'load', 'load_id': load_ids_in_sub[local_pos]}
+
+        local_pos -= load_count
+
+        # Count generators in this substation
+        gen_count = 0
+        gen_ids_in_sub = []
+        for i, (gen_id, row) in enumerate(gens_df.iterrows()):
+            if row.get('voltage_level_id') == sub_name:
+                gen_ids_in_sub.append(i)
+                gen_count += 1
+
+        if local_pos < gen_count:
+            return {'type': 'gen', 'gen_id': gen_ids_in_sub[local_pos]}
+
+        local_pos -= gen_count
+
+        # Count line origins in this substation
+        line_or_count = 0
+        line_or_ids_in_sub = []
+        for i, line_id in enumerate(nm.name_line):
+            if nm._line_or_sub.get(line_id) == sub_name:
+                line_or_ids_in_sub.append(i)
+                line_or_count += 1
+
+        if local_pos < line_or_count:
+            return {'line_id': True, 'line_or_id': line_or_ids_in_sub[local_pos]}
+
+        local_pos -= line_or_count
+
+        # Count line extremities in this substation
+        line_ex_ids_in_sub = []
+        for i, line_id in enumerate(nm.name_line):
+            if nm._line_ex_sub.get(line_id) == sub_name:
+                line_ex_ids_in_sub.append(i)
+
+        if local_pos < len(line_ex_ids_in_sub):
+            return {'line_id': True, 'line_ex_id': line_ex_ids_in_sub[local_pos]}
+
+        # Fallback
         return {'type': 'unknown', 'id': topo_vect_pos}
     
     def get_time_stamp(self):
@@ -622,37 +741,246 @@ class PypowsyblObservation:
     def __add__(self, action: 'PypowsyblAction') -> 'PypowsyblObservation':
         """
         Support obs + action syntax (returns observation with action applied).
-        
-        Note: This creates a temporary copy. For simulation, use simulate().
+
+        Creates a wrapper observation that reflects the action's topology changes
+        without actually modifying the network.
         """
-        # This is used in grid2op for impact_on_objects() type operations
-        # For now, return self - actual implementation would need to
-        # create a modified observation
-        return self
+        return ObservationWithTopologyOverride(self, action)
+
+
+class ObservationWithTopologyOverride(PypowsyblObservation):
+    """
+    Observation wrapper that applies topology overrides from an action.
+
+    This class doesn't actually modify the network - it just presents a view
+    of what the topology would look like after the action is applied.
+    Used by grid2op-style code that does `obs + action` to see the impact.
+    """
+
+    def __init__(self, base_obs: 'PypowsyblObservation', action: 'PypowsyblAction'):
+        """
+        Initialize with base observation and action.
+
+        Args:
+            base_obs: The original observation
+            action: The action whose topology changes should be reflected
+        """
+        # Don't call super().__init__ - we're wrapping base_obs instead
+        self._base_obs = base_obs
+        self._action = action
+        self._network_manager = base_obs._network_manager
+        self._action_space = base_obs._action_space
+        self._thermal_limits = base_obs._thermal_limits
+
+        # Extract topology overrides from the action
+        self._lines_or_bus_override = {}
+        self._lines_ex_bus_override = {}
+        self._loads_bus_override = {}
+        self._gens_bus_override = {}
+        self._substations_override = {}
+
+        self._extract_topology_overrides(action)
+
+    def _extract_topology_overrides(self, action: 'PypowsyblAction'):
+        """Extract topology changes from the action.
+
+        All PypowsyblAction objects now store topology info directly as attributes,
+        and the __add__ method merges these when actions are combined.
+        """
+        if hasattr(action, 'lines_or_bus'):
+            self._lines_or_bus_override = dict(action.lines_or_bus) if action.lines_or_bus else {}
+        if hasattr(action, 'lines_ex_bus'):
+            self._lines_ex_bus_override = dict(action.lines_ex_bus) if action.lines_ex_bus else {}
+        if hasattr(action, 'loads_bus'):
+            self._loads_bus_override = dict(action.loads_bus) if action.loads_bus else {}
+        if hasattr(action, 'gens_bus'):
+            self._gens_bus_override = dict(action.gens_bus) if action.gens_bus else {}
+        if hasattr(action, 'substations'):
+            self._substations_override = dict(action.substations) if action.substations else {}
+
+    @property
+    def topo_vect(self) -> np.ndarray:
+        """
+        Topology vector with action overrides applied.
+        """
+        topo_arrays = [self.sub_topology(sub_id) for sub_id in range(self.n_sub)]
+        return np.concatenate(topo_arrays) if topo_arrays else np.array([], dtype=int)
+
+    def sub_topology(self, sub_id: int) -> np.ndarray:
+        """
+        Get topology vector for a substation with action overrides applied.
+        """
+        # Check if there's a full substation override
+        if sub_id in self._substations_override:
+            return np.array(self._substations_override[sub_id], dtype=int)
+
+        # Get base topology from the underlying observation
+        base_topo = self._base_obs.sub_topology(sub_id)
+
+        # Apply element-specific overrides
+        sub_name = self.name_sub[sub_id]
+        nm = self._network_manager
+        net = nm.network
+
+        # Track current position in the topology vector
+        pos = 0
+
+        # Process loads in this substation
+        loads_df = net.get_loads()
+        for load_id, row in loads_df.iterrows():
+            if row.get('voltage_level_id') == sub_name:
+                if load_id in self._loads_bus_override:
+                    base_topo[pos] = self._loads_bus_override[load_id]
+                pos += 1
+
+        # Process generators in this substation
+        gens_df = net.get_generators()
+        for gen_id, row in gens_df.iterrows():
+            if row.get('voltage_level_id') == sub_name:
+                if gen_id in self._gens_bus_override:
+                    base_topo[pos] = self._gens_bus_override[gen_id]
+                pos += 1
+
+        # Process line origins in this substation
+        for line_id in nm.name_line:
+            if nm._line_or_sub.get(line_id) == sub_name:
+                if line_id in self._lines_or_bus_override:
+                    base_topo[pos] = self._lines_or_bus_override[line_id]
+                pos += 1
+
+        # Process line extremities in this substation
+        for line_id in nm.name_line:
+            if nm._line_ex_sub.get(line_id) == sub_name:
+                if line_id in self._lines_ex_bus_override:
+                    base_topo[pos] = self._lines_ex_bus_override[line_id]
+                pos += 1
+
+        return base_topo
+
+    # Delegate all other properties to base observation
+    @property
+    def rho(self) -> np.ndarray:
+        return self._base_obs.rho
+
+    @property
+    def line_status(self) -> np.ndarray:
+        return self._base_obs.line_status
+
+    @property
+    def name_line(self) -> List[str]:
+        return self._base_obs.name_line
+
+    @property
+    def name_sub(self) -> List[str]:
+        return self._base_obs.name_sub
+
+    @property
+    def name_gen(self) -> List[str]:
+        return self._base_obs.name_gen
+
+    @property
+    def name_load(self) -> List[str]:
+        return self._base_obs.name_load
+
+    @property
+    def n_line(self) -> int:
+        return self._base_obs.n_line
+
+    @property
+    def n_sub(self) -> int:
+        return self._base_obs.n_sub
+
+    @property
+    def sub_info(self) -> np.ndarray:
+        return self._base_obs.sub_info
+
+    @property
+    def a_or(self) -> np.ndarray:
+        return self._base_obs.a_or
+
+    @property
+    def a_ex(self) -> np.ndarray:
+        return self._base_obs.a_ex
+
+    @property
+    def p_or(self) -> np.ndarray:
+        return self._base_obs.p_or
+
+    @property
+    def p_ex(self) -> np.ndarray:
+        return self._base_obs.p_ex
+
+    @property
+    def q_or(self) -> np.ndarray:
+        return self._base_obs.q_or
+
+    @property
+    def q_ex(self) -> np.ndarray:
+        return self._base_obs.q_ex
+
+    @property
+    def v_or(self) -> np.ndarray:
+        return self._base_obs.v_or
+
+    @property
+    def v_ex(self) -> np.ndarray:
+        return self._base_obs.v_ex
+
+    @property
+    def theta_or(self) -> np.ndarray:
+        return self._base_obs.theta_or
+
+    @property
+    def theta_ex(self) -> np.ndarray:
+        return self._base_obs.theta_ex
+
+    @property
+    def line_or_to_subid(self) -> np.ndarray:
+        return self._base_obs.line_or_to_subid
+
+    @property
+    def line_ex_to_subid(self) -> np.ndarray:
+        return self._base_obs.line_ex_to_subid
 
 
 class PypowsyblAction:
     """
     Represents an action that can be applied to a pypowsybl network.
-    
+
     This is the base class for actions. Actions are created by ActionSpace
     and can be combined using the + operator.
+
+    Topology info (lines_or_bus, lines_ex_bus, etc.) is stored as attributes
+    so that ObservationWithTopologyOverride can extract it for computing
+    the impact of the action on topology.
     """
-    
+
     def __init__(self):
         self._modifications = []
-    
+        # Topology info for observation + action operations
+        self.lines_or_bus = {}
+        self.lines_ex_bus = {}
+        self.loads_bus = {}
+        self.gens_bus = {}
+        self.substations = {}
+
     def apply(self, network_manager: 'NetworkManager'):
         """Apply this action to the network."""
         for modification in self._modifications:
             modification(network_manager)
-    
+
     def __add__(self, other: 'PypowsyblAction') -> 'PypowsyblAction':
-        """Combine two actions."""
+        """Combine two actions, merging their topology info."""
         combined = PypowsyblAction()
         combined._modifications = self._modifications + other._modifications
+        # Merge topology info from both actions
+        combined.lines_or_bus = {**self.lines_or_bus, **other.lines_or_bus}
+        combined.lines_ex_bus = {**self.lines_ex_bus, **other.lines_ex_bus}
+        combined.loads_bus = {**self.loads_bus, **other.loads_bus}
+        combined.gens_bus = {**self.gens_bus, **other.gens_bus}
+        combined.substations = {**self.substations, **other.substations}
         return combined
-    
+
     def __radd__(self, other):
         """Support other + action syntax."""
         if other == 0 or other is None:
