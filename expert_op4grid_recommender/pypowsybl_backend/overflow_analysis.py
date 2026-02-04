@@ -178,6 +178,151 @@ class OverflowSimulator:
             self._nm.set_working_variant(self._nm.base_variant_id)
             self._nm.remove_variant(variant_id)
     
+    def compute_flow_changes_and_rho(self,
+                                      lines_to_disconnect: List[str],
+                                      thermal_limits: Dict[str, float]
+                                      ) -> Tuple[pd.DataFrame, np.ndarray]:
+        """
+        Compute flow changes AND rho values in a single load flow pass.
+
+        This method combines what was previously done in two separate methods:
+        - compute_flow_changes_after_disconnection (for DataFrame)
+        - _create_obs_linecut (for rho values)
+
+        By doing both in one pass, we avoid running load flow twice.
+
+        Args:
+            lines_to_disconnect: List of line IDs to disconnect (overloaded lines)
+            thermal_limits: Dict mapping line_id to thermal limit for rho computation
+
+        Returns:
+            Tuple of (flow_changes_df, rho_array)
+        """
+        # Create variant
+        variant_id = "flow_change_and_rho_analysis"
+        self._nm.create_variant(variant_id)
+        self._nm.set_working_variant(variant_id)
+
+        try:
+            # Re-apply any lines that are already disconnected in the observation
+            line_names = self._nm.name_line
+            line_status = self._obs.line_status
+            disconnected_mask = ~line_status
+            n_lines = len(line_names)
+
+            # Collect all lines to disconnect
+            disconnected_indices = np.where(disconnected_mask)[0]
+            already_disconnected = [line_names[i] for i in disconnected_indices]
+
+            # Combine all lines to disconnect and use batch operation
+            all_lines_to_disconnect = already_disconnected + list(lines_to_disconnect)
+            if all_lines_to_disconnect:
+                self._nm.disconnect_lines_batch(all_lines_to_disconnect)
+
+            # Run load flow ONCE for both DataFrame and rho computation
+            result = self._run_load_flow()
+            converged = (result is not None and result.status == lf.ComponentStatus.CONVERGED)
+
+            # ===== Extract data for BOTH outputs from this single load flow =====
+
+            if converged:
+                # Get p1 array for DataFrame
+                new_flows_arr = self._nm.get_line_p1_array()
+                # Get currents for rho computation
+                i1_arr, i2_arr = self._nm.get_line_currents_array()
+            else:
+                new_flows_arr = np.zeros(n_lines)
+                i1_arr = np.zeros(n_lines)
+                i2_arr = np.zeros(n_lines)
+
+            # ===== BUILD DATAFRAME (same logic as before) =====
+            idx_or = self._nm._cached_line_or_subid.copy()
+            idx_ex = self._nm._cached_line_ex_subid.copy()
+
+            init_flows = self._base_flows_arr.copy()
+            init_flows = np.where(np.isnan(init_flows), 0.0, init_flows)
+
+            # branch_direction_swaps - vectorized
+            swap_mask = (init_flows < 0) & (init_flows != 0.0)
+            idx_or_swapped = np.where(swap_mask, idx_ex, idx_or)
+            idx_ex_swapped = np.where(swap_mask, idx_or, idx_ex)
+            idx_or = idx_or_swapped
+            idx_ex = idx_ex_swapped
+            init_flows_abs = np.where(swap_mask, np.abs(init_flows), init_flows)
+
+            # Apply swap correction to new_flows
+            new_flows = np.where(swap_mask, -new_flows_arr, new_flows_arr)
+            new_flows = np.where(np.isnan(new_flows), 0.0, new_flows)
+
+            # Compute new_flows_swapped
+            new_flows_swapped = (new_flows < 0) & (np.abs(new_flows) > np.abs(init_flows_abs))
+
+            # Compute delta_flows
+            abs_new = np.abs(new_flows)
+            abs_init = np.abs(init_flows_abs)
+            delta_flows = abs_new - abs_init
+
+            # Case 1: Flow reversed and stronger
+            case1_mask = new_flows_swapped
+            delta_flows = np.where(case1_mask, abs_new + abs_init, delta_flows)
+            idx_or = np.where(case1_mask, idx_ex, idx_or)
+            idx_ex_temp = np.where(case1_mask, idx_or_swapped, idx_ex)
+            idx_ex = idx_ex_temp
+
+            # Case 2: Signs differ but new flow is weaker
+            sign_new = np.sign(new_flows)
+            sign_init = np.sign(init_flows_abs)
+            case2_mask = (sign_new != sign_init) & (new_flows != 0) & (init_flows_abs != 0) & ~case1_mask
+            delta_flows = np.where(case2_mask, -(abs_new + abs_init), delta_flows)
+
+            # Compute gray_edges
+            if lines_to_disconnect:
+                first_ltc_idx = self._nm.get_line_idx(lines_to_disconnect[0])
+                if first_ltc_idx >= 0:
+                    ltc_report = np.abs(delta_flows[first_ltc_idx])
+                else:
+                    ltc_report = np.abs(delta_flows).max()
+            else:
+                ltc_report = np.abs(delta_flows).max()
+
+            threshold = self._param_options.get("ThresholdReportOfLine", 0.05)
+            max_overload = ltc_report * float(threshold)
+            gray_edges = np.abs(delta_flows) < max_overload
+
+            df = pd.DataFrame({
+                'idx_or': idx_or,
+                'idx_ex': idx_ex,
+                'init_flows': init_flows_abs,
+                'line_name': line_names,
+                'swapped': swap_mask,
+                'new_flows': new_flows,
+                'new_flows_swapped': new_flows_swapped,
+                'delta_flows': delta_flows,
+                'gray_edges': gray_edges,
+            })
+
+            # ===== COMPUTE RHO (same logic as _create_obs_linecut) =====
+            i1_arr = np.abs(i1_arr)
+            i2_arr = np.abs(i2_arr)
+
+            # Create trafo mask for using i1 vs max(i1, i2)
+            trafo_mask = np.array([lid in self._nm._trafos_set for lid in line_names])
+
+            # Compute i_for_rho: use i1 for transformers, max(i1, i2) for lines
+            i_for_rho = np.where(trafo_mask, i1_arr, np.maximum(i1_arr, i2_arr))
+
+            # Get thermal limits as array
+            thermal_arr = np.array([thermal_limits.get(lid, 9999.0) for lid in line_names])
+
+            # Compute rho (avoid division by zero)
+            rho = np.where(thermal_arr > 0, i_for_rho / thermal_arr, 0.0)
+
+            return df, rho
+
+        finally:
+            self._nm.set_working_variant(self._nm.base_variant_id)
+            self._nm.remove_variant(variant_id)
+
     def compute_flow_changes_after_disconnection(self,
                                                    lines_to_disconnect: List[str]
                                                    ) -> pd.DataFrame:
@@ -645,6 +790,12 @@ def _find_hubs_simple(graph: nx.MultiDiGraph) -> List[int]:
     return hubs
 
 
+class _ObsLineCut:
+    """Simple wrapper class to hold rho values for obs_linecut."""
+    def __init__(self, rho_values: np.ndarray):
+        self.rho = rho_values
+
+
 class AlphaDeespAdapter:
     """
     Adapter to make pypowsybl simulation compatible with alphaDeesp.
@@ -703,10 +854,13 @@ class AlphaDeespAdapter:
         # Compute flow changes for overloaded lines
         if ltc:
             line_names = [obs.name_line[i] for i in ltc]
-            self._df = self._overflow_sim.compute_flow_changes_after_disconnection(line_names)
-            # Create obs_linecut - observation after disconnecting overloaded lines
-            # This is used for visualization to show rho changes
-            self.obs_linecut = self._create_obs_linecut(obs, line_names)
+            # OPTIMIZATION: Compute both DataFrame and rho in a single load flow pass
+            self._df, rho_values = self._overflow_sim.compute_flow_changes_and_rho(
+                line_names,
+                obs._thermal_limits
+            )
+            # Create obs_linecut wrapper with the computed rho values
+            self.obs_linecut = _ObsLineCut(rho_values)
         else:
             self._df = self._overflow_sim.get_dataframe()
             self.obs_linecut = obs  # No lines cut, same as original
@@ -767,79 +921,7 @@ class AlphaDeespAdapter:
     def get_dataframe(self) -> pd.DataFrame:
         """Get flow change DataFrame (alphaDeesp interface)."""
         return self._df.copy()
-    
-    def _create_obs_linecut(self, obs: 'PypowsyblObservation', lines_to_cut: List[str]):
-        """
-        Create an observation-like object representing the state after cutting lines.
 
-        This is used by the visualization to show rho changes before/after.
-        OPTIMIZED: Uses batch disconnect and fully vectorized rho computation.
-
-        Args:
-            obs: Original observation
-            lines_to_cut: List of line names to disconnect
-
-        Returns:
-            Object with rho attribute representing state after line cuts
-        """
-        nm = obs._network_manager
-
-        # Create a variant to simulate line cuts
-        variant_id = "obs_linecut_temp"
-        nm.create_variant(variant_id)
-        nm.set_working_variant(variant_id)
-
-        try:
-            # OPTIMIZATION: Collect all lines to disconnect and use batch operation
-            line_names = nm.name_line
-            disconnected_mask = ~obs.line_status
-            disconnected_indices = np.where(disconnected_mask)[0]
-            already_disconnected = [line_names[i] for i in disconnected_indices]
-
-            # Combine all lines and disconnect in one batch operation
-            all_lines_to_disconnect = already_disconnected + list(lines_to_cut)
-            if all_lines_to_disconnect:
-                nm.disconnect_lines_batch(all_lines_to_disconnect)
-
-            # Run load flow only ONCE after all disconnections
-            result = nm.run_load_flow(dc=self._use_dc)
-
-            # Create a simple object with rho attribute
-            class ObsLineCut:
-                def __init__(self, rho_values):
-                    self.rho = rho_values
-
-            if result is not None and result.status == lf.ComponentStatus.CONVERGED:
-                # Use the same thermal limits as the original observation
-                thermal_limits = obs._thermal_limits
-
-                # OPTIMIZATION: Use vectorized array getter
-                i1_arr, i2_arr = nm.get_line_currents_array()
-
-                # Make absolute
-                i1_arr = np.abs(i1_arr)
-                i2_arr = np.abs(i2_arr)
-
-                # Create trafo mask for using i1 vs max(i1, i2)
-                trafo_mask = np.array([lid in nm._trafos_set for lid in line_names])
-
-                # Compute i_for_rho: use i1 for transformers, max(i1, i2) for lines
-                i_for_rho = np.where(trafo_mask, i1_arr, np.maximum(i1_arr, i2_arr))
-
-                # Get thermal limits as array
-                thermal_arr = np.array([thermal_limits.get(lid, 9999.0) for lid in line_names])
-
-                # Compute rho (avoid division by zero)
-                rho = np.where(thermal_arr > 0, i_for_rho / thermal_arr, 0.0)
-
-                return ObsLineCut(rho)
-            else:
-                return ObsLineCut(np.zeros(nm.n_line))
-
-        finally:
-            nm.set_working_variant(nm.base_variant_id)
-            nm.remove_variant(variant_id)
-    
     def get_substation_elements(self) -> Dict:
         """
         Get elements per substation (alphaDeesp interface).
