@@ -101,6 +101,10 @@ class NetworkManager:
         self._line_ids = list(lines_df.index) + list(trafos_df.index)
         self._n_line = len(self._line_ids)
 
+        # Store line/trafo sets for O(1) membership tests
+        self._lines_set = set(lines_df.index)
+        self._trafos_set = set(trafos_df.index)
+
         # Substations (voltage levels in pypowsybl terminology)
         vl_df = self.network.get_voltage_levels()
         self._substation_ids = list(vl_df.index)
@@ -136,11 +140,69 @@ class NetworkManager:
         gen_df = self.network.get_generators()
         self._gen_ids = list(gen_df.index)
         self._n_gen = len(self._gen_ids)
+        self._gen_name_to_idx = {name: idx for idx, name in enumerate(self._gen_ids)}
+
+        # Cache generator -> substation mapping
+        self._gen_to_sub = {}
+        if len(gen_df) > 0 and 'voltage_level_id' in gen_df.columns:
+            self._gen_to_sub = gen_df['voltage_level_id'].to_dict()
 
         # Loads
         load_df = self.network.get_loads()
         self._load_ids = list(load_df.index)
         self._n_load = len(self._load_ids)
+        self._load_name_to_idx = {name: idx for idx, name in enumerate(self._load_ids)}
+
+        # Cache load -> substation mapping
+        self._load_to_sub = {}
+        if len(load_df) > 0 and 'voltage_level_id' in load_df.columns:
+            self._load_to_sub = load_df['voltage_level_id'].to_dict()
+
+        # OPTIMIZATION: Pre-compute elements per substation
+        self._cache_elements_per_substation()
+
+    def _cache_elements_per_substation(self):
+        """Cache which elements belong to each substation."""
+        n_sub = self._n_sub
+
+        # Initialize per-substation element lists
+        self._loads_per_sub = [[] for _ in range(n_sub)]
+        self._gens_per_sub = [[] for _ in range(n_sub)]
+        self._lines_or_per_sub = [[] for _ in range(n_sub)]
+        self._lines_ex_per_sub = [[] for _ in range(n_sub)]
+
+        # Map loads to substations
+        for i, load_id in enumerate(self._load_ids):
+            sub_name = self._load_to_sub.get(load_id, '')
+            sub_idx = self._sub_name_to_idx.get(sub_name, -1)
+            if sub_idx >= 0:
+                self._loads_per_sub[sub_idx].append(i)
+
+        # Map generators to substations
+        for i, gen_id in enumerate(self._gen_ids):
+            sub_name = self._gen_to_sub.get(gen_id, '')
+            sub_idx = self._sub_name_to_idx.get(sub_name, -1)
+            if sub_idx >= 0:
+                self._gens_per_sub[sub_idx].append(i)
+
+        # Map line origins to substations
+        for i, line_id in enumerate(self._line_ids):
+            sub_idx = self._cached_line_or_subid[i]
+            if sub_idx >= 0:
+                self._lines_or_per_sub[sub_idx].append(i)
+
+        # Map line extremities to substations
+        for i, line_id in enumerate(self._line_ids):
+            sub_idx = self._cached_line_ex_subid[i]
+            if sub_idx >= 0:
+                self._lines_ex_per_sub[sub_idx].append(i)
+
+        # Pre-compute sub_info (element count per substation)
+        self._cached_sub_info = np.array([
+            len(self._loads_per_sub[i]) + len(self._gens_per_sub[i]) +
+            len(self._lines_or_per_sub[i]) + len(self._lines_ex_per_sub[i])
+            for i in range(n_sub)
+        ], dtype=int)
     
     @property
     def name_line(self) -> np.ndarray:
