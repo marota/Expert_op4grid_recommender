@@ -189,17 +189,18 @@ class OverflowSimulator:
             self._nm.set_working_variant(self._nm.base_variant_id)
             self._nm.remove_variant(variant_id)
     
-    def compute_flow_changes_after_disconnection(self, 
+    def compute_flow_changes_after_disconnection(self,
                                                    lines_to_disconnect: List[str]
                                                    ) -> pd.DataFrame:
         """
         Compute flow changes when specified lines are disconnected.
-        
+
         This method replicates alphaDeesp's Simulation.create_df() logic exactly.
-        
+        OPTIMIZED: Uses vectorized numpy operations instead of row-by-row iteration.
+
         Args:
             lines_to_disconnect: List of line IDs to disconnect
-            
+
         Returns:
             DataFrame with columns matching alphaDeesp's Grid2opSimulation format
         """
@@ -207,168 +208,137 @@ class OverflowSimulator:
         variant_id = "flow_change_analysis"
         self._nm.create_variant(variant_id)
         self._nm.set_working_variant(variant_id)
-        
+
         try:
             # IMPORTANT: First, re-apply any lines that are already disconnected in the observation
             # The observation was created from a simulated state (with contingency applied),
             # but the network manager's base variant doesn't have those disconnections.
-            for i, line_id in enumerate(self._nm.name_line):
-                if not self._obs.line_status[i]:  # Line is disconnected in observation
-                    self._nm.disconnect_line(line_id)
-            
+            line_names = self._nm.name_line
+            line_status = self._obs.line_status
+            disconnected_mask = ~line_status
+            for i in np.where(disconnected_mask)[0]:
+                self._nm.disconnect_line(line_names[i])
+
             # Run load flow to verify we match the observation state
             result = self._run_load_flow()
-            
+
             if result is None or result.status != lf.ComponentStatus.CONVERGED:
                 print(f"Warning: Load flow did not converge when re-applying contingency state")
-            
+
             # Now disconnect the additional lines (overloaded lines)
             for line_id in lines_to_disconnect:
                 self._nm.disconnect_line(line_id)
-            
+
             # Run load flow again after disconnecting overloaded lines
             result = self._run_load_flow()
-            
+
             converged = (result is not None and result.status == lf.ComponentStatus.CONVERGED)
-            
+
             # Get new flows (signed values, like alphaDeesp's cut_lines_and_recomputes_flows)
+            n_lines = len(line_names)
+            new_flows_arr = np.zeros(n_lines)
+
             if converged:
-                new_flows_dict = {}
                 lines_df = self._net.get_lines()
                 trafos_df = self._net.get_2_windings_transformers()
-                
-                for line_id in self._nm.name_line:
-                    if line_id in lines_df.index:
-                        p1 = lines_df.loc[line_id, 'p1']
-                        new_flows_dict[line_id] = p1 if not np.isnan(p1) else 0.0
-                    elif line_id in trafos_df.index:
-                        p1 = trafos_df.loc[line_id, 'p1']
-                        new_flows_dict[line_id] = p1 if not np.isnan(p1) else 0.0
-                    else:
-                        new_flows_dict[line_id] = 0.0
-            else:
-                new_flows_dict = {k: 0.0 for k in self._base_flows}
-            
-            # ===== STEP 1: Build initial DataFrame (like alphaDeesp's d["edges"]) =====
-            data = []
-            for line_id in self._nm.name_line:
-                flow_before = self._base_flows.get(line_id, 0.0)
-                if np.isnan(flow_before):
-                    flow_before = 0.0
-                
-                or_sub = self._nm._line_or_sub.get(line_id, '')
-                ex_sub = self._nm._line_ex_sub.get(line_id, '')
-                
-                try:
-                    idx_or = list(self._nm.name_sub).index(or_sub)
-                except ValueError:
-                    idx_or = -1
-                try:
-                    idx_ex = list(self._nm.name_sub).index(ex_sub)
-                except ValueError:
-                    idx_ex = -1
-                
-                data.append({
-                    'idx_or': idx_or,
-                    'idx_ex': idx_ex,
-                    'init_flows': flow_before,  # Signed value initially
-                    'line_name': line_id,
-                })
-            
-            df = pd.DataFrame(data)
-            
-            # ===== STEP 2: branch_direction_swaps - swap when init_flows < 0 =====
-            swapped = []
-            for i, row in df.iterrows():
-                a = row["init_flows"]
-                if a < 0 and a != 0.:
-                    # Swap origin and extremity
-                    idx_or = row["idx_or"]
-                    df.at[i, "idx_or"] = row["idx_ex"]
-                    df.at[i, "idx_ex"] = idx_or
-                    df.at[i, "init_flows"] = fabs(row["init_flows"])
-                    swapped.append(True)
-                else:
-                    swapped.append(False)
-            df["swapped"] = swapped
-            
-            # ===== STEP 3: Get new_flows and apply swapped correction =====
-            n_flows = []
-            for line_id, is_swapped in zip(self._nm.name_line, df["swapped"]):
-                f = new_flows_dict.get(line_id, 0.0)
-                if np.isnan(f):
-                    f = 0.0
-                if is_swapped:
-                    n_flows.append(f * -1)
-                else:
-                    n_flows.append(f)
-            df["new_flows"] = n_flows
-            
-            # ===== STEP 4: Compute new_flows_swapped =====
+
+                # Build lookup sets for O(1) membership test
+                lines_set = set(lines_df.index)
+                trafos_set = set(trafos_df.index)
+
+                # Extract p1 values as dict for fast lookup
+                lines_p1 = lines_df['p1'].to_dict()
+                trafos_p1 = trafos_df['p1'].to_dict()
+
+                for i, line_id in enumerate(line_names):
+                    if line_id in lines_set:
+                        p1 = lines_p1.get(line_id, 0.0)
+                        new_flows_arr[i] = p1 if not np.isnan(p1) else 0.0
+                    elif line_id in trafos_set:
+                        p1 = trafos_p1.get(line_id, 0.0)
+                        new_flows_arr[i] = p1 if not np.isnan(p1) else 0.0
+
+            # ===== STEP 1: Build initial arrays (vectorized) =====
+            # Use pre-cached indices from NetworkManager
+            idx_or = self._nm._cached_line_or_subid.copy()
+            idx_ex = self._nm._cached_line_ex_subid.copy()
+
+            # Get init_flows from base_flows dict
+            init_flows = np.array([self._base_flows.get(lid, 0.0) for lid in line_names])
+            init_flows = np.where(np.isnan(init_flows), 0.0, init_flows)
+
+            # ===== STEP 2: branch_direction_swaps - vectorized =====
+            # Swap when init_flows < 0
+            swap_mask = (init_flows < 0) & (init_flows != 0.0)
+
+            # Swap idx_or and idx_ex where needed
+            idx_or_swapped = np.where(swap_mask, idx_ex, idx_or)
+            idx_ex_swapped = np.where(swap_mask, idx_or, idx_ex)
+            idx_or = idx_or_swapped
+            idx_ex = idx_ex_swapped
+
+            # Make init_flows absolute where swapped
+            init_flows_abs = np.where(swap_mask, np.abs(init_flows), init_flows)
+
+            # ===== STEP 3: Get new_flows and apply swapped correction - vectorized =====
+            new_flows = np.where(swap_mask, -new_flows_arr, new_flows_arr)
+            new_flows = np.where(np.isnan(new_flows), 0.0, new_flows)
+
+            # ===== STEP 4: Compute new_flows_swapped - vectorized =====
             # True if new_flows < 0 AND |new_flows| > |init_flows|
-            new_flows_swapped = []
-            for i, row in df.iterrows():
-                if row["new_flows"] < 0 and fabs(row["new_flows"]) > fabs(row["init_flows"]):
-                    new_flows_swapped.append(True)
-                else:
-                    new_flows_swapped.append(False)
-            df["new_flows_swapped"] = new_flows_swapped
-            
-            # ===== STEP 5: Compute delta_flows (exactly like alphaDeesp) =====
-            delta_flo = []
-            for i, row in df.iterrows():
-                if row["new_flows_swapped"]:
-                    # Flow reversed and is stronger - positive delta, swap indices
-                    delta_flo.append(fabs(row["new_flows"]) + fabs(row["init_flows"]))
-                    # Swap origin and extremity
-                    idx_or = row["idx_or"]
-                    df.at[i, "idx_or"] = row["idx_ex"]
-                    df.at[i, "idx_ex"] = idx_or
-                    df.at[i, "init_flows"] = fabs(row["init_flows"])
-                elif (np.sign(row["new_flows"]) != np.sign(row["init_flows"])) and \
-                     (row["new_flows"] != 0) and (row["init_flows"] != 0):
-                    # Signs differ but new flow is weaker - negative delta (flow relieved)
-                    delta_flo.append(-(fabs(row["new_flows"]) + fabs(row["init_flows"])))
-                else:
-                    # Same direction - simple difference
-                    delta_flo.append(fabs(row["new_flows"]) - fabs(row["init_flows"]))
-            df["delta_flows"] = delta_flo
-            
-            # ===== STEP 6: Compute gray_edges based on significance (like alphaDeesp) =====
-            # gray_edges = True when |delta_flows| < ltc_report * ThresholdReportOfLine
-            # ltc_report is the delta_flows of the first line to cut
+            new_flows_swapped = (new_flows < 0) & (np.abs(new_flows) > np.abs(init_flows_abs))
+
+            # ===== STEP 5: Compute delta_flows - vectorized =====
+            abs_new = np.abs(new_flows)
+            abs_init = np.abs(init_flows_abs)
+
+            # Default: same direction - simple difference
+            delta_flows = abs_new - abs_init
+
+            # Case 1: Flow reversed and stronger (new_flows_swapped)
+            case1_mask = new_flows_swapped
+            delta_flows = np.where(case1_mask, abs_new + abs_init, delta_flows)
+
+            # When new_flows_swapped, swap idx_or/idx_ex
+            idx_or = np.where(case1_mask, idx_ex, idx_or)
+            idx_ex_temp = np.where(case1_mask, idx_or_swapped, idx_ex)
+            idx_ex = idx_ex_temp
+
+            # Case 2: Signs differ but new flow is weaker - negative delta
+            sign_new = np.sign(new_flows)
+            sign_init = np.sign(init_flows_abs)
+            case2_mask = (sign_new != sign_init) & (new_flows != 0) & (init_flows_abs != 0) & ~case1_mask
+            delta_flows = np.where(case2_mask, -(abs_new + abs_init), delta_flows)
+
+            # ===== STEP 6: Compute gray_edges - vectorized =====
             if lines_to_disconnect:
-                # Get the index of the first line to cut
-                first_ltc_idx = None
-                for i, line_id in enumerate(self._nm.name_line):
-                    if line_id == lines_to_disconnect[0]:
-                        first_ltc_idx = i
-                        break
-                
-                if first_ltc_idx is not None:
-                    ltc_report = fabs(df["delta_flows"].iloc[first_ltc_idx])
+                first_ltc_idx = self._nm.get_line_idx(lines_to_disconnect[0])
+                if first_ltc_idx >= 0:
+                    ltc_report = np.abs(delta_flows[first_ltc_idx])
                 else:
-                    ltc_report = df["delta_flows"].abs().max()
+                    ltc_report = np.abs(delta_flows).max()
             else:
-                ltc_report = df["delta_flows"].abs().max()
-            
-            # Get threshold from param_options
+                ltc_report = np.abs(delta_flows).max()
+
             threshold = self._param_options.get("ThresholdReportOfLine", 0.05)
             max_overload = ltc_report * float(threshold)
-            
-            gray_edges = []
-            for delta in df["delta_flows"]:
-                if fabs(delta) < max_overload:
-                    gray_edges.append(True)
-                else:
-                    gray_edges.append(False)
-            df["gray_edges"] = gray_edges
-            
-            # NOTE: new_flows stays as signed value (not converted to absolute)
-            # This matches alphaDeesp behavior where new_flows can be negative
-            
+            gray_edges = np.abs(delta_flows) < max_overload
+
+            # Build DataFrame
+            df = pd.DataFrame({
+                'idx_or': idx_or,
+                'idx_ex': idx_ex,
+                'init_flows': init_flows_abs,
+                'line_name': line_names,
+                'swapped': swap_mask,
+                'new_flows': new_flows,
+                'new_flows_swapped': new_flows_swapped,
+                'delta_flows': delta_flows,
+                'gray_edges': gray_edges,
+            })
+
             return df
-            
+
         finally:
             self._nm.set_working_variant(self._nm.base_variant_id)
             self._nm.remove_variant(variant_id)
@@ -376,44 +346,37 @@ class OverflowSimulator:
     def get_dataframe(self) -> pd.DataFrame:
         """
         Get base flow information as DataFrame.
-        
+
         Provides interface compatible with alphaDeesp's Grid2opSimulation.
-        
+        OPTIMIZED: Uses pre-cached indices and vectorized operations.
+
         Returns:
             DataFrame with flow information for all lines in alphaDeesp format
         """
-        data = []
-        for line_id in self._nm.name_line:
-            flow = self._base_flows.get(line_id, 0.0)
-            
-            or_sub = self._nm._line_or_sub.get(line_id, '')
-            ex_sub = self._nm._line_ex_sub.get(line_id, '')
-            
-            try:
-                idx_or = list(self._nm.name_sub).index(or_sub)
-            except ValueError:
-                idx_or = -1
-            try:
-                idx_ex = list(self._nm.name_sub).index(ex_sub)
-            except ValueError:
-                idx_ex = -1
-            
-            # Determine if flow is "swapped" (negative = flow from ex to or)
-            swapped = flow < 0
-            
-            data.append({
-                'idx_or': idx_or,
-                'idx_ex': idx_ex,
-                'init_flows': abs(flow),
-                'swapped': swapped,
-                'new_flows': abs(flow),  # Same as init when no disconnection
-                'new_flows_swapped': False,
-                'delta_flows': 0.0,  # No disconnection yet
-                'gray_edges': False,
-                'line_name': line_id,
-            })
-        
-        return pd.DataFrame(data)
+        line_names = self._nm.name_line
+        n_lines = len(line_names)
+
+        # Use pre-cached indices from NetworkManager
+        idx_or = self._nm._cached_line_or_subid.copy()
+        idx_ex = self._nm._cached_line_ex_subid.copy()
+
+        # Get flows as array
+        flows = np.array([self._base_flows.get(lid, 0.0) for lid in line_names])
+
+        # Determine swapped (negative flow = from ex to or)
+        swapped = flows < 0
+
+        return pd.DataFrame({
+            'idx_or': idx_or,
+            'idx_ex': idx_ex,
+            'init_flows': np.abs(flows),
+            'swapped': swapped,
+            'new_flows': np.abs(flows),  # Same as init when no disconnection
+            'new_flows_swapped': np.zeros(n_lines, dtype=bool),
+            'delta_flows': np.zeros(n_lines),
+            'gray_edges': np.zeros(n_lines, dtype=bool),
+            'line_name': line_names,
+        })
 
 
 class OverflowGraphBuilder:
@@ -768,62 +731,66 @@ class AlphaDeespAdapter:
     def _build_topo(self) -> Dict:
         """
         Build topology structure for alphaDeesp.
-        
+
         This must match the structure expected by OverFlowGraph:
         - 'edges': dict with 'idx_or' and 'idx_ex' arrays
         - 'nodes': dict with node info including 'are_prods', 'are_loads', 'names',
                    'prods_values', 'loads_values'
+
+        OPTIMIZED: Uses vectorized operations and pre-cached index mappings.
         """
         nm = self._obs._network_manager
         net = nm.network
-        
-        # Get substation indices for each line
+
+        # Get substation indices for each line (already cached in NetworkManager)
         idx_or = nm.get_line_or_subid()
         idx_ex = nm.get_line_ex_subid()
-        
-        # Determine which substations have generators and loads, and their values
+
+        # Initialize arrays for substations
         n_sub = nm.n_sub
-        are_prods = [False] * n_sub
-        are_loads = [False] * n_sub
-        prods_values = [0.0] * n_sub
-        loads_values = [0.0] * n_sub
-        
-        # Check for generators at each substation and sum their production
+        are_prods = np.zeros(n_sub, dtype=bool)
+        are_loads = np.zeros(n_sub, dtype=bool)
+        prods_values = np.zeros(n_sub)
+        loads_values = np.zeros(n_sub)
+
+        # OPTIMIZATION: Use vectorized operations for generators
         gens_df = net.get_generators()
-        for gen_id, row in gens_df.iterrows():
-            vl_id = row.get('voltage_level_id', '')
-            try:
-                sub_idx = list(nm.name_sub).index(vl_id)
-                are_prods[sub_idx] = True
-                p = row.get('p', 0.0)
-                if not np.isnan(p):
-                    prods_values[sub_idx] += abs(p)  # Production is typically negative in pypowsybl convention
-            except ValueError:
-                pass
-        
-        # Check for loads at each substation and sum their consumption
+        if len(gens_df) > 0:
+            # Get voltage_level_id and p columns
+            vl_ids = gens_df['voltage_level_id'].values
+            p_values = gens_df['p'].values
+
+            # Map voltage levels to substation indices using cached mapping
+            for i, (vl_id, p) in enumerate(zip(vl_ids, p_values)):
+                sub_idx = nm._sub_name_to_idx.get(vl_id, -1)
+                if sub_idx >= 0:
+                    are_prods[sub_idx] = True
+                    if not np.isnan(p):
+                        prods_values[sub_idx] += abs(p)
+
+        # OPTIMIZATION: Use vectorized operations for loads
         loads_df = net.get_loads()
-        for load_id, row in loads_df.iterrows():
-            vl_id = row.get('voltage_level_id', '')
-            try:
-                sub_idx = list(nm.name_sub).index(vl_id)
-                are_loads[sub_idx] = True
-                p = row.get('p', 0.0)
-                if not np.isnan(p):
-                    loads_values[sub_idx] += abs(p)
-            except ValueError:
-                pass
-        
+        if len(loads_df) > 0:
+            vl_ids = loads_df['voltage_level_id'].values
+            p_values = loads_df['p'].values
+
+            for i, (vl_id, p) in enumerate(zip(vl_ids, p_values)):
+                sub_idx = nm._sub_name_to_idx.get(vl_id, -1)
+                if sub_idx >= 0:
+                    are_loads[sub_idx] = True
+                    if not np.isnan(p):
+                        loads_values[sub_idx] += abs(p)
+
         return {
             'edges': {
                 'idx_or': list(idx_or),
                 'idx_ex': list(idx_ex),
             },
             'nodes': {
-                'are_prods': are_prods,
-                'are_loads': are_loads,
-                'prods_values': prods_values,
-                'loads_values': loads_values,
+                'are_prods': are_prods.tolist(),
+                'are_loads': are_loads.tolist(),
+                'prods_values': prods_values.tolist(),
+                'loads_values': loads_values.tolist(),
                 'names': list(nm.name_sub),
             }
         }
@@ -835,84 +802,85 @@ class AlphaDeespAdapter:
     def _create_obs_linecut(self, obs: 'PypowsyblObservation', lines_to_cut: List[str]):
         """
         Create an observation-like object representing the state after cutting lines.
-        
+
         This is used by the visualization to show rho changes before/after.
-        
+        OPTIMIZED: Reduced load flow calls and uses vectorized operations.
+
         Args:
             obs: Original observation
             lines_to_cut: List of line names to disconnect
-            
+
         Returns:
             Object with rho attribute representing state after line cuts
         """
         nm = obs._network_manager
-        
+
         # Create a variant to simulate line cuts
         variant_id = "obs_linecut_temp"
         nm.create_variant(variant_id)
         nm.set_working_variant(variant_id)
-        
+
         try:
             # IMPORTANT: First, re-apply any lines that are already disconnected in the observation
-            # The observation was created from a simulated state (with contingency applied),
-            # but the network manager's base variant doesn't have those disconnections.
-            for i, line_id in enumerate(nm.name_line):
-                if not obs.line_status[i]:  # Line is disconnected in observation
-                    nm.disconnect_line(line_id)
-            
-            # Run load flow to get to the observation state
-            nm.run_load_flow(dc=self._use_dc)
-            
-            # Now disconnect the additional lines (overloaded lines)
+            # OPTIMIZATION: Use numpy mask instead of iterating
+            line_names = nm.name_line
+            disconnected_mask = ~obs.line_status
+            for i in np.where(disconnected_mask)[0]:
+                nm.disconnect_line(line_names[i])
+
+            # Disconnect the additional lines (overloaded lines) - no intermediate load flow needed
             for line_id in lines_to_cut:
                 nm.disconnect_line(line_id)
-            
-            # Run load flow after cutting the overloaded lines
+
+            # Run load flow only ONCE after all disconnections
             result = nm.run_load_flow(dc=self._use_dc)
-            
+
             # Create a simple object with rho attribute
             class ObsLineCut:
                 def __init__(self, rho_values):
                     self.rho = rho_values
-            
+
             if result is not None and result.status == lf.ComponentStatus.CONVERGED:
                 # Use the same thermal limits as the original observation
-                # This ensures consistent rho calculations
                 thermal_limits = obs._thermal_limits
-                
+
                 # Get transformer IDs to handle them differently
                 net = nm.network
                 trafos_df = net.get_2_windings_transformers()
                 trafo_ids = set(trafos_df.index)
-                
-                # Get line flows and compute rho
+
+                # OPTIMIZATION: Get line flows once and extract columns
                 line_flows = nm.get_line_flows()
-                rho = np.zeros(nm.n_line)
-                
-                for i, line_id in enumerate(nm.name_line):
-                    if line_id in line_flows.index:
-                        i1 = abs(line_flows.loc[line_id, 'i1'])
-                        i2 = abs(line_flows.loc[line_id, 'i2'])
+
+                # Build lookup dict for faster access
+                i1_dict = line_flows['i1'].to_dict()
+                i2_dict = line_flows['i2'].to_dict()
+                flows_index_set = set(line_flows.index)
+
+                # Compute rho vectorized where possible
+                n_lines = nm.n_line
+                rho = np.zeros(n_lines)
+
+                for i, line_id in enumerate(line_names):
+                    if line_id in flows_index_set:
+                        i1 = abs(i1_dict.get(line_id, 0.0))
+                        i2 = abs(i2_dict.get(line_id, 0.0))
                         i1 = i1 if not np.isnan(i1) else 0.0
                         i2 = i2 if not np.isnan(i2) else 0.0
-                        
+
                         if line_id in trafo_ids:
-                            # For transformers: use i1 (side 1 = high voltage side)
-                            # Thermal limits are defined for side 1 in pypowsybl
                             i_for_rho = i1
                         else:
-                            # For AC lines: use max of both terminals
                             i_for_rho = max(i1, i2)
-                        
+
                         thermal_limit = thermal_limits.get(line_id, 9999.0)
                         if thermal_limit > 0:
                             rho[i] = i_for_rho / thermal_limit
-                
+
                 return ObsLineCut(rho)
             else:
-                # Return zeros if didn't converge
                 return ObsLineCut(np.zeros(nm.n_line))
-                
+
         finally:
             nm.set_working_variant(nm.base_variant_id)
             nm.remove_variant(variant_id)
@@ -920,50 +888,46 @@ class AlphaDeespAdapter:
     def get_substation_elements(self) -> Dict:
         """
         Get elements per substation (alphaDeesp interface).
-        
+        OPTIMIZED: Uses pre-cached index mappings for O(1) lookups.
+
         Returns dict mapping substation index to dict of element types.
         """
         nm = self._obs._network_manager
         net = nm.network
-        
-        result = {i: {'loads': [], 'generators': [], 'lines_or': [], 'lines_ex': []} 
+
+        result = {i: {'loads': [], 'generators': [], 'lines_or': [], 'lines_ex': []}
                   for i in range(nm.n_sub)}
-        
-        # Map loads to substations
+
+        # Map loads to substations using cached mapping
         loads_df = net.get_loads()
-        for load_id, row in loads_df.iterrows():
-            vl_id = row.get('voltage_level_id', '')
-            try:
-                sub_idx = list(nm.name_sub).index(vl_id)
-                result[sub_idx]['loads'].append(load_id)
-            except ValueError:
-                pass
-        
-        # Map generators to substations
+        if len(loads_df) > 0:
+            for load_id in loads_df.index:
+                vl_id = loads_df.loc[load_id, 'voltage_level_id']
+                sub_idx = nm._sub_name_to_idx.get(vl_id, -1)
+                if sub_idx >= 0:
+                    result[sub_idx]['loads'].append(load_id)
+
+        # Map generators to substations using cached mapping
         gens_df = net.get_generators()
-        for gen_id, row in gens_df.iterrows():
-            vl_id = row.get('voltage_level_id', '')
-            try:
-                sub_idx = list(nm.name_sub).index(vl_id)
-                result[sub_idx]['generators'].append(gen_id)
-            except ValueError:
-                pass
-        
-        # Map lines to substations
+        if len(gens_df) > 0:
+            for gen_id in gens_df.index:
+                vl_id = gens_df.loc[gen_id, 'voltage_level_id']
+                sub_idx = nm._sub_name_to_idx.get(vl_id, -1)
+                if sub_idx >= 0:
+                    result[sub_idx]['generators'].append(gen_id)
+
+        # Map lines to substations using pre-cached indices
+        line_or_subid = nm._cached_line_or_subid
+        line_ex_subid = nm._cached_line_ex_subid
+
         for i, line_id in enumerate(nm.name_line):
-            or_sub = nm._line_or_sub.get(line_id, '')
-            ex_sub = nm._line_ex_sub.get(line_id, '')
-            try:
-                or_idx = list(nm.name_sub).index(or_sub)
+            or_idx = line_or_subid[i]
+            ex_idx = line_ex_subid[i]
+            if or_idx >= 0:
                 result[or_idx]['lines_or'].append(line_id)
-            except ValueError:
-                pass
-            try:
-                ex_idx = list(nm.name_sub).index(ex_sub)
+            if ex_idx >= 0:
                 result[ex_idx]['lines_ex'].append(line_id)
-            except ValueError:
-                pass
-        
+
         return result
     
     def get_substation_to_node_mapping(self) -> Dict[int, int]:

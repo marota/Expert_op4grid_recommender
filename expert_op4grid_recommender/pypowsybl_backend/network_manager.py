@@ -97,32 +97,46 @@ class NetworkManager:
         # Lines (AC lines + transformers)
         lines_df = self.network.get_lines()
         trafos_df = self.network.get_2_windings_transformers()
-        
+
         self._line_ids = list(lines_df.index) + list(trafos_df.index)
         self._n_line = len(self._line_ids)
-        
+
         # Substations (voltage levels in pypowsybl terminology)
         vl_df = self.network.get_voltage_levels()
         self._substation_ids = list(vl_df.index)
         self._n_sub = len(self._substation_ids)
-        
+
+        # OPTIMIZATION: Pre-compute name -> index mappings for O(1) lookups
+        self._sub_name_to_idx = {name: idx for idx, name in enumerate(self._substation_ids)}
+        self._line_name_to_idx = {name: idx for idx, name in enumerate(self._line_ids)}
+
         # Map lines to substations
         self._line_or_sub = {}
         self._line_ex_sub = {}
-        
+
         for line_id in lines_df.index:
             self._line_or_sub[line_id] = lines_df.loc[line_id, 'voltage_level1_id']
             self._line_ex_sub[line_id] = lines_df.loc[line_id, 'voltage_level2_id']
-        
+
         for trafo_id in trafos_df.index:
             self._line_or_sub[trafo_id] = trafos_df.loc[trafo_id, 'voltage_level1_id']
             self._line_ex_sub[trafo_id] = trafos_df.loc[trafo_id, 'voltage_level2_id']
-        
+
+        # OPTIMIZATION: Pre-compute line_or_subid and line_ex_subid arrays
+        self._cached_line_or_subid = np.array([
+            self._sub_name_to_idx.get(self._line_or_sub[lid], -1)
+            for lid in self._line_ids
+        ])
+        self._cached_line_ex_subid = np.array([
+            self._sub_name_to_idx.get(self._line_ex_sub[lid], -1)
+            for lid in self._line_ids
+        ])
+
         # Generators
         gen_df = self.network.get_generators()
         self._gen_ids = list(gen_df.index)
         self._n_gen = len(self._gen_ids)
-        
+
         # Loads
         load_df = self.network.get_loads()
         self._load_ids = list(load_df.index)
@@ -159,18 +173,20 @@ class NetworkManager:
         return self._n_sub
     
     def get_line_or_subid(self) -> np.ndarray:
-        """Get origin substation index for each line."""
-        return np.array([
-            self._substation_ids.index(self._line_or_sub[lid]) 
-            for lid in self._line_ids
-        ])
-    
+        """Get origin substation index for each line (cached)."""
+        return self._cached_line_or_subid.copy()
+
     def get_line_ex_subid(self) -> np.ndarray:
-        """Get extremity substation index for each line."""
-        return np.array([
-            self._substation_ids.index(self._line_ex_sub[lid]) 
-            for lid in self._line_ids
-        ])
+        """Get extremity substation index for each line (cached)."""
+        return self._cached_line_ex_subid.copy()
+
+    def get_sub_idx(self, sub_name: str) -> int:
+        """Get substation index by name (O(1) lookup)."""
+        return self._sub_name_to_idx.get(sub_name, -1)
+
+    def get_line_idx(self, line_name: str) -> int:
+        """Get line index by name (O(1) lookup)."""
+        return self._line_name_to_idx.get(line_name, -1)
     
     def create_variant(self, variant_id: str, from_variant: Optional[str] = None) -> str:
         """
