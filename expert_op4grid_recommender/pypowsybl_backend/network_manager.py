@@ -94,16 +94,19 @@ class NetworkManager:
     
     def _cache_element_info(self):
         """Cache element information for fast access."""
-        # Lines (AC lines + transformers)
-        lines_df = self.network.get_lines()
-        trafos_df = self.network.get_2_windings_transformers()
+        # Lines (AC lines + transformers) - cache the DataFrames for reuse
+        self._cached_lines_df = self.network.get_lines()
+        self._cached_trafos_df = self.network.get_2_windings_transformers()
 
-        self._line_ids = list(lines_df.index) + list(trafos_df.index)
+        self._line_ids = list(self._cached_lines_df.index) + list(self._cached_trafos_df.index)
         self._n_line = len(self._line_ids)
 
         # Store line/trafo sets for O(1) membership tests
-        self._lines_set = set(lines_df.index)
-        self._trafos_set = set(trafos_df.index)
+        self._lines_set = set(self._cached_lines_df.index)
+        self._trafos_set = set(self._cached_trafos_df.index)
+
+        # Pre-compute line_id to index mapping for fast batch operations
+        self._line_id_to_arr_idx = {lid: i for i, lid in enumerate(self._line_ids)}
 
         # Substations (voltage levels in pypowsybl terminology)
         vl_df = self.network.get_voltage_levels()
@@ -114,17 +117,23 @@ class NetworkManager:
         self._sub_name_to_idx = {name: idx for idx, name in enumerate(self._substation_ids)}
         self._line_name_to_idx = {name: idx for idx, name in enumerate(self._line_ids)}
 
-        # Map lines to substations
+        # Map lines to substations using cached DataFrames
         self._line_or_sub = {}
         self._line_ex_sub = {}
 
-        for line_id in lines_df.index:
-            self._line_or_sub[line_id] = lines_df.loc[line_id, 'voltage_level1_id']
-            self._line_ex_sub[line_id] = lines_df.loc[line_id, 'voltage_level2_id']
+        # Extract as dicts for fast access
+        lines_vl1 = self._cached_lines_df['voltage_level1_id'].to_dict()
+        lines_vl2 = self._cached_lines_df['voltage_level2_id'].to_dict()
+        trafos_vl1 = self._cached_trafos_df['voltage_level1_id'].to_dict()
+        trafos_vl2 = self._cached_trafos_df['voltage_level2_id'].to_dict()
 
-        for trafo_id in trafos_df.index:
-            self._line_or_sub[trafo_id] = trafos_df.loc[trafo_id, 'voltage_level1_id']
-            self._line_ex_sub[trafo_id] = trafos_df.loc[trafo_id, 'voltage_level2_id']
+        for line_id in self._cached_lines_df.index:
+            self._line_or_sub[line_id] = lines_vl1[line_id]
+            self._line_ex_sub[line_id] = lines_vl2[line_id]
+
+        for trafo_id in self._cached_trafos_df.index:
+            self._line_or_sub[trafo_id] = trafos_vl1[trafo_id]
+            self._line_ex_sub[trafo_id] = trafos_vl2[trafo_id]
 
         # OPTIMIZATION: Pre-compute line_or_subid and line_ex_subid arrays
         self._cached_line_or_subid = np.array([
@@ -136,27 +145,37 @@ class NetworkManager:
             for lid in self._line_ids
         ])
 
-        # Generators
-        gen_df = self.network.get_generators()
-        self._gen_ids = list(gen_df.index)
+        # Generators - cache DataFrame for reuse
+        self._cached_gen_df = self.network.get_generators()
+        self._gen_ids = list(self._cached_gen_df.index)
         self._n_gen = len(self._gen_ids)
         self._gen_name_to_idx = {name: idx for idx, name in enumerate(self._gen_ids)}
 
-        # Cache generator -> substation mapping
+        # Cache generator -> substation mapping and power values
         self._gen_to_sub = {}
-        if len(gen_df) > 0 and 'voltage_level_id' in gen_df.columns:
-            self._gen_to_sub = gen_df['voltage_level_id'].to_dict()
+        self._gen_p_values = np.zeros(self._n_gen)
+        if len(self._cached_gen_df) > 0:
+            if 'voltage_level_id' in self._cached_gen_df.columns:
+                self._gen_to_sub = self._cached_gen_df['voltage_level_id'].to_dict()
+            if 'p' in self._cached_gen_df.columns:
+                p_arr = self._cached_gen_df['p'].values
+                self._gen_p_values = np.where(np.isnan(p_arr), 0.0, np.abs(p_arr))
 
-        # Loads
-        load_df = self.network.get_loads()
-        self._load_ids = list(load_df.index)
+        # Loads - cache DataFrame for reuse
+        self._cached_load_df = self.network.get_loads()
+        self._load_ids = list(self._cached_load_df.index)
         self._n_load = len(self._load_ids)
         self._load_name_to_idx = {name: idx for idx, name in enumerate(self._load_ids)}
 
-        # Cache load -> substation mapping
+        # Cache load -> substation mapping and power values
         self._load_to_sub = {}
-        if len(load_df) > 0 and 'voltage_level_id' in load_df.columns:
-            self._load_to_sub = load_df['voltage_level_id'].to_dict()
+        self._load_p_values = np.zeros(self._n_load)
+        if len(self._cached_load_df) > 0:
+            if 'voltage_level_id' in self._cached_load_df.columns:
+                self._load_to_sub = self._cached_load_df['voltage_level_id'].to_dict()
+            if 'p' in self._cached_load_df.columns:
+                p_arr = self._cached_load_df['p'].values
+                self._load_p_values = np.where(np.isnan(p_arr), 0.0, np.abs(p_arr))
 
         # OPTIMIZATION: Pre-compute elements per substation
         self._cache_elements_per_substation()
@@ -379,3 +398,106 @@ class NetworkManager:
     def reset_to_base(self):
         """Reset working variant to base state."""
         self.set_working_variant(self.base_variant_id)
+
+    def disconnect_lines_batch(self, line_ids: List[str]):
+        """
+        Disconnect multiple lines in a single batch operation.
+
+        This is much faster than calling disconnect_line() in a loop.
+
+        Args:
+            line_ids: List of line IDs to disconnect
+        """
+        if not line_ids:
+            return
+
+        # Separate lines and transformers
+        lines_to_disconnect = []
+        trafos_to_disconnect = []
+
+        for line_id in line_ids:
+            if line_id in self._lines_set:
+                lines_to_disconnect.append(line_id)
+            elif line_id in self._trafos_set:
+                trafos_to_disconnect.append(line_id)
+
+        # Batch update lines
+        if lines_to_disconnect:
+            self.network.update_lines(
+                id=lines_to_disconnect,
+                connected1=[False] * len(lines_to_disconnect),
+                connected2=[False] * len(lines_to_disconnect)
+            )
+
+        # Batch update transformers
+        if trafos_to_disconnect:
+            self.network.update_2_windings_transformers(
+                id=trafos_to_disconnect,
+                connected1=[False] * len(trafos_to_disconnect),
+                connected2=[False] * len(trafos_to_disconnect)
+            )
+
+    def get_line_p1_array(self) -> np.ndarray:
+        """
+        Get active power at terminal 1 for all lines as a numpy array.
+
+        Returns:
+            Array of p1 values in the same order as _line_ids
+        """
+        lines_df = self.network.get_lines()[['p1']]
+        trafos_df = self.network.get_2_windings_transformers()[['p1']]
+
+        # Build result array
+        n_lines = len(self._line_ids)
+        result = np.zeros(n_lines)
+
+        # Extract p1 as dicts
+        lines_p1 = lines_df['p1'].to_dict()
+        trafos_p1 = trafos_df['p1'].to_dict()
+
+        # Fill array using cached index mapping
+        for line_id, idx in self._line_id_to_arr_idx.items():
+            if line_id in lines_p1:
+                p1 = lines_p1[line_id]
+                result[idx] = p1 if not np.isnan(p1) else 0.0
+            elif line_id in trafos_p1:
+                p1 = trafos_p1[line_id]
+                result[idx] = p1 if not np.isnan(p1) else 0.0
+
+        return result
+
+    def get_line_currents_array(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get current magnitudes at both terminals for all lines as numpy arrays.
+
+        Returns:
+            Tuple of (i1_array, i2_array)
+        """
+        lines_df = self.network.get_lines()[['i1', 'i2']]
+        trafos_df = self.network.get_2_windings_transformers()[['i1', 'i2']]
+
+        # Build result arrays
+        n_lines = len(self._line_ids)
+        i1_arr = np.zeros(n_lines)
+        i2_arr = np.zeros(n_lines)
+
+        # Extract as dicts
+        lines_i1 = lines_df['i1'].to_dict()
+        lines_i2 = lines_df['i2'].to_dict()
+        trafos_i1 = trafos_df['i1'].to_dict()
+        trafos_i2 = trafos_df['i2'].to_dict()
+
+        # Fill arrays using cached index mapping
+        for line_id, idx in self._line_id_to_arr_idx.items():
+            if line_id in lines_i1:
+                i1 = lines_i1[line_id]
+                i2 = lines_i2[line_id]
+                i1_arr[idx] = i1 if not np.isnan(i1) else 0.0
+                i2_arr[idx] = i2 if not np.isnan(i2) else 0.0
+            elif line_id in trafos_i1:
+                i1 = trafos_i1[line_id]
+                i2 = trafos_i2[line_id]
+                i1_arr[idx] = i1 if not np.isnan(i1) else 0.0
+                i2_arr[idx] = i2 if not np.isnan(i2) else 0.0
+
+        return i1_arr, i2_arr
