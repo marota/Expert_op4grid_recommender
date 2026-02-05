@@ -35,10 +35,15 @@ class MockAction:
 
     def __add__(self, other):
         combined = MockAction(f"{self.name}+{other.name}")
+        combined.content = {**self.content, **other.content}
         return combined
 
     def __repr__(self):
         return f"MockAction({self.name})"
+
+    def as_dict(self):
+        """Return action as dictionary (required by some code paths)."""
+        return self.content
 
 
 class MockActionSpace:
@@ -112,6 +117,13 @@ class MockObservationWithRhoChange(MockObservationForSimulation):
     """
     Mock observation that returns different rho values on simulation.
     Useful for testing rho reduction checks.
+
+    When skip_baseline=False (default):
+        - First simulate() call returns baseline_rho (for compute_baseline_simulation)
+        - Subsequent calls return candidate_rho (for check_rho_reduction_with_baseline)
+
+    When skip_baseline=True:
+        - All simulate() calls return candidate_rho (for direct check_rho_reduction_with_baseline tests)
     """
     def __init__(
         self,
@@ -121,7 +133,8 @@ class MockObservationWithRhoChange(MockObservationForSimulation):
         baseline_rho: np.ndarray,
         candidate_rho: np.ndarray,
         baseline_exception: bool = False,
-        candidate_exception: bool = False
+        candidate_exception: bool = False,
+        skip_baseline: bool = False
     ):
         super().__init__(name_line, name_sub, initial_rho)
         self._initial_rho = np.array(initial_rho)
@@ -129,6 +142,7 @@ class MockObservationWithRhoChange(MockObservationForSimulation):
         self._candidate_rho = np.array(candidate_rho)
         self._baseline_exception = baseline_exception
         self._candidate_exception = candidate_exception
+        self._skip_baseline = skip_baseline
 
     def simulate(self, action, time_step: int = 0):
         self._simulate_call_count += 1
@@ -138,8 +152,10 @@ class MockObservationWithRhoChange(MockObservationForSimulation):
             'call_number': self._simulate_call_count
         })
 
-        # First call is typically baseline
-        if self._simulate_call_count == 1:
+        # Determine if this is a baseline or candidate simulation
+        is_baseline_call = (self._simulate_call_count == 1) and not self._skip_baseline
+
+        if is_baseline_call:
             if self._baseline_exception:
                 return (self, 0.0, False, {"exception": ["Baseline simulation failed"]})
             # Return observation with baseline rho
@@ -148,7 +164,7 @@ class MockObservationWithRhoChange(MockObservationForSimulation):
             )
             return (result_obs, 0.0, False, {"exception": []})
         else:
-            # Subsequent calls are candidate simulations
+            # Candidate simulation
             if self._candidate_exception:
                 return (self, 0.0, False, {"exception": ["Candidate simulation failed"]})
             # Return observation with candidate rho
@@ -259,12 +275,14 @@ class TestCheckRhoReductionWithBaseline:
         baseline_rho = np.array([0.95, 0.90])
         candidate_rho = np.array([0.80, 0.75])  # Reduced
 
+        # Use skip_baseline=True since check_rho_reduction_with_baseline doesn't do baseline sim
         obs = MockObservationWithRhoChange(
             name_line=["L1", "L2", "L3"],
             name_sub=["S1", "S2"],
             initial_rho=np.array([0.5, 0.5, 0.5]),
             baseline_rho=baseline_rho,
-            candidate_rho=np.concatenate([candidate_rho, [0.5]])  # Full array
+            candidate_rho=np.concatenate([candidate_rho, [0.5]]),  # Full array
+            skip_baseline=True  # First simulate call returns candidate_rho
         )
 
         # Execute
@@ -293,7 +311,8 @@ class TestCheckRhoReductionWithBaseline:
             name_sub=["S1"],
             initial_rho=np.array([0.5, 0.5]),
             baseline_rho=baseline_rho,
-            candidate_rho=candidate_rho
+            candidate_rho=candidate_rho,
+            skip_baseline=True  # First simulate call returns candidate_rho
         )
 
         # Execute
@@ -323,7 +342,8 @@ class TestCheckRhoReductionWithBaseline:
             name_sub=["S1"],
             initial_rho=np.array([0.5]),
             baseline_rho=baseline_rho,
-            candidate_rho=candidate_rho_at_boundary
+            candidate_rho=candidate_rho_at_boundary,
+            skip_baseline=True  # First simulate call returns candidate_rho
         )
 
         is_reduction, _ = check_rho_reduction_with_baseline(
@@ -343,7 +363,8 @@ class TestCheckRhoReductionWithBaseline:
             name_sub=["S1"],
             initial_rho=np.array([0.5]),
             baseline_rho=baseline_rho,
-            candidate_rho=candidate_rho_above
+            candidate_rho=candidate_rho_above,
+            skip_baseline=True  # First simulate call returns candidate_rho
         )
 
         is_reduction2, _ = check_rho_reduction_with_baseline(
@@ -366,7 +387,8 @@ class TestCheckRhoReductionWithBaseline:
             initial_rho=np.array([0.5, 0.5]),
             baseline_rho=np.array([0.9, 0.9]),
             candidate_rho=np.array([0.7, 0.7]),
-            candidate_exception=True
+            candidate_exception=True,
+            skip_baseline=True  # First simulate call is candidate (which will fail)
         )
 
         is_reduction, obs_result = check_rho_reduction_with_baseline(
@@ -393,7 +415,8 @@ class TestCheckRhoReductionWithBaseline:
             name_sub=["S1"],
             initial_rho=np.array([0.5, 0.5]),
             baseline_rho=baseline_rho,
-            candidate_rho=candidate_rho
+            candidate_rho=candidate_rho,
+            skip_baseline=True  # First simulate call returns candidate_rho
         )
 
         is_reduction, _ = check_rho_reduction_with_baseline(
