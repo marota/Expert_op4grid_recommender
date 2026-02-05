@@ -83,7 +83,7 @@ def make_raw_all_actions_dict(all_actions):
     return all_actions_dict
 
 
-def build_action_dict_for_snapshot_from_scratch(n_grid, all_actions, add_reco_disco_actions=False, filter_voltage_levels=[]):
+def build_action_dict_for_snapshot_from_scratch(n_grid, all_actions, add_reco_disco_actions=False, filter_voltage_levels=None):
     """
     Builds the action dictionary based on the current network grid snapshot.
     Converts all actions involving coupling breakers from REPAS format to Grid2Op format where necessary.
@@ -116,7 +116,7 @@ def build_action_dict_for_snapshot_from_scratch(n_grid, all_actions, add_reco_di
             if "COUPL" in switches_str or "TRO." in switches_str:
                 actions_to_convert.append(all_actions_dict[action_key])
 
-        converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert,use_analytical=True)
+        converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert,use_analytical=True)#use_analytical=True)
 
         if add_reco_disco_actions:
             dict_extra_disco_reco_actions = create_dict_disco_reco_lines_disco(
@@ -156,14 +156,14 @@ def rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action):
 
         # Recover pypowsybl actions from dict action
         for action_full_id, action in dict_action.items():
-            action_id_split = action_full_id.split('_')
+            action_key = action_full_id.split('_')[0]
 
             description = action["description"]
             if "description_unitaire" in action:
                 description = action["description_unitaire"]
 
             if "COUPL" in description or "TRO." in description:
-                action_key = action_id_split[0]
+                #action_key = action_id_split[0]
                 if action_key not in all_actions_dict:
                     if "VoltageLevelId" in action.keys():
                         action_key += "_" + action["VoltageLevelId"]
@@ -173,9 +173,10 @@ def rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action):
                 else:
                     print(f"Warning: Action {action_key} not found in REPAS actions. Skipping conversion.")
             else:
-                actions_to_keep_as_is[action_full_id] = action
+                if action_key in all_actions_dict:
+                    actions_to_keep_as_is[action_full_id] = action
 
-        converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert)
+        converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert,use_analytical=True)
 
         # Adjust description unitaire
         for action_full_id, action in converted_actions.items():
@@ -198,6 +199,22 @@ def rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action):
 
         new_dict_actions = actions_to_keep_as_is
         new_dict_actions |= converted_actions
+
+        for action_full_id, action in new_dict_actions.items():
+            # Create switches dict with full IDs (as expected by pypowsybl)
+            # Flatten all switches from all voltage levels into a single dict
+            action_id = action_full_id.split('_')[0]
+            if action_full_id in all_actions_dict:
+                action_repas = all_actions_dict[action_full_id]
+            else:
+                action_repas=all_actions_dict[action_id]
+            switches_full = {}
+
+            for vl_id, switches in action_repas._switches_by_voltage_level.items():
+                switches_full.update(switches)
+
+            # Also store switches organized by voltage level (same full IDs)
+            action['switches'] = switches_full
 
     return new_dict_actions
 
@@ -252,7 +269,7 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
 
             # Rebuild dictionary
             if do_from_scratch:
-                new_dict_actions = build_action_dict_for_snapshot_from_scratch(n_grid, all_actions,add_reco_disco_actions=True)
+                new_dict_actions = build_action_dict_for_snapshot_from_scratch(n_grid, all_actions)
             else:
                 new_dict_actions = rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action_to_filter_on)
 

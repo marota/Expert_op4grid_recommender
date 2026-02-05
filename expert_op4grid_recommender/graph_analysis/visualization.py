@@ -161,7 +161,19 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow,hubs, obs_si
     g_overflow.highlight_swapped_flows(lines_swapped)
 
     # Highlight significant line loading
-    is_DC = obs_simu._obs_env._parameters.ENV_DC
+    # Detect if DC mode - handle both grid2op and pypowsybl observations
+    is_DC = False
+    try:
+        # Grid2op observation
+        is_DC = obs_simu._obs_env._parameters.ENV_DC
+    except AttributeError:
+        # Pypowsybl observation - check if network_manager has DC flag
+        try:
+            is_DC = obs_simu._network_manager._default_dc
+        except AttributeError:
+            # Default to False if we can't determine
+            is_DC = False
+    
     if not is_DC:
         ind_assets_to_monitor = np.where(overflow_sim.obs_linecut.rho >= 0.9)[0]
         ind_assets_to_monitor = np.append(ind_assets_to_monitor, overflow_sim.ltc)

@@ -1,0 +1,593 @@
+{
+    "fb2a0db8-20cf-4ef7-940d-22dc59de7d9a": {
+        "description": "Fermeture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "description_unitaire": "Fermeture OC 'VIELM6AT762 DJ_OC' dans le poste 'VIELMP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "VIELMY762": 1
+                },
+                "lines_ex_id": {
+                    "VIELMY762": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "VoltageLevelId": "VIELMP6",
+        "switches": {
+            "VIELMP6_VIELM6AT762 DJ_OC": false
+        }
+    },
+    "c65483f5-b1ed-4a72-8e08-df66f323761d": {
+        "description": "Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'",
+        "description_unitaire": "Ouverture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY631": -1
+                },
+                "lines_ex_id": {
+                    "CHALOY631": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "CHALOP3",
+        "switches": {
+            "CHALOP3_CHALO3TR631 DJ_OC": true
+        }
+    },
+    "01c3d31d-ad19-489f-b668-011b797a0ab1": {
+        "description": "Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'",
+        "description_unitaire": "Ouverture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GROSNY762": -1
+                },
+                "lines_ex_id": {
+                    "GROSNY762": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "VoltageLevelId": "GROSNP6",
+        "switches": {
+            "GROSNP6_GROSN6AT762 DJ_OC": true
+        }
+    },
+    "8d4d2a13-7dfe-4fb4-a788-4524568634a0": {
+        "description": "Ouverture OC 'LOUHA3CHALO.1 DJ_OC' dans le poste 'LOUHAP3'",
+        "description_unitaire": "Ouverture OC 'LOUHA3CHALO.1 DJ_OC' dans le poste 'LOUHAP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOL31LOUHA": -1
+                },
+                "lines_ex_id": {
+                    "CHALOL31LOUHA": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "LOUHAP3",
+        "switches": {
+            "LOUHAP3_LOUHA3CHALO.1 DJ_OC": true
+        }
+    },
+    "a707a8e3-1aa2-42a4-8652-32e11cc212c2": {
+        "description": "Fermeture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "description_unitaire": "Fermeture OC 'CHALO3TR631 DJ_OC' dans le poste 'CHALOP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY631": 1
+                },
+                "lines_ex_id": {
+                    "CHALOY631": 1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "CHALOP3",
+        "switches": {
+            "CHALOP3_CHALO3TR631 DJ_OC": false
+        }
+    },
+    "9874592b-f131-4525-bca1-97c508c15d64": {
+        "description": "Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'",
+        "description_unitaire": "Ouverture OC 'CHALO3TR633 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY633": -1
+                },
+                "lines_ex_id": {
+                    "CHALOY633": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "CHALOP3",
+        "switches": {
+            "CHALOP3_CHALO3TR633 DJ_OC": true
+        }
+    },
+    "443eb893-09f7-4fd6-b5d6-f7aeafd6b3ad": {
+        "description": "Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'",
+        "description_unitaire": "Ouverture OC 'LOUHA3FRON5.1 DJ_OC' dans le poste 'LOUHAP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "FRON5L31LOUHA": -1
+                },
+                "lines_ex_id": {
+                    "FRON5L31LOUHA": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "LOUHAP3",
+        "switches": {
+            "LOUHAP3_LOUHA3FRON5.1 DJ_OC": true
+        }
+    },
+    "106a8bae-e761-41d5-9903-d363c85955e0": {
+        "description": "Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'",
+        "description_unitaire": "Ouverture OC 'CHALO3TR632 DJ_OC' dans le poste 'CHALOP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CHALOY632": -1
+                },
+                "lines_ex_id": {
+                    "CHALOY632": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "CHALOP3",
+        "switches": {
+            "CHALOP3_CHALO3TR632 DJ_OC": true
+        }
+    },
+    "f4205550-e5d9-4d85-bcdd-504c3d8992b4": {
+        "description": " Ouverture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'",
+        "description_unitaire": " Ouverture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": -1
+                },
+                "lines_ex_id": {
+                    "C.SAUL31MAGNY": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "C.SAUP3",
+        "switches": {
+            "C.SAUP3_C.SAU3MAGNY.1 DJ_OC": true
+        }
+    },
+    "8ce1b409-b39c-46e7-98c7-e22d9af731b9": {
+        "description": " Fermeture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "description_unitaire": " Fermeture OC 'C.SAU3MAGNY.1 DJ_OC' dans le poste 'C.SAUP3'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31MAGNY": 1
+                },
+                "lines_ex_id": {
+                    "C.SAUL31MAGNY": 1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "C.SAUP3",
+        "switches": {
+            "C.SAUP3_C.SAU3MAGNY.1 DJ_OC": false
+        }
+    },
+    "eee7f6f7-68fa-4522-a63e-c913274b2b74": {
+        "description": " Fermeture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "description_unitaire": " Fermeture OC 'GROSN6AT762 DJ_OC' dans le poste 'GROSNP6'(reconnection sur noeuds 1 aux 2 postes extremites)",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GROSNY762": 1
+                },
+                "lines_ex_id": {
+                    "GROSNY762": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "VoltageLevelId": "GROSNP6",
+        "switches": {
+            "GROSNP6_GROSN6AT762 DJ_OC": false
+        }
+    },
+    "623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b": {
+        "description": " Ouverture OC 'CPVAN3TR631 DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'",
+        "description_unitaire": " Ouverture OC 'CPVAN3TR631 DJ_OC' dans le poste 'CPVANP3'\n- Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANY631": -1,
+                    "CPVANY632": -1
+                },
+                "lines_ex_id": {
+                    "CPVANY631": -1,
+                    "CPVANY632": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "CPVANP3",
+        "switches": {
+            "CPVANP3_CPVAN3TR631 DJ_OC": true,
+            "CPVANP3_CPVAN3TR632 DJ_OC": true
+        }
+    },
+    "17f1470c-b017-4de0-8ab0-04ae464ea600": {
+        "description": " Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'",
+        "description_unitaire": " Ouverture OC 'CPVAN3TR632 DJ_OC' dans le poste 'CPVANP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANY632": -1
+                },
+                "lines_ex_id": {
+                    "CPVANY632": -1
+                },
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "CPVANP3",
+        "switches": {
+            "CPVANP3_CPVAN3TR632 DJ_OC": true
+        }
+    },
+    "9514fa13-6261-41ae-9b1a-a55a11170ae9": {
+        "description": "Actions curatives :\n- Fermeture OC 'C.SAU3ZCRIM.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+        "description_unitaire": "Actions curatives :\n- Fermeture OC 'C.SAU3ZCRIM.1 DJ_OC' dans le poste 'C.SAUP3'\n",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.SAUL31ZCRIM": 1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "shunts_id": {},
+                "generators_id": {}
+            }
+        },
+        "VoltageLevelId": "C.SAUP3",
+        "switches": {
+            "C.SAUP3_C.SAU3ZCRIM.1 DJ_OC": false
+        }
+    },
+    "180c19aa-762d-4d6f-a74c-4fd5432aa5d1_CPVANP3": {
+        "description": "Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n",
+        "description_unitaire": "Actions curatives :\n- Ouverture OC 'CPVAN3COUPL DJ_OC' dans le poste 'CPVANP3'\n",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL31RIBAU": 1
+                },
+                "lines_ex_id": {
+                    "BEON L31CPVAN": 1,
+                    "CPVANY633": 1,
+                    "CPVANY632": -1,
+                    "CPVANY631": 1
+                },
+                "loads_id": {
+                    "CPVAN3TR311": 1,
+                    "CPVAN3TR312": 2,
+                    "CPDIVL32CPVAN": -1,
+                    "CPVANL31ZBRE6": 2,
+                    "BREVAL31CPVAN": 1,
+                    "ARBOIL31CPVAN": 2,
+                    "CPVANL31MESNA": 2
+                },
+                "generators_id": {
+                    "CPVANIN2": 2,
+                    "CPVANINF": -1,
+                    "CPVANING": -1
+                },
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "CPVANP3_CPVAN3COUPL DJ_OC": true
+        },
+        "VoltageLevelId": "CPVANP3"
+    },
+    "466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6": {
+        "description": "Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'",
+        "description_unitaire": "Ouverture OC 'C.REG6TRO.1AB DJ_OC' dans le poste 'C.REGP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "C.REGL61VIELM": 2,
+                    "C.REGL61ZMAGN": 1,
+                    "C.REGL62VIELM": 1,
+                    "C.REGY633": 1,
+                    "C.REGY631": 2
+                },
+                "lines_ex_id": {},
+                "loads_id": {
+                    "C.REG6TR615": 2,
+                    "C.REG6TR614": 1,
+                    "C.REG6TR613": 1
+                },
+                "generators_id": {
+                    "C.REGIN3": 1,
+                    "C.REGINF": -1,
+                    "C.REGING": -1
+                },
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "C.REGP6_C.REG6TRO.1AB DJ_OC": true
+        },
+        "VoltageLevelId": "C.REGP6"
+    },
+    "463179d8-be4e-4293-b42c-b53db763272b_GEN.PP6": {
+        "description": "Ouverture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6TRO.2AB DJ_OC' dans le poste 'GEN.PP6'\n",
+        "description_unitaire": "Ouverture OC 'GEN.P6COUPL.B DJ_OC' dans le poste 'GEN.PP6'\n- Ouverture OC 'GEN.P6TRO.2AB DJ_OC' dans le poste 'GEN.PP6'\n",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GEN.PL61GENIS": 1,
+                    "GEN.PL61IZERN": 1,
+                    "GEN.PL61VOUGL": 2,
+                    "GEN.PL62GENIS": -1,
+                    "GEN.PL63GENIS": -1,
+                    "GEN.PL64GENIS": -1,
+                    "GEN.PL65GENIS": 1,
+                    "GEN.PL66GENIS": 1
+                },
+                "lines_ex_id": {
+                    "BOISSL61GEN.P": 1,
+                    "GEN.PY761": 2,
+                    "GEN.PY762": -1
+                },
+                "loads_id": {
+                    "GEN.PL61SERRI": 1,
+                    "CHAV6L61GEN.P": 1,
+                    ".VERBL61GEN.P": -1,
+                    "GEN.PL61ZCRUS": 1,
+                    ".VERBL62GEN.P": 2,
+                    "CORNIL62GEN.P": 1,
+                    "CPNOLL61GEN.P": -1,
+                    "ARLODL61GEN.P": -1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "GEN.PP6_GEN.P6COUPL.B DJ_OC": true,
+            "GEN.PP6_GEN.P6TRO.2AB DJ_OC": true
+        },
+        "VoltageLevelId": "GEN.PP6"
+    },
+    "3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6": {
+        "description": "Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'",
+        "description_unitaire": "Ouverture OC 'CPVAN6COUPL DJ_OC' dans le poste 'CPVANP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "CPVANL61PYMON": 2,
+                    "CPVANL61TAVAU": 1,
+                    "CPVANL61ZMAGN": 2,
+                    "CPVANY633": 1,
+                    "CPVANY632": -1,
+                    "CPVANY631": 2
+                },
+                "lines_ex_id": {
+                    "CHALOL61CPVAN": 1,
+                    "COUCHL61CPVAN": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "CPVANP6_CPVAN6COUPL DJ_OC": true
+        },
+        "VoltageLevelId": "CPVANP6"
+    },
+    "3617076a-a7f5-4f8a-9009-127ac9b85cff_VIELMP6": {
+        "description": "Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'",
+        "description_unitaire": "Ouverture OC 'VIELM6COUPL DJ_OC' dans le poste 'VIELMP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "VIELMY635": 1,
+                    "VIELMY634": 2
+                },
+                "lines_ex_id": {
+                    "C.REGL61VIELM": 1,
+                    "C.REGL62VIELM": 2,
+                    "COMMUL61VIELM": 2,
+                    "COUCHL61VIELM": 1,
+                    "VIELMY761": 2,
+                    "VIELMY762": 1,
+                    "VIELMY763": 2
+                },
+                "loads_id": {
+                    "DARCEL61VIELM": 1,
+                    "SARRYL61VIELM": 2
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "VIELMP6_VIELM6COUPL DJ_OC": true
+        },
+        "VoltageLevelId": "VIELMP6"
+    },
+    "f344b395-9908-43c2-bca0-75c5f298465e_COUCHP6": {
+        "description": "Ouverture OC 'COUCH6COUPL DJ_OC' dans le poste 'COUCHP6'",
+        "description_unitaire": "Ouverture OC 'COUCH6COUPL DJ_OC' dans le poste 'COUCHP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "COUCHL61CPVAN": 2,
+                    "COUCHL61VIELM": 1,
+                    "COUCHY631": 2,
+                    "COUCHY632": 1
+                },
+                "lines_ex_id": {},
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "COUCHP6_COUCH6COUPL DJ_OC": true
+        },
+        "VoltageLevelId": "COUCHP6"
+    },
+    "6ba7e0a3-2c1a-4dd5-b85c-5cf83d8c0358_GROSNP6": {
+        "description": "Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'",
+        "description_unitaire": "Ouverture OC 'GROSN6COUPL DJ_OC' dans le poste 'GROSNP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "GROSNL61GUEUG": 1,
+                    "GROSNL61MACON": 2,
+                    "GROSNL61ZCUR5": 2
+                },
+                "lines_ex_id": {
+                    "CHALOL61GROSN": 2,
+                    "CHALOL62GROSN": 1,
+                    "CURTIL61GROSN": 1,
+                    "GROSNY761": 2,
+                    "GROSNY762": 1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "GROSNP6_GROSN6COUPL DJ_OC": true
+        },
+        "VoltageLevelId": "GROSNP6"
+    },
+    "7a26cdec-15b8-4e98-a695-bf9cd379cbf3_PYMONP3": {
+        "description": " Ouverture OC 'PYMON3COUPL DJ_OC' dans le poste 'PYMONP3'",
+        "description_unitaire": " Ouverture OC 'PYMON3COUPL DJ_OC' dans le poste 'PYMONP3'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "PYMONL31SAISS": 2
+                },
+                "lines_ex_id": {
+                    "LOUHAL31PYMON": 2,
+                    "PYMONY631": 1,
+                    "PYMONY632": -1
+                },
+                "loads_id": {
+                    "L.SAUL31PYMON": 1,
+                    "L.SAUL32PYMON": 2,
+                    "L.SAUL33PYMON": 1,
+                    "fict_PYMONP3_1": 1
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "PYMONP3_PYMON3COUPL DJ_OC": true
+        },
+        "VoltageLevelId": "PYMONP3"
+    },
+    "5e41ee90-d8cc-4900-800a-ebb8fe30bd20_PYMONP6": {
+        "description": " Ouverture OC 'PYMON6COUPL DJ_OC' dans le poste 'PYMONP6'",
+        "description_unitaire": " Ouverture OC 'PYMON6COUPL DJ_OC' dans le poste 'PYMONP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "PYMONL61VOUGL": -1,
+                    "PYMONY631": 3,
+                    "PYMONY632": -1
+                },
+                "lines_ex_id": {
+                    "CPVANL61PYMON": 2
+                },
+                "loads_id": {
+                    "PYMON6TR613.C": 1,
+                    "PYMON6TR614.F": 3,
+                    "PYMON6TR613.F": 1,
+                    "PYMON6TR614.C": 3
+                },
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "PYMONP6_PYMON6COUPL DJ_OC": true
+        },
+        "VoltageLevelId": "PYMONP6"
+    },
+    "256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6": {
+        "description": " Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6'",
+        "description_unitaire": " Ouverture OC 'VOUGL6COUPL DJ_OC' dans le poste 'VOUGLP6'",
+        "content": {
+            "set_bus": {
+                "lines_or_id": {
+                    "VOUGLY611": 2,
+                    "VOUGLY612": 1,
+                    "VOUGLY632": 2,
+                    "VOUGLY631": 1
+                },
+                "lines_ex_id": {
+                    "FLEYRL61VOUGL": 2,
+                    "GEN.PL61VOUGL": 1,
+                    "PYMONL61VOUGL": -1
+                },
+                "loads_id": {},
+                "generators_id": {},
+                "shunts_id": {}
+            }
+        },
+        "switches": {
+            "VOUGLP6_VOUGL6COUPL DJ_OC": true
+        },
+        "VoltageLevelId": "VOUGLP6"
+    }
+}

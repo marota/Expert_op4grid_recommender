@@ -1,4 +1,10 @@
 /data
 /tests/Analyse_parades_scenarios_sessions_evaluation.pdf
+
+# Python generated files
 __pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
 *.pyc

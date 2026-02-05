@@ -34,7 +34,7 @@ if version.parse(version_importlib("pypowsybl")) < MIN_PP_VERSION:
                        f'\t `pip install "pypowsybl>={MIN_PP_VERSION}"`')
     
     
-N_BUSBAR_PER_SUB = 6
+N_BUSBAR_PER_SUB = 12#7#6
 
 
 LOADER_KWARGS = {"use_buses_for_sub": False,

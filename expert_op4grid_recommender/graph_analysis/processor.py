@@ -50,7 +50,7 @@ def get_n_connected_components_graph_with_overloads(obs_simu, lines_overloaded_i
                  zip(obs_simu.name_line, obs_simu.line_or_to_subid, obs_simu.line_or_bus, obs_simu.line_ex_to_subid,
                      obs_simu.line_ex_bus,obs_simu.line_status,obs_simu.a_or,obs_simu.rho)]# if line_status]
 
-    obs_graph=nx.from_edgelist(edge_list)
+    obs_graph=nx.from_edgelist(edge_list, create_using=nx.MultiGraph)
 
     #previous approach with energy graph, wass buggy in French grid
     #obs_graph = obs_simu.get_energy_graph()

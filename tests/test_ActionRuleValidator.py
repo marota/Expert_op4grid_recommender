@@ -126,7 +126,10 @@ def test_validator_check_rules(basic_validator):
 
 def test_validator_verify_action_basic_checks(basic_validator):
     # Test disconnect already disconnected
-    basic_validator.obs.line_status = np.array([False, True, True]) # L1 is disconnected
+    line_status_map={'L1': False, 'L2': True, 'L3': True}
+    basic_validator.obs.line_status = np.array([val for val in line_status_map.values()])
+    basic_validator._line_status_map=line_status_map# L1 is disconnected
+
     # FIX: Use French keyword "Ouverture"
     action_desc_open_l1 = {"description_unitaire": "Ouverture L1",
                            "content": {"set_bus": {"lines_ex_id": {"L1": -1}}}}
@@ -134,7 +137,9 @@ def test_validator_verify_action_basic_checks(basic_validator):
     assert filter_open is True and rule_open == "No disconnection of a line already disconnected"
 
     # Test reconnect already connected
-    basic_validator.obs.line_status = np.array([True, True, True]) # All connected
+    line_status_map = {'L1': True, 'L2': True, 'L3': True}
+    basic_validator.obs.line_status = np.array([val for val in line_status_map.values()])
+    basic_validator._line_status_map = line_status_map  # L1 is disconnected
     # FIX: Use French keyword "Fermeture"
     action_desc_close_l1 = {"description_unitaire": "Fermeture L1",
                             "content": {"set_bus": {"lines_or_id": {"L1": 1}, "lines_ex_id": {"L1": 1}}}}

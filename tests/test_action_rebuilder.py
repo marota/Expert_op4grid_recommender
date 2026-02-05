@@ -16,7 +16,7 @@ This module tests:
 - rebuild_action_dict_for_snapshot
 - run_rebuild_actions
 - UnionFind data structure
-- _reindex_bus_numbers function
+- _reindex_bus_numbers_per_vl function
 - NetworkTopologyCache class
 - convert_to_grid2op_action (analytical version)
 - convert_to_grid2op_action_batch
@@ -45,7 +45,7 @@ from expert_op4grid_recommender.utils.action_rebuilder import (
 
 from expert_op4grid_recommender.utils.conversion_actions_repas import (
     UnionFind,
-    _reindex_bus_numbers,
+    _reindex_bus_numbers_per_vl,
     NetworkTopologyCache,
     convert_to_grid2op_action,
     convert_to_grid2op_action_batch,
@@ -175,9 +175,9 @@ def multi_voltage_level_action():
 def coupling_action():
     """Creates a mock REPAS action involving a coupling breaker."""
     return MockRepasAction(
-        action_id="ACTION_COUPL",
+        action_id="ACTION-COUPL",
         switches_by_voltage_level={
-            "SUBSTATION_A": {"SUBSTATION_A_COUPL_DJ DJ_OC": True}
+            "SUBSTATION-A": {"SUBSTATION_A_COUPL_DJ DJ_OC": True}
         }
     )
 
@@ -186,9 +186,9 @@ def coupling_action():
 def tro_action():
     """Creates a mock REPAS action involving a TRO (transformer) breaker."""
     return MockRepasAction(
-        action_id="ACTION_TRO",
+        action_id="ACTION-TRO",
         switches_by_voltage_level={
-            "SUBSTATION_A": {"SUBSTATION_A_TRO.1 DJ_OC": False}
+            "SUBSTATION-A": {"SUBSTATION_A_TRO.1 DJ_OC": False}
         }
     )
 
@@ -197,9 +197,9 @@ def tro_action():
 def regular_action():
     """Creates a mock REPAS action without coupling or TRO."""
     return MockRepasAction(
-        action_id="ACTION_REG",
+        action_id="ACTION-REG",
         switches_by_voltage_level={
-            "SUBSTATION_A": {"SUBSTATION_A_LINE_1 DJ_OC": True}
+            "SUBSTATION-A": {"SUBSTATION_A_LINE_1 DJ_OC": True}
         }
     )
 
@@ -346,14 +346,14 @@ class TestUnionFind:
 
 
 # =============================================================================
-# Tests for _reindex_bus_numbers
+# Tests for _reindex_bus_numbers_per_vl
 # =============================================================================
 
-class TestReindexBusNumbers:
-    """Tests for the _reindex_bus_numbers function."""
+class TestReindexBusNumbersPerVl:
+    """Tests for the _reindex_bus_numbers_per_vl function."""
     
-    def test_basic_reindexing(self):
-        """Test basic reindexing of non-sequential bus numbers."""
+    def test_basic_reindexing_single_vl(self):
+        """Test basic reindexing of non-sequential bus numbers in single VL."""
         set_bus = {
             'lines_or_id': {'L1': 2, 'L2': 4, 'L3': 2},
             'lines_ex_id': {},
@@ -361,8 +361,10 @@ class TestReindexBusNumbers:
             'generators_id': {},
             'shunts_id': {}
         }
+        # All elements in same voltage level
+        element_to_vl = {'L1': 'VL1', 'L2': 'VL1', 'L3': 'VL1', 'LOAD1': 'VL1'}
         
-        result = _reindex_bus_numbers(set_bus)
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
         
         # 2 -> 1, 4 -> 2
         assert result['lines_or_id']['L1'] == 1
@@ -379,8 +381,9 @@ class TestReindexBusNumbers:
             'generators_id': {},
             'shunts_id': {}
         }
+        element_to_vl = {'L1': 'VL1', 'L2': 'VL1', 'L3': 'VL1'}
         
-        result = _reindex_bus_numbers(set_bus)
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
         
         assert result['lines_or_id']['L2'] == -1
         assert result['lines_ex_id']['L3'] == -1
@@ -394,15 +397,16 @@ class TestReindexBusNumbers:
             'generators_id': {},
             'shunts_id': {}
         }
+        element_to_vl = {'L1': 'VL1', 'L2': 'VL1', 'L3': 'VL1'}
         
-        result = _reindex_bus_numbers(set_bus)
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
         
         assert result['lines_or_id']['L1'] == 1
         assert result['lines_or_id']['L2'] == 2
         assert result['lines_or_id']['L3'] == 1
     
     def test_single_bus_number(self):
-        """Test with only one unique bus number (no reindexing needed)."""
+        """Test with only one unique bus number (reindexed to 1)."""
         set_bus = {
             'lines_or_id': {'L1': 5, 'L2': 5},
             'lines_ex_id': {},
@@ -410,12 +414,19 @@ class TestReindexBusNumbers:
             'generators_id': {},
             'shunts_id': {}
         }
+        element_to_vl = {'L1': 'VL1', 'L2': 'VL1'}
         
-        result = _reindex_bus_numbers(set_bus)
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
         
-        # Should be returned as-is (or could be reindexed to 1, both are valid)
-        # Current implementation returns as-is for single bus
-        assert result == set_bus
+        # Single bus 5 -> 1
+        expected_set_bus = {
+            'lines_or_id': {'L1': 1, 'L2': 1},
+            'lines_ex_id': {},
+            'loads_id': {},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        assert result == expected_set_bus
     
     def test_empty_set_bus(self):
         """Test with empty element dictionaries."""
@@ -426,8 +437,9 @@ class TestReindexBusNumbers:
             'generators_id': {},
             'shunts_id': {}
         }
+        element_to_vl = {}
         
-        result = _reindex_bus_numbers(set_bus)
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
         
         assert result == set_bus
     
@@ -440,8 +452,9 @@ class TestReindexBusNumbers:
             'generators_id': {},
             'shunts_id': {}
         }
+        element_to_vl = {'L1': 'VL1', 'L2': 'VL1', 'L3': 'VL1'}
         
-        result = _reindex_bus_numbers(set_bus)
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
         
         # 1 -> 1, 50 -> 2, 100 -> 3
         assert result['lines_or_id']['L1'] == 1
@@ -457,8 +470,13 @@ class TestReindexBusNumbers:
             'generators_id': {'GEN1': -1},
             'shunts_id': {}
         }
+        element_to_vl = {
+            'L1': 'VL1', 'L2': 'VL1', 'L3': 'VL1', 
+            'L4': 'VL1', 'L5': 'VL1', 
+            'LOAD1': 'VL1', 'GEN1': 'VL1'
+        }
         
-        result = _reindex_bus_numbers(set_bus)
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
         
         # 3 -> 1, 7 -> 2; -1 stays -1
         assert result['lines_or_id']['L1'] == 1
@@ -478,10 +496,48 @@ class TestReindexBusNumbers:
             'generators_id': {},
             'shunts_id': {}
         }
+        element_to_vl = {'L1': 'VL1', 'L2': 'VL1'}
         
-        result = _reindex_bus_numbers(set_bus)
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
         
         assert result['lines_or_id']['L2'] == 0
+    
+    def test_multiple_voltage_levels_independent_reindexing(self):
+        """Test that different voltage levels are reindexed independently."""
+        set_bus = {
+            'lines_or_id': {'L1': 5, 'L2': 10},  # L1 in VL1, L2 in VL2
+            'lines_ex_id': {},
+            'loads_id': {'LOAD1': 5, 'LOAD2': 10},  # LOAD1 in VL1, LOAD2 in VL2
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        element_to_vl = {'L1': 'VL1', 'L2': 'VL2', 'LOAD1': 'VL1', 'LOAD2': 'VL2'}
+        
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
+        
+        # VL1: 5 -> 1; VL2: 10 -> 1 (independent reindexing)
+        assert result['lines_or_id']['L1'] == 1
+        assert result['lines_or_id']['L2'] == 1
+        assert result['loads_id']['LOAD1'] == 1
+        assert result['loads_id']['LOAD2'] == 1
+    
+    def test_element_not_in_vl_mapping_unchanged(self):
+        """Test that elements not in element_to_vl mapping are unchanged."""
+        set_bus = {
+            'lines_or_id': {'L1': 5, 'L2': 10},
+            'lines_ex_id': {},
+            'loads_id': {},
+            'generators_id': {},
+            'shunts_id': {}
+        }
+        # Only L1 is in the VL mapping
+        element_to_vl = {'L1': 'VL1'}
+        
+        result = _reindex_bus_numbers_per_vl(set_bus, element_to_vl)
+        
+        # L1 should be reindexed, L2 should be unchanged
+        assert result['lines_or_id']['L1'] == 1
+        assert result['lines_or_id']['L2'] == 10
 
 
 # =============================================================================
@@ -554,7 +610,7 @@ class TestNetworkTopologyCache:
         node_to_bus = cache.compute_bus_assignments({}, {'VL2'})
         
         assert 'VL2' in node_to_bus
-        assert node_to_bus['VL2'] == {}
+        assert node_to_bus['VL2'] == {'VL2_NODE1': -1, 'VL2_NODE2': -1} #assets are disconnected, hence -1 values
     
     def test_get_element_bus_assignments(self, mock_network_with_topology):
         """Test conversion from node-to-bus to element-to-bus mappings."""
@@ -675,6 +731,42 @@ class TestConvertToGrid2opAction:
         assert 'loads_id' in set_bus
         assert 'generators_id' in set_bus
         assert 'shunts_id' in set_bus
+    
+    def test_conversion_includes_switches_at_root(self, mock_network_with_topology):
+        """Test that conversion includes switches at root level (not inside content)."""
+        action = MockRepasAction(
+            action_id="SWITCH_TEST",
+            switches_by_voltage_level={'VL1': {'VL1_COUPL_DJ': True, 'VL1_LINE_SW': False}}
+        )
+        
+        result = convert_to_grid2op_action(mock_network_with_topology, action)
+        
+        # New convention: switches field is at root level, not inside content
+        assert 'switches' in result
+        switches = result['switches']
+        # Full switch IDs are used (as expected by pypowsybl)
+        assert 'VL1_COUPL_DJ' in switches
+        assert 'VL1_LINE_SW' in switches
+        assert switches['VL1_COUPL_DJ'] == True
+        assert switches['VL1_LINE_SW'] == False
+    
+    def test_conversion_multiple_voltage_levels(self, mock_network_with_topology):
+        """Test conversion with switches in multiple voltage levels."""
+        action = MockRepasAction(
+            action_id="MULTI_VL_TEST",
+            switches_by_voltage_level={
+                'VL1': {'VL1_SW1': True},
+                'VL2': {'VL2_SW2': False}
+            }
+        )
+        
+        result = convert_to_grid2op_action(mock_network_with_topology, action)
+        
+        # New convention: switches at root level with full IDs
+        assert 'switches' in result
+        switches = result['switches']
+        assert 'VL1_SW1' in switches
+        assert 'VL2_SW2' in switches
 
 
 # =============================================================================
@@ -1008,7 +1100,7 @@ class TestBuildActionDictForSnapshotFromScratch:
         call_args = mock_convert.call_args[0]
         actions_to_convert = call_args[1]
         assert len(actions_to_convert) == 1
-        assert actions_to_convert[0]._id == "ACTION_COUPL"
+        assert actions_to_convert[0]._id == "ACTION-COUPL"
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_filters_tro_actions(self, mock_convert, mock_network, tro_action, regular_action):
@@ -1021,7 +1113,7 @@ class TestBuildActionDictForSnapshotFromScratch:
         call_args = mock_convert.call_args[0]
         actions_to_convert = call_args[1]
         assert len(actions_to_convert) == 1
-        assert actions_to_convert[0]._id == "ACTION_TRO"
+        assert actions_to_convert[0]._id == "ACTION-TRO"
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_returns_converted_actions(self, mock_convert, mock_network, coupling_action):
@@ -1074,7 +1166,7 @@ class TestRebuildActionDictForSnapshot:
         mock_convert.return_value = {}
         
         dict_action = {
-            "ACTION_REG_SUBSTATION_A": {
+            "ACTION-REG_SUBSTATION-A": {
                 "description": "Regular action",
                 "description_unitaire": "Regular action description",
                 "content": {"set_bus": {}}
@@ -1083,16 +1175,16 @@ class TestRebuildActionDictForSnapshot:
         
         result = rebuild_action_dict_for_snapshot(mock_network, [regular_action], dict_action)
         
-        assert "ACTION_REG_SUBSTATION_A" in result
-        assert result["ACTION_REG_SUBSTATION_A"]["description"] == "Regular action"
+        assert "ACTION-REG_SUBSTATION-A" in result
+        assert result["ACTION-REG_SUBSTATION-A"]["description"] == "Regular action"
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_converts_coupling_actions(self, mock_convert, mock_network, coupling_action):
         """Test that COUPL actions are sent for conversion."""
-        mock_convert.return_value = {"ACTION_COUPL_SUBSTATION_A": {"converted": True}}
+        mock_convert.return_value = {"ACTION-COUPL_SUBSTATION-A": {"converted": True}}
         
         dict_action = {
-            "ACTION_COUPL_SUBSTATION_A": {
+            "ACTION-COUPL_SUBSTATION-A": {
                 "description": "COUPL action",
                 "description_unitaire": "Ouverture COUPL dans SUBSTATION_A",
                 "VoltageLevelId": "SUBSTATION_A",
@@ -1103,15 +1195,15 @@ class TestRebuildActionDictForSnapshot:
         result = rebuild_action_dict_for_snapshot(mock_network, [coupling_action], dict_action)
         
         assert mock_convert.called
-        assert "ACTION_COUPL_SUBSTATION_A" in result
+        assert "ACTION-COUPL_SUBSTATION-A" in result
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_converts_tro_actions(self, mock_convert, mock_network, tro_action):
         """Test that TRO actions are sent for conversion."""
-        mock_convert.return_value = {"ACTION_TRO_SUBSTATION_A": {"converted": True}}
+        mock_convert.return_value = {"ACTION-TRO_SUBSTATION-A": {"converted": True}}
         
         dict_action = {
-            "ACTION_TRO_SUBSTATION_A": {
+            "ACTION-TRO_SUBSTATION-A": {
                 "description": "TRO action",
                 "description_unitaire": "Ouverture TRO.1 dans SUBSTATION_A",
                 "VoltageLevelId": "SUBSTATION_A",
@@ -1127,11 +1219,11 @@ class TestRebuildActionDictForSnapshot:
     def test_preserves_description_unitaire(self, mock_convert, mock_network, coupling_action):
         """Test that description_unitaire is preserved from original dict_action."""
         mock_convert.return_value = {
-            "ACTION_COUPL_SUBSTATION_A": {"converted": True}
+            "ACTION-COUPL_SUBSTATION-A": {"converted": True}
         }
         
         dict_action = {
-            "ACTION_COUPL_SUBSTATION_A": {
+            "ACTION-COUPL_SUBSTATION-A": {
                 "description": "COUPL action",
                 "description_unitaire": "Custom description unitaire",
                 "VoltageLevelId": "SUBSTATION_A",
@@ -1141,7 +1233,7 @@ class TestRebuildActionDictForSnapshot:
         
         result = rebuild_action_dict_for_snapshot(mock_network, [coupling_action], dict_action)
         
-        assert result["ACTION_COUPL_SUBSTATION_A"]["description_unitaire"] == "Custom description unitaire"
+        assert result["ACTION-COUPL_SUBSTATION-A"]["description_unitaire"] == "Custom description unitaire"
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_warning_for_missing_action(self, mock_convert, mock_network, capsys):
@@ -1149,7 +1241,7 @@ class TestRebuildActionDictForSnapshot:
         mock_convert.return_value = {}
         
         dict_action = {
-            "MISSING_ACTION_VL1": {
+            "MISSING-ACTION_VL1": {
                 "description": "COUPL missing",
                 "description_unitaire": "Ouverture COUPL missing",
                 "VoltageLevelId": "VL1",

@@ -36,6 +36,167 @@ from expert_op4grid_recommender.utils import repas
 
 
 # =============================================================================
+# pypowsybl version compatibility helpers
+# =============================================================================
+
+def _get_injection_with_bus_breaker_info(network: Network, getter_name: str) -> pd.DataFrame:
+    """
+    Get injection DataFrame with bus-breaker bus information.
+    
+    Handles pypowsybl version differences in attribute naming.
+    
+    Parameters
+    ----------
+    network : Network
+        The pypowsybl network
+    getter_name : str
+        Name of the getter method ('get_loads', 'get_generators', 'get_shunt_compensators')
+        
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with 'bus_breaker_bus_id' and 'voltage_level_id' columns
+    """
+    getter = getattr(network, getter_name)
+    
+    # Get all attributes to see what's available
+    df = getter(all_attributes=True)
+    
+    if df.empty:
+        # Return empty DataFrame with expected columns
+        return pd.DataFrame(columns=['bus_breaker_bus_id', 'voltage_level_id'])
+    
+    # Determine which column to use for bus-breaker bus ID
+    # Priority order: bus_breaker_bus_id > connectable_bus_id > bus_id
+    bus_col = None
+    for candidate in ['bus_breaker_bus_id', 'connectable_bus_id', 'bus_id']:
+        if candidate in df.columns:
+            bus_col = candidate
+            break
+    
+    if bus_col is None:
+        raise ValueError(f"Cannot find bus column in {getter_name}. Available columns: {list(df.columns)}")
+    
+    # Build result DataFrame
+    result = pd.DataFrame({
+        'bus_breaker_bus_id': df[bus_col],
+        'voltage_level_id': df['voltage_level_id']
+    }, index=df.index)
+    
+    return result
+
+
+def _get_branch_with_bus_breaker_info(network: Network, getter_name: str) -> pd.DataFrame:
+    """
+    Get branch DataFrame with bus-breaker bus information for both ends.
+    
+    Handles pypowsybl version differences in attribute naming.
+    
+    Parameters
+    ----------
+    network : Network
+        The pypowsybl network
+    getter_name : str
+        Name of the getter method ('get_branches', 'get_lines')
+        
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with 'bus_breaker_bus1_id', 'bus_breaker_bus2_id', 
+        'voltage_level1_id', 'voltage_level2_id' columns
+    """
+    getter = getattr(network, getter_name)
+    
+    # Get all attributes to see what's available
+    df = getter(all_attributes=True)
+    
+    if df.empty:
+        # Return empty DataFrame with expected columns
+        return pd.DataFrame(columns=['bus_breaker_bus1_id', 'bus_breaker_bus2_id', 
+                                      'voltage_level1_id', 'voltage_level2_id'])
+    
+    # Find bus1 column
+    bus1_col = None
+    for candidate in ['bus_breaker_bus1_id', 'connectable_bus1_id', 'bus1_id']:
+        if candidate in df.columns:
+            bus1_col = candidate
+            break
+    
+    # Find bus2 column
+    bus2_col = None
+    for candidate in ['bus_breaker_bus2_id', 'connectable_bus2_id', 'bus2_id']:
+        if candidate in df.columns:
+            bus2_col = candidate
+            break
+    
+    if bus1_col is None or bus2_col is None:
+        raise ValueError(f"Cannot find bus columns in {getter_name}. Available columns: {list(df.columns)}")
+    
+    # Build result DataFrame
+    result = pd.DataFrame({
+        'bus_breaker_bus1_id': df[bus1_col],
+        'bus_breaker_bus2_id': df[bus2_col],
+        'voltage_level1_id': df['voltage_level1_id'],
+        'voltage_level2_id': df['voltage_level2_id']
+    }, index=df.index)
+    
+    return result
+
+
+def _get_switches_with_topology(network: Network) -> pd.DataFrame:
+    """
+    Get switches DataFrame with bus-breaker topology information.
+    
+    Handles pypowsybl version differences in attribute naming.
+    
+    Parameters
+    ----------
+    network : Network
+        The pypowsybl network
+        
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with 'voltage_level_id', 'bus_breaker_bus1_id', 
+        'bus_breaker_bus2_id', 'open' columns
+    """
+    # Get all attributes to see what's available
+    df = network.get_switches(all_attributes=True)
+    
+    if df.empty:
+        # Return empty DataFrame with expected columns
+        return pd.DataFrame(columns=['voltage_level_id', 'bus_breaker_bus1_id', 
+                                      'bus_breaker_bus2_id', 'open'])
+    
+    # Find bus1 column
+    bus1_col = None
+    for candidate in ['bus_breaker_bus1_id', 'node1']:
+        if candidate in df.columns:
+            bus1_col = candidate
+            break
+    
+    # Find bus2 column  
+    bus2_col = None
+    for candidate in ['bus_breaker_bus2_id', 'node2']:
+        if candidate in df.columns:
+            bus2_col = candidate
+            break
+    
+    if bus1_col is None or bus2_col is None:
+        raise ValueError(f"Cannot find bus/node columns in get_switches. Available columns: {list(df.columns)}")
+    
+    # Build result DataFrame
+    result = pd.DataFrame({
+        'voltage_level_id': df['voltage_level_id'],
+        'bus_breaker_bus1_id': df[bus1_col],
+        'bus_breaker_bus2_id': df[bus2_col],
+        'open': df['open']
+    }, index=df.index)
+    
+    return result
+
+
+# =============================================================================
 # Union-Find (Disjoint Set) for topology computation
 # =============================================================================
 
@@ -96,60 +257,68 @@ class UnionFind:
 # Bus number reindexing utility
 # =============================================================================
 
-def _reindex_bus_numbers(set_bus: Dict[str, Dict[str, int]]) -> Dict[str, Dict[str, int]]:
+def _reindex_bus_numbers_per_vl(
+    set_bus: Dict[str, Dict[str, int]],
+    element_to_vl: Dict[str, str]
+) -> Dict[str, Dict[str, int]]:
     """
-    Reindex bus numbers to sequential values starting at 1.
-    
+    Reindex bus numbers to sequential values starting at 1, PER VOLTAGE LEVEL.
+
     This function takes a set_bus dictionary where bus numbers may have gaps
     (e.g., [2, 4, 7]) and reindexes them to sequential numbers starting at 1
-    (e.g., [1, 2, 3]). Disconnected elements (bus = -1) are preserved as -1.
+    (e.g., [1, 2, 3]). The reindexing is done separately for each voltage level
+    to ensure bus numbers are consistent within each substation.
     
+    Disconnected elements (bus = -1) are preserved as -1.
+
     Parameters
     ----------
     set_bus : Dict[str, Dict[str, int]]
-        Dictionary with keys 'lines_or_id', 'lines_ex_id', 'loads_id', 
+        Dictionary with keys 'lines_or_id', 'lines_ex_id', 'loads_id',
         'generators_id', 'shunts_id', each mapping element IDs to bus numbers.
-        
+    element_to_vl : Dict[str, str]
+        Mapping from element ID to its voltage level ID.
+
     Returns
     -------
     Dict[str, Dict[str, int]]
-        Same structure with bus numbers reindexed to 1, 2, 3, ...
-        
-    Example
-    -------
-    >>> set_bus = {'lines_or_id': {'L1': 2, 'L2': 4, 'L3': 2}, 'lines_ex_id': {'L1': -1}}
-    >>> _reindex_bus_numbers(set_bus)
-    {'lines_or_id': {'L1': 1, 'L2': 2, 'L3': 1}, 'lines_ex_id': {'L1': -1}}
+        Same structure with bus numbers reindexed to 1, 2, 3, ... per voltage level.
     """
-    # Collect all unique bus numbers (excluding -1 which means disconnected)
-    all_bus_numbers = set()
+    # 1. Group elements by voltage level and collect bus numbers per VL
+    vl_bus_numbers: Dict[str, Set[int]] = defaultdict(set)
+    
     for element_dict in set_bus.values():
-        for bus_num in element_dict.values():
-            if bus_num > 0:  # Exclude disconnected (-1) and invalid (0) buses
-                all_bus_numbers.add(bus_num)
+        for element_id, bus_num in element_dict.items():
+            if bus_num > 0 and element_id in element_to_vl:
+                vl_id = element_to_vl[element_id]
+                vl_bus_numbers[vl_id].add(bus_num)
     
-    # If no valid buses or only one bus, no reindexing needed
-    if len(all_bus_numbers) <= 1:
-        return set_bus
+    # 2. Create mapping per voltage level: old_bus -> new_bus (1, 2, 3...)
+    vl_bus_mappings: Dict[str, Dict[int, int]] = {}
+    for vl_id, bus_nums in vl_bus_numbers.items():
+        sorted_buses = sorted(bus_nums)
+        vl_bus_mappings[vl_id] = {
+            old_bus: new_bus for new_bus, old_bus in enumerate(sorted_buses, start=1)
+        }
     
-    # Create mapping from old bus numbers to new sequential numbers
-    # Sort to ensure consistent ordering: smallest old number -> 1, next -> 2, etc.
-    sorted_buses = sorted(all_bus_numbers)
-    bus_mapping = {old_bus: new_bus for new_bus, old_bus in enumerate(sorted_buses, start=1)}
-    
-    # Apply the mapping to all elements
+    # 3. Apply the per-VL mapping
     reindexed_set_bus = {}
     for key, element_dict in set_bus.items():
         reindexed_set_bus[key] = {}
         for element_id, bus_num in element_dict.items():
-            if bus_num > 0:
-                reindexed_set_bus[key][element_id] = bus_mapping[bus_num]
+            if bus_num <= 0:
+                # Keep disconnected state
+                reindexed_set_bus[key][element_id] = bus_num
+            elif element_id in element_to_vl:
+                vl_id = element_to_vl[element_id]
+                if vl_id in vl_bus_mappings and bus_num in vl_bus_mappings[vl_id]:
+                    reindexed_set_bus[key][element_id] = vl_bus_mappings[vl_id][bus_num]
+                else:
+                    reindexed_set_bus[key][element_id] = bus_num
             else:
-                # Preserve disconnected status (-1) or invalid (0)
                 reindexed_set_bus[key][element_id] = bus_num
     
     return reindexed_set_bus
-
 
 # =============================================================================
 # Cached Network Topology Data
@@ -179,21 +348,29 @@ class NetworkTopologyCache:
         """
         self.network = n
         
-        # Get switch data with topology information
-        self._switches_df = n.get_switches(attributes=[
-            'voltage_level_id', 'bus_breaker_bus1_id', 'bus_breaker_bus2_id', 'open'
-        ])
+        # Get switch data with topology information (using compatibility helper)
+        self._switches_df = _get_switches_with_topology(n)
         
-        # Get element DataFrames with bus connections
-        self._loads_df = n.get_loads(attributes=['bus_id', 'voltage_level_id'])
-        self._generators_df = n.get_generators(attributes=['bus_id', 'voltage_level_id'])
-        self._shunts_df = n.get_shunt_compensators(attributes=['bus_id', 'voltage_level_id'])
-        self._branches_df = n.get_branches(attributes=[
-            'bus1_id', 'bus2_id', 'voltage_level1_id', 'voltage_level2_id'
-        ])
+        # Get element DataFrames with bus connections (using compatibility helpers)
+        # Use bus_breaker_bus_id to get the node ID in the bus-breaker topology
+        self._loads_df = _get_injection_with_bus_breaker_info(n, 'get_loads')
+        self._generators_df = _get_injection_with_bus_breaker_info(n, 'get_generators')
+        self._shunts_df = _get_injection_with_bus_breaker_info(n, 'get_shunt_compensators')
+        
+        # For branches, get bus_breaker_bus1_id and bus_breaker_bus2_id
+        self._branches_df = _get_branch_with_bus_breaker_info(n, 'get_branches')
+        
+        # Get lines separately (lines connect to external network, transformers don't)
+        self._lines_df = _get_branch_with_bus_breaker_info(n, 'get_lines')
+        
+        # Get buses with connected_component info to identify main component
+        self._buses_df = n.get_buses(attributes=['voltage_level_id', 'connected_component'])
         
         # Pre-compute per-voltage-level data structures
         self._build_vl_topology_data()
+        
+        # Pre-compute which elements are disconnected from main network component
+        self._build_disconnected_elements()
     
     def _build_vl_topology_data(self):
         """Build per-voltage-level topology structures for fast lookup."""
@@ -214,19 +391,133 @@ class NetworkTopologyCache:
                 self._vl_nodes[vl_id].add(node1)
                 self._vl_nodes[vl_id].add(node2)
         
-        # Element-to-node mappings
-        self._load_to_node = dict(zip(self._loads_df.index, self._loads_df['bus_id']))
-        self._gen_to_node = dict(zip(self._generators_df.index, self._generators_df['bus_id']))
-        self._shunt_to_node = dict(zip(self._shunts_df.index, self._shunts_df['bus_id']))
+        # Element-to-node mappings (using bus_breaker_bus_id for bus-breaker topology)
+        self._load_to_node = dict(zip(self._loads_df.index, self._loads_df['bus_breaker_bus_id']))
+        self._gen_to_node = dict(zip(self._generators_df.index, self._generators_df['bus_breaker_bus_id']))
+        self._shunt_to_node = dict(zip(self._shunts_df.index, self._shunts_df['bus_breaker_bus_id']))
         
-        # Branch terminals to nodes
-        self._branch_or_to_node = dict(zip(self._branches_df.index, self._branches_df['bus1_id']))
-        self._branch_ex_to_node = dict(zip(self._branches_df.index, self._branches_df['bus2_id']))
+        # Branch terminals to nodes (using bus_breaker_bus1/2_id)
+        self._branch_or_to_node = dict(zip(self._branches_df.index, self._branches_df['bus_breaker_bus1_id']))
+        self._branch_ex_to_node = dict(zip(self._branches_df.index, self._branches_df['bus_breaker_bus2_id']))
         
         # Element-to-VL mappings for filtering
         self._load_to_vl = dict(zip(self._loads_df.index, self._loads_df['voltage_level_id']))
         self._gen_to_vl = dict(zip(self._generators_df.index, self._generators_df['voltage_level_id']))
         self._shunt_to_vl = dict(zip(self._shunts_df.index, self._shunts_df['voltage_level_id']))
+        
+        # Branch terminal to VL mappings
+        self._branch_or_to_vl = dict(zip(self._branches_df.index, self._branches_df['voltage_level1_id']))
+        self._branch_ex_to_vl = dict(zip(self._branches_df.index, self._branches_df['voltage_level2_id']))
+        
+        # Line terminal to node and VL mappings (lines only, not transformers)
+        # Lines are what connect a substation to the external network
+        self._line_or_to_node = dict(zip(self._lines_df.index, self._lines_df['bus_breaker_bus1_id']))
+        self._line_ex_to_node = dict(zip(self._lines_df.index, self._lines_df['bus_breaker_bus2_id']))
+        self._line_or_to_vl = dict(zip(self._lines_df.index, self._lines_df['voltage_level1_id']))
+        self._line_ex_to_vl = dict(zip(self._lines_df.index, self._lines_df['voltage_level2_id']))
+        
+        # Determine which VLs have lines (are connected to external network)
+        self._vls_with_lines: Set[str] = set()
+        for line_id in self._lines_df.index:
+            vl1 = self._line_or_to_vl.get(line_id)
+            vl2 = self._line_ex_to_vl.get(line_id)
+            if vl1:
+                self._vls_with_lines.add(vl1)
+            if vl2:
+                self._vls_with_lines.add(vl2)
+        
+        # Build transformer connectivity: which nodes connect to which other VLs
+        # transformer_id -> (node_in_vl1, vl1, node_in_vl2, vl2)
+        self._transformers = {}
+        for branch_id in self._branches_df.index:
+            # A branch is a transformer if it connects two different voltage levels
+            # (lines also connect different VLs but they go to other substations)
+            if branch_id not in self._lines_df.index:
+                vl1 = self._branch_or_to_vl.get(branch_id)
+                vl2 = self._branch_ex_to_vl.get(branch_id)
+                node1 = self._branch_or_to_node.get(branch_id)
+                node2 = self._branch_ex_to_node.get(branch_id)
+                if vl1 and vl2 and node1 and node2:
+                    self._transformers[branch_id] = (node1, vl1, node2, vl2)
+    
+    def _build_disconnected_elements(self):
+        """
+        Identify elements that are disconnected from the main network component.
+        
+        Uses pypowsybl's connected_component attribute from buses. Elements connected
+        to buses with connected_component > 0 are not in the main island.
+        """
+        # Get buses in main component (connected_component == 0)
+        main_component_buses = set(self._buses_df[self._buses_df['connected_component'] == 0].index)
+        
+        # Get bus_id for elements (using bus-view, not bus-breaker)
+        # We need to reload with bus_id to check against buses DataFrame
+        loads_with_bus = self.network.get_loads(attributes=['bus_id', 'voltage_level_id'])
+        gens_with_bus = self.network.get_generators(attributes=['bus_id', 'voltage_level_id'])
+        shunts_with_bus = self.network.get_shunt_compensators(attributes=['bus_id', 'voltage_level_id'])
+        branches_with_bus = self.network.get_branches(attributes=['bus1_id', 'bus2_id', 'voltage_level1_id', 'voltage_level2_id'])
+        
+        # Elements not in main component (their bus_id is not in main_component_buses)
+        self._disconnected_loads: Set[str] = set()
+        self._disconnected_generators: Set[str] = set()
+        self._disconnected_shunts: Set[str] = set()
+        self._disconnected_branches_or: Set[str] = set()  # Branch OR side disconnected
+        self._disconnected_branches_ex: Set[str] = set()  # Branch EX side disconnected
+        
+        for load_id, row in loads_with_bus.iterrows():
+            bus_id = row['bus_id']
+            if pd.isna(bus_id) or bus_id not in main_component_buses:
+                self._disconnected_loads.add(load_id)
+        
+        for gen_id, row in gens_with_bus.iterrows():
+            bus_id = row['bus_id']
+            if pd.isna(bus_id) or bus_id not in main_component_buses:
+                self._disconnected_generators.add(gen_id)
+        
+        for shunt_id, row in shunts_with_bus.iterrows():
+            bus_id = row['bus_id']
+            if pd.isna(bus_id) or bus_id not in main_component_buses:
+                self._disconnected_shunts.add(shunt_id)
+        
+        for branch_id, row in branches_with_bus.iterrows():
+            bus1_id = row['bus1_id']
+            bus2_id = row['bus2_id']
+            if pd.isna(bus1_id) or bus1_id not in main_component_buses:
+                self._disconnected_branches_or.add(branch_id)
+            if pd.isna(bus2_id) or bus2_id not in main_component_buses:
+                self._disconnected_branches_ex.add(branch_id)
+        
+        # Also add element connection nodes to _vl_nodes
+        # This is critical: elements may be connected to nodes not in switch topology
+        for load_id, node in self._load_to_node.items():
+            if pd.notna(node):
+                vl = self._load_to_vl.get(load_id)
+                if vl:
+                    self._vl_nodes[vl].add(node)
+        
+        for gen_id, node in self._gen_to_node.items():
+            if pd.notna(node):
+                vl = self._gen_to_vl.get(gen_id)
+                if vl:
+                    self._vl_nodes[vl].add(node)
+        
+        for shunt_id, node in self._shunt_to_node.items():
+            if pd.notna(node):
+                vl = self._shunt_to_vl.get(shunt_id)
+                if vl:
+                    self._vl_nodes[vl].add(node)
+        
+        for branch_id, node in self._branch_or_to_node.items():
+            if pd.notna(node):
+                vl = self._branch_or_to_vl.get(branch_id)
+                if vl:
+                    self._vl_nodes[vl].add(node)
+        
+        for branch_id, node in self._branch_ex_to_node.items():
+            if pd.notna(node):
+                vl = self._branch_ex_to_vl.get(branch_id)
+                if vl:
+                    self._vl_nodes[vl].add(node)
     
     def compute_bus_assignments(
         self, 
@@ -236,8 +527,14 @@ class NetworkTopologyCache:
         """
         Compute bus assignments after applying switch changes.
         
-        Uses Union-Find to compute connected components (buses) efficiently
-        WITHOUT modifying the pypowsybl network.
+        Uses Union-Find to compute connected components (buses) within each VL.
+        
+        Logic:
+        1. Compute connected components within the VL using Union-Find
+        2. Identify which components have at least 2 nodes (connected to a busbar)
+           Components with only 1 node that isn't connected to anything else are isolated
+        3. Isolated nodes get bus = -1
+        4. Connected nodes get positive bus numbers
         
         Parameters
         ----------
@@ -250,6 +547,7 @@ class NetworkTopologyCache:
         -------
         Dict[str, Dict[str, int]]
             Nested dict: {vl_id: {node_id: bus_number}}
+            Bus number is -1 for isolated nodes.
         """
         result = {}
         
@@ -274,8 +572,27 @@ class NetworkTopologyCache:
                 if not is_open:
                     uf.union(node1, node2)
             
-            # Get the component (bus) number for each node
-            result[vl_id] = uf.get_component_mapping()
+            # Get component mapping
+            raw_component_mapping = uf.get_component_mapping()
+            
+            # Count nodes per component to identify isolated single-node components
+            component_node_count: Dict[int, int] = defaultdict(int)
+            for node, comp in raw_component_mapping.items():
+                component_node_count[comp] += 1
+            
+            # A component is "connected" (has a bus) if it has more than 1 node
+            # This means it's connected to at least one other node via a closed switch
+            # Single-node components are isolated
+            final_mapping = {}
+            for node, component in raw_component_mapping.items():
+                if component_node_count[component] > 1:
+                    # Connected component - assign bus number
+                    final_mapping[node] = component
+                else:
+                    # Single isolated node - mark as disconnected
+                    final_mapping[node] = -1
+            
+            result[vl_id] = final_mapping
         
         return result
     
@@ -288,7 +605,10 @@ class NetworkTopologyCache:
         Convert node-to-bus mappings to element-to-bus mappings.
         
         The bus numbers are reindexed to sequential numbers starting at 1,
-        so that if the raw bus numbers are [2, 4, 7], they become [1, 2, 3].
+        PER VOLTAGE LEVEL, so that if the raw bus numbers are [2, 4, 7], 
+        they become [1, 2, 3] within that voltage level.
+        
+        All element types are reindexed together to ensure consistent bus numbers.
         
         Parameters
         ----------
@@ -308,6 +628,9 @@ class NetworkTopologyCache:
         generators_id = {}
         shunts_id = {}
         
+        # Build element-to-VL mapping for all elements we'll process
+        element_to_vl = {}
+        
         # Process branches
         for branch_id, row in self._branches_df.iterrows():
             vl1 = row['voltage_level1_id']
@@ -315,14 +638,16 @@ class NetworkTopologyCache:
             
             if vl1 in impacted_vl_ids:
                 node = self._branch_or_to_node.get(branch_id)
+                # Use suffixed key for VL mapping to distinguish or/ex sides
+                element_to_vl[f"{branch_id}_or"] = vl1
                 if node and vl1 in node_to_bus and node in node_to_bus[vl1]:
                     lines_or_id[branch_id] = node_to_bus[vl1][node]
                 elif node:
-                    # Node not in mapping means disconnected
                     lines_or_id[branch_id] = -1
             
             if vl2 in impacted_vl_ids:
                 node = self._branch_ex_to_node.get(branch_id)
+                element_to_vl[f"{branch_id}_ex"] = vl2
                 if node and vl2 in node_to_bus and node in node_to_bus[vl2]:
                     lines_ex_id[branch_id] = node_to_bus[vl2][node]
                 elif node:
@@ -331,6 +656,7 @@ class NetworkTopologyCache:
         # Process loads
         for load_id, vl in self._load_to_vl.items():
             if vl in impacted_vl_ids:
+                element_to_vl[load_id] = vl
                 node = self._load_to_node.get(load_id)
                 if node and vl in node_to_bus and node in node_to_bus[vl]:
                     loads_id[load_id] = node_to_bus[vl][node]
@@ -340,6 +666,7 @@ class NetworkTopologyCache:
         # Process generators
         for gen_id, vl in self._gen_to_vl.items():
             if vl in impacted_vl_ids:
+                element_to_vl[gen_id] = vl
                 node = self._gen_to_node.get(gen_id)
                 if node and vl in node_to_bus and node in node_to_bus[vl]:
                     generators_id[gen_id] = node_to_bus[vl][node]
@@ -349,23 +676,34 @@ class NetworkTopologyCache:
         # Process shunts
         for shunt_id, vl in self._shunt_to_vl.items():
             if vl in impacted_vl_ids:
+                element_to_vl[shunt_id] = vl
                 node = self._shunt_to_node.get(shunt_id)
                 if node and vl in node_to_bus and node in node_to_bus[vl]:
                     shunts_id[shunt_id] = node_to_bus[vl][node]
                 elif node:
                     shunts_id[shunt_id] = -1
         
-        # Reindex bus numbers to sequential values starting at 1
-        # This ensures bus numbers like [2, 4, 7] become [1, 2, 3]
-        set_bus = {
-            'lines_or_id': lines_or_id,
-            'lines_ex_id': lines_ex_id,
+        # Build combined set_bus dict with suffixed keys for lines
+        # This ensures all elements are reindexed together consistently
+        combined_set_bus = {
+            'lines_or_id': {f"{bid}_or": bus for bid, bus in lines_or_id.items()},
+            'lines_ex_id': {f"{bid}_ex": bus for bid, bus in lines_ex_id.items()},
             'loads_id': loads_id,
             'generators_id': generators_id,
             'shunts_id': shunts_id
         }
         
-        return _reindex_bus_numbers(set_bus)
+        # Reindex ALL elements together per voltage level
+        reindexed = _reindex_bus_numbers_per_vl(combined_set_bus, element_to_vl)
+        
+        # Convert back: remove suffixes from line keys
+        return {
+            'lines_or_id': {bid.replace('_or', ''): bus for bid, bus in reindexed.get('lines_or_id', {}).items()},
+            'lines_ex_id': {bid.replace('_ex', ''): bus for bid, bus in reindexed.get('lines_ex_id', {}).items()},
+            'loads_id': reindexed.get('loads_id', {}),
+            'generators_id': reindexed.get('generators_id', {}),
+            'shunts_id': reindexed.get('shunts_id', {})
+        }
 
 
 # =============================================================================
@@ -449,21 +787,27 @@ def convert_to_grid2op_action(
     
     result = {"description": action._description}
     
-    # Flatten all switch changes into a single dict
-    switch_changes = {}
+    # Flatten all switch changes into a single dict (with full IDs for topology computation)
+    switch_changes_full = {}
     for vl_id, switches in action._switches_by_voltage_level.items():
-        switch_changes.update(switches)
+        switch_changes_full.update(switches)
     
     # Get impacted voltage levels
     impacted_vl_ids = set(action._switches_by_voltage_level.keys())
     
     # Compute bus assignments analytically (no network modification!)
-    node_to_bus = topology_cache.compute_bus_assignments(switch_changes, impacted_vl_ids)
+    node_to_bus = topology_cache.compute_bus_assignments(switch_changes_full, impacted_vl_ids)
     
     # Convert to element-level bus assignments
     set_bus = topology_cache.get_element_bus_assignments(node_to_bus, impacted_vl_ids)
     
-    result['content'] = {'set_bus': set_bus}
+    # Content only contains set_bus
+    result['content'] = {
+        'set_bus': set_bus
+    }
+    
+    # Switches are stored at the top level (full switch IDs for pypowsybl backend)
+    result['switches'] = switch_changes_full
     
     return result
 
@@ -547,6 +891,12 @@ def convert_to_grid2op_action_with_variant(
     
     result = {"description": action._description}
     
+    # Create switches dict with full IDs (as expected by pypowsybl)
+    # Flatten all switches from all voltage levels into a single dict
+    switches_full = {}
+    for vl_id, switches in action._switches_by_voltage_level.items():
+        switches_full.update(switches)
+    
     # Apply topology on a variant
     n.clone_variant("InitialState", action._id, True)
     n.set_working_variant(action._id)
@@ -590,6 +940,7 @@ def convert_to_grid2op_action_with_variant(
         shunts_mask = shunts['voltage_level_id'].isin(impacted_vl_ids)
         shunts_id = shunts.loc[shunts_mask, 'local_num'].to_dict()
         
+        # Content only contains set_bus
         result['content'] = {
             'set_bus': {
                 'lines_or_id': lines_or_id,
@@ -599,6 +950,9 @@ def convert_to_grid2op_action_with_variant(
                 'shunts_id': shunts_id
             }
         }
+        
+        # Switches are stored at the top level
+        result['switches'] = switches_full
         
     finally:
         n.set_working_variant("InitialState")
@@ -814,6 +1168,6 @@ def convert_to_grid2op_actions(
         if verbose:
             print(f"Converting actions for contingency: {contingency}")
         result[contingency] = convert_repas_actions_to_grid2op_actions(
-            n, action_list, use_batch=True,  verbose=verbose, use_analytical=False,#set to true to avoid network clonging variants
+            n, action_list, use_batch=True,  verbose=verbose, use_analytical=True,#set to true to avoid network clonging variants
         )
     return result
