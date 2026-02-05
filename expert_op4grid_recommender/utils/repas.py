@@ -66,9 +66,6 @@ def _parse_action(actions,
         elif action['actionType'] == "LoadGroupVariation":
             # TODO
             pass
-        elif action['actionType'] == "GeneratorGroupVariation":
-            # TODO
-            pass
         elif action['actionType'] == "LoadShedding":
             # TODO
             pass
