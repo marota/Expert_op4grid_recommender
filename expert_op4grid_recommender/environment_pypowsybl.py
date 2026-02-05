@@ -159,16 +159,26 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
     # Custom layout (not typically available in bare pypowsybl)
     custom_layout = None
     
-    # Load non-reconnectable lines
+    # Load non-reconnectable lines from CSV
     lines_non_reconnectable = []
     try:
         lines_non_reconnectable = list(load_interesting_lines(
-            path=env_path, 
+            path=env_path,
             file_name="non_reconnectable_lines.csv"
         ))
     except FileNotFoundError:
         pass
-    
+
+    # Detect non-reconnectable lines from switch topology in the grid
+    # A line is non-reconnectable if breakers at both extremities are open
+    # and all disconnectors at both extremities are also open
+    detected_non_reco = env.network_manager.detect_non_reconnectable_lines()
+    if detected_non_reco:
+        print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
+    for line in detected_non_reco:
+        if line not in lines_non_reconnectable:
+            lines_non_reconnectable.append(line)
+
     # Add deleted lines
     lines_non_reconnectable += list(DELETED_LINE_NAME)
     
