@@ -77,6 +77,119 @@ def simulate_contingency(env: Any, obs: Any, lines_defaut: List[str], act_reco_m
     return obs_simu, True
 
 
+def check_rho_reduction_with_baseline(obs: Any, timestep: int, act_defaut: Any, action: Any,
+                                       overload_ids: List[int], act_reco_maintenance: Any,
+                                       baseline_rho: np.ndarray,
+                                       lines_we_care_about: Optional[np.ndarray] = None,
+                                       rho_tolerance: float = 0.01,
+                                       verbose: bool = True) -> Tuple[bool, Optional[Any]]:
+    """
+    Checks if applying a candidate action reduces line loadings (rho) below a pre-computed baseline.
+
+    This optimized version takes a pre-computed baseline rho array, avoiding redundant
+    baseline simulations when checking multiple candidate actions.
+
+    Args:
+        obs (Any): The initial Grid2Op observation object *before* any actions are applied.
+        timestep (int): The simulation timestep index.
+        act_defaut (Any): The baseline Grid2Op action (e.g., N-1 contingency disconnection).
+        action (Any): The candidate Grid2Op action whose effectiveness is being tested.
+        overload_ids (List[int]): A list of line indices whose rho values should be checked.
+        act_reco_maintenance (Any): A Grid2Op action object for maintenance reconnections.
+        baseline_rho (np.ndarray): Pre-computed rho values from the baseline simulation
+                                   for the overload_ids lines.
+        lines_we_care_about (Optional[np.ndarray], optional): Array of line names to monitor.
+        rho_tolerance (float, optional): Minimum required reduction. Defaults to 0.01.
+        verbose (bool, optional): Whether to print success messages. Defaults to True.
+
+    Returns:
+        Tuple[bool, Optional[Any]]: A tuple containing:
+            - is_rho_reduction (bool): True if all rho values decreased by more than tolerance.
+            - obs_simu_action (Optional[Any]): The observation after applying the candidate action.
+    """
+    # Simulate the candidate state (contingency + maintenance + candidate action)
+    obs_simu_action, _, _, info_action = obs.simulate(
+        action + act_defaut + act_reco_maintenance, time_step=timestep
+    )
+
+    # If candidate simulation fails, return False but still return the observation
+    if info_action["exception"]:
+        print(f"ERROR: Candidate action simulation failed in check_rho_reduction: {info_action['exception']}")
+        return False, obs_simu_action
+
+    # Get final rho values from the candidate state
+    rho_final = obs_simu_action.rho[overload_ids]
+
+    # Check if *all* specified rho values decreased by more than the tolerance
+    if np.all(rho_final + rho_tolerance < baseline_rho):
+        if verbose:
+            max_rho_line = "N/A"
+            max_rho = 0.0
+
+            # Find the maximum rho specifically among 'lines_we_care_about' if provided
+            if lines_we_care_about is not None and lines_we_care_about.size > 0:
+                # Create a mask for lines we care about
+                care_mask = np.isin(obs_simu_action.name_line, lines_we_care_about)
+                if np.any(care_mask):
+                    # Filter rho values and find the maximum
+                    rhos_of_interest = obs_simu_action.rho[care_mask]
+                    max_rho = np.max(rhos_of_interest)
+                    # Find the name of the line corresponding to that max_rho
+                    max_rho_line_idx = np.where(obs_simu_action.rho == max_rho)[0]
+                    # Ensure index is valid before accessing name_line
+                    if max_rho_line_idx.size > 0 and max_rho_line_idx[0] < len(obs.name_line):
+                        max_rho_line = obs.name_line[max_rho_line_idx[0]]
+
+            # If lines_we_care_about is not specified, find the overall maximum rho
+            else:
+                if obs_simu_action.rho.size > 0:
+                    max_rho_idx = np.argmax(obs_simu_action.rho)
+                    max_rho = obs_simu_action.rho[max_rho_idx]
+                    # Ensure index is valid before accessing name_line
+                    if max_rho_idx < len(obs.name_line):
+                        max_rho_line = obs.name_line[max_rho_idx]
+
+            print(
+                f"✅ Rho reduction from {np.round(baseline_rho, 2)} to {np.round(rho_final, 2)}. "
+                f"New max rho is {max_rho:.2f} on line {max_rho_line}."
+            )
+        return True, obs_simu_action
+
+    # If rho reduction condition is not met
+    return False, obs_simu_action
+
+
+def compute_baseline_simulation(obs: Any, timestep: int, act_defaut: Any,
+                                 act_reco_maintenance: Any,
+                                 overload_ids: List[int]) -> Tuple[Optional[np.ndarray], Optional[Any]]:
+    """
+    Computes the baseline simulation once for use with multiple candidate actions.
+
+    Args:
+        obs (Any): The initial Grid2Op observation object *before* any actions are applied.
+        timestep (int): The simulation timestep index.
+        act_defaut (Any): The baseline Grid2Op action (e.g., N-1 contingency disconnection).
+        act_reco_maintenance (Any): A Grid2Op action object for maintenance reconnections.
+        overload_ids (List[int]): A list of line indices whose rho values should be extracted.
+
+    Returns:
+        Tuple[Optional[np.ndarray], Optional[Any]]: A tuple containing:
+            - baseline_rho (Optional[np.ndarray]): The rho values for overload_ids from baseline,
+                                                   or None if simulation failed.
+            - obs_baseline (Optional[Any]): The baseline observation, or None if failed.
+    """
+    obs_baseline, _, _, info_baseline = obs.simulate(
+        act_defaut + act_reco_maintenance, time_step=timestep
+    )
+
+    if info_baseline["exception"]:
+        print(f"ERROR: Baseline simulation failed: {info_baseline['exception']}")
+        return None, None
+
+    baseline_rho = obs_baseline.rho[overload_ids]
+    return baseline_rho, obs_baseline
+
+
 def check_rho_reduction(obs: Any, timestep: int, act_defaut: Any, action: Any, overload_ids: List[int],
                         act_reco_maintenance: Any, lines_we_care_about: Optional[np.ndarray] = None,
                         rho_tolerance: float = 0.01) -> Tuple[bool, Optional[Any]]:
@@ -91,6 +204,9 @@ def check_rho_reduction(obs: Any, timestep: int, act_defaut: Any, action: Any, o
     It then compares the line loading (`rho`) values for the specified `overload_ids`
     between the two scenarios. The candidate action is considered effective if *all*
     rho values in `overload_ids` decrease by more than `rho_tolerance`.
+
+    Note: For checking multiple actions, use compute_baseline_simulation() once and then
+    check_rho_reduction_with_baseline() for each action to avoid redundant simulations.
 
     Args:
         obs (Any): The initial Grid2Op observation object *before* any actions are applied.
@@ -118,63 +234,19 @@ def check_rho_reduction(obs: Any, timestep: int, act_defaut: Any, action: Any, o
                                                 baseline simulation failed. Returns the observation even
                                                 if the candidate simulation failed or rho wasn't reduced.
     """
-    # Simulate the baseline state (contingency + maintenance)
-    obs_defaut, _, _, info_defaut = obs.simulate(act_defaut + act_reco_maintenance, time_step=timestep)
-    # If baseline fails, cannot compare - return False
-    if info_defaut["exception"]:
-        print(f"ERROR: Baseline simulation failed in check_rho_reduction: {info_defaut['exception']}")
+    # Compute baseline
+    baseline_rho, obs_baseline = compute_baseline_simulation(
+        obs, timestep, act_defaut, act_reco_maintenance, overload_ids
+    )
+
+    if baseline_rho is None:
         return False, None
 
-    # Get initial rho values from the baseline state for the overloaded lines
-    rho_init = obs_defaut.rho[overload_ids]
-
-    # Simulate the candidate state (contingency + maintenance + candidate action)
-    obs_simu_action, _, _, info_action = obs.simulate(action + act_defaut + act_reco_maintenance, time_step=timestep)
-
-    # If candidate simulation fails, return False but still return the (potentially invalid) observation
-    if info_action["exception"]:
-        print(f"ERROR: Candidate action simulation failed in check_rho_reduction: {info_action['exception']}")
-        return False, obs_simu_action
-
-    # Get final rho values from the candidate state
-    rho_final = obs_simu_action.rho[overload_ids]
-
-    # Check if *all* specified rho values decreased by more than the tolerance
-    if np.all(rho_final + rho_tolerance < rho_init):
-        max_rho_line = "N/A"
-        max_rho = 0.0
-
-        # Find the maximum rho specifically among 'lines_we_care_about' if provided
-        if lines_we_care_about is not None and lines_we_care_about.size > 0:
-            # Create a mask for lines we care about
-            care_mask = np.isin(obs_simu_action.name_line, lines_we_care_about)
-            if np.any(care_mask):
-                 # Filter rho values and find the maximum
-                 rhos_of_interest = obs_simu_action.rho[care_mask]
-                 max_rho = np.max(rhos_of_interest)
-                 # Find the name of the line corresponding to that max_rho
-                 max_rho_line_idx = np.where(obs_simu_action.rho == max_rho)[0]
-                 # Ensure index is valid before accessing name_line
-                 if max_rho_line_idx.size > 0 and max_rho_line_idx[0] < len(obs.name_line):
-                      max_rho_line = obs.name_line[max_rho_line_idx[0]]
-
-        # If lines_we_care_about is not specified, find the overall maximum rho
-        else:
-            if obs_simu_action.rho.size > 0:
-                max_rho_idx = np.argmax(obs_simu_action.rho)
-                max_rho = obs_simu_action.rho[max_rho_idx]
-                # Ensure index is valid before accessing name_line
-                if max_rho_idx < len(obs.name_line):
-                     max_rho_line = obs.name_line[max_rho_idx]
-
-        print(
-            f"✅ Rho reduction from {np.round(rho_init, 2)} to {np.round(rho_final, 2)}. "
-            f"New max rho is {max_rho:.2f} on line {max_rho_line}."
-        )
-        return True, obs_simu_action
-
-    # If rho reduction condition is not met
-    return False, obs_simu_action
+    # Use the optimized function
+    return check_rho_reduction_with_baseline(
+        obs, timestep, act_defaut, action, overload_ids, act_reco_maintenance,
+        baseline_rho, lines_we_care_about, rho_tolerance
+    )
 
 
 def check_simu_overloads(obs: Any, obs_defaut: Any, action_space: Callable, timestep: int, lines_defaut: List[str],

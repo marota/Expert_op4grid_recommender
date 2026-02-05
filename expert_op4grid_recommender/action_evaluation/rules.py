@@ -13,7 +13,10 @@ import numpy as np
 from expert_op4grid_recommender.utils.data_utils import StateInfo
 from expert_op4grid_recommender.utils.load_training_data import aux_prevent_asset_reconnection
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier #identify_action_type
-from expert_op4grid_recommender.utils.simulation import check_rho_reduction, create_default_action
+from expert_op4grid_recommender.utils.simulation import (
+    check_rho_reduction, check_rho_reduction_with_baseline,
+    create_default_action, compute_baseline_simulation
+)
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 
 class ActionRuleValidator:
@@ -58,16 +61,31 @@ class ActionRuleValidator:
         self.obs = obs
         self.action_space = action_space
         self.classifier = classifier  # Store the classifier instance
-        self.hubs = hubs
+        self.by_description = by_description  # Store preference for classifier
+
+        # Store lists for compatibility
         self.lines_constrained_path, self.nodes_constrained_path = paths[0]
         self.lines_dispatch, self.nodes_dispatch_path = paths[1]
-        self.by_description = by_description  # Store preference for classifier
+        self.hubs = hubs
+
+        # Pre-compute sets for O(1) lookup - significant speedup for large grids
+        self._lines_constrained_set = set(self.lines_constrained_path)
+        self._lines_dispatch_set = set(self.lines_dispatch)
+        self._hubs_set = set(hubs)
+        self._nodes_constrained_set = set(self.nodes_constrained_path)
+        self._nodes_dispatch_set = set(self.nodes_dispatch_path)
+
+        # Cache sub_name to index mapping for fast topology lookups
+        self._sub_name_to_idx = {name: idx for idx, name in enumerate(obs.name_sub)}
+
+        # Cache line_status map for line status checks
+        self._line_status_map = {name: status for name, status in zip(obs.name_line, obs.line_status)}
 
     def localize_line_action(self, lines: List[str]) -> str:
         """
         Determines the location category of a line action relative to critical graph paths.
 
-        Uses the path information stored in the instance.
+        Uses the pre-computed sets for O(1) lookup.
 
         Args:
             lines: A list of line identifiers (e.g., names) involved in the action.
@@ -75,18 +93,20 @@ class ActionRuleValidator:
         Returns:
             "constrained_path", "dispatch_path", or "out_of_graph".
         """
-        action_lines_set = set(lines)
-        if action_lines_set.intersection(set(self.lines_constrained_path)):
-            return "constrained_path"
-        if action_lines_set.intersection(set(self.lines_dispatch)):
-            return "dispatch_path"
+        # Check intersection with pre-computed sets - O(len(lines)) instead of O(len(lines) * len(paths))
+        for line in lines:
+            if line in self._lines_constrained_set:
+                return "constrained_path"
+        for line in lines:
+            if line in self._lines_dispatch_set:
+                return "dispatch_path"
         return "out_of_graph"
 
     def localize_coupling_action(self, action_subs: List[str]) -> str:
         """
         Determines the location category of a coupling action relative to critical nodes.
 
-        Uses the hub and path information stored in the instance.
+        Uses the pre-computed sets for O(1) lookup.
 
         Args:
             action_subs: A list containing the name(s) of the substation(s) involved.
@@ -94,13 +114,16 @@ class ActionRuleValidator:
         Returns:
             "hubs", "constrained_path", "dispatch_path", or "out_of_graph".
         """
-        action_subs_set = set(action_subs)
-        if action_subs_set.intersection(set(self.hubs)):
-            return "hubs"
-        if action_subs_set.intersection(set(self.nodes_constrained_path)):
-            return "constrained_path"
-        if action_subs_set.intersection(set(self.nodes_dispatch_path)):
-            return "dispatch_path"
+        # Check intersection with pre-computed sets - O(len(subs)) instead of O(len(subs) * len(paths))
+        for sub in action_subs:
+            if sub in self._hubs_set:
+                return "hubs"
+        for sub in action_subs:
+            if sub in self._nodes_constrained_set:
+                return "constrained_path"
+        for sub in action_subs:
+            if sub in self._nodes_dispatch_set:
+                return "dispatch_path"
         return "out_of_graph"
 
     def check_rules(self, action_type: str, localization: str, subs_topology: List[List[int]]) -> Tuple[bool, Optional[str]]:
@@ -158,8 +181,8 @@ class ActionRuleValidator:
             lines = list(grid2op_actions_set_bus.get("lines_or_id", {}).keys()) + \
                     list(grid2op_actions_set_bus.get("lines_ex_id", {}).keys())
             if lines:
-                line_status_map = {name: status for name, status in zip(self.obs.name_line, self.obs.line_status)}
-                current_statuses = np.array([line_status_map.get(ln, True) for ln in lines])
+                # Use cached line_status_map instead of rebuilding it each time
+                current_statuses = np.array([self._line_status_map.get(ln, True) for ln in lines])
                 if "open" in action_type and np.all(~current_statuses):
                     do_filter_action, broken_rule = True, "No disconnection of a line already disconnected"
                 elif "close" in action_type and np.all(current_statuses):
@@ -196,6 +219,11 @@ class ActionRuleValidator:
         optionally simulates filtered actions using `check_rho_reduction` to gather
         additional information.
 
+        Optimized version with:
+        - Baseline simulation computed once and reused for all filtered actions
+        - Pre-computed actions (act_defaut, act_reco_maintenance) created once
+        - Cached sub_name to index mapping for fast topology lookups
+
         Args:
             dict_action: Dictionary mapping action IDs to action descriptions.
             timestep: Current simulation timestep for simulation checks.
@@ -210,46 +238,81 @@ class ActionRuleValidator:
         actions_to_filter = {}
         actions_unfiltered = {}
 
+        # Pre-compute these once outside the loop (major optimization)
+        act_defaut = None
+        act_reco_main_obj = None
+        baseline_rho = None
+
+        if do_simulation_checks:
+            # Create actions once instead of per-filtered-action
+            act_defaut = create_default_action(self.action_space, defauts)
+            act_reco_main_obj = self.action_space({"set_line_status": [(lr, 1) for lr in lines_reco_maintenance]})
+
+            # Compute baseline simulation once (the biggest optimization!)
+            baseline_rho, _ = compute_baseline_simulation(
+                self.obs, timestep, act_defaut, act_reco_main_obj, overload_ids
+            )
+
+        # Track actions that need simulation checks (deferred processing)
+        filtered_actions_needing_simulation = []
+
         for action_id, action_desc in dict_action.items():
             subs_topology = []
             if "VoltageLevelId" in action_desc:
                 action_subs = [action_desc["VoltageLevelId"]]
-                try:
-                    subs_topology = [self.obs.sub_topology(np.where(self.obs.name_sub == sn)[0][0]) for sn in action_subs]
-                except IndexError:
-                    subs_topology = []
+                # Use cached sub_name_to_idx mapping instead of np.where
+                subs_topology = []
+                for sn in action_subs:
+                    idx = self._sub_name_to_idx.get(sn)
+                    if idx is not None:
+                        subs_topology.append(self.obs.sub_topology(idx))
 
             do_filter_action, broken_rule = self.verify_action(action_desc, subs_topology)
             description = action_desc.get("description_unitaire", action_desc.get("description", ""))
 
             if do_filter_action:
-                is_rho_reduction=None
-                if do_simulation_checks:
-                    act_defaut = create_default_action(self.action_space, defauts)
-                    try:
-                        action = self.action_space(action_desc["content"])
-                    except Exception as e:
-                        print(f"Warning: Could not create action object for {action_id}: {e}")
-                        # Decide how to handle this - skip simulation?
-                        is_rho_reduction = None # Mark as unknown
-                    else:
-                        state = StateInfo()
-                        action = aux_prevent_asset_reconnection(self.obs, state, action)
-                        act_reco_main_obj = self.action_space({"set_line_status": [(lr, 1) for lr in lines_reco_maintenance]})
-                        is_rho_reduction, _ = check_rho_reduction(
-                            self.obs, timestep, act_defaut, action, overload_ids,
-                            act_reco_main_obj, lines_we_care_about
-                        )
-
-                    if is_rho_reduction:
-                        print(f"INFO: Action '{description}' was filtered by rule '{broken_rule}' but showed potential rho reduction.")
-
-                actions_to_filter[action_id] = {
-                    "description_unitaire": description,
-                    "broken_rule": broken_rule,
-                    "is_rho_reduction": is_rho_reduction
-                }
+                # Defer simulation to batch processing
+                filtered_actions_needing_simulation.append({
+                    'action_id': action_id,
+                    'action_desc': action_desc,
+                    'description': description,
+                    'broken_rule': broken_rule
+                })
             else:
                 actions_unfiltered[action_id] = {"description_unitaire": description}
+
+        # Process simulations for filtered actions using cached baseline
+        for item in filtered_actions_needing_simulation:
+            action_id = item['action_id']
+            action_desc = item['action_desc']
+            description = item['description']
+            broken_rule = item['broken_rule']
+
+            is_rho_reduction = None
+            if do_simulation_checks and baseline_rho is not None:
+                try:
+                    action = self.action_space(action_desc["content"])
+                except Exception as e:
+                    print(f"Warning: Could not create action object for {action_id}: {e}")
+                    is_rho_reduction = None
+                else:
+                    state = StateInfo()
+                    action = aux_prevent_asset_reconnection(self.obs, state, action)
+
+                    # Use the optimized function with pre-computed baseline
+                    is_rho_reduction, _ = check_rho_reduction_with_baseline(
+                        self.obs, timestep, act_defaut, action, overload_ids,
+                        act_reco_main_obj, baseline_rho, lines_we_care_about,
+                        verbose=False  # Reduce output noise for filtered actions
+                    )
+
+                if is_rho_reduction:
+                    print(f"INFO: Action '{description}' was filtered by rule '{broken_rule}' but showed potential rho reduction.")
+
+            actions_to_filter[action_id] = {
+                "description_unitaire": description,
+                "broken_rule": broken_rule,
+                "is_rho_reduction": is_rho_reduction
+            }
 
         return actions_to_filter, actions_unfiltered
