@@ -32,6 +32,9 @@ class MockAction:
     def __init__(self, name: str = "mock_action"):
         self.name = name
         self.content = {}
+        # Add attributes needed by aux_prevent_asset_reconnection
+        self.gen_set_bus = np.array([0])
+        self.load_set_bus = np.array([0])
 
     def __add__(self, other):
         combined = MockAction(f"{self.name}+{other.name}")
@@ -44,6 +47,10 @@ class MockAction:
     def as_dict(self):
         """Return action as dictionary (required by some code paths)."""
         return self.content
+
+    def update(self, action_dict):
+        """Update action with new values (required by aux_prevent_asset_reconnection)."""
+        self.content.update(action_dict)
 
 
 class MockActionSpace:
@@ -72,6 +79,10 @@ class MockObservationForSimulation:
         self.name_sub = np.array(name_sub)
         self.rho = np.array(rho)
         self.line_status = line_status if line_status is not None else np.ones(len(name_line), dtype=bool)
+
+        # Add attributes needed by aux_prevent_asset_reconnection
+        self.gen_bus = np.array([1])  # All generators connected to bus 1
+        self.load_bus = np.array([1])  # All loads connected to bus 1
 
         # Track simulation calls for verification
         self._simulate_call_count = 0
