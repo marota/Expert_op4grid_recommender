@@ -110,16 +110,37 @@ def setup_environment_configs(analysis_date: datetime): # Add analysis_date argu
     # For bare environments (no chronics), detect non-reconnectable lines
     # from switch topology in the grid.xiidm. For chronic environments,
     # the CSV file per chronic is the authoritative source.
+    # Note: we must load the xiidm file separately with raw pypowsybl because
+    # pypowsybl2grid converts the network to bus-breaker topology, which does
+    # not support node-breaker switch inspection.
     if analysis_date is None:
         try:
+            import pypowsybl as pp
+            from pathlib import Path
             from expert_op4grid_recommender.utils.helpers_pypowsybl import detect_non_reconnectable_lines
-            pypowsybl_network = env.backend._grid.network
-            detected_non_reco = detect_non_reconnectable_lines(pypowsybl_network)
-            if detected_non_reco:
-                print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
-            for line in detected_non_reco:
-                if line not in lines_non_reconnectable:
-                    lines_non_reconnectable.append(line)
+            env_path = Path(config.ENV_FOLDER) / config.ENV_NAME
+            network_file = None
+            for ext in ['.xiidm', '.iidm', '.xml']:
+                candidates = list(env_path.glob(f"*{ext}"))
+                if candidates:
+                    network_file = candidates[0]
+                    break
+            if network_file is None:
+                grid_folder = env_path / "grid"
+                if grid_folder.exists():
+                    for ext in ['.xiidm', '.iidm', '.xml']:
+                        candidates = list(grid_folder.glob(f"*{ext}"))
+                        if candidates:
+                            network_file = candidates[0]
+                            break
+            if network_file is not None:
+                raw_network = pp.network.load(str(network_file))
+                detected_non_reco = detect_non_reconnectable_lines(raw_network)
+                if detected_non_reco:
+                    print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
+                for line in detected_non_reco:
+                    if line not in lines_non_reconnectable:
+                        lines_non_reconnectable.append(line)
         except Exception as e:
             print(f"Warning: Could not detect non-reconnectable lines from grid topology: {e}")
 
