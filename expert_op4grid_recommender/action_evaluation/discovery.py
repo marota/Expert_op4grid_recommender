@@ -165,6 +165,41 @@ class ActionDiscoverer:
 
     # --- Helper Methods (Internal logic, kept private) ---
 
+    def _build_lookup_caches(self):
+        """Pre-computes name-to-index lookup dictionaries to avoid repeated np.where calls."""
+        if not hasattr(self, '_line_name_to_id'):
+            self._line_name_to_id = {name: idx for idx, name in enumerate(self.obs.name_line)}
+            self._sub_name_to_id = {name: idx for idx, name in enumerate(self.obs.name_sub)}
+            # Pre-compute line -> (sub_or_name, sub_ex_name) mapping
+            self._line_to_subs = {}
+            for name, line_id in self._line_name_to_id.items():
+                sub_or_name = self.obs.name_sub[self.obs.line_or_to_subid[line_id]]
+                sub_ex_name = self.obs.name_sub[self.obs.line_ex_to_subid[line_id]]
+                self._line_to_subs[name] = (sub_or_name, sub_ex_name)
+
+    def _build_active_edges_cache(self):
+        """Pre-computes which node pairs have active (non-dashed/dotted) edges."""
+        if hasattr(self, '_active_edges_cache'):
+            return
+        self._active_edges_cache = {}
+        graph = self.g_overflow.g
+        for u, v, key, data in graph.edges(keys=True, data=True):
+            style = data.get("style", "")
+            if style not in ("dashed", "dotted") and "name" in data:
+                pair = (min(u, v), max(u, v))
+                if pair not in self._active_edges_cache:
+                    self._active_edges_cache[pair] = []
+                self._active_edges_cache[pair].append(data["name"])
+
+    def _get_active_edges_between_cached(self, sub_or_name: str, sub_ex_name: str) -> List[str]:
+        """Fast lookup of active edges between two substations using pre-computed cache."""
+        node_a = self._sub_name_to_id.get(sub_or_name)
+        node_b = self._sub_name_to_id.get(sub_ex_name)
+        if node_a is None or node_b is None:
+            return []
+        pair = (min(node_a, node_b), max(node_a, node_b))
+        return self._active_edges_cache.get(pair, [])
+
     def _is_sublist(self, small: List, large: List) -> bool:
         """Checks if 'small' is a contiguous sublist of 'large'."""
         n = len(small)
@@ -172,13 +207,10 @@ class ActionDiscoverer:
 
     def _get_line_substations(self, line_name: str) -> Tuple[str, str]:
         """Gets substation names for a given line name."""
-        line_id_array = np.where(self.obs.name_line == line_name)[0]
-        if line_id_array.size == 0:
+        self._build_lookup_caches()
+        if line_name not in self._line_to_subs:
             raise ValueError(f"Line name '{line_name}' not found in observation.")
-        line_id = line_id_array[0]
-        sub_or_name = self.obs.name_sub[self.obs.line_or_to_subid[line_id]]
-        sub_ex_name = self.obs.name_sub[self.obs.line_ex_to_subid[line_id]]
-        return sub_or_name, sub_ex_name
+        return self._line_to_subs[line_name]
 
     def _find_paths_for_line(self, line_subs: Tuple[str, str], red_loop_paths: List[List[str]]) -> List[List[str]]:
         """Finds paths containing the given line's substations."""
@@ -223,16 +255,76 @@ class ActionDiscoverer:
                 return True, line
         return False, None
 
+    def _build_path_consecutive_pairs(self, paths: List[List[str]]) -> List[Set[Tuple[str, str]]]:
+        """Pre-computes set of consecutive substation pairs for each path for fast membership checks."""
+        path_pairs = []
+        for path in paths:
+            pairs = set()
+            for i in range(len(path) - 1):
+                pairs.add((path[i], path[i + 1]))
+            path_pairs.append(pairs)
+        return path_pairs
+
     def _check_other_reconnectable_line_on_path(self, line_reco: str, red_loop_paths: List[List[str]]) -> Tuple[bool, Optional[str]]:
-        """Checks path blockage for a specific reconnection candidate."""
+        """Checks path blockage for a specific reconnection candidate.
+
+        Uses pre-computed caches (_reco_path_pairs, _reco_disconnected_subs) when
+        available (set by verify_relevant_reconnections) for O(1) lookups instead
+        of repeated np.where scans and _is_sublist iterations.
+        """
+        # Fast path: use pre-computed caches if available
+        if hasattr(self, '_reco_path_pairs') and hasattr(self, '_reco_disconnected_subs'):
+            line_subs = self._line_to_subs.get(line_reco)
+            if line_subs is None:
+                return False, None, None
+
+            sub_or, sub_ex = line_subs
+            pair_fwd = (sub_or, sub_ex)
+            pair_rev = (sub_ex, sub_or)
+
+            # Find which paths contain this line (using pre-computed pair sets)
+            found_path_indices = []
+            for idx, pairs_set in enumerate(self._reco_path_pairs):
+                if pair_fwd in pairs_set or pair_rev in pairs_set:
+                    found_path_indices.append(idx)
+
+            if not found_path_indices:
+                return False, None, None
+
+            blocker = None
+            for path_idx in found_path_indices:
+                path = red_loop_paths[path_idx]
+                pairs_set = self._reco_path_pairs[path_idx]
+
+                # Check if any other disconnected line blocks this path
+                is_blocked = False
+                current_blocker = None
+                for disc_line, (d_sub_or, d_sub_ex) in self._reco_disconnected_subs.items():
+                    if disc_line == line_reco:
+                        continue
+                    if (d_sub_or, d_sub_ex) not in pairs_set and (d_sub_ex, d_sub_or) not in pairs_set:
+                        continue
+                    if not self._get_active_edges_between_cached(d_sub_or, d_sub_ex):
+                        is_blocked = True
+                        current_blocker = disc_line
+                        break
+
+                if not is_blocked:
+                    return True, path, None
+                if blocker is None:
+                    blocker = current_blocker
+
+            return False, None, blocker
+
+        # Slow fallback path (used when caches are not set, e.g. in unit tests)
         try:
             line_subs = self._get_line_substations(line_reco)
         except ValueError:
-            return False,None, None # Line not found
+            return False, None, None
 
         found_paths = self._find_paths_for_line(line_subs, red_loop_paths)
         if not found_paths:
-            return False,None, None
+            return False, None, None
 
         blocker = None
         for path in found_paths:
@@ -241,7 +333,7 @@ class ActionDiscoverer:
                 return True, path, None
             if blocker is None:
                  blocker = current_blocker
-        return False,None, blocker
+        return False, None, blocker
 
     # --- Action Discovery Methods (Public) ---
 
@@ -259,29 +351,50 @@ class ActionDiscoverer:
         map_action_score = {}
         red_loop_paths_sorted = sorted(red_loop_paths, key=len)
         capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
-        max_dispatch_flow=max([abs(val) for val in capacity_dict.values()])
+        max_dispatch_flow = max(abs(val) for val in capacity_dict.values())
+
+        # --- Pre-compute data structures for O(1) lookups ---
+        self._build_lookup_caches()
+        self._build_active_edges_cache()
+
+        # Store pre-computed caches as instance attributes so _check_other_reconnectable_line_on_path can use them
+        self._reco_path_pairs = self._build_path_consecutive_pairs(red_loop_paths_sorted)
+
+        self._reco_disconnected_subs = {}
+        for line in self.all_disconnected_lines:
+            subs = self._line_to_subs.get(line)
+            if subs is not None:
+                self._reco_disconnected_subs[line] = subs
+
+        # Pre-compute max dispatch flow per node to avoid repeated edge iteration
+        max_dispatch_flow_per_node = {}
+        for node in self.g_overflow.g.nodes():
+            sub_edges = list(self.g_overflow.g.out_edges(node, keys=True)) + list(
+                self.g_overflow.g.in_edges(node, keys=True))
+            if sub_edges:
+                max_dispatch_flow_per_node[node] = max(abs(capacity_dict[edge]) for edge in sub_edges)
+            else:
+                max_dispatch_flow_per_node[node] = 0.0
+
+        dispatch_flow_threshold = max_dispatch_flow * percentage_threshold_min_dispatch_flow
 
         print(f"Evaluating {len(lines_to_reconnect)} potential reconnections...")
         for line_reco in lines_to_reconnect:
-            has_found_effective_path,path, other_line = self._check_other_reconnectable_line_on_path(
+            has_found_effective_path, path, other_line = self._check_other_reconnectable_line_on_path(
                 line_reco, red_loop_paths_sorted
             )
 
             if has_found_effective_path:
-                line_id = np.where(self.obs.name_line == line_reco)[0][0]
+                line_id = self._line_name_to_id[line_reco]
                 # check dispatch flow at substation extremities are significant enough
+                start_path_sub_id = self._sub_name_to_id[path[0]]
+                end_path_sub_id = self._sub_name_to_id[path[-1]]
+                max_dispatch_flow_line_nodes = max(
+                    max_dispatch_flow_per_node.get(start_path_sub_id, 0.0),
+                    max_dispatch_flow_per_node.get(end_path_sub_id, 0.0)
+                )
 
-                max_dispatch_flow_line_nodes = 0
-                start_path_sub_id=np.where(self.obs.name_sub==path[0])[0][0]
-                end_path_sub_id = np.where(self.obs.name_sub == path[-1])[0][0]
-                for sub_id in [start_path_sub_id,end_path_sub_id]:
-                    sub_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + list(
-                        self.g_overflow.g.in_edges(sub_id, keys=True))
-                    max_dispatch_flow_node = max([abs(capacity_dict[edge]) for edge in sub_edges])
-                    if max_dispatch_flow_node >= max_dispatch_flow_line_nodes:
-                        max_dispatch_flow_line_nodes = max_dispatch_flow_node
-
-                if max_dispatch_flow_line_nodes <= max_dispatch_flow * percentage_threshold_min_dispatch_flow:
+                if max_dispatch_flow_line_nodes <= dispatch_flow_threshold:
                     print(f"  Skipping {line_reco}: Path not significant enough with max redispatch flow of only blocked by {max_dispatch_flow_line_nodes} MW.")
                 else:
                     try:
@@ -333,6 +446,12 @@ class ActionDiscoverer:
         self.identified_reconnections = identified
         self.effective_reconnections = effective
         self.ineffective_reconnections = ineffective
+
+        # Clean up temporary caches specific to this call
+        if hasattr(self, '_reco_path_pairs'):
+            del self._reco_path_pairs
+        if hasattr(self, '_reco_disconnected_subs'):
+            del self._reco_disconnected_subs
 
 
     def find_relevant_disconnections(self, lines_constrained_path_names: List[str]):
