@@ -106,6 +106,44 @@ def setup_environment_configs(analysis_date: datetime): # Add analysis_date argu
         custom_layout = [env.grid_layout[sub] for sub in env.name_sub]
 
     lines_non_reconnectable = list(load_interesting_lines(path=path_chronic, file_name="non_reconnectable_lines.csv"))
+
+    # For bare environments (no chronics), detect non-reconnectable lines
+    # from switch topology in the grid.xiidm. For chronic environments,
+    # the CSV file per chronic is the authoritative source.
+    # Note: we must load the xiidm file separately with raw pypowsybl because
+    # pypowsybl2grid converts the network to bus-breaker topology, which does
+    # not support node-breaker switch inspection.
+    if analysis_date is None:
+        try:
+            import pypowsybl as pp
+            from pathlib import Path
+            from expert_op4grid_recommender.utils.helpers_pypowsybl import detect_non_reconnectable_lines
+            env_path = Path(config.ENV_FOLDER) / config.ENV_NAME
+            network_file = None
+            for ext in ['.xiidm', '.iidm', '.xml']:
+                candidates = list(env_path.glob(f"*{ext}"))
+                if candidates:
+                    network_file = candidates[0]
+                    break
+            if network_file is None:
+                grid_folder = env_path / "grid"
+                if grid_folder.exists():
+                    for ext in ['.xiidm', '.iidm', '.xml']:
+                        candidates = list(grid_folder.glob(f"*{ext}"))
+                        if candidates:
+                            network_file = candidates[0]
+                            break
+            if network_file is not None:
+                raw_network = pp.network.load(str(network_file))
+                detected_non_reco = detect_non_reconnectable_lines(raw_network)
+                if detected_non_reco:
+                    print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
+                for line in detected_non_reco:
+                    if line not in lines_non_reconnectable:
+                        lines_non_reconnectable.append(line)
+        except Exception as e:
+            print(f"Warning: Could not detect non-reconnectable lines from grid topology: {e}")
+
     lines_non_reconnectable += list(DELETED_LINE_NAME)
 
     lines_we_care_about = load_interesting_lines(file_name=os.path.join(config.ENV_FOLDER, "lignes_a_monitorer.csv"))

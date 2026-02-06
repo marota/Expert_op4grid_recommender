@@ -536,5 +536,143 @@ class TestIntegration:
                 assert len(action._modifications) > 0
 
 
+class TestNonReconnectableLineDetection:
+    """Tests for detecting non-reconnectable lines from switch topology."""
+
+    @pytest.fixture
+    def real_network_manager(self):
+        """Create a NetworkManager from the real test grid xiidm file."""
+        from expert_op4grid_recommender.pypowsybl_backend import NetworkManager
+        from expert_op4grid_recommender import config
+
+        grid_path = config.ENV_FOLDER / "bare_env_small_grid_test" / "grid.xiidm"
+        nm = NetworkManager(network_path=grid_path)
+        return nm
+
+    def test_detect_non_reconnectable_lines_returns_list(self, real_network_manager):
+        """Test that detect_non_reconnectable_lines returns a list."""
+        result = real_network_manager.detect_non_reconnectable_lines()
+        assert isinstance(result, list)
+
+    def test_detect_non_reconnectable_lines_finds_expected_lines(self, real_network_manager):
+        """Test that known non-reconnectable lines are detected.
+
+        In the test grid, CRENEL71VIELM, GEN.PL73VIELM, and PYMONL61VOUGL
+        have breakers open and all disconnectors open at both extremities.
+        """
+        result = real_network_manager.detect_non_reconnectable_lines()
+
+        # These lines have all breakers and disconnectors open at both sides
+        expected_non_reco_lines = ["CRENEL71VIELM", "GEN.PL73VIELM", "PYMONL61VOUGL"]
+        for line in expected_non_reco_lines:
+            assert line in result, f"{line} should be detected as non-reconnectable"
+
+    def test_detect_non_reconnectable_lines_finds_expected_transformers(self, real_network_manager):
+        """Test that non-reconnectable transformers are also detected.
+
+        In the test grid, CPVANY632 and PYMONY632 have breakers open and all
+        disconnectors open at both extremities.
+        """
+        result = real_network_manager.detect_non_reconnectable_lines()
+
+        expected_non_reco_trafos = ["CPVANY632", "PYMONY632"]
+        for trafo in expected_non_reco_trafos:
+            assert trafo in result, f"{trafo} should be detected as non-reconnectable"
+
+    def test_reconnectable_lines_not_included(self, real_network_manager):
+        """Test that lines with at least one closed disconnector are NOT flagged.
+
+        BOISSL61GEN.P has a closed disconnector at side 1 (SA.1), so it
+        should NOT be detected as non-reconnectable.
+        """
+        result = real_network_manager.detect_non_reconnectable_lines()
+
+        # BOISSL61GEN.P: breaker open at side 1 but SA.1 closed -> reconnectable
+        assert "BOISSL61GEN.P" not in result
+
+    def test_connected_lines_not_included(self, real_network_manager):
+        """Test that fully connected lines are never flagged."""
+        result = real_network_manager.detect_non_reconnectable_lines()
+
+        # AISERL31MAGNY is a connected line - should never appear
+        assert "AISERL31MAGNY" not in result
+
+    def test_check_line_side_switches_returns_none_when_no_breaker(self, real_network_manager):
+        """Test that _check_line_side_switches returns None if no breaker exists.
+
+        CURTIL61ZCUR5 has no breaker at CURTIP6 or ZCUR5P6 in this grid.
+        """
+        nm = real_network_manager
+
+        # CURTIL61ZCUR5 is disconnected but has no breaker on either side
+        result = nm._check_line_side_switches("CURTIL61ZCUR5", "CURTIP6")
+        assert result is None
+
+    def test_check_line_side_switches_returns_tuple(self, real_network_manager):
+        """Test that _check_line_side_switches returns (breaker_open, all_disc_open)."""
+        nm = real_network_manager
+
+        # PYMONL61VOUGL at PYMONP6: breaker open, all disconnectors open
+        result = nm._check_line_side_switches("PYMONL61VOUGL", "PYMONP6")
+        assert result is not None
+        breaker_open, all_disc_open = result
+        assert breaker_open is True
+        assert all_disc_open is True
+
+    def test_check_line_side_with_closed_disconnector(self, real_network_manager):
+        """Test side with open breaker but at least one closed disconnector."""
+        nm = real_network_manager
+
+        # BOISSL61GEN.P at BOISSP6: breaker open, but SA.1 is closed
+        result = nm._check_line_side_switches("BOISSL61GEN.P", "BOISSP6")
+        assert result is not None
+        breaker_open, all_disc_open = result
+        assert breaker_open is True
+        assert all_disc_open is False
+
+    def test_ieee9_network_has_no_non_reconnectable(self):
+        """Test that a simple IEEE9 network has no non-reconnectable lines."""
+        from expert_op4grid_recommender.pypowsybl_backend import NetworkManager
+
+        network = pypowsybl.network.create_ieee9()
+        nm = NetworkManager(network=network)
+        result = nm.detect_non_reconnectable_lines()
+
+        # IEEE9 is a fully connected network with no disconnected lines
+        assert result == []
+
+    def test_standalone_function_matches_network_manager(self, real_network_manager):
+        """Test that the standalone function gives the same result as NetworkManager."""
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import (
+            detect_non_reconnectable_lines as detect_standalone
+        )
+
+        nm_result = real_network_manager.detect_non_reconnectable_lines()
+        standalone_result = detect_standalone(real_network_manager.network)
+
+        assert nm_result == standalone_result
+
+    def test_standalone_function_with_raw_network(self):
+        """Test the standalone function directly with a raw pypowsybl network.
+
+        This validates it works without a NetworkManager, as needed for
+        the grid2op backend which accesses the network via env.backend._grid.network.
+        """
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import (
+            detect_non_reconnectable_lines as detect_standalone
+        )
+        from expert_op4grid_recommender import config
+
+        grid_path = config.ENV_FOLDER / "bare_env_small_grid_test" / "grid.xiidm"
+        network = pypowsybl.network.load(str(grid_path))
+
+        result = detect_standalone(network)
+
+        assert isinstance(result, list)
+        assert "CRENEL71VIELM" in result
+        assert "PYMONL61VOUGL" in result
+        assert "BOISSL61GEN.P" not in result
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

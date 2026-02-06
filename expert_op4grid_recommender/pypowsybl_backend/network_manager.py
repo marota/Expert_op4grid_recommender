@@ -501,3 +501,42 @@ class NetworkManager:
                 i2_arr[idx] = i2 if not np.isnan(i2) else 0.0
 
         return i1_arr, i2_arr
+
+    def _check_line_side_switches(self, line_id: str, voltage_level_id: str) -> Optional[Tuple[bool, bool]]:
+        """
+        Check the breaker and disconnector states at one extremity of a line.
+
+        Delegates to the standalone function in helpers_pypowsybl.
+
+        Args:
+            line_id: The line (or transformer) identifier.
+            voltage_level_id: The voltage level at this extremity.
+
+        Returns:
+            A tuple (breaker_open, all_disconnectors_open), or None if no
+            breaker was found at this extremity.
+        """
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import _check_line_side_switches
+        return _check_line_side_switches(self.network, line_id, voltage_level_id)
+
+    def detect_non_reconnectable_lines(self) -> List[str]:
+        """
+        Detect non-reconnectable lines based on switch topology in the network.
+
+        A disconnected line is considered non-reconnectable if:
+        1. It has at least one open breaker at its extremity (it is disconnected
+           via breaker), AND
+        2. Line breakers at BOTH extremities are open, AND
+        3. All line disconnectors (sectionneurs) at BOTH extremities are also open.
+
+        This means the line is fully isolated at both ends with no path through
+        any switch to a busbar, making reconnection impossible without physical
+        intervention.
+
+        Delegates to the standalone function in helpers_pypowsybl.
+
+        Returns:
+            List of line IDs that are non-reconnectable.
+        """
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import detect_non_reconnectable_lines
+        return detect_non_reconnectable_lines(self.network)
