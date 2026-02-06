@@ -169,15 +169,16 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
     except FileNotFoundError:
         pass
 
-    # Detect non-reconnectable lines from switch topology in the grid
-    # A line is non-reconnectable if breakers at both extremities are open
-    # and all disconnectors at both extremities are also open
-    detected_non_reco = env.network_manager.detect_non_reconnectable_lines()
-    if detected_non_reco:
-        print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
-    for line in detected_non_reco:
-        if line not in lines_non_reconnectable:
-            lines_non_reconnectable.append(line)
+    # For bare environments (no chronics), detect non-reconnectable lines
+    # from switch topology in the grid.xiidm. For chronic environments,
+    # the CSV file per chronic should be the authoritative source.
+    if analysis_date is None:
+        detected_non_reco = env.network_manager.detect_non_reconnectable_lines()
+        if detected_non_reco:
+            print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
+        for line in detected_non_reco:
+            if line not in lines_non_reconnectable:
+                lines_non_reconnectable.append(line)
 
     # Add deleted lines
     lines_non_reconnectable += list(DELETED_LINE_NAME)

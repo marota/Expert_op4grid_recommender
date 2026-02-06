@@ -641,6 +641,38 @@ class TestNonReconnectableLineDetection:
         # IEEE9 is a fully connected network with no disconnected lines
         assert result == []
 
+    def test_standalone_function_matches_network_manager(self, real_network_manager):
+        """Test that the standalone function gives the same result as NetworkManager."""
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import (
+            detect_non_reconnectable_lines as detect_standalone
+        )
+
+        nm_result = real_network_manager.detect_non_reconnectable_lines()
+        standalone_result = detect_standalone(real_network_manager.network)
+
+        assert nm_result == standalone_result
+
+    def test_standalone_function_with_raw_network(self):
+        """Test the standalone function directly with a raw pypowsybl network.
+
+        This validates it works without a NetworkManager, as needed for
+        the grid2op backend which accesses the network via env.backend._grid.network.
+        """
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import (
+            detect_non_reconnectable_lines as detect_standalone
+        )
+        from expert_op4grid_recommender import config
+
+        grid_path = config.ENV_FOLDER / "bare_env_small_grid_test" / "grid.xiidm"
+        network = pypowsybl.network.load(str(grid_path))
+
+        result = detect_standalone(network)
+
+        assert isinstance(result, list)
+        assert "CRENEL71VIELM" in result
+        assert "PYMONL61VOUGL" in result
+        assert "BOISSL61GEN.P" not in result
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

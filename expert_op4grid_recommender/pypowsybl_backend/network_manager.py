@@ -506,9 +506,7 @@ class NetworkManager:
         """
         Check the breaker and disconnector states at one extremity of a line.
 
-        Uses the node-breaker topology to find the breaker directly connected
-        to the line node, then finds all disconnectors connected to the
-        intermediate node between the breaker and the busbars.
+        Delegates to the standalone function in helpers_pypowsybl.
 
         Args:
             line_id: The line (or transformer) identifier.
@@ -518,42 +516,8 @@ class NetworkManager:
             A tuple (breaker_open, all_disconnectors_open), or None if no
             breaker was found at this extremity.
         """
-        topo = self.network.get_node_breaker_topology(voltage_level_id)
-        nodes = topo.nodes
-        switches = topo.switches
-
-        # Find the node for this line in the voltage level
-        line_nodes = nodes[nodes['connectable_id'] == line_id]
-        if len(line_nodes) == 0:
-            return None
-
-        line_node = line_nodes.index[0]
-
-        # Find breaker(s) directly connected to the line node
-        line_sw = switches[(switches['node1'] == line_node) | (switches['node2'] == line_node)]
-        breakers = line_sw[line_sw['kind'] == 'BREAKER']
-
-        if len(breakers) == 0:
-            return None
-
-        # Check all breakers connected to the line node
-        all_breakers_open = all(breakers['open'])
-
-        # For each breaker, find the intermediate node and its disconnectors
-        all_disconnectors_open = True
-        for _, br in breakers.iterrows():
-            intermediate_node = br['node1'] if br['node2'] == line_node else br['node2']
-
-            disc_sw = switches[
-                ((switches['node1'] == intermediate_node) | (switches['node2'] == intermediate_node))
-                & (switches['kind'] == 'DISCONNECTOR')
-            ]
-
-            if len(disc_sw) > 0 and not all(disc_sw['open']):
-                all_disconnectors_open = False
-                break
-
-        return (all_breakers_open, all_disconnectors_open)
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import _check_line_side_switches
+        return _check_line_side_switches(self.network, line_id, voltage_level_id)
 
     def detect_non_reconnectable_lines(self) -> List[str]:
         """
@@ -569,54 +533,10 @@ class NetworkManager:
         any switch to a busbar, making reconnection impossible without physical
         intervention.
 
+        Delegates to the standalone function in helpers_pypowsybl.
+
         Returns:
             List of line IDs that are non-reconnectable.
         """
-        non_reconnectable = []
-
-        # Check AC lines
-        lines_df = self.network.get_lines()
-        disconnected_lines = lines_df[~lines_df['connected1'] | ~lines_df['connected2']]
-
-        for line_id, row in disconnected_lines.iterrows():
-            if self._is_non_reconnectable(line_id, row['voltage_level1_id'], row['voltage_level2_id']):
-                non_reconnectable.append(line_id)
-
-        # Check 2-winding transformers (treated as lines in this codebase)
-        trafos_df = self.network.get_2_windings_transformers()
-        disconnected_trafos = trafos_df[~trafos_df['connected1'] | ~trafos_df['connected2']]
-
-        for trafo_id, row in disconnected_trafos.iterrows():
-            if self._is_non_reconnectable(trafo_id, row['voltage_level1_id'], row['voltage_level2_id']):
-                non_reconnectable.append(trafo_id)
-
-        return non_reconnectable
-
-    def _is_non_reconnectable(self, element_id: str, vl1: str, vl2: str) -> bool:
-        """
-        Check if a disconnected line/transformer is non-reconnectable.
-
-        Args:
-            element_id: Line or transformer ID.
-            vl1: Voltage level at side 1.
-            vl2: Voltage level at side 2.
-
-        Returns:
-            True if the element is non-reconnectable per the heuristic.
-        """
-        side1 = self._check_line_side_switches(element_id, vl1)
-        side2 = self._check_line_side_switches(element_id, vl2)
-
-        # If no breaker found at either side, heuristic does not apply
-        if side1 is None or side2 is None:
-            return False
-
-        breaker_open_s1, all_disc_open_s1 = side1
-        breaker_open_s2, all_disc_open_s2 = side2
-
-        # Prerequisite: at least one open breaker
-        if not (breaker_open_s1 or breaker_open_s2):
-            return False
-
-        # Non-reconnectable: breakers open at both sides AND all disconnectors open at both sides
-        return breaker_open_s1 and breaker_open_s2 and all_disc_open_s1 and all_disc_open_s2
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import detect_non_reconnectable_lines
+        return detect_non_reconnectable_lines(self.network)

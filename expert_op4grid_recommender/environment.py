@@ -106,6 +106,23 @@ def setup_environment_configs(analysis_date: datetime): # Add analysis_date argu
         custom_layout = [env.grid_layout[sub] for sub in env.name_sub]
 
     lines_non_reconnectable = list(load_interesting_lines(path=path_chronic, file_name="non_reconnectable_lines.csv"))
+
+    # For bare environments (no chronics), detect non-reconnectable lines
+    # from switch topology in the grid.xiidm. For chronic environments,
+    # the CSV file per chronic is the authoritative source.
+    if analysis_date is None:
+        try:
+            from expert_op4grid_recommender.utils.helpers_pypowsybl import detect_non_reconnectable_lines
+            pypowsybl_network = env.backend._grid.network
+            detected_non_reco = detect_non_reconnectable_lines(pypowsybl_network)
+            if detected_non_reco:
+                print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
+            for line in detected_non_reco:
+                if line not in lines_non_reconnectable:
+                    lines_non_reconnectable.append(line)
+        except Exception as e:
+            print(f"Warning: Could not detect non-reconnectable lines from grid topology: {e}")
+
     lines_non_reconnectable += list(DELETED_LINE_NAME)
 
     lines_we_care_about = load_interesting_lines(file_name=os.path.join(config.ENV_FOLDER, "lignes_a_monitorer.csv"))
