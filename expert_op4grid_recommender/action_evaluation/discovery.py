@@ -268,51 +268,36 @@ class ActionDiscoverer:
     def _check_other_reconnectable_line_on_path(self, line_reco: str, red_loop_paths: List[List[str]]) -> Tuple[bool, Optional[str]]:
         """Checks path blockage for a specific reconnection candidate.
 
-        Uses pre-computed caches (_reco_path_pairs, _reco_disconnected_subs) when
-        available (set by verify_relevant_reconnections) for O(1) lookups instead
-        of repeated np.where scans and _is_sublist iterations.
+        Uses pre-computed caches when available (set by verify_relevant_reconnections):
+        - _reco_pair_to_paths: reverse index from substation pairs to path indices (O(1) lookup)
+        - _reco_path_blockers: pre-computed blocking disconnected lines per path (O(1) check)
         """
         # Fast path: use pre-computed caches if available
-        if hasattr(self, '_reco_path_pairs') and hasattr(self, '_reco_disconnected_subs'):
+        if hasattr(self, '_reco_pair_to_paths') and hasattr(self, '_reco_path_blockers'):
             line_subs = self._line_to_subs.get(line_reco)
             if line_subs is None:
                 return False, None, None
 
             sub_or, sub_ex = line_subs
-            pair_fwd = (sub_or, sub_ex)
-            pair_rev = (sub_ex, sub_or)
-
-            # Find which paths contain this line (using pre-computed pair sets)
-            found_path_indices = []
-            for idx, pairs_set in enumerate(self._reco_path_pairs):
-                if pair_fwd in pairs_set or pair_rev in pairs_set:
-                    found_path_indices.append(idx)
+            # O(1) lookup: which paths contain this line?
+            found_path_indices = self._reco_pair_to_paths.get((sub_or, sub_ex), set()) | \
+                                 self._reco_pair_to_paths.get((sub_ex, sub_or), set())
 
             if not found_path_indices:
                 return False, None, None
 
             blocker = None
-            for path_idx in found_path_indices:
+            for path_idx in sorted(found_path_indices):
                 path = red_loop_paths[path_idx]
-                pairs_set = self._reco_path_pairs[path_idx]
+                # O(1) lookup: which lines block this path?
+                blocking_lines = self._reco_path_blockers[path_idx]
+                # The only blocker that doesn't count is the line we're reconnecting
+                actual_blockers = blocking_lines - {line_reco}
 
-                # Check if any other disconnected line blocks this path
-                is_blocked = False
-                current_blocker = None
-                for disc_line, (d_sub_or, d_sub_ex) in self._reco_disconnected_subs.items():
-                    if disc_line == line_reco:
-                        continue
-                    if (d_sub_or, d_sub_ex) not in pairs_set and (d_sub_ex, d_sub_or) not in pairs_set:
-                        continue
-                    if not self._get_active_edges_between_cached(d_sub_or, d_sub_ex):
-                        is_blocked = True
-                        current_blocker = disc_line
-                        break
-
-                if not is_blocked:
+                if not actual_blockers:
                     return True, path, None
                 if blocker is None:
-                    blocker = current_blocker
+                    blocker = next(iter(actual_blockers))
 
             return False, None, blocker
 
@@ -357,14 +342,34 @@ class ActionDiscoverer:
         self._build_lookup_caches()
         self._build_active_edges_cache()
 
-        # Store pre-computed caches as instance attributes so _check_other_reconnectable_line_on_path can use them
-        self._reco_path_pairs = self._build_path_consecutive_pairs(red_loop_paths_sorted)
+        # Pre-compute consecutive pair sets for each path
+        path_pairs_list = self._build_path_consecutive_pairs(red_loop_paths_sorted)
 
-        self._reco_disconnected_subs = {}
-        for line in self.all_disconnected_lines:
-            subs = self._line_to_subs.get(line)
-            if subs is not None:
-                self._reco_disconnected_subs[line] = subs
+        # Build reverse index: substation pair -> set of path indices that contain it
+        # This replaces the O(n_paths) scan per candidate with an O(1) dict lookup
+        self._reco_pair_to_paths = {}
+        for path_idx, pairs_set in enumerate(path_pairs_list):
+            for pair in pairs_set:
+                if pair not in self._reco_pair_to_paths:
+                    self._reco_pair_to_paths[pair] = set()
+                self._reco_pair_to_paths[pair].add(path_idx)
+
+        # Pre-compute blocking disconnected lines per path
+        # This replaces the O(n_disconnected) inner loop per candidate×path with an O(1) set lookup
+        self._reco_path_blockers = {}
+        for path_idx, pairs_set in enumerate(path_pairs_list):
+            blockers = set()
+            for disc_line in self.all_disconnected_lines:
+                disc_subs = self._line_to_subs.get(disc_line)
+                if disc_subs is None:
+                    continue
+                d_sub_or, d_sub_ex = disc_subs
+                if (d_sub_or, d_sub_ex) not in pairs_set and (d_sub_ex, d_sub_or) not in pairs_set:
+                    continue
+                # This disconnected line is on this path — check if active edges bypass it
+                if not self._get_active_edges_between_cached(d_sub_or, d_sub_ex):
+                    blockers.add(disc_line)
+            self._reco_path_blockers[path_idx] = blockers
 
         # Pre-compute max dispatch flow per node to avoid repeated edge iteration
         max_dispatch_flow_per_node = {}
@@ -448,10 +453,10 @@ class ActionDiscoverer:
         self.ineffective_reconnections = ineffective
 
         # Clean up temporary caches specific to this call
-        if hasattr(self, '_reco_path_pairs'):
-            del self._reco_path_pairs
-        if hasattr(self, '_reco_disconnected_subs'):
-            del self._reco_disconnected_subs
+        if hasattr(self, '_reco_pair_to_paths'):
+            del self._reco_pair_to_paths
+        if hasattr(self, '_reco_path_blockers'):
+            del self._reco_path_blockers
 
 
     def find_relevant_disconnections(self, lines_constrained_path_names: List[str]):
