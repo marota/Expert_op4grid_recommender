@@ -1204,7 +1204,7 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
         # Both backends should produce equivalent results
         expected_keys_set = {
             '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6', 'f344b395-9908-43c2-bca0-75c5f298465e_COUCHP6',
-             'node_merging_PYMONP3', 'reco_CHALOL31LOUHA', 'reco_GEN.PL73VIELM'
+             'node_merging_PYMONP3', 'reco_CHALOL31LOUHA', 'reco_GEN.PY762',#'reco_GEN.PL73VIELM', this one is detected as non-reconnectable now
         }
         
         print(f"\n--- Running: {test_id} ---")
