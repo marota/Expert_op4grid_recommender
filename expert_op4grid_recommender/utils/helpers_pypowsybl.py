@@ -8,6 +8,7 @@ that were originally designed for grid2op.
 
 import numpy as np
 import pandas as pd
+from collections import defaultdict
 from typing import List, Tuple, Any, Dict, Optional
 
 
@@ -233,6 +234,88 @@ def _is_non_reconnectable(network, element_id: str, vl1: str, vl2: str) -> bool:
     return breaker_open_s1 and breaker_open_s2 and all_disc_open_s1 and all_disc_open_s2
 
 
+def _build_connectable_to_node_map(nodes) -> Dict:
+    """Build a mapping from connectable_id to node index from topology nodes.
+
+    Args:
+        nodes: DataFrame from topo.nodes with connectable_id column.
+
+    Returns:
+        Dict mapping connectable_id -> node index (first occurrence).
+    """
+    if nodes.empty:
+        return {}
+    valid = nodes[nodes['connectable_id'].notna()]
+    if valid.empty:
+        return {}
+    first = valid[~valid['connectable_id'].duplicated(keep='first')]
+    return dict(zip(first['connectable_id'].values, first.index.values))
+
+
+def _build_switch_adjacency(switches) -> Dict:
+    """Build an adjacency dict from topology switches.
+
+    Args:
+        switches: DataFrame from topo.switches with node1, node2, kind, open columns.
+
+    Returns:
+        Dict mapping node -> list of (other_node, kind, is_open).
+    """
+    adjacency = defaultdict(list)
+    if switches.empty:
+        return adjacency
+    n1 = switches['node1'].values
+    n2 = switches['node2'].values
+    kinds = switches['kind'].values
+    opens = switches['open'].values
+    for i in range(len(n1)):
+        adjacency[n1[i]].append((n2[i], kinds[i], opens[i]))
+        adjacency[n2[i]].append((n1[i], kinds[i], opens[i]))
+    return adjacency
+
+
+def _check_switches_from_lookups(
+    connectable_map: Dict, switch_adj: Dict, line_id: str
+) -> Optional[Tuple[bool, bool]]:
+    """Check breaker/disconnector states using pre-built lookup structures.
+
+    Equivalent to _check_line_side_switches but avoids repeated topology
+    fetches and DataFrame filtering by using pre-computed dicts.
+
+    Args:
+        connectable_map: Dict from connectable_id -> node index.
+        switch_adj: Dict from node -> list of (other_node, kind, is_open).
+        line_id: The line or transformer identifier.
+
+    Returns:
+        A tuple (breaker_open, all_disconnectors_open), or None if no
+        breaker was found.
+    """
+    line_node = connectable_map.get(line_id)
+    if line_node is None:
+        return None
+
+    neighbors = switch_adj.get(line_node, [])
+    breakers = [(other, is_open) for other, kind, is_open in neighbors if kind == 'BREAKER']
+
+    if not breakers:
+        return None
+
+    all_breakers_open = all(is_open for _, is_open in breakers)
+
+    # For each breaker, find the intermediate node and its disconnectors
+    all_disconnectors_open = True
+    for intermediate_node, _ in breakers:
+        for _, kind, is_open in switch_adj.get(intermediate_node, []):
+            if kind == 'DISCONNECTOR' and not is_open:
+                all_disconnectors_open = False
+                break
+        if not all_disconnectors_open:
+            break
+
+    return (all_breakers_open, all_disconnectors_open)
+
+
 def detect_non_reconnectable_lines(network) -> List[str]:
     """
     Detect non-reconnectable lines based on switch topology in a pypowsybl network.
@@ -256,22 +339,64 @@ def detect_non_reconnectable_lines(network) -> List[str]:
     Returns:
         List of line/transformer IDs that are non-reconnectable.
     """
-    non_reconnectable = []
-
-    # Check AC lines
+    # Get disconnected elements
     lines_df = network.get_lines()
     disconnected_lines = lines_df[~lines_df['connected1'] | ~lines_df['connected2']]
 
-    for line_id, row in disconnected_lines.iterrows():
-        if _is_non_reconnectable(network, line_id, row['voltage_level1_id'], row['voltage_level2_id']):
-            non_reconnectable.append(line_id)
-
-    # Check 2-winding transformers (treated as lines in this codebase)
     trafos_df = network.get_2_windings_transformers()
     disconnected_trafos = trafos_df[~trafos_df['connected1'] | ~trafos_df['connected2']]
 
-    for trafo_id, row in disconnected_trafos.iterrows():
-        if _is_non_reconnectable(network, trafo_id, row['voltage_level1_id'], row['voltage_level2_id']):
-            non_reconnectable.append(trafo_id)
+    if disconnected_lines.empty and disconnected_trafos.empty:
+        return []
+
+    # Collect all unique voltage levels that need topology lookup
+    vl_ids = set()
+    if not disconnected_lines.empty:
+        vl_ids.update(disconnected_lines['voltage_level1_id'].values)
+        vl_ids.update(disconnected_lines['voltage_level2_id'].values)
+    if not disconnected_trafos.empty:
+        vl_ids.update(disconnected_trafos['voltage_level1_id'].values)
+        vl_ids.update(disconnected_trafos['voltage_level2_id'].values)
+
+    # Fetch each topology once and build lookup structures
+    topo_cache = {}  # vl_id -> (connectable_map, switch_adjacency)
+    for vl_id in vl_ids:
+        topo = network.get_node_breaker_topology(vl_id)
+        conn_map = _build_connectable_to_node_map(topo.nodes)
+        sw_adj = _build_switch_adjacency(topo.switches)
+        topo_cache[vl_id] = (conn_map, sw_adj)
+
+    # Check all disconnected elements using cached lookups
+    non_reconnectable = []
+    for df in (disconnected_lines, disconnected_trafos):
+        if df.empty:
+            continue
+        element_ids = df.index.values
+        vl1_arr = df['voltage_level1_id'].values
+        vl2_arr = df['voltage_level2_id'].values
+
+        for i in range(len(element_ids)):
+            eid = element_ids[i]
+            vl1, vl2 = vl1_arr[i], vl2_arr[i]
+
+            conn_map1, sw_adj1 = topo_cache[vl1]
+            side1 = _check_switches_from_lookups(conn_map1, sw_adj1, eid)
+            if side1 is None:
+                continue
+
+            breaker_open_s1, all_disc_open_s1 = side1
+
+            conn_map2, sw_adj2 = topo_cache[vl2]
+            side2 = _check_switches_from_lookups(conn_map2, sw_adj2, eid)
+            if side2 is None:
+                continue
+
+            breaker_open_s2, all_disc_open_s2 = side2
+
+            if not (breaker_open_s1 or breaker_open_s2):
+                continue
+
+            if breaker_open_s1 and breaker_open_s2 and all_disc_open_s1 and all_disc_open_s2:
+                non_reconnectable.append(eid)
 
     return non_reconnectable
