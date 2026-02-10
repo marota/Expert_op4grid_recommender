@@ -715,6 +715,7 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
             non_connected_lines=non_connected_reconnectable_lines,
             non_reconnectable_lines=lines_non_reconnectable
         )
+        g_overflow.keep_overloads_components()  # remove unecessary components
         # Recreate distribution graph after adding lines
         # Note: possible_hubs parameter may not be supported in all alphaDeesp versions
         try:

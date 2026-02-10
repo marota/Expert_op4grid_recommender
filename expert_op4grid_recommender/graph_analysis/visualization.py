@@ -184,6 +184,7 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow,hubs, obs_si
         }
         g_overflow.highlight_significant_line_loading(dict_significant_change)
 
+    g_overflow.collapse_red_loops()
     # Generate and save visualization
     tmp_save_folder = os.path.join(save_folder, graph_file_name)
     svg = g_overflow.plot(
