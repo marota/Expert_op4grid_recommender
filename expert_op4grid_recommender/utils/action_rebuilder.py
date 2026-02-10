@@ -269,7 +269,7 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
 
             # Rebuild dictionary
             if do_from_scratch:
-                new_dict_actions = build_action_dict_for_snapshot_from_scratch(n_grid, all_actions)
+                new_dict_actions = build_action_dict_for_snapshot_from_scratch(n_grid, all_actions,add_reco_disco_actions=True)
             else:
                 new_dict_actions = rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action_to_filter_on)
 
