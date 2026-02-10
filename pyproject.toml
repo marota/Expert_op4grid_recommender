@@ -3,31 +3,34 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "expert_op4grid_analyzer"
-version = "0.1.1" # Start with an initial version
+name = "expert_op4grid_recommender"
+version = "0.1.0"
 authors = [
-    { name="Your Name", email="your.email@example.com" },
+    { name="RTE", email="rte@rte-france.com" },
 ]
-description = "Expert system analyzer for Grid2Op scenarios based on ExpertOp4Grid principles."
-readme = "README.md" # Optional: A file describing your project
-requires-python = ">=3.10" # Specify compatible Python versions
-license = { file="LICENSE" } # Optional: Specify your license file
+description = "Expert system recommender for power grid contingency analysis based on ExpertOp4Grid principles."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MPL-2.0"
+license-files = ["LICENSE"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)", # Or your chosen license
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    # List ALL external libraries your code depends on
-    "numpy>= 2.0.0",
-    "scipy>= 1.13.0",
+    "numpy>=2.0.0",
+    "scipy>=1.13.0",
     "pandas",
     "networkx",
-    "pypowsybl>= 1.13.0", # Make sure you have the correct package name and version specifier if needed
+    "pypowsybl>=1.13.0",
     "pypowsybl2grid>=0.2.1",
-    "expertop4grid>=0.2.8", # Your original dependency check
+    "expertop4grid>=0.2.8",
     "matplotlib>=3.8.0",
-    # Add any other libraries used (e.g., matplotlib if plotting outside grid2op)
 ]
 
 [project.optional-dependencies]
@@ -36,10 +39,11 @@ test = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]  # Look in the project root directory
-include = ["expert_op4grid_analyzer*"]  # Explicitly include only your package
-exclude = ["tests*", "venv*", "alphaDeesp*"] # Explicitly exclude tests, venv, and alphaDeesp
+where = ["."]
+include = ["expert_op4grid_recommender*"]
+exclude = ["tests*", "venv*", "alphaDeesp*"]
 
-[project.urls] # Optional
-Homepage = "https://github.com/yourusername/expert_op4grid_analyzer"
-Issues = "https://github.com/yourusername/expert_op4grid_analyzer/issues"
+[project.urls]
+Homepage = "https://github.com/marota/Expert_op4grid_recommender"
+Repository = "https://github.com/marota/Expert_op4grid_recommender"
+Issues = "https://github.com/marota/Expert_op4grid_recommender/issues"

@@ -8,3 +8,13 @@ __pycache__/
 *.egg-info/
 *.egg
 *.pyc
+
+# Build and distribution
+build/
+dist/
+*.whl
+*.tar.gz
+
+# Virtual environments
+venv/
+.venv/
