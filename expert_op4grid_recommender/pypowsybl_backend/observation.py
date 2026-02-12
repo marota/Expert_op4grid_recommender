@@ -690,20 +690,25 @@ class PypowsyblObservation:
         from datetime import datetime
         return datetime.now()
     
-    def simulate(self, 
+    def simulate(self,
                  action: 'PypowsyblAction',
-                 time_step: int = 0) -> Tuple['PypowsyblObservation', float, bool, Dict]:
+                 time_step: int = 0,
+                 keep_variant: bool = False) -> Tuple['PypowsyblObservation', float, bool, Dict]:
         """
         Simulate the effect of an action without modifying the base network.
-        
+
         This is the key method that replaces grid2op's obs.simulate().
         It uses pypowsybl variants to create a temporary copy of the network,
         apply the action, run load flow, and return results.
-        
+
         Args:
             action: Action to simulate (PypowsyblAction or combined action)
             time_step: Simulation timestep (for compatibility, not used in static analysis)
-            
+            keep_variant: If True, the network variant is kept alive after simulation
+                         and stored as ``_variant_id`` on the returned observation.
+                         The caller is responsible for cleanup via
+                         ``nm.remove_variant(obs._variant_id)`` when done.
+
         Returns:
             Tuple of (new_observation, reward, done, info)
             - new_observation: PypowsyblObservation after action
@@ -714,31 +719,35 @@ class PypowsyblObservation:
         nm = self._network_manager
         variant_id = f"simulate_{id(action)}_{time_step}"
         info = {"exception": []}
-        
+
         try:
             # Create temporary variant
             nm.create_variant(variant_id)
             nm.set_working_variant(variant_id)
-            
+
             # Apply action
             action.apply(nm)
-            
+
             # Run load flow
             result = nm.run_load_flow()
-            
+
             if result is None or result.status != lf.ComponentStatus.CONVERGED:
                 info["exception"].append(
                     Exception(f"Load flow did not converge: {result.status if result else 'No result'}")
                 )
                 # Return observation with NaN values
                 obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits)
+                if keep_variant:
+                    obs_simu._variant_id = variant_id
                 return obs_simu, 0.0, True, info
-            
+
             # Create observation from simulated state
             obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits)
-            
+            if keep_variant:
+                obs_simu._variant_id = variant_id
+
             return obs_simu, 0.0, False, info
-            
+
         except Exception as e:
             info["exception"].append(e)
             # Try to create an observation anyway
@@ -747,11 +756,13 @@ class PypowsyblObservation:
             except:
                 obs_simu = self  # Return self if we can't create new obs
             return obs_simu, 0.0, True, info
-            
+
         finally:
-            # Always clean up: return to base variant and remove temp
+            # Always return to base variant
             nm.set_working_variant(nm.base_variant_id)
-            nm.remove_variant(variant_id)
+            # Only remove variant if not keeping it
+            if not keep_variant:
+                nm.remove_variant(variant_id)
     
     def __add__(self, action: 'PypowsyblAction') -> 'PypowsyblObservation':
         """
