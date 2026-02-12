@@ -19,21 +19,23 @@ if TYPE_CHECKING:
 class PypowsyblObservation:
     """
     Grid2op-compatible observation interface for pypowsybl networks.
-    
+
     Provides read-only access to network state including:
     - Line flows and loading ratios (rho)
     - Line status (connected/disconnected)
     - Bus voltage magnitudes and angles
     - Load and generation values
     - Topology information
-    
+
     The simulate() method creates a temporary variant, applies an action,
     runs load flow, extracts results, and cleans up the variant.
-    
+
     Attributes:
         _network_manager: Reference to the NetworkManager
         _thermal_limits: Cached thermal limits for rho calculation
     """
+
+    _kept_variant_counter = 0
     
     def __init__(self, 
                  network_manager: 'NetworkManager',
@@ -717,7 +719,11 @@ class PypowsyblObservation:
             - info: Dictionary with 'exception' key if errors occurred
         """
         nm = self._network_manager
-        variant_id = f"simulate_{id(action)}_{time_step}"
+        if keep_variant:
+            PypowsyblObservation._kept_variant_counter += 1
+            variant_id = f"simulate_kept_{PypowsyblObservation._kept_variant_counter}_{time_step}"
+        else:
+            variant_id = f"simulate_{id(action)}_{time_step}"
         info = {"exception": []}
 
         try:
