@@ -1039,7 +1039,7 @@ REPRODUCIBILITY_CASES = [
 @pytest.mark.slow # Mark as slow because it loads the environment and runs analysis
 def test_reproducibility(test_id, date_str, timestep, lines_defaut, expected_keys_set):
 
-    prioritized_actions=run_analysis(
+    result = run_analysis(
         analysis_date=date_str,
         current_timestep=timestep,
         current_lines_defaut=lines_defaut,
@@ -1047,10 +1047,22 @@ def test_reproducibility(test_id, date_str, timestep, lines_defaut, expected_key
     )
 
     # --- Assertion ---
-    actual_keys_set = set(prioritized_actions.keys())
+    actual_keys_set = set(result["prioritized_actions"].keys())
 
     assert actual_keys_set == expected_keys_set, \
         f"[{test_id}] Prioritized action keys mismatch.\nExpected: {sorted(list(expected_keys_set))}\nActual:   {sorted(list(actual_keys_set))}"
+
+    # Verify detailed action info is present
+    for action_id, action_detail in result["prioritized_actions"].items():
+        assert "action" in action_detail, f"Missing 'action' for {action_id}"
+        assert "observation" in action_detail, f"Missing 'observation' for {action_id}"
+        assert "rho_before" in action_detail, f"Missing 'rho_before' for {action_id}"
+        assert "rho_after" in action_detail, f"Missing 'rho_after' for {action_id}"
+        assert "max_rho" in action_detail, f"Missing 'max_rho' for {action_id}"
+        assert "max_rho_line" in action_detail, f"Missing 'max_rho_line' for {action_id}"
+
+    assert "lines_overloaded_names" in result, "Missing 'lines_overloaded_names' in result"
+    assert len(result["lines_overloaded_names"]) > 0, "Expected at least one overloaded line"
 
     print(f"--- Test Passed: {test_id} ---")
 
@@ -1117,20 +1129,20 @@ def test_reproducibility_bare_env_small_grid_test():
             f"Config override failed! ACTION_FILE_PATH is '{config.ACTION_FILE_PATH}'"
         
         # Run analysis - will now use overridden config values
-        prioritized_actions = run_analysis(
+        result = run_analysis(
             analysis_date=None,  # None means bare environment
             current_timestep=timestep,
             current_lines_defaut=lines_defaut,
             backend=Backend.GRID2OP
         )
-        
+
         # Get actual keys from result
-        actual_keys_set = set(prioritized_actions.keys())
-        
+        actual_keys_set = set(result["prioritized_actions"].keys())
+
         # Print results for debugging
         print(f"\nExpected actions: {sorted(list(expected_keys_set))}")
         print(f"Actual actions:   {sorted(list(actual_keys_set))}")
-        
+
         # Assertion with detailed error message
         assert actual_keys_set == expected_keys_set, \
             f"[{test_id}] Prioritized action keys mismatch.\n" \
@@ -1138,8 +1150,18 @@ def test_reproducibility_bare_env_small_grid_test():
             f"Actual ({len(actual_keys_set)} actions):   {sorted(list(actual_keys_set))}\n" \
             f"Missing: {sorted(list(expected_keys_set - actual_keys_set))}\n" \
             f"Extra: {sorted(list(actual_keys_set - expected_keys_set))}"
-        
-        print(f"\n✅ Test Passed: {test_id}")
+
+        # Verify detailed action info is present
+        assert "lines_overloaded_names" in result, "Missing 'lines_overloaded_names' in result"
+        assert len(result["lines_overloaded_names"]) > 0, "Expected at least one overloaded line"
+        for action_id, action_detail in result["prioritized_actions"].items():
+            assert "action" in action_detail, f"Missing 'action' for {action_id}"
+            assert "observation" in action_detail, f"Missing 'observation' for {action_id}"
+            assert "rho_before" in action_detail, f"Missing 'rho_before' for {action_id}"
+            assert "max_rho" in action_detail, f"Missing 'max_rho' for {action_id}"
+            assert "max_rho_line" in action_detail, f"Missing 'max_rho_line' for {action_id}"
+
+        print(f"\n Test Passed: {test_id}")
         print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
         
     finally:
@@ -1222,20 +1244,20 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
             f"Config override failed! ACTION_FILE_PATH is '{config.ACTION_FILE_PATH}'"
         
         # Run analysis with PYPOWSYBL backend - this is the key difference from grid2op test
-        prioritized_actions = run_analysis(
+        result = run_analysis(
             analysis_date=None,  # None means bare environment
             current_timestep=timestep,
             current_lines_defaut=lines_defaut,
             backend=Backend.PYPOWSYBL  # Use pypowsybl backend
         )
-        
+
         # Get actual keys from result
-        actual_keys_set = set(prioritized_actions.keys())
-        
+        actual_keys_set = set(result["prioritized_actions"].keys())
+
         # Print results for debugging
         print(f"\nExpected actions: {sorted(list(expected_keys_set))}")
         print(f"Actual actions:   {sorted(list(actual_keys_set))}")
-        
+
         # Assertion with detailed error message
         assert actual_keys_set == expected_keys_set, \
             f"[{test_id}] Prioritized action keys mismatch.\n" \
@@ -1243,8 +1265,21 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
             f"Actual ({len(actual_keys_set)} actions):   {sorted(list(actual_keys_set))}\n" \
             f"Missing: {sorted(list(expected_keys_set - actual_keys_set))}\n" \
             f"Extra: {sorted(list(actual_keys_set - expected_keys_set))}"
-        
-        print(f"\n✅ Test Passed: {test_id}")
+
+        # Verify detailed action info is present, including pypowsybl-specific variant
+        assert "lines_overloaded_names" in result, "Missing 'lines_overloaded_names' in result"
+        assert len(result["lines_overloaded_names"]) > 0, "Expected at least one overloaded line"
+        for action_id, action_detail in result["prioritized_actions"].items():
+            assert "action" in action_detail, f"Missing 'action' for {action_id}"
+            assert "observation" in action_detail, f"Missing 'observation' for {action_id}"
+            assert "rho_before" in action_detail, f"Missing 'rho_before' for {action_id}"
+            assert "max_rho" in action_detail, f"Missing 'max_rho' for {action_id}"
+            assert "max_rho_line" in action_detail, f"Missing 'max_rho_line' for {action_id}"
+            # Verify pypowsybl observations have a variant_id
+            obs = action_detail["observation"]
+            assert hasattr(obs, '_variant_id'), f"Missing '_variant_id' on pypowsybl observation for {action_id}"
+
+        print(f"\n Test Passed: {test_id}")
         print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
         print(f"pypowsybl backend produces same results as grid2op backend.")
         

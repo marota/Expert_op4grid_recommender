@@ -122,12 +122,18 @@ def create_default_action_grid2op(action_space, defauts):
     return create_default_action(action_space, defauts)
 
 
-def check_rho_reduction_grid2op(obs, timestep, act_defaut, action, overload_ids, 
+def check_rho_reduction_grid2op(obs, timestep, act_defaut, action, overload_ids,
                                  act_reco_maintenance, lines_we_care_about):
     """Check rho reduction using Grid2Op."""
     from expert_op4grid_recommender.utils.simulation import check_rho_reduction
     return check_rho_reduction(obs, timestep, act_defaut, action, overload_ids,
                                 act_reco_maintenance, lines_we_care_about)
+
+
+def compute_baseline_simulation_grid2op(obs, timestep, act_defaut, act_reco_maintenance, overload_ids):
+    """Compute baseline simulation using Grid2Op."""
+    from expert_op4grid_recommender.utils.simulation import compute_baseline_simulation
+    return compute_baseline_simulation(obs, timestep, act_defaut, act_reco_maintenance, overload_ids)
 
 
 def build_overflow_graph_grid2op(env, obs_simu_defaut, lines_overloaded_ids_kept, 
@@ -192,6 +198,12 @@ def check_rho_reduction_pypowsybl(obs, timestep, act_defaut, action, overload_id
                                 act_reco_maintenance, lines_we_care_about)
 
 
+def compute_baseline_simulation_pypowsybl(obs, timestep, act_defaut, act_reco_maintenance, overload_ids):
+    """Compute baseline simulation using pypowsybl."""
+    from expert_op4grid_recommender.utils.simulation_pypowsybl import compute_baseline_simulation
+    return compute_baseline_simulation(obs, timestep, act_defaut, act_reco_maintenance, overload_ids)
+
+
 def build_overflow_graph_pypowsybl(env, obs_simu_defaut, lines_overloaded_ids_kept,
                                     non_connected_reconnectable_lines, lines_non_reconnectable,
                                     timestep, do_consolidate_graph, use_dc=False):
@@ -225,7 +237,7 @@ def run_analysis(analysis_date: Optional[datetime],
                  backend: Backend = Backend.GRID2OP) -> Dict[str, Any]:
     """
     Runs the expert system analysis for a given date, timestep, and contingency.
-    
+
     Args:
         analysis_date: Date for the chronic (None for bare environment)
         current_timestep: Timestep index within the chronic
@@ -233,9 +245,27 @@ def run_analysis(analysis_date: Optional[datetime],
         env_path: Override for environment path
         env_name: Override for environment name
         backend: Which backend to use (Backend.GRID2OP or Backend.PYPOWSYBL)
-        
+
     Returns:
-        Dictionary of prioritized actions
+        Dictionary with the following structure::
+
+            {
+                "lines_overloaded_names": List[str],
+                "prioritized_actions": {
+                    action_id: {
+                        "action": Action object,
+                        "description_unitaire": str or None,
+                        "rho_before": np.ndarray,  # baseline rho on overloaded lines
+                        "rho_after": np.ndarray,    # rho after action on overloaded lines
+                        "max_rho": float,           # new max rho across monitored lines
+                        "max_rho_line": str,        # name of line with max rho
+                        "is_rho_reduction": bool,   # whether action reduces all overloads
+                        "observation": Observation,  # observation after action
+                        # pypowsybl only: observation._variant_id contains the kept variant
+                    },
+                    ...
+                }
+            }
     """
     # --- Select backend functions ---
     if backend == Backend.GRID2OP:
@@ -247,6 +277,7 @@ def run_analysis(analysis_date: Optional[datetime],
         check_simu_overloads = check_simu_overloads_grid2op
         create_default_action = create_default_action_grid2op
         check_rho_reduction = check_rho_reduction_grid2op
+        compute_baseline = compute_baseline_simulation_grid2op
         build_overflow_graph = build_overflow_graph_grid2op
     elif backend == Backend.PYPOWSYBL:
         print(f"Using pure pypowsybl backend")
@@ -257,6 +288,7 @@ def run_analysis(analysis_date: Optional[datetime],
         check_simu_overloads = check_simu_overloads_pypowsybl
         create_default_action = create_default_action_pypowsybl
         check_rho_reduction = check_rho_reduction_pypowsybl
+        compute_baseline = compute_baseline_simulation_pypowsybl
         build_overflow_graph = build_overflow_graph_pypowsybl_wrapper
     else:
         raise ValueError(f"Unknown backend: {backend}")
@@ -341,9 +373,11 @@ def run_analysis(analysis_date: Optional[datetime],
     if prevent_islanded_subs:
         print(f"Warning: Not all overloads considered, as they would island these substations: {prevent_islanded_subs}")
 
+    lines_overloaded_names = [obs_simu_defaut.name_line[i] for i in lines_overloaded_ids]
+
     if not lines_overloaded_ids_kept:
         print("Overload breaks the grid apart. No topological solution without load shedding.")
-        return {}
+        return {"lines_overloaded_names": lines_overloaded_names, "prioritized_actions": {}}
 
     # Build the overflow graph
     with Timer("Graph Building & DC Switch"):
@@ -458,23 +492,84 @@ def run_analysis(analysis_date: Optional[datetime],
 
     print("\nPrioritized actions are: " + str(list(prioritized_actions.keys())))
 
-    # Reassess the prioritized actions
+    # Reassess the prioritized actions and collect detailed results
     with Timer("Reassessment"):
         act_defaut = create_default_action(env.action_space, current_lines_defaut)
 
+        # Compute baseline rho once for all actions
+        baseline_rho, _ = compute_baseline(
+            obs, current_timestep, act_defaut, act_reco_maintenance, lines_overloaded_ids
+        )
+
+        detailed_actions = {}
         for action_id, action in prioritized_actions.items():
-            print(f"{action_id}")
+            # Get description_unitaire if available
+            description_unitaire = None
             if action_id in dict_action:
                 action_desc = dict_action[action_id]
-                if "description_unitaire" in action_desc:
-                    print(action_desc["description_unitaire"])
+                description_unitaire = action_desc.get("description_unitaire")
 
-            is_rho_reduction, _ = check_rho_reduction(
-                obs, current_timestep, act_defaut, action, lines_overloaded_ids,
-                act_reco_maintenance, lines_we_care_about
+            # Simulate action
+            is_pypowsybl = backend == Backend.PYPOWSYBL
+            obs_simu_action, _, _, info_action = obs.simulate(
+                action + act_defaut + act_reco_maintenance,
+                time_step=current_timestep,
+                **({'keep_variant': True} if is_pypowsybl else {})
             )
 
-    return prioritized_actions
+            # Compute rho evolution and max rho
+            rho_before = baseline_rho
+            rho_after = None
+            max_rho = 0.0
+            max_rho_line = "N/A"
+            is_rho_reduction = False
+
+            if not info_action["exception"]:
+                rho_after = obs_simu_action.rho[lines_overloaded_ids]
+
+                # Determine if rho was reduced on all overloaded lines
+                if rho_before is not None:
+                    is_rho_reduction = bool(np.all(rho_after + 0.01 < rho_before))
+
+                # Find max rho among lines_we_care_about (or all lines)
+                if lines_we_care_about is not None and len(lines_we_care_about) > 0:
+                    care_mask = np.isin(obs_simu_action.name_line, lines_we_care_about)
+                    if np.any(care_mask):
+                        rhos_of_interest = obs_simu_action.rho[care_mask]
+                        max_rho = float(np.max(rhos_of_interest))
+                        max_rho_line_idx = np.where(obs_simu_action.rho == max_rho)[0]
+                        if max_rho_line_idx.size > 0 and max_rho_line_idx[0] < len(obs.name_line):
+                            max_rho_line = obs.name_line[max_rho_line_idx[0]]
+                else:
+                    if obs_simu_action.rho.size > 0:
+                        max_rho_idx = int(np.argmax(obs_simu_action.rho))
+                        max_rho = float(obs_simu_action.rho[max_rho_idx])
+                        if max_rho_idx < len(obs.name_line):
+                            max_rho_line = obs.name_line[max_rho_idx]
+
+            # Print summary
+            print(f"{action_id}")
+            if description_unitaire:
+                print(f"  {description_unitaire}")
+            if rho_before is not None and rho_after is not None:
+                print(f"  Rho reduction from {np.round(rho_before, 2)} to {np.round(rho_after, 2)}")
+                print(f"  New max rho is {max_rho:.2f} on line {max_rho_line}")
+
+            detailed_actions[action_id] = {
+                "action": action,
+                "description_unitaire": description_unitaire,
+                "rho_before": rho_before,
+                "rho_after": rho_after,
+                "max_rho": max_rho,
+                "max_rho_line": max_rho_line,
+                "is_rho_reduction": is_rho_reduction,
+                "observation": obs_simu_action,
+            }
+
+    return {
+        "lines_overloaded_names": lines_overloaded_names,
+        "prioritized_actions": detailed_actions,
+    }
 
 
 def main():
