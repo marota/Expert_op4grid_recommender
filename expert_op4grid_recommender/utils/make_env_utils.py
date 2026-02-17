@@ -41,10 +41,32 @@ try:
                            f'\t `pip install "pypowsybl2grid>={MIN_PP2GRID_VERSION}"`')
 except ImportError:
     pass  # pypowsybl2grid is optional (only needed for grid2op backend)
-if version.parse(version_importlib("pypowsybl")) < MIN_PP_VERSION:
-    raise RuntimeError(f"pypowsybl minimum version needed: {MIN_PP_VERSION}. Please "
-                       f"upgrade it from pypi with:\n"
-                       f'\t `pip install "pypowsybl>={MIN_PP_VERSION}"`')
+
+# Define the potential pypowsybl package names
+PACKAGES = ["pypowsybl", "pypowsybl-rte"]
+installed_package = None
+current_version = None
+
+# Find which one is installed
+for pkg in PACKAGES:
+    try:
+        current_version = version_importlib(pkg)
+        installed_package = pkg
+        break
+    except PackageNotFoundError:
+        continue
+
+# Check if either was found
+if not installed_package:
+    raise RuntimeError(f"Neither pypowsybl nor pypowsybl-rte was found. Please install one.")
+
+# Perform the version check
+if version.parse(current_version) < MIN_PP_VERSION:
+    raise RuntimeError(
+        f"{installed_package} minimum version needed: {MIN_PP_VERSION}. "
+        f"Found: {current_version}.\n"
+        f"Please upgrade it with:\n"
+        f'\t `pip install "{installed_package}>={MIN_PP_VERSION}"`')
     
     
 N_BUSBAR_PER_SUB = 12#7#6
