@@ -1,19 +1,20 @@
 import json
 import os
-from typing import Dict, List, Optional, Tuple, Union
-from tqdm import tqdm
+from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
-import pandas as pd
 import time
 
 from expert_op4grid_recommender.pypowsybl_backend import PypowsyblAction
 from expert_op4grid_recommender.utils.data_utils import StateInfo
-from grid2op.Environment import Environment
-from grid2op.Action import BaseAction
-from grid2op.Observation import BaseObservation
-from grid2op.Exceptions import Grid2OpException
 
-from expert_op4grid_recommender.utils.make_training_env import make_grid2op_training_env
+try:
+    from grid2op.Environment import Environment
+    from grid2op.Action import BaseAction
+    from grid2op.Observation import BaseObservation
+    from grid2op.Exceptions import Grid2OpException
+    _HAS_GRID2OP = True
+except (ImportError, Exception):
+    _HAS_GRID2OP = False
 
 #: name of the powerline that are now removed (non existant)
 #: but are in the environment because we need them when we will use
@@ -42,9 +43,9 @@ def list_all_obs_files(root: str,
     return res
 
 
-def set_state(env: Environment,
+def set_state(env: Any,
               action_path : Union[str, StateInfo],
-              with_timings=False) -> Tuple[BaseObservation, StateInfo]:
+              with_timings=False) -> Tuple[Any, StateInfo]:
     """NOT thread safe ! It modifies the environment (first argument)"""
     timings = {}
     if isinstance(action_path, StateInfo):
@@ -76,9 +77,9 @@ def set_state(env: Environment,
     else:
         return res, state
 
-def aux_prevent_prod_conso_reconnection(obs : BaseObservation,
-                                        state :StateInfo,
-                                        act: BaseAction) -> BaseAction:
+def aux_prevent_prod_conso_reconnection(obs: Any,
+                                        state: StateInfo,
+                                        act: Any) -> Any:
     """
     Given a grid2op state / observation (obs), the information about
     the original "point figes" (full French grid state) and a
@@ -130,9 +131,9 @@ def aux_prevent_prod_conso_reconnection(obs : BaseObservation,
         return act
 
 
-def aux_prevent_line_reconnection_cond1(obs: BaseObservation,
+def aux_prevent_line_reconnection_cond1(obs: Any,
                                         should_not_reco: set,
-                                        act: BaseAction) -> Tuple[BaseAction, np.ndarray]:
+                                        act: Any) -> Tuple[Any, np.ndarray]:
     line_or_set = act.line_or_set_bus
     line_ex_set = act.line_ex_set_bus
     line_or_change = act.line_or_change_bus
@@ -159,9 +160,9 @@ def aux_prevent_line_reconnection_cond1(obs: BaseObservation,
     return act, lines_treated
 
 
-def aux_prevent_line_reconnection_cond2(obs: BaseObservation,
+def aux_prevent_line_reconnection_cond2(obs: Any,
                                         lines_treated: np.ndarray,
-                                        act: BaseAction) -> BaseAction:
+                                        act: Any) -> Any:
     # act is an "action on a busbar coupler"
     # if it affects through set_bus at least 2 disctinct elements
     subs_impacted = type(act).grid_objects_types[act.set_bus >= 1, type(act).SUB_COL]
@@ -195,9 +196,9 @@ def aux_prevent_line_reconnection_cond2(obs: BaseObservation,
     return act
     
     
-def aux_prevent_line_reconnection(obs: BaseObservation,
+def aux_prevent_line_reconnection(obs: Any,
                                   state: StateInfo,
-                                  act: BaseAction) -> BaseAction:
+                                  act: Any) -> Any:
     """
     Given a grid state (obs), some extra information about the "points figes"
     (French grid) and an action, this function will:
@@ -243,15 +244,16 @@ def aux_prevent_line_reconnection(obs: BaseObservation,
 
         return act
 
-def aux_prevent_asset_reconnection(obs : BaseObservation,
-                                   state :StateInfo,
-                                   act: BaseAction) -> BaseAction:
+def aux_prevent_asset_reconnection(obs: Any,
+                                   state: StateInfo,
+                                   act: Any) -> Any:
     act = aux_prevent_prod_conso_reconnection(obs,state, act)
     act = aux_prevent_line_reconnection(obs, state, act)
     return act
 
 
 def load_interesting_lines(path : Optional[str]=None, file_name : str ="lignes_a_monitorer.csv") -> np.ndarray:
+    import pandas as pd
     if path is None:
         path = os.path.abspath(".")
     fn_ = os.path.join(path, file_name)
@@ -263,7 +265,10 @@ def load_interesting_lines(path : Optional[str]=None, file_name : str ="lignes_a
     return np.array([el.rstrip().lstrip() for el in pd.read_csv(fn_)["branches"].values])
         
 
-def filter_out_non_reproductible_observation(env : Environment, all_obs_files : List[str], lines_we_care_about: List[str]) -> List[StateInfo]:
+def filter_out_non_reproductible_observation(env: Any, all_obs_files : List[str], lines_we_care_about: List[str]) -> List[StateInfo]:
+    from tqdm import tqdm
+    if not _HAS_GRID2OP:
+        raise ImportError("grid2op is required for filter_out_non_reproductible_observation")
     nb_errors = 0
     usable_obs_files = []
     not_usable_obs_file = []
@@ -326,9 +331,11 @@ def save_observation_files(usable_obs_files, not_usable_obs_file):
     
     
 if __name__ == "__main__":
+    from expert_op4grid_recommender.utils.make_training_env import make_grid2op_training_env
+
     path_env = '.'
     nm_env = "env_dijon_v2_training"
-    
+
     # find all usable data
     # all_obs_files = list_all_obs_files("time_series", sort_results=True,ext=".json")
     all_obs_files = list_all_obs_files("/home/donnotben/Documents/assistflux/read_history/20250228_livraison_LJN/time_series/20250527",
@@ -339,7 +346,7 @@ if __name__ == "__main__":
     # interesting lines
     lines_we_care_about = load_interesting_lines()
     line_we_disconnect = load_interesting_lines(file_name="lignes_a_deconnecter.csv")
-    
+
     # make the environment
     env = make_grid2op_training_env(path_env, nm_env)
     

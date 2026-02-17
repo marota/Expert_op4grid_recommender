@@ -1,9 +1,14 @@
 import copy
 from datetime import datetime
-from typing import Dict
-from grid2op.Environment import Environment
-from grid2op.Observation import BaseObservation
-from grid2op.typing_variables import RESET_OPTIONS_TYPING
+from typing import Any, Dict
+
+try:
+    from grid2op.Environment import Environment
+    from grid2op.Observation import BaseObservation
+    from grid2op.typing_variables import RESET_OPTIONS_TYPING
+    _HAS_GRID2OP = True
+except (ImportError, Exception):
+    _HAS_GRID2OP = False
 
 
 class StateInfo:
@@ -20,15 +25,15 @@ class StateInfo:
         self.init_line_or_id = None
         #: the extremity bus id to which the n-1 was before being disconnectd
         self.init_line_ex_id = None
-        #: the name of each line that cannot be reconnected 
+        #: the name of each line that cannot be reconnected
         self.should_not_reco = None
         #: the state used to initialize the environment to the proper state
-        self.init_state : RESET_OPTIONS_TYPING = None
+        self.init_state = None
         #: backend type
         self.backend_type = None
-        
+
     @classmethod
-    def from_init_state(cls, env: Environment, init_state: Dict, del_attr=None):
+    def from_init_state(cls, env: Any, init_state: Dict, del_attr=None):
         res = cls()
         res.obs_datetime = init_state["datetime"]
         if "n1_name" in init_state:
@@ -53,13 +58,13 @@ class StateInfo:
             res.should_not_reco = set(copy.deepcopy(init_state["should_not_reco"]))
         else:
             # I suppose that if a line was disconnected then it should not be reconnected
-            res.should_not_reco = set([nm for nm, stat_ in init_state["init state"]["set_line_status"].items() 
+            res.should_not_reco = set([nm for nm, stat_ in init_state["init state"]["set_line_status"].items()
                                    if int(stat_) == -1])
         if not res.n1_name in res.should_not_reco:
             res.should_not_reco.add(res.n1_name)
         if "backend_type" in init_state:
-            res.backend_type = str(init_state["backend_type"])  
-            
+            res.backend_type = str(init_state["backend_type"])
+
         if del_attr is None:
             # all attributes are deleted from init_state
             del init_state["datetime"]
@@ -83,8 +88,8 @@ class StateInfo:
         res.init_state = init_state
         res.init_state["init datetime"] = datetime.strptime(res.obs_datetime, "%Y%m%d-%H%M")
         return res
-    
-    def set_env_state(self, env : Environment) -> BaseObservation:
+
+    def set_env_state(self, env: Any) -> Any:
         """
         .. danger::
             Do not use asynchronously `state.set_env_state(env)` for different states with the same
