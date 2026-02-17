@@ -6,9 +6,6 @@ import datetime
 from expert_op4grid_recommender.utils.data_utils import StateInfo
 import pandas as pd
 
-
-from expert_op4grid_recommender.utils.make_assistant_env import make_grid2op_assistant_env
-
 from expert_op4grid_recommender.utils.load_training_data import aux_prevent_asset_reconnection, load_interesting_lines
 
 #: name of the powerline that are now removed (non existant)
@@ -145,6 +142,8 @@ def run_remedial_action(obs,defaut,lines_non_reconnectable,env,id_interesting_li
     return overloaded_timesteps
     
 if __name__ == "__main__":
+    from expert_op4grid_recommender.utils.make_assistant_env import make_grid2op_assistant_env
+
     path_env = '.'
     nm_env = "env_dijon_v2_assistant"
     defaut = "AISERL31RONCI"  # "AISERL31RONCI"#"P.SAOL31RONCI"#line_we_disconnect[0]

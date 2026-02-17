@@ -13,13 +13,17 @@ import os
 import json
 import datetime
 import sys
-from expert_op4grid_recommender.utils.make_assistant_env import make_grid2op_assistant_env
-from expert_op4grid_recommender.utils.make_training_env import make_grid2op_training_env
-from expert_op4grid_recommender.utils.load_evaluation_data import list_all_chronics, get_first_obs_on_chronic
 from expert_op4grid_recommender import config
-# FIX: Import the config module relatively
 from expert_op4grid_recommender.data_loader import load_interesting_lines, DELETED_LINE_NAME, load_actions
 from expert_op4grid_recommender.utils.simulation import simulate_contingency, check_simu_overloads
+
+try:
+    from expert_op4grid_recommender.utils.make_assistant_env import make_grid2op_assistant_env
+    from expert_op4grid_recommender.utils.make_training_env import make_grid2op_training_env
+    from expert_op4grid_recommender.utils.load_evaluation_data import list_all_chronics, get_first_obs_on_chronic
+    _HAS_GRID2OP = True
+except (ImportError, Exception):
+    _HAS_GRID2OP = False
 
 
 
@@ -47,6 +51,8 @@ def get_env_first_obs(env_folder, env_name, use_evaluation_config, date=None, is
             - obs (grid2op.Observation): The first observation object for the selected chronic.
             - path_chronic (str): The file path to the selected chronic data.
     """
+    if not _HAS_GRID2OP:
+        raise ImportError("grid2op is required for get_env_first_obs()")
     if use_evaluation_config:
         env = make_grid2op_assistant_env(env_folder, env_name)
         if is_DC:
