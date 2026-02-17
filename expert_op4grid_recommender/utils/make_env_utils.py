@@ -1,7 +1,7 @@
 from typing import Dict, Literal, Union
 import os
 from packaging import version
-from importlib.metadata import version as version_importlibPackageNotFoundError
+from importlib.metadata import version as version_importlib,PackageNotFoundError
 
 import pypowsybl as pp
 import pypowsybl.loadflow as lf
