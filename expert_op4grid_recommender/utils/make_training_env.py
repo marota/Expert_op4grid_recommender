@@ -1,16 +1,18 @@
-from typing import Dict, Literal, Union
+from typing import Any, Dict, Literal, Union
 import os
-
-import lightsim2grid
-from lightsim2grid import LightSimBackend
-
-import grid2op
-from grid2op.Environment import Environment
 
 from expert_op4grid_recommender.utils.make_env_utils import (make_backend_kwargs_data,
                                                              make_default_params)
 
-from grid2op.Chronics import ChangeNothing
+try:
+    import lightsim2grid
+    from lightsim2grid import LightSimBackend
+    import grid2op
+    from grid2op.Environment import Environment
+    from grid2op.Chronics import ChangeNothing
+    _HAS_GRID2OP = True
+except (ImportError, Exception):
+    _HAS_GRID2OP = False
 
     
 def make_grid2op_training_env(path_env: str,
@@ -19,7 +21,9 @@ def make_grid2op_training_env(path_env: str,
                               allow_detachment=True,
                               params=None,
                               backend_loader_kwargs=None,
-                              **bk_kwargs) -> Environment:
+                              **bk_kwargs) -> Any:
+    if not _HAS_GRID2OP:
+        raise ImportError("grid2op and lightsim2grid are required for make_grid2op_training_env()")
     backend_kwargs_data = make_backend_kwargs_data(loader_kwargs=backend_loader_kwargs, **bk_kwargs)
     backend = LightSimBackend(**backend_kwargs_data)
     path = os.path.join(path_env, nm_env)

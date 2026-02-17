@@ -1,19 +1,25 @@
-from typing import Dict, Literal, Union
+from typing import Any, Dict, Literal, Union
 import os
-
-import grid2op
-from grid2op.Environment import Environment
-from grid2op.Backend import Backend
 import logging
-from pypowsybl2grid import PyPowSyBlBackend
 
 from expert_op4grid_recommender.utils.make_env_utils import (N_BUSBAR_PER_SUB,
                                                              make_default_params,
                                                              create_olf_rte_parameter)
-from grid2op.Chronics import ChangeNothing
+
+try:
+    import grid2op
+    from grid2op.Environment import Environment
+    from grid2op.Backend import Backend
+    from grid2op.Chronics import ChangeNothing
+    from pypowsybl2grid import PyPowSyBlBackend
+    _HAS_GRID2OP = True
+except (ImportError, Exception):
+    _HAS_GRID2OP = False
 
 def create_pypowsybl_backend(n_busbar_per_sub,
-                             check_isolated_and_disconnected_injections) -> Backend:
+                             check_isolated_and_disconnected_injections) -> Any:
+    if not _HAS_GRID2OP:
+        raise ImportError("grid2op and pypowsybl2grid are required for create_pypowsybl_backend()")
     logging.basicConfig()
     logging.getLogger().setLevel(logging.ERROR)
     logging.getLogger('powsybl').setLevel(logging.ERROR)
@@ -29,7 +35,7 @@ def make_grid2op_assistant_env(path_env,
                                 *,
                                 allow_detachment=True,
                                 params=None,
-                                n_busbar=N_BUSBAR_PER_SUB) -> Environment:
+                                n_busbar=N_BUSBAR_PER_SUB) -> Any:
     backend = create_pypowsybl_backend(n_busbar_per_sub=n_busbar,
                                        check_isolated_and_disconnected_injections=False)
     backend._prevent_automatic_disconnection = False

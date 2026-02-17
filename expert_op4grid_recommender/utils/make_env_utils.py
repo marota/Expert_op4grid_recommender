@@ -3,12 +3,21 @@ import os
 from packaging import version
 from importlib.metadata import version as version_importlib
 
-import lightsim2grid
-
-import grid2op
-from grid2op.Parameters import Parameters
 import pypowsybl as pp
 import pypowsybl.loadflow as lf
+
+try:
+    import lightsim2grid
+    _HAS_LIGHTSIM2GRID = True
+except (ImportError, Exception):
+    _HAS_LIGHTSIM2GRID = False
+
+try:
+    import grid2op
+    from grid2op.Parameters import Parameters
+    _HAS_GRID2OP = True
+except (ImportError, Exception):
+    _HAS_GRID2OP = False
 
 MIN_GLOP_VERSION = version.parse("1.11.0")
 MIN_LS_VERSION = version.parse("0.10.3")
@@ -16,18 +25,22 @@ MIN_PP2GRID_VERSION = version.parse("0.3.0")
 MIN_PP_VERSION = version.parse("1.11.0")
 
 
-if version.parse(grid2op.__version__) < MIN_GLOP_VERSION:
+if _HAS_GRID2OP and version.parse(grid2op.__version__) < MIN_GLOP_VERSION:
     raise RuntimeError(f"grid2op minimum version needed: {MIN_GLOP_VERSION}. Please "
                        f"upgrade it from pypi with:\n"
                        f'\t `pip install "Grid2Op>={MIN_GLOP_VERSION}"`')
-if version.parse(lightsim2grid.__version__) < MIN_LS_VERSION:
+if _HAS_LIGHTSIM2GRID and version.parse(lightsim2grid.__version__) < MIN_LS_VERSION:
     raise RuntimeError(f"lightsim2grid minimum version needed: {MIN_LS_VERSION}. Please "
                        f"upgrade it from pypi with:\n"
                        f'\t `pip install "LightSim2Grid>={MIN_LS_VERSION}"`')
-if version.parse(version_importlib("pypowsybl2grid")) < MIN_PP2GRID_VERSION:
-    raise RuntimeError(f"pypowsybl2grid minimum version needed: {MIN_PP2GRID_VERSION}. Please "
-                       f"upgrade it from pypi with:\n"
-                       f'\t `pip install "pypowsybl2grid>={MIN_PP2GRID_VERSION}"`')
+try:
+    _pp2grid_version = version_importlib("pypowsybl2grid")
+    if version.parse(_pp2grid_version) < MIN_PP2GRID_VERSION:
+        raise RuntimeError(f"pypowsybl2grid minimum version needed: {MIN_PP2GRID_VERSION}. Please "
+                           f"upgrade it from pypi with:\n"
+                           f'\t `pip install "pypowsybl2grid>={MIN_PP2GRID_VERSION}"`')
+except ImportError:
+    pass  # pypowsybl2grid is optional (only needed for grid2op backend)
 if version.parse(version_importlib("pypowsybl")) < MIN_PP_VERSION:
     raise RuntimeError(f"pypowsybl minimum version needed: {MIN_PP_VERSION}. Please "
                        f"upgrade it from pypi with:\n"
@@ -66,7 +79,9 @@ def make_backend_kwargs_data(loader_kwargs=None, **bk_kwargs) -> Dict[Literal["l
     return backend_kwargs_data
 
 
-def make_default_params() -> Parameters:
+def make_default_params():
+    if not _HAS_GRID2OP:
+        raise ImportError("grid2op is required for make_default_params()")
     params = Parameters()
     params.NO_OVERFLOW_DISCONNECTION = True
     params.MAX_LINE_STATUS_CHANGED = 9999
