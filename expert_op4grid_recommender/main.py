@@ -264,6 +264,12 @@ def run_analysis(analysis_date: Optional[datetime],
                         # pypowsybl only: observation._variant_id contains the kept variant
                     },
                     ...
+                },
+                "action_scores": {
+                    "line_reconnection": {action_id: float, ...},
+                    "line_disconnection": {},  # placeholder, scores to be implemented
+                    "open_coupling": {action_id: float, ...},
+                    "close_coupling": {},      # placeholder, scores to be implemented
                 }
             }
     """
@@ -377,7 +383,16 @@ def run_analysis(analysis_date: Optional[datetime],
 
     if not lines_overloaded_ids_kept:
         print("Overload breaks the grid apart. No topological solution without load shedding.")
-        return {"lines_overloaded_names": lines_overloaded_names, "prioritized_actions": {}}
+        return {
+            "lines_overloaded_names": lines_overloaded_names,
+            "prioritized_actions": {},
+            "action_scores": {
+                "line_reconnection": {},
+                "line_disconnection": {},
+                "open_coupling": {},
+                "close_coupling": {},
+            },
+        }
 
     # Build the overflow graph
     with Timer("Graph Building & DC Switch"):
@@ -486,7 +501,7 @@ def run_analysis(analysis_date: Optional[datetime],
             create_default_action_func=create_default_action
         )
 
-        prioritized_actions = discoverer.discover_and_prioritize(
+        prioritized_actions, action_scores = discoverer.discover_and_prioritize(
             n_action_max=config.N_PRIORITIZED_ACTIONS
         )
 
@@ -569,6 +584,7 @@ def run_analysis(analysis_date: Optional[datetime],
     return {
         "lines_overloaded_names": lines_overloaded_names,
         "prioritized_actions": detailed_actions,
+        "action_scores": action_scores,
     }
 
 

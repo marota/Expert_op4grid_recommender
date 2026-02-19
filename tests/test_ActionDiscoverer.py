@@ -297,6 +297,8 @@ def test_discoverer_find_relevant_node_merging(discoverer_instance):
     assert len(discoverer_instance.identified_merges) == 2
     assert len(discoverer_instance.effective_merges) == 1
     assert discoverer_instance.effective_merges[0].substations_id[0][0] == 0
+    # Verify scores dict is empty placeholder
+    assert discoverer_instance.scores_merges == {}
 
 def test_discoverer_verify_relevant_reconnections(discoverer_instance, monkeypatch):
     def mock_path_check(*args): return True, ["Sub0", "Sub1", "Sub3"], None # Assume path is always clear
@@ -304,12 +306,17 @@ def test_discoverer_verify_relevant_reconnections(discoverer_instance, monkeypat
     discoverer_instance.verify_relevant_reconnections(lines_to_reconnect={"L1"}, red_loop_paths=[])
     assert "reco_L1" in discoverer_instance.identified_reconnections
     assert "L1" in discoverer_instance.effective_reconnections
+    # Verify scores dict is populated
+    assert "reco_L1" in discoverer_instance.scores_reconnections
+    assert isinstance(discoverer_instance.scores_reconnections["reco_L1"], float)
 
 def test_discoverer_find_relevant_disconnections(discoverer_instance):
     discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
     assert "disco_L1" in discoverer_instance.identified_disconnections
     assert "disco_L1" in discoverer_instance.effective_disconnections
     assert "disco_L2" not in discoverer_instance.identified_disconnections # Not in constrained path
+    # Verify scores dict is empty placeholder
+    assert discoverer_instance.scores_disconnections == {}
 
 def test_discoverer_find_relevant_node_splitting(discoverer_instance):
     discoverer_instance.find_relevant_node_splitting(hubs_names=["Sub0"], nodes_blue_path_names=["Sub1"])
@@ -318,6 +325,11 @@ def test_discoverer_find_relevant_node_splitting(discoverer_instance):
     assert len(discoverer_instance.effective_splits) == 1
     assert discoverer_instance.effective_splits[0].substations_id[0][0] == 0
     assert discoverer_instance.scores_splits[0] >= discoverer_instance.scores_splits[1] # Check sort order
+    # Verify scores dict is populated
+    assert "split_S0" in discoverer_instance.scores_splits_dict
+    assert "split_S1" in discoverer_instance.scores_splits_dict
+    assert discoverer_instance.scores_splits_dict["split_S0"] == 1.0
+    assert discoverer_instance.scores_splits_dict["split_S1"] == 0.5
 
 
 # --- Add these new tests to your test_expert_op4grid_analyzer.py file ---

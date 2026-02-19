@@ -161,6 +161,10 @@ class ActionDiscoverer:
         self.effective_disconnections = []
         self.ineffective_disconnections = []
         self.ignored_disconnections = []
+        self.scores_reconnections = {}
+        self.scores_splits_dict = {}
+        self.scores_disconnections = {}
+        self.scores_merges = {}
         self.prioritized_actions = {}
 
     # --- Helper Methods (Internal logic, kept private) ---
@@ -451,6 +455,8 @@ class ActionDiscoverer:
         self.identified_reconnections = identified
         self.effective_reconnections = effective
         self.ineffective_reconnections = ineffective
+        self.scores_reconnections = {action_id: map_action_score[action_id]["score"]
+                                     for action_id in map_action_score}
 
         # Clean up temporary caches specific to this call
         if hasattr(self, '_reco_pair_to_paths'):
@@ -506,6 +512,7 @@ class ActionDiscoverer:
         self.effective_disconnections = effective
         self.ineffective_disconnections = ineffective
         self.ignored_disconnections = ignored
+        self.scores_disconnections = {}  # placeholder: scores to be implemented
 
 
     def identify_bus_of_interest_in_node_splitting_(self, node_type, buses, buses_negative_inflow,
@@ -1058,6 +1065,8 @@ class ActionDiscoverer:
         self.ineffective_splits = ineffective
         self.ignored_splits = ignored
         self.scores_splits = scores
+        self.scores_splits_dict = {action_id: map_action_score[action_id]["score"]
+                                   for action_id in map_action_score}
 
 
     def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str], percentage_threshold_min_dispatch_flow=0.1):
@@ -1106,6 +1115,7 @@ class ActionDiscoverer:
         self.identified_merges = identified
         self.effective_merges = effective
         self.ineffective_merges = ineffective
+        self.scores_merges = {}  # placeholder: scores to be implemented
 
 
     # --- Main Orchestration Method ---
@@ -1131,9 +1141,14 @@ class ActionDiscoverer:
             n_split_max (int): Max number of node splitting actions to prioritize. Defaults to 3.
 
         Returns:
-            Dict[str, Any]: The final dictionary of prioritized actions (Action ID -> Action Object).
-                            The results for each category are also stored in instance attributes
-                            (e.g., `self.effective_splits`).
+            Tuple[Dict[str, Any], Dict[str, Dict[str, float]]]:
+                - prioritized_actions: The final dictionary of prioritized actions (Action ID -> Action Object).
+                  The results for each category are also stored in instance attributes
+                  (e.g., `self.effective_splits`).
+                - action_scores: A dictionary of action scores per type with keys:
+                  ``"line_reconnection"``, ``"line_disconnection"``, ``"open_coupling"``, ``"close_coupling"``.
+                  Each value is a dict mapping action_id to its heuristic score.
+                  ``"line_disconnection"`` and ``"close_coupling"`` are empty placeholders for now.
         """
         self.prioritized_actions = {}
 
@@ -1193,6 +1208,14 @@ class ActionDiscoverer:
             self.prioritized_actions, self.identified_disconnections, n_action_max
         )
 
+        # Build global action scores dictionary per action type
+        self.action_scores = {
+            "line_reconnection": dict(self.scores_reconnections),
+            "line_disconnection": dict(self.scores_disconnections),
+            "open_coupling": dict(self.scores_splits_dict),
+            "close_coupling": dict(self.scores_merges),
+        }
+
         print(f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}")
-        return self.prioritized_actions
+        return self.prioritized_actions, self.action_scores
 

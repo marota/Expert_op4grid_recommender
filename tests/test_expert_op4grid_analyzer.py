@@ -1064,6 +1064,12 @@ def test_reproducibility(test_id, date_str, timestep, lines_defaut, expected_key
     assert "lines_overloaded_names" in result, "Missing 'lines_overloaded_names' in result"
     assert len(result["lines_overloaded_names"]) > 0, "Expected at least one overloaded line"
 
+    # Verify action_scores dictionary structure
+    assert "action_scores" in result, "Missing 'action_scores' in result"
+    for score_type in ("line_reconnection", "line_disconnection", "open_coupling", "close_coupling"):
+        assert score_type in result["action_scores"], f"Missing '{score_type}' in action_scores"
+        assert isinstance(result["action_scores"][score_type], dict), f"action_scores['{score_type}'] should be a dict"
+
     print(f"--- Test Passed: {test_id} ---")
 
 
@@ -1160,6 +1166,12 @@ def test_reproducibility_bare_env_small_grid_test():
             assert "rho_before" in action_detail, f"Missing 'rho_before' for {action_id}"
             assert "max_rho" in action_detail, f"Missing 'max_rho' for {action_id}"
             assert "max_rho_line" in action_detail, f"Missing 'max_rho_line' for {action_id}"
+
+        # Verify action_scores dictionary structure
+        assert "action_scores" in result, "Missing 'action_scores' in result"
+        for score_type in ("line_reconnection", "line_disconnection", "open_coupling", "close_coupling"):
+            assert score_type in result["action_scores"], f"Missing '{score_type}' in action_scores"
+            assert isinstance(result["action_scores"][score_type], dict), f"action_scores['{score_type}'] should be a dict"
 
         print(f"\n Test Passed: {test_id}")
         print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
@@ -1278,6 +1290,12 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
             # Verify pypowsybl observations have a variant_id
             obs = action_detail["observation"]
             assert hasattr(obs, '_variant_id'), f"Missing '_variant_id' on pypowsybl observation for {action_id}"
+
+        # Verify action_scores dictionary structure
+        assert "action_scores" in result, "Missing 'action_scores' in result"
+        for score_type in ("line_reconnection", "line_disconnection", "open_coupling", "close_coupling"):
+            assert score_type in result["action_scores"], f"Missing '{score_type}' in action_scores"
+            assert isinstance(result["action_scores"][score_type], dict), f"action_scores['{score_type}'] should be a dict"
 
         print(f"\n Test Passed: {test_id}")
         print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
