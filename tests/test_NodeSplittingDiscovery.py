@@ -237,7 +237,7 @@ def test_integration_full_scoring_pipeline(action_discoverer):
         # Mock return: buses=[1], neg_in=[10], neg_out=[100], pos_in=[0], pos_out=[0]
         fake_flow_data = ([1], [10], [100], [0], [0])
         with patch.object(action_discoverer, 'computing_buses_values_of_interest', return_value=fake_flow_data):
-            final_score = action_discoverer.compute_node_splitting_action_score_value(
+            final_score, _ = action_discoverer.compute_node_splitting_action_score_value(
                 overflow_graph=mock_graph,
                 g_distribution_graph=mock_dist_graph,
                 node=10,
