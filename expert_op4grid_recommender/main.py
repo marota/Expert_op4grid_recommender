@@ -265,11 +265,23 @@ def run_analysis(analysis_date: Optional[datetime],
                     },
                     ...
                 },
-                "action_scores": {  # each dict sorted by descending score
-                    "line_reconnection": {action_id: float, ...},  # delta-theta score
-                    "line_disconnection": {action_id: float, ...}, # asymmetric bell curve score
-                    "open_coupling": {action_id: float, ...},      # weighted repulsion score
-                    "close_coupling": {action_id: float, ...},     # delta-phase score
+                "action_scores": {  # per-type: scores (sorted desc) + params (hypotheses)
+                    "line_reconnection": {
+                        "scores": {action_id: float, ...},
+                        "params": {"percentage_threshold_min_dispatch_flow": float, "max_dispatch_flow": float}
+                    },
+                    "line_disconnection": {
+                        "scores": {action_id: float, ...},
+                        "params": {"min_redispatch": float, "max_redispatch": float, "peak_redispatch": float}
+                    },
+                    "open_coupling": {
+                        "scores": {action_id: float, ...},
+                        "params": {action_id: {"node_type": str, "bus_of_interest": int, ...}, ...}
+                    },
+                    "close_coupling": {
+                        "scores": {action_id: float, ...},
+                        "params": {"percentage_threshold_min_dispatch_flow": float, "max_dispatch_flow": float}
+                    },
                 }
             }
     """
@@ -387,10 +399,10 @@ def run_analysis(analysis_date: Optional[datetime],
             "lines_overloaded_names": lines_overloaded_names,
             "prioritized_actions": {},
             "action_scores": {
-                "line_reconnection": {},
-                "line_disconnection": {},
-                "open_coupling": {},
-                "close_coupling": {},
+                "line_reconnection": {"scores": {}, "params": {}},
+                "line_disconnection": {"scores": {}, "params": {}},
+                "open_coupling": {"scores": {}, "params": {}},
+                "close_coupling": {"scores": {}, "params": {}},
             },
         }
 

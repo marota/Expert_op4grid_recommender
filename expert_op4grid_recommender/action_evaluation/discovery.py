@@ -165,6 +165,10 @@ class ActionDiscoverer:
         self.scores_splits_dict = {}
         self.scores_disconnections = {}
         self.scores_merges = {}
+        self.params_reconnections = {}
+        self.params_splits_dict = {}
+        self.params_disconnections = {}
+        self.params_merges = {}
         self.prioritized_actions = {}
 
     # --- Helper Methods (Internal logic, kept private) ---
@@ -605,6 +609,10 @@ class ActionDiscoverer:
         self.ineffective_reconnections = ineffective
         self.scores_reconnections = {action_id: map_action_score[action_id]["score"]
                                      for action_id in map_action_score}
+        self.params_reconnections = {
+            "percentage_threshold_min_dispatch_flow": percentage_threshold_min_dispatch_flow,
+            "max_dispatch_flow": max_dispatch_flow,
+        }
 
         # Clean up temporary caches specific to this call
         if hasattr(self, '_reco_pair_to_paths'):
@@ -678,6 +686,19 @@ class ActionDiscoverer:
         self.ineffective_disconnections = ineffective
         self.ignored_disconnections = ignored
         self.scores_disconnections = scores_map
+
+        # Capture computed bounds before cleanup
+        if hasattr(self, '_disco_bounds'):
+            max_overload_flow, min_redispatch, max_redispatch = self._disco_bounds
+            # Peak redispatch: x_peak = (alpha-1)/(alpha+beta-2) = 2/2.5 = 0.8
+            peak_redispatch = min_redispatch + 0.8 * (max_redispatch - min_redispatch)
+            self.params_disconnections = {
+                "min_redispatch": min_redispatch,
+                "max_redispatch": max_redispatch,
+                "peak_redispatch": peak_redispatch,
+            }
+        else:
+            self.params_disconnections = {}
 
         # Clean up cached bounds
         if hasattr(self, '_disco_bounds'):
@@ -909,7 +930,10 @@ class ActionDiscoverer:
             dict_edge_names_buses (dict): Mapping of edge names to bus IDs.
 
         Returns:
-            float: The final score for this splitting action.
+            Tuple[float, Dict]: A tuple of (score, details) where details contains:
+                - node_type: str ("amont", "aval", or other)
+                - bus_of_interest: int (bus number used for scoring)
+                - in_negative_flows, out_negative_flows, in_positive_flows, out_positive_flows: floats
         """
         # 1) Identify node type
         node_type = self.identify_node_splitting_type(node, g_distribution_graph)
@@ -921,7 +945,7 @@ class ActionDiscoverer:
         # Handle edge case: no valid buses found (all disconnected or empty)
         if not buses:
             print(f"Warning: No valid buses found for node {node}, returning score 0")
-            return 0.0
+            return 0.0, {}
 
         # 3) Detect bus of interest
         bus_of_interest = self.identify_bus_of_interest_in_node_splitting_(
@@ -943,7 +967,18 @@ class ActionDiscoverer:
             buses_positive_inflow, buses_positive_out_flow
         )
 
-        return bus_of_interest_score
+        # 5) Build per-action details for the bus of interest
+        bus_idx = buses.index(bus_of_interest)
+        details = {
+            "node_type": node_type,
+            "bus_of_interest": bus_of_interest,
+            "in_negative_flows": float(buses_negative_inflow[bus_idx]),
+            "out_negative_flows": float(buses_negative_out_flow[bus_idx]),
+            "in_positive_flows": float(buses_positive_inflow[bus_idx]),
+            "out_positive_flows": float(buses_positive_out_flow[bus_idx]),
+        }
+
+        return bus_of_interest_score, details
 
     def _get_action_topo_vect(self, sub_impacted_id, action):
         """
@@ -1050,7 +1085,7 @@ class ActionDiscoverer:
 #
         #return dict_edge_names_buses
 
-    def compute_node_splitting_action_score(self, action_dict: Any, sub_impacted_id: int, alphaDeesp_ranker: Any) -> float:
+    def compute_node_splitting_action_score(self, action_dict: Any, sub_impacted_id: int, alphaDeesp_ranker: Any) -> Tuple[float, Dict]:
         """
         Computes the heuristic score for a single node splitting action.
 
@@ -1060,7 +1095,7 @@ class ActionDiscoverer:
             alphaDeesp_ranker: The initialized AlphaDeesp ranker.
 
         Returns:
-            The heuristic score as a float.
+            Tuple[float, Dict]: The heuristic score and per-action details dict.
         """
         # Extract bus assignments directly from action dictionary (backend-agnostic)
         # This avoids relying on topology vector operations which may not be available
@@ -1074,13 +1109,16 @@ class ActionDiscoverer:
         dict_edge_names_buses=self._edge_names_buses_dict(self.obs_defaut, action_topo_vect, sub_impacted_id)
         #dict_edge_names_buses=self._edge_names_buses_dict_new(action_dict)#self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
 
-        score_expert_recommender = self.compute_node_splitting_action_score_value(
+        result = self.compute_node_splitting_action_score_value(
             self.g_overflow.g, self.g_distribution_graph,
             node=sub_impacted_id,
             dict_edge_names_buses=dict_edge_names_buses
         )
 
-        return score_expert_recommender
+        # Handle both old (float) and new (tuple) return formats for backward compatibility
+        if isinstance(result, tuple):
+            return result
+        return result, {}
 
 
     def _get_subs_impacted_from_action_desc(self, action_desc: Dict) -> List[int]:
@@ -1183,8 +1221,8 @@ class ActionDiscoverer:
                 sub_impacted_name = self.obs_defaut.name_sub[sub_impacted_id]
 
                 if sub_impacted_name in hubs_names or sub_impacted_name in nodes_blue_path_names:
-                    score = self.compute_node_splitting_action_score(action_desc["content"], sub_impacted_id, alphaDeesp_ranker)
-                    map_action_score[action_id] = {"action": action, "score": score, "sub_impacted": sub_impacted_name}
+                    score, details = self.compute_node_splitting_action_score(action_desc["content"], sub_impacted_id, alphaDeesp_ranker)
+                    map_action_score[action_id] = {"action": action, "score": score, "sub_impacted": sub_impacted_name, "details": details}
                     #print(action_desc["content"]["set_bus"])
                     #print(action_id+": "+str(score))
                 else:
@@ -1236,6 +1274,8 @@ class ActionDiscoverer:
         self.ignored_splits = ignored
         self.scores_splits = scores
         self.scores_splits_dict = {action_id: map_action_score[action_id]["score"]
+                                   for action_id in map_action_score}
+        self.params_splits_dict = {action_id: map_action_score[action_id].get("details", {})
                                    for action_id in map_action_score}
 
 
@@ -1364,6 +1404,10 @@ class ActionDiscoverer:
         self.effective_merges = effective
         self.ineffective_merges = ineffective
         self.scores_merges = scores_map
+        self.params_merges = {
+            "percentage_threshold_min_dispatch_flow": percentage_threshold_min_dispatch_flow,
+            "max_dispatch_flow": max_dispatch_flow,
+        }
 
 
     # --- Main Orchestration Method ---
@@ -1389,14 +1433,15 @@ class ActionDiscoverer:
             n_split_max (int): Max number of node splitting actions to prioritize. Defaults to 3.
 
         Returns:
-            Tuple[Dict[str, Any], Dict[str, Dict[str, float]]]:
+            Tuple[Dict[str, Any], Dict[str, Dict]]:
                 - prioritized_actions: The final dictionary of prioritized actions (Action ID -> Action Object).
                   The results for each category are also stored in instance attributes
                   (e.g., `self.effective_splits`).
-                - action_scores: A dictionary of action scores per type with keys:
+                - action_scores: A dictionary per action type with keys:
                   ``"line_reconnection"``, ``"line_disconnection"``, ``"open_coupling"``, ``"close_coupling"``.
-                  Each value is a dict mapping action_id to its heuristic score,
-                  sorted by descending score value.
+                  Each value is a dict with two fields:
+                    - ``"scores"``: {action_id: float, ...} sorted by descending score.
+                    - ``"params"``: underlying hypotheses/parameters used for scoring.
         """
         self.prioritized_actions = {}
 
@@ -1457,11 +1502,24 @@ class ActionDiscoverer:
         )
 
         # Build global action scores dictionary per action type, sorted by descending score
+        # Each type contains "scores" (sorted dict) and "params" (underlying hypotheses)
         self.action_scores = {
-            "line_reconnection": dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True)),
-            "line_disconnection": dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True)),
-            "open_coupling": dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True)),
-            "close_coupling": dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True)),
+            "line_reconnection": {
+                "scores": dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True)),
+                "params": dict(self.params_reconnections),
+            },
+            "line_disconnection": {
+                "scores": dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True)),
+                "params": dict(self.params_disconnections),
+            },
+            "open_coupling": {
+                "scores": dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True)),
+                "params": dict(self.params_splits_dict),
+            },
+            "close_coupling": {
+                "scores": dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True)),
+                "params": dict(self.params_merges),
+            },
         }
 
         print(f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}")

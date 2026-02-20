@@ -356,13 +356,15 @@ def test_internal_compute_node_splitting_action_score(discoverer_instance):
     # --- Test Case 1: Substation 0 (should get score 1.0 from MockAlphaDeesp) ---
     # Manually set up obs_defaut to ensure sub_info and topo_vect are suitable
     discoverer.obs_defaut = MockObservation(name_sub=["Sub0", "Sub1"], sub_info=[2, 2], topo_vect=[1, 1, 1, 1])
-    score0 = discoverer.compute_node_splitting_action_score(action_sub0, 0, alpha_ranker)
+    score0, details0 = discoverer.compute_node_splitting_action_score(action_sub0, 0, alpha_ranker)
     assert score0 == 1.0, "Score for Sub0 should be 1.0 based on mock ranker"
+    assert isinstance(details0, dict)
 
     # --- Test Case 2: Substation 1 (should get score 0.5 from MockAlphaDeesp) ---
     discoverer.obs_defaut = MockObservation(name_sub=["Sub0", "Sub1"], sub_info=[2, 2], topo_vect=[1, 1, 1, 1])
-    score1 = discoverer.compute_node_splitting_action_score(action_sub1, 1, alpha_ranker)
+    score1, details1 = discoverer.compute_node_splitting_action_score(action_sub1, 1, alpha_ranker)
     assert score1 == 0.5, "Score for Sub1 should be 0.5 based on mock ranker"
+    assert isinstance(details1, dict)
 
 def test_internal_identify_and_score_node_splitting_actions(discoverer_instance, monkeypatch):
     """

@@ -1068,7 +1068,12 @@ def test_reproducibility(test_id, date_str, timestep, lines_defaut, expected_key
     assert "action_scores" in result, "Missing 'action_scores' in result"
     for score_type in ("line_reconnection", "line_disconnection", "open_coupling", "close_coupling"):
         assert score_type in result["action_scores"], f"Missing '{score_type}' in action_scores"
-        assert isinstance(result["action_scores"][score_type], dict), f"action_scores['{score_type}'] should be a dict"
+        type_data = result["action_scores"][score_type]
+        assert isinstance(type_data, dict), f"action_scores['{score_type}'] should be a dict"
+        assert "scores" in type_data, f"Missing 'scores' in action_scores['{score_type}']"
+        assert "params" in type_data, f"Missing 'params' in action_scores['{score_type}']"
+        assert isinstance(type_data["scores"], dict), f"action_scores['{score_type}']['scores'] should be a dict"
+        assert isinstance(type_data["params"], dict), f"action_scores['{score_type}']['params'] should be a dict"
 
     print(f"--- Test Passed: {test_id} ---")
 

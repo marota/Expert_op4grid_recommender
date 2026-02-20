@@ -90,14 +90,45 @@ Key parameters can be adjusted in `expert_op4grid_recommender/config.py`:
 
 ## Action Discovery and Scoring
 
-After building the overflow graph and filtering candidate actions with expert rules, the `ActionDiscoverer` evaluates and scores each candidate action by type. Each type has its own filtering criteria to narrow down candidates before scoring. The resulting scores are returned in an `action_scores` dictionary with four keys, each sorted by descending score:
+After building the overflow graph and filtering candidate actions with expert rules, the `ActionDiscoverer` evaluates and scores each candidate action by type. Each type has its own filtering criteria to narrow down candidates before scoring. The resulting scores are returned in an `action_scores` dictionary with four keys. Each type contains `"scores"` (action scores sorted by descending value) and `"params"` (underlying hypotheses and parameters used for scoring):
 
 ```python
 action_scores = {
-    "line_reconnection":  {action_id: score, ...},  # sorted desc
-    "line_disconnection": {action_id: score, ...},  # sorted desc
-    "open_coupling":      {action_id: score, ...},  # sorted desc
-    "close_coupling":     {action_id: score, ...},  # sorted desc
+    "line_reconnection": {
+        "scores": {action_id: score, ...},  # sorted desc
+        "params": {
+            "percentage_threshold_min_dispatch_flow": float,
+            "max_dispatch_flow": float,
+        }
+    },
+    "line_disconnection": {
+        "scores": {action_id: score, ...},  # sorted desc
+        "params": {
+            "min_redispatch": float,
+            "max_redispatch": float,
+            "peak_redispatch": float,  # value where score peaks (at 80% of range)
+        }
+    },
+    "open_coupling": {
+        "scores": {action_id: score, ...},  # sorted desc
+        "params": {  # per-action details
+            action_id: {
+                "node_type": str,          # "amont", "aval", or other
+                "bus_of_interest": int,    # bus number used for scoring
+                "in_negative_flows": float,
+                "out_negative_flows": float,
+                "in_positive_flows": float,
+                "out_positive_flows": float,
+            }, ...
+        }
+    },
+    "close_coupling": {
+        "scores": {action_id: score, ...},  # sorted desc
+        "params": {
+            "percentage_threshold_min_dispatch_flow": float,
+            "max_dispatch_flow": float,
+        }
+    },
 }
 ```
 
