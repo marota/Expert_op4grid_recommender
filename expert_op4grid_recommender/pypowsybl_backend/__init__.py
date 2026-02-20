@@ -71,4 +71,4 @@ __all__ = [
 ]
 
 # Version
-__version__ = '0.1.2_post1'
+__version__ = '0.1.2_post2'
