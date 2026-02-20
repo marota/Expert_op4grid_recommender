@@ -297,6 +297,10 @@ def test_discoverer_find_relevant_node_merging(discoverer_instance):
     assert len(discoverer_instance.identified_merges) == 2
     assert len(discoverer_instance.effective_merges) == 1
     assert discoverer_instance.effective_merges[0].substations_id[0][0] == 0
+    # Verify scores dict is populated for identified merges
+    assert len(discoverer_instance.scores_merges) == 2
+    for action_id, score in discoverer_instance.scores_merges.items():
+        assert isinstance(score, float)
 
 def test_discoverer_verify_relevant_reconnections(discoverer_instance, monkeypatch):
     def mock_path_check(*args): return True, ["Sub0", "Sub1", "Sub3"], None # Assume path is always clear
@@ -304,12 +308,20 @@ def test_discoverer_verify_relevant_reconnections(discoverer_instance, monkeypat
     discoverer_instance.verify_relevant_reconnections(lines_to_reconnect={"L1"}, red_loop_paths=[])
     assert "reco_L1" in discoverer_instance.identified_reconnections
     assert "L1" in discoverer_instance.effective_reconnections
+    # Verify scores dict is populated
+    assert "reco_L1" in discoverer_instance.scores_reconnections
+    assert isinstance(discoverer_instance.scores_reconnections["reco_L1"], float)
 
 def test_discoverer_find_relevant_disconnections(discoverer_instance):
     discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
     assert "disco_L1" in discoverer_instance.identified_disconnections
     assert "disco_L1" in discoverer_instance.effective_disconnections
     assert "disco_L2" not in discoverer_instance.identified_disconnections # Not in constrained path
+    # Verify scores dict is populated for identified disconnections
+    assert "disco_L1" in discoverer_instance.scores_disconnections
+    assert isinstance(discoverer_instance.scores_disconnections["disco_L1"], float)
+    # disco_L2 should not be scored (not on constrained path)
+    assert "disco_L2" not in discoverer_instance.scores_disconnections
 
 def test_discoverer_find_relevant_node_splitting(discoverer_instance):
     discoverer_instance.find_relevant_node_splitting(hubs_names=["Sub0"], nodes_blue_path_names=["Sub1"])
@@ -318,6 +330,11 @@ def test_discoverer_find_relevant_node_splitting(discoverer_instance):
     assert len(discoverer_instance.effective_splits) == 1
     assert discoverer_instance.effective_splits[0].substations_id[0][0] == 0
     assert discoverer_instance.scores_splits[0] >= discoverer_instance.scores_splits[1] # Check sort order
+    # Verify scores dict is populated
+    assert "split_S0" in discoverer_instance.scores_splits_dict
+    assert "split_S1" in discoverer_instance.scores_splits_dict
+    assert discoverer_instance.scores_splits_dict["split_S0"] == 1.0
+    assert discoverer_instance.scores_splits_dict["split_S1"] == 0.5
 
 
 # --- Add these new tests to your test_expert_op4grid_analyzer.py file ---
@@ -339,13 +356,15 @@ def test_internal_compute_node_splitting_action_score(discoverer_instance):
     # --- Test Case 1: Substation 0 (should get score 1.0 from MockAlphaDeesp) ---
     # Manually set up obs_defaut to ensure sub_info and topo_vect are suitable
     discoverer.obs_defaut = MockObservation(name_sub=["Sub0", "Sub1"], sub_info=[2, 2], topo_vect=[1, 1, 1, 1])
-    score0 = discoverer.compute_node_splitting_action_score(action_sub0, 0, alpha_ranker)
+    score0, details0 = discoverer.compute_node_splitting_action_score(action_sub0, 0, alpha_ranker)
     assert score0 == 1.0, "Score for Sub0 should be 1.0 based on mock ranker"
+    assert isinstance(details0, dict)
 
     # --- Test Case 2: Substation 1 (should get score 0.5 from MockAlphaDeesp) ---
     discoverer.obs_defaut = MockObservation(name_sub=["Sub0", "Sub1"], sub_info=[2, 2], topo_vect=[1, 1, 1, 1])
-    score1 = discoverer.compute_node_splitting_action_score(action_sub1, 1, alpha_ranker)
+    score1, details1 = discoverer.compute_node_splitting_action_score(action_sub1, 1, alpha_ranker)
     assert score1 == 0.5, "Score for Sub1 should be 0.5 based on mock ranker"
+    assert isinstance(details1, dict)
 
 def test_internal_identify_and_score_node_splitting_actions(discoverer_instance, monkeypatch):
     """
@@ -557,8 +576,363 @@ class TestGetSubsImpactedFromActionDesc:
                 }
             }
         }
-        
+
         subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
-        
+
         # Should be deduplicated (using set internally)
         assert len(subs) == len(set(subs))
+
+
+# =============================================================================
+# Tests for disconnection scoring (_asymmetric_bell_score, compute_disconnection_score)
+# =============================================================================
+
+class TestAsymmetricBellScore:
+    """Tests for the static _asymmetric_bell_score method."""
+
+    def test_zero_at_min_boundary(self):
+        """Score should be zero at the min_flow boundary."""
+        score = ActionDiscoverer._asymmetric_bell_score(10.0, 10.0, 50.0)
+        assert score == 0.0
+
+    def test_zero_at_max_boundary(self):
+        """Score should be zero at the max_flow boundary."""
+        score = ActionDiscoverer._asymmetric_bell_score(50.0, 10.0, 50.0)
+        assert score == 0.0
+
+    def test_positive_inside_range(self):
+        """Score should be positive between min and max."""
+        score = ActionDiscoverer._asymmetric_bell_score(30.0, 10.0, 50.0)
+        assert score > 0.0
+
+    def test_peak_closer_to_max(self):
+        """Score should be higher closer to max_flow than to min_flow."""
+        # With default alpha=3.0, beta=1.5, peak is at x=0.8
+        score_low = ActionDiscoverer._asymmetric_bell_score(20.0, 10.0, 50.0)   # x=0.25
+        score_high = ActionDiscoverer._asymmetric_bell_score(40.0, 10.0, 50.0)  # x=0.75
+        assert score_high > score_low
+
+    def test_negative_below_min(self):
+        """Score should be negative below min_flow."""
+        score = ActionDiscoverer._asymmetric_bell_score(5.0, 10.0, 50.0)
+        assert score < 0.0
+
+    def test_negative_above_max(self):
+        """Score should be negative above max_flow."""
+        score = ActionDiscoverer._asymmetric_bell_score(60.0, 10.0, 50.0)
+        assert score < 0.0
+
+    def test_increasingly_negative_further_from_range(self):
+        """Score should become more negative the further from the range."""
+        score_close = ActionDiscoverer._asymmetric_bell_score(8.0, 10.0, 50.0)
+        score_far = ActionDiscoverer._asymmetric_bell_score(0.0, 10.0, 50.0)
+        assert score_far < score_close < 0.0
+
+    def test_degenerate_range_returns_zero(self):
+        """Score should be zero when max <= min (no valid range)."""
+        assert ActionDiscoverer._asymmetric_bell_score(5.0, 10.0, 10.0) == 0.0
+        assert ActionDiscoverer._asymmetric_bell_score(5.0, 10.0, 5.0) == 0.0
+
+    def test_peak_value_normalized_to_one(self):
+        """Peak score should be approximately 1.0."""
+        # Peak is at x=0.8 for alpha=3.0, beta=1.5 → observed_flow = 10 + 0.8*40 = 42
+        score_peak = ActionDiscoverer._asymmetric_bell_score(42.0, 10.0, 50.0)
+        assert abs(score_peak - 1.0) < 0.01
+
+
+class TestNodeMergingScore:
+    """Tests for the compute_node_merging_score method."""
+
+    @pytest.fixture
+    def merging_discoverer(self):
+        """Create a discoverer with meaningful theta values for node merging tests."""
+        # Sub0 has 2 buses. L1 originates at Sub0 (bus 1), L2 also at Sub0 (bus 2).
+        # L3 connects Sub1->Sub2.
+        # Overflow graph: edge (0,1) with L1 has POSITIVE capacity (red loop flow on bus 1),
+        # edge (0,1) with L2 has NEGATIVE capacity (on bus 2).
+        mock_obs = MockObservation(
+            name_sub=["Sub0", "Sub1", "Sub2"],
+            name_line=["L1", "L2", "L3"],
+            sub_topologies={0: [1, 2], 1: [1, 1], 2: [1, 1]},
+            sub_info=[3, 3, 3],
+            topo_vect=np.array([1, 2, 1, 1, 1, 1, 1, 1, 1]),
+            line_or_to_subid=[0, 0, 1],
+            line_ex_to_subid=[1, 1, 2],
+            line_or_bus=[1, 2, 1],
+            line_ex_bus=[1, 1, 1],
+            # L1: theta_or=-5.0 (at Sub0 bus 1), theta_ex=-3.0 (at Sub1 bus 1)
+            # L2: theta_or=-1.0 (at Sub0 bus 2), theta_ex=-3.0 (at Sub1 bus 1)
+            # L3: theta_or=-3.0 (at Sub1 bus 1), theta_ex=-1.0 (at Sub2 bus 1)
+            theta_or=np.array([-5.0, -1.0, -3.0]),
+            theta_ex=np.array([-3.0, -3.0, -1.0]),
+        )
+        mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+        # Edge (0,1) with L1 has POSITIVE capacity (red loop on bus 1),
+        # Edge (0,1) with L2 has NEGATIVE capacity (on bus 2)
+        mock_g_overflow = MockOverflowGraph(
+            edge_data={(0, 1): {0: {"name": "L1", "capacity": 10},
+                                1: {"name": "L2", "capacity": -5}},
+                       (1, 2): {0: {"name": "L3", "capacity": 3}}}
+        )
+        mock_g_dist = MockDistributionGraph()
+
+        return ActionDiscoverer(
+            env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+            classifier=ActionClassifier(MockActionSpace()),
+            timestep=0, lines_defaut=[], lines_overloaded_ids=[0],
+            act_reco_maintenance=MockActionObject(),
+            non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+            dict_action={}, actions_unfiltered=set(), hubs=[],
+            g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+            simulator_data={}, check_action_simulation=False
+        )
+
+    def test_score_is_float(self, merging_discoverer):
+        """Score should be a float value."""
+        score = merging_discoverer.compute_node_merging_score(0, [1, 2])
+        assert isinstance(score, float)
+
+    def test_red_loop_bus_identified_by_positive_capacity(self, merging_discoverer):
+        """Bus carrying positive capacity edges should be identified as red loop bus."""
+        # Sub0 bus 1 has L1 (line_or_bus[0]=1), and L1 has positive capacity=10
+        # Sub0 bus 2 has L2 (line_or_bus[1]=2), and L2 has negative capacity=-5
+        # So bus 1 is the red loop bus (theta1), bus 2 is the other (theta2)
+        # theta1 = get_theta_node(obs, 0, 1) = median of theta_or[0] = -5.0
+        # theta2 = get_theta_node(obs, 0, 2) = median of theta_or[1] = -1.0
+        # score = theta2 - theta1 = -1.0 - (-5.0) = 4.0
+        score = merging_discoverer.compute_node_merging_score(0, [1, 2])
+        assert score > 0.0  # theta2 > theta1 means flow towards red loop
+
+    def test_single_bus_returns_zero(self, merging_discoverer):
+        """Should return 0 when fewer than 2 buses."""
+        score = merging_discoverer.compute_node_merging_score(0, [1])
+        assert score == 0.0
+
+
+# =============================================================================
+# Tests for params storage alongside scores in each discovery method
+# =============================================================================
+
+class TestDiscoveryParamsStorage:
+    """Tests that each discovery method stores params alongside scores."""
+
+    def test_reconnection_params_populated(self, discoverer_instance, monkeypatch):
+        """verify_relevant_reconnections must populate params_reconnections with threshold and max flow."""
+        def mock_path_check(*args): return True, ["Sub0", "Sub1", "Sub3"], None
+        monkeypatch.setattr(discoverer_instance, "_check_other_reconnectable_line_on_path", mock_path_check)
+        discoverer_instance.verify_relevant_reconnections(lines_to_reconnect={"L1"}, red_loop_paths=[])
+        params = discoverer_instance.params_reconnections
+        assert "percentage_threshold_min_dispatch_flow" in params
+        assert "max_dispatch_flow" in params
+        assert isinstance(params["percentage_threshold_min_dispatch_flow"], (int, float))
+        assert isinstance(params["max_dispatch_flow"], (int, float))
+        assert params["max_dispatch_flow"] > 0
+
+    def test_disconnection_params_populated(self, discoverer_instance):
+        """find_relevant_disconnections must populate params_disconnections with redispatch bounds."""
+        discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
+        params = discoverer_instance.params_disconnections
+        # params_disconnections should contain min/max/peak redispatch if _disco_bounds was set
+        assert isinstance(params, dict)
+        if params:  # Non-empty when bounds were computed
+            assert "min_redispatch" in params
+            assert "max_redispatch" in params
+            assert "peak_redispatch" in params
+            # peak is at 80% of the range
+            expected_peak = params["min_redispatch"] + 0.8 * (params["max_redispatch"] - params["min_redispatch"])
+            assert abs(params["peak_redispatch"] - expected_peak) < 1e-9
+
+    def test_splitting_params_populated_per_action(self, discoverer_instance):
+        """find_relevant_node_splitting must store per-action details in params_splits_dict."""
+        discoverer_instance.find_relevant_node_splitting(hubs_names=["Sub0"], nodes_blue_path_names=["Sub1"])
+        params = discoverer_instance.params_splits_dict
+        assert isinstance(params, dict)
+        # Each scored action should have a details entry
+        for action_id in discoverer_instance.scores_splits_dict:
+            assert action_id in params
+            assert isinstance(params[action_id], dict)
+
+    def test_merging_params_populated(self, discoverer_instance):
+        """find_relevant_node_merging must populate params_merges with threshold and max flow."""
+        discoverer_instance.find_relevant_node_merging(["Sub0", "Sub1", "Sub3"])
+        params = discoverer_instance.params_merges
+        assert "percentage_threshold_min_dispatch_flow" in params
+        assert "max_dispatch_flow" in params
+        assert isinstance(params["percentage_threshold_min_dispatch_flow"], (int, float))
+        assert isinstance(params["max_dispatch_flow"], (int, float))
+        assert params["max_dispatch_flow"] > 0
+
+
+# =============================================================================
+# Tests for action_scores dictionary structure and rounding
+# =============================================================================
+
+class TestActionScoresStructureAndRounding:
+    """Tests for the nested action_scores dict assembled by discover_and_prioritize."""
+
+    @pytest.fixture
+    def scores_discoverer(self):
+        """Create a discoverer with pre-populated scores/params to test assembly and rounding."""
+        mock_obs = MockObservation(
+            name_sub=["Sub0", "Sub1"],
+            name_line=["L1", "L2"],
+            sub_topologies={0: [1, 2], 1: [1, 1]},
+            sub_info=[2, 2],
+            topo_vect=np.array([1, 2, 1, 1]),
+            line_or_to_subid=[0, 1],
+            line_ex_to_subid=[1, 0],
+            line_or_bus=[1, 1],
+            line_ex_bus=[1, 1],
+            theta_or=np.array([0.0, 0.0]),
+            theta_ex=np.array([0.0, 0.0]),
+        )
+        mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+        mock_g_overflow = MockOverflowGraph(
+            edge_data={(0, 1): {0: {"name": "L1", "capacity": 10}}}
+        )
+        mock_g_dist = MockDistributionGraph()
+
+        discoverer = ActionDiscoverer(
+            env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+            classifier=ActionClassifier(MockActionSpace()),
+            timestep=0, lines_defaut=[], lines_overloaded_ids=[0],
+            act_reco_maintenance=MockActionObject(),
+            non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+            dict_action={}, actions_unfiltered=set(), hubs=[],
+            g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+            simulator_data={}, check_action_simulation=False
+        )
+
+        # Pre-populate with values that have many decimals to test rounding
+        discoverer.scores_reconnections = {"reco_1": 3.14159, "reco_2": -1.23456}
+        discoverer.params_reconnections = {
+            "percentage_threshold_min_dispatch_flow": 0.10000001,
+            "max_dispatch_flow": 123.456789,
+        }
+        discoverer.scores_disconnections = {"disco_1": 0.87654321}
+        discoverer.params_disconnections = {
+            "min_redispatch": 10.111, "max_redispatch": 50.999, "peak_redispatch": 42.8888,
+        }
+        discoverer.scores_splits_dict = {"split_1": 0.99999, "split_2": -0.12345}
+        discoverer.params_splits_dict = {
+            "split_1": {"node_type": "amont", "bus_of_interest": 1,
+                        "in_negative_flows": 12.3456, "out_negative_flows": 78.9012,
+                        "in_positive_flows": 0.0, "out_positive_flows": 5.55555},
+            "split_2": {"node_type": "aval", "bus_of_interest": 2,
+                        "in_negative_flows": 99.9999, "out_negative_flows": 1.11111,
+                        "in_positive_flows": 3.33333, "out_positive_flows": 0.0},
+        }
+        discoverer.scores_merges = {"merge_1": 2.71828}
+        discoverer.params_merges = {
+            "percentage_threshold_min_dispatch_flow": 0.10000001,
+            "max_dispatch_flow": 987.654321,
+        }
+        return discoverer
+
+    def test_action_scores_has_all_four_types(self, scores_discoverer):
+        """action_scores must have exactly the four expected action type keys."""
+        # Manually call the assembly logic (extract from discover_and_prioritize)
+        scores_discoverer.prioritized_actions = {}
+        action_scores = self._build_action_scores(scores_discoverer)
+        expected_types = {"line_reconnection", "line_disconnection", "open_coupling", "close_coupling"}
+        assert set(action_scores.keys()) == expected_types
+
+    def test_each_type_has_scores_and_params(self, scores_discoverer):
+        """Each action type entry must have 'scores' and 'params' keys."""
+        action_scores = self._build_action_scores(scores_discoverer)
+        for action_type, entry in action_scores.items():
+            assert "scores" in entry, f"Missing 'scores' in {action_type}"
+            assert "params" in entry, f"Missing 'params' in {action_type}"
+
+    def test_scores_sorted_descending(self, scores_discoverer):
+        """Scores within each type must be sorted in descending order."""
+        action_scores = self._build_action_scores(scores_discoverer)
+        for action_type, entry in action_scores.items():
+            scores = list(entry["scores"].values())
+            assert scores == sorted(scores, reverse=True), \
+                f"Scores not sorted descending in {action_type}: {scores}"
+
+    def test_scores_rounded_to_two_decimals(self, scores_discoverer):
+        """All score values must be rounded to 2 decimal places."""
+        action_scores = self._build_action_scores(scores_discoverer)
+        assert action_scores["line_reconnection"]["scores"]["reco_1"] == 3.14
+        assert action_scores["line_reconnection"]["scores"]["reco_2"] == -1.23
+        assert action_scores["line_disconnection"]["scores"]["disco_1"] == 0.88
+        assert action_scores["open_coupling"]["scores"]["split_1"] == 1.0
+        assert action_scores["open_coupling"]["scores"]["split_2"] == -0.12
+        assert action_scores["close_coupling"]["scores"]["merge_1"] == 2.72
+
+    def test_flat_params_rounded_to_two_decimals(self, scores_discoverer):
+        """Flat params (reconnections, disconnections, merges) must have floats rounded."""
+        action_scores = self._build_action_scores(scores_discoverer)
+        reco_params = action_scores["line_reconnection"]["params"]
+        assert reco_params["percentage_threshold_min_dispatch_flow"] == 0.1
+        assert reco_params["max_dispatch_flow"] == 123.46
+
+        disco_params = action_scores["line_disconnection"]["params"]
+        assert disco_params["min_redispatch"] == 10.11
+        assert disco_params["max_redispatch"] == 51.0
+        assert disco_params["peak_redispatch"] == 42.89
+
+        merge_params = action_scores["close_coupling"]["params"]
+        assert merge_params["max_dispatch_flow"] == 987.65
+
+    def test_nested_params_rounded_to_two_decimals(self, scores_discoverer):
+        """Per-action nested params (open_coupling/splits) must have floats rounded."""
+        action_scores = self._build_action_scores(scores_discoverer)
+        split_params = action_scores["open_coupling"]["params"]
+
+        s1 = split_params["split_1"]
+        assert s1["node_type"] == "amont"  # String preserved
+        assert s1["bus_of_interest"] == 1  # Int preserved
+        assert s1["in_negative_flows"] == 12.35
+        assert s1["out_negative_flows"] == 78.9
+        assert s1["out_positive_flows"] == 5.56
+
+        s2 = split_params["split_2"]
+        assert s2["in_negative_flows"] == 100.0
+        assert s2["out_negative_flows"] == 1.11
+
+    def test_empty_scores_produce_empty_entries(self, scores_discoverer):
+        """When a category has no scored actions, its scores and params should be empty."""
+        scores_discoverer.scores_reconnections = {}
+        scores_discoverer.params_reconnections = {}
+        action_scores = self._build_action_scores(scores_discoverer)
+        assert action_scores["line_reconnection"]["scores"] == {}
+        assert action_scores["line_reconnection"]["params"] == {}
+
+    @staticmethod
+    def _build_action_scores(discoverer):
+        """Replicate the action_scores assembly logic from discover_and_prioritize."""
+        def _round_scores(d):
+            return {k: round(v, 2) for k, v in d.items()}
+
+        def _round_params(d):
+            out = {}
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    out[k] = {kk: round(vv, 2) if isinstance(vv, float) else vv for kk, vv in v.items()}
+                elif isinstance(v, float):
+                    out[k] = round(v, 2)
+                else:
+                    out[k] = v
+            return out
+
+        return {
+            "line_reconnection": {
+                "scores": _round_scores(dict(sorted(discoverer.scores_reconnections.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(discoverer.params_reconnections),
+            },
+            "line_disconnection": {
+                "scores": _round_scores(dict(sorted(discoverer.scores_disconnections.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(discoverer.params_disconnections),
+            },
+            "open_coupling": {
+                "scores": _round_scores(dict(sorted(discoverer.scores_splits_dict.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(discoverer.params_splits_dict),
+            },
+            "close_coupling": {
+                "scores": _round_scores(dict(sorted(discoverer.scores_merges.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(discoverer.params_merges),
+            },
+        }

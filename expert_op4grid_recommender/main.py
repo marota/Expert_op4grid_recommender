@@ -264,6 +264,24 @@ def run_analysis(analysis_date: Optional[datetime],
                         # pypowsybl only: observation._variant_id contains the kept variant
                     },
                     ...
+                },
+                "action_scores": {  # per-type: scores (sorted desc) + params (hypotheses)
+                    "line_reconnection": {
+                        "scores": {action_id: float, ...},
+                        "params": {"percentage_threshold_min_dispatch_flow": float, "max_dispatch_flow": float}
+                    },
+                    "line_disconnection": {
+                        "scores": {action_id: float, ...},
+                        "params": {"min_redispatch": float, "max_redispatch": float, "peak_redispatch": float}
+                    },
+                    "open_coupling": {
+                        "scores": {action_id: float, ...},
+                        "params": {action_id: {"node_type": str, "bus_of_interest": int, ...}, ...}
+                    },
+                    "close_coupling": {
+                        "scores": {action_id: float, ...},
+                        "params": {"percentage_threshold_min_dispatch_flow": float, "max_dispatch_flow": float}
+                    },
                 }
             }
     """
@@ -377,7 +395,16 @@ def run_analysis(analysis_date: Optional[datetime],
 
     if not lines_overloaded_ids_kept:
         print("Overload breaks the grid apart. No topological solution without load shedding.")
-        return {"lines_overloaded_names": lines_overloaded_names, "prioritized_actions": {}}
+        return {
+            "lines_overloaded_names": lines_overloaded_names,
+            "prioritized_actions": {},
+            "action_scores": {
+                "line_reconnection": {"scores": {}, "params": {}},
+                "line_disconnection": {"scores": {}, "params": {}},
+                "open_coupling": {"scores": {}, "params": {}},
+                "close_coupling": {"scores": {}, "params": {}},
+            },
+        }
 
     # Build the overflow graph
     with Timer("Graph Building & DC Switch"):
@@ -486,7 +513,7 @@ def run_analysis(analysis_date: Optional[datetime],
             create_default_action_func=create_default_action
         )
 
-        prioritized_actions = discoverer.discover_and_prioritize(
+        prioritized_actions, action_scores = discoverer.discover_and_prioritize(
             n_action_max=config.N_PRIORITIZED_ACTIONS
         )
 
@@ -569,6 +596,7 @@ def run_analysis(analysis_date: Optional[datetime],
     return {
         "lines_overloaded_names": lines_overloaded_names,
         "prioritized_actions": detailed_actions,
+        "action_scores": action_scores,
     }
 
 

@@ -1,0 +1,78 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [0.1.2] - 2026-02-20
+
+### Added
+
+- **Action scores dictionary**: `run_analysis()` now returns an `action_scores` dict alongside `prioritized_actions`. It has four keys — `"line_reconnection"`, `"line_disconnection"`, `"open_coupling"`, `"close_coupling"` — each containing:
+  - `"scores"`: `{action_id: float}` sorted by descending score.
+  - `"params"`: underlying scoring hypotheses (thresholds, flow bounds, etc.).
+- **Line disconnection scoring**: asymmetric bell curve (alpha=3, beta=1.5) centred between the minimum required redispatch and the maximum tolerable redispatch; score is positive inside the acceptable window and negative outside.
+- **Node merging scoring**: delta-phase score (`theta2 − theta1`) based on voltage angle difference between the two buses being merged; the red-loop bus (carrying more positive dispatch flow) is used as the reference.
+- **Node splitting — per-action details**: `compute_node_splitting_action_score_value` now returns a `(score, details)` tuple. `details` contains `node_type`, `bus_of_interest`, and the four flow components (`in_negative_flows`, `out_negative_flows`, `in_positive_flows`, `out_positive_flows`) for the selected bus; these are stored per-action in `params_splits_dict` and exposed through `action_scores["open_coupling"]["params"]`.
+- **Score rounding**: all float values in `action_scores` (both scores and params) are rounded to 2 decimal places.
+
+### Fixed
+
+- **Red loop bus identification** in `compute_node_merging_score`: the bus connected to the red loop is now correctly identified as the one with the **most positive** dispatch flow on its overflow graph edges (previously used negative flow, which was inverted).
+- **Test tuple unpacking**: `test_integration_full_scoring_pipeline` now correctly unpacks the `(score, details)` tuple returned by `compute_node_splitting_action_score_value`.
+
+### Tests
+
+- `TestNodeSplittingScoreValueReturn` (5 tests): verifies the `(score, details)` tuple return format, required keys in `details`, flow values matching the selected `bus_of_interest`, `node_type` propagation, and the empty-buses edge case.
+- Backward compatibility tests: `compute_node_splitting_action_score` wraps a plain-float return as `(float, {})` and passes a tuple through unchanged.
+- `TestDiscoveryParamsStorage` (4 tests): verifies that `params_reconnections`, `params_disconnections`, `params_splits_dict`, and `params_merges` are correctly populated after each discovery method.
+- `TestActionScoresStructureAndRounding` (7 tests): verifies the assembled `action_scores` structure, descending sort order, 2-decimal rounding for flat and nested params, and graceful handling of empty categories.
+
+---
+
+## [0.1.1.post4] - 2026-02-17
+
+### Changed
+
+- Made `grid2op` fully optional across `make_env_utils` and related modules; importing the package no longer fails when `grid2op` is not installed.
+
+---
+
+## [0.1.1] - 2026-01-xx
+
+### Added
+
+- `run_analysis()` now returns a detailed output dictionary including per-action metadata (type, substation, lines involved, simulation results).
+
+### Fixed
+
+- Variant ID collision in `pypowsybl` `simulate(keep_variant=True)` caused incorrect results when the same variant was reused across simulations.
+
+---
+
+## [0.1.0.post1] - 2025-xx-xx
+
+### Added
+
+- `reco_deco` (reconnect-then-disconnect) composite actions are now included in the default action space.
+
+### Changed
+
+- Optimised reconnectable line detection: uses `expertop4grid` new methods, collapses graph to key components, and retains only the main overflow components.
+
+---
+
+## [0.1.0] - 2025-xx-xx
+
+### Added
+
+- Initial PyPI release.
+- Modular package structure (`action_evaluation`, `graph_analysis`, `pypowsybl_backend`, `utils`).
+- Pure pypowsybl backend (`--backend pypowsybl`) as an alternative to Grid2Op.
+- Expert rule engine for filtering topology actions.
+- Action prioritisation: line reconnections, disconnections, node splitting, and node merging.
+- Overflow graph construction and visualisation via `alphaDeesp` and `networkx`.
+- CLI entry point with `--date`, `--timestep`, `--lines-defaut`, `--backend`, `--rebuild-actions` flags.

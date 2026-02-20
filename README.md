@@ -88,6 +88,125 @@ Key parameters can be adjusted in `expert_op4grid_recommender/config.py`:
 
 -----
 
+## Action Discovery and Scoring
+
+After building the overflow graph and filtering candidate actions with expert rules, the `ActionDiscoverer` evaluates and scores each candidate action by type. Each type has its own filtering criteria to narrow down candidates before scoring. The resulting scores are returned in an `action_scores` dictionary with four keys. Each type contains `"scores"` (action scores sorted by descending value) and `"params"` (underlying hypotheses and parameters used for scoring):
+
+```python
+action_scores = {
+    "line_reconnection": {
+        "scores": {action_id: score, ...},  # sorted desc
+        "params": {
+            "percentage_threshold_min_dispatch_flow": float,
+            "max_dispatch_flow": float,
+        }
+    },
+    "line_disconnection": {
+        "scores": {action_id: score, ...},  # sorted desc
+        "params": {
+            "min_redispatch": float,
+            "max_redispatch": float,
+            "peak_redispatch": float,  # value where score peaks (at 80% of range)
+        }
+    },
+    "open_coupling": {
+        "scores": {action_id: score, ...},  # sorted desc
+        "params": {  # per-action details
+            action_id: {
+                "node_type": str,          # "amont", "aval", or other
+                "bus_of_interest": int,    # bus number used for scoring
+                "in_negative_flows": float,
+                "out_negative_flows": float,
+                "in_positive_flows": float,
+                "out_positive_flows": float,
+            }, ...
+        }
+    },
+    "close_coupling": {
+        "scores": {action_id: score, ...},  # sorted desc
+        "params": {
+            "percentage_threshold_min_dispatch_flow": float,
+            "max_dispatch_flow": float,
+        }
+    },
+}
+```
+
+### Line Reconnection Score (delta-theta)
+
+**Filtering:** Only disconnected lines that are reconnectable and appear on dispatch paths of the overflow graph are considered. Among those, each candidate is checked for a valid red loop path: the path must not be blocked by other disconnected lines that have no active bypass. Additionally, the dispatch flow at the path extremities must exceed a minimum threshold (default 10% of the global max dispatch flow) to ensure the reconnection would have a significant impact.
+
+**Scoring:** The remaining candidates are scored by the **voltage angle difference** (delta-theta) across the line's endpoints:
+
+```
+score = |theta_or - theta_ex|
+```
+
+A lower delta-theta indicates that the line can be reconnected with less stress on the grid. Actions are sorted by ascending delta-theta (lower is better).
+
+### Line Disconnection Score (asymmetric bell curve)
+
+Disconnection candidates are lines on the constrained path (blue path) of the overflow graph. The score evaluates whether the redispatch flow from disconnecting the line falls within a useful range:
+
+**Flow bounds:**
+- `max_overload_flow`: maximum absolute redispatch flow on the overflow graph (MW)
+- `min_redispatch = (rho_max_overloaded - 1.0) * max_overload_flow` -- the minimum flow needed to bring the worst overloaded line below 100%
+- `max_redispatch`: the binding constraint across all lines with increased loading, computed as:
+
+```
+For each line with delta_rho > 0:
+    ratio = capacity_line * (1 - rho_before) / (rho_after - rho_before)
+    max_redispatch = min(max_redispatch, ratio)
+```
+
+**Scoring function:** An asymmetric bell curve based on a Beta(3.0, 1.5) kernel, normalized so the peak equals 1 and occurs at 80% of the [min, max] range (i.e., closer to max_redispatch):
+
+```
+x = (observed_flow - min_redispatch) / (max_redispatch - min_redispatch)
+
+If 0 <= x <= 1:  score = Beta_kernel(x; alpha=3.0, beta=1.5) / peak_value
+If x < 0:        score = -2.0 * x^2        (quadratic penalty)
+If x > 1:        score = -2.0 * (x - 1)^2  (quadratic penalty)
+```
+
+The score is positive when the disconnection relieves the right amount of flow, with higher scores for actions closer to the maximum useful redispatch. It becomes negative when the redispatch is too small (ineffective) or too large (would create new overloads).
+
+### Node Splitting Score (open coupling -- weighted repulsion)
+
+Node splitting candidates are substations that are either hubs of the overflow graph or lie on the constrained path. The scoring uses `AlphaDeesp` to evaluate how well splitting a substation into two buses separates opposing flows.
+
+The score is based on the **weighted repulsion** of flows on the bus of interest:
+
+```
+TotalFlow = NegativeInflow + NegativeOutflow + PositiveInflow + PositiveOutflow
+
+For upstream (amont) nodes:
+    Repulsion = NegativeOutflow - PositiveOutflow
+    WeightFactor = (NegativeOutflow - OtherFlows) / TotalFlow
+
+For downstream (aval) nodes:
+    Repulsion = NegativeInflow - PositiveInflow
+    WeightFactor = (NegativeInflow - OtherFlows) / TotalFlow
+
+Score = WeightFactor * Repulsion
+```
+
+A higher score indicates a better separation of the overload-relieving (negative/red) flows from the overload-aggravating (positive/green) flows.
+
+### Node Merging Score (close coupling -- delta phase)
+
+**Filtering:** Only substations that lie on loop dispatch paths (red loops) and currently have 2 or more connected buses are candidates. They are further filtered by requiring a minimum dispatch flow at the node (at least 10% of the global max dispatch flow) to ensure the merge would have a significant impact on the overload.
+
+**Scoring:** The score is the **delta phase** (voltage angle difference) between the two buses being merged:
+
+```
+score = theta2 - theta1
+```
+
+where theta1 is the voltage angle of the bus connected to the red loop (identified as the bus carrying more negative/overload-relieving dispatch flow on the overflow graph), and theta2 is the voltage angle of the other bus. A positive score means flows would naturally go from the higher-phase bus towards the red loop bus, which is the desired direction to relieve overloads.
+
+-----
+
 ## Dependencies
 
 This project relies on several external libraries, including:

@@ -15,7 +15,7 @@ from alphaDeesp.core.alphadeesp import AlphaDeesp_warmStart
 # Default imports for grid2op backend - can be overridden via constructor
 from expert_op4grid_recommender.utils.simulation import check_rho_reduction as _default_check_rho_reduction
 from expert_op4grid_recommender.utils.simulation import create_default_action as _default_create_default_action
-from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, sort_actions_by_score, add_prioritized_actions
+from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, get_theta_node, sort_actions_by_score, add_prioritized_actions
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph # For type hinting
@@ -161,6 +161,14 @@ class ActionDiscoverer:
         self.effective_disconnections = []
         self.ineffective_disconnections = []
         self.ignored_disconnections = []
+        self.scores_reconnections = {}
+        self.scores_splits_dict = {}
+        self.scores_disconnections = {}
+        self.scores_merges = {}
+        self.params_reconnections = {}
+        self.params_splits_dict = {}
+        self.params_disconnections = {}
+        self.params_merges = {}
         self.prioritized_actions = {}
 
     # --- Helper Methods (Internal logic, kept private) ---
@@ -320,6 +328,154 @@ class ActionDiscoverer:
                  blocker = current_blocker
         return False, None, blocker
 
+    # --- Line Disconnection Scoring ---
+
+    @staticmethod
+    def _asymmetric_bell_score(observed_flow: float, min_flow: float, max_flow: float,
+                               alpha: float = 3.0, beta: float = 1.5,
+                               tail_scale: float = 2.0) -> float:
+        """
+        Computes an asymmetric bell-curve score for a line disconnection action.
+
+        The score is based on the Beta(alpha, beta) kernel inside [min_flow, max_flow],
+        which peaks closer to max_flow (since alpha > beta). Outside this range the score
+        becomes negative via quadratic tails.
+
+        Args:
+            observed_flow: The redispatch flow of the line being evaluated.
+            min_flow: Lower bound (minimum redispatch to relieve worst overload).
+            max_flow: Upper bound (maximum redispatch before creating new overloads).
+            alpha: Beta distribution first shape parameter (controls right skew). Default 3.0.
+            beta: Beta distribution second shape parameter. Default 1.5.
+            tail_scale: Multiplier for the negative quadratic tails. Default 2.0.
+
+        Returns:
+            float: Score in [-inf, 1]. Positive inside the acceptable range,
+                   peaking closer to max_flow; zero at boundaries; negative outside.
+        """
+        if max_flow <= min_flow:
+            return 0.0
+
+        # Normalize to [0, 1] where 0=min_flow, 1=max_flow
+        x = (observed_flow - min_flow) / (max_flow - min_flow)
+
+        if 0.0 <= x <= 1.0:
+            # Beta kernel: x^(alpha-1) * (1-x)^(beta-1), zero at boundaries
+            score = (x ** (alpha - 1)) * ((1.0 - x) ** (beta - 1))
+            # Normalize so peak value = 1
+            x_peak = (alpha - 1) / (alpha + beta - 2)
+            peak_val = (x_peak ** (alpha - 1)) * ((1.0 - x_peak) ** (beta - 1))
+            score = score / peak_val if peak_val > 0 else 0.0
+        else:
+            # Negative quadratic tails
+            if x < 0.0:
+                score = -tail_scale * (x ** 2)
+            else:
+                score = -tail_scale * ((x - 1.0) ** 2)
+
+        return score
+
+    def _build_line_capacity_map(self) -> Dict[str, float]:
+        """
+        Builds a mapping from line name to its maximum absolute capacity on the overflow graph.
+
+        Returns:
+            Dict[str, float]: line_name -> max absolute capacity (redispatch flow in MW).
+        """
+        edge_names = nx.get_edge_attributes(self.g_overflow.g, "name")
+        capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
+        name_to_capacity: Dict[str, float] = {}
+        for edge, name in edge_names.items():
+            cap = abs(float(capacity_dict.get(edge, 0.0)))
+            if name not in name_to_capacity or cap > name_to_capacity[name]:
+                name_to_capacity[name] = cap
+        return name_to_capacity
+
+    def _compute_disconnection_flow_bounds(self) -> Tuple[float, float, float]:
+        """
+        Computes the min/max acceptable redispatch flow bounds for scoring disconnection actions.
+
+        The bounds define the window of "useful" redispatch:
+        - min_redispatch: the minimum flow needed to bring the worst overload below 100%.
+          ``(max_rho_overloaded - 1) * max_overload_flow``
+        - max_redispatch: the maximum flow the system can absorb without creating new overloads.
+          For each line with increased loading:
+          ``capacity_l * (1 - rho_before) / (rho_after - rho_before)``
+          The binding constraint (minimum across all such lines) gives max_redispatch.
+
+        Returns:
+            Tuple[float, float, float]:
+                - max_overload_flow: the maximum absolute redispatch flow on any edge.
+                - min_redispatch: the minimum useful redispatch flow (MW).
+                - max_redispatch: the maximum safe redispatch flow (MW).
+        """
+        name_to_capacity = self._build_line_capacity_map()
+        if not name_to_capacity:
+            return 0.0, 0.0, 0.0
+
+        max_overload_flow = max(name_to_capacity.values())
+
+        # --- min_redispatch: excess loading on worst overloaded line ---
+        rho_overloaded = self.obs_defaut.rho[self.lines_overloaded_ids]
+        if len(rho_overloaded) > 0:
+            max_rho_overloaded = float(np.max(rho_overloaded))
+            min_redispatch = (max_rho_overloaded - 1.0) * max_overload_flow
+        else:
+            min_redispatch = 0.0
+
+        # --- max_redispatch: binding flow margin before any line hits 100% ---
+        self._build_lookup_caches()
+        max_redispatch = float('inf')
+        for line_name, capacity_l in name_to_capacity.items():
+            line_id = self._line_name_to_id.get(line_name)
+            if line_id is None or capacity_l < 1e-6:
+                continue
+            rho_before = float(self.obs.rho[line_id])
+            rho_after = float(self.obs_defaut.rho[line_id])
+            delta_rho = rho_after - rho_before
+            if delta_rho > 0.01:
+                ratio = capacity_l * (1.0 - rho_before) / delta_rho
+                if ratio > 0:
+                    max_redispatch = min(max_redispatch, ratio)
+
+        # Fallback if no line provided a binding constraint
+        if max_redispatch == float('inf'):
+            max_redispatch = max_overload_flow
+
+        return max_overload_flow, min_redispatch, max_redispatch
+
+    def compute_disconnection_score(self, lines_in_action: set) -> float:
+        """
+        Computes a heuristic score for a line disconnection action based on its redispatch flow.
+
+        The score uses an asymmetric bell curve that is:
+        - Zero at min_redispatch and max_redispatch boundaries
+        - Positive between them, peaking closer to max_redispatch
+        - Negative outside (too little or too much flow)
+
+        Args:
+            lines_in_action: Set of line names being disconnected by this action.
+
+        Returns:
+            float: The heuristic score for this disconnection action.
+        """
+        # Lazy-compute and cache the bounds and capacity map
+        if not hasattr(self, '_disco_bounds'):
+            self._disco_bounds = self._compute_disconnection_flow_bounds()
+            self._disco_capacity_map = self._build_line_capacity_map()
+
+        max_overload_flow, min_redispatch, max_redispatch = self._disco_bounds
+
+        if max_overload_flow < 1e-6:
+            return 0.0
+
+        # Sum capacities of lines being disconnected (observed redispatch flow)
+        observed_flow = sum(
+            self._disco_capacity_map.get(line, 0.0) for line in lines_in_action
+        )
+
+        return self._asymmetric_bell_score(observed_flow, min_redispatch, max_redispatch)
+
     # --- Action Discovery Methods (Public) ---
 
     def verify_relevant_reconnections(self, lines_to_reconnect: Set[str], red_loop_paths: List[List[str]], percentage_threshold_min_dispatch_flow=0.1):
@@ -451,6 +607,12 @@ class ActionDiscoverer:
         self.identified_reconnections = identified
         self.effective_reconnections = effective
         self.ineffective_reconnections = ineffective
+        self.scores_reconnections = {action_id: map_action_score[action_id]["score"]
+                                     for action_id in map_action_score}
+        self.params_reconnections = {
+            "percentage_threshold_min_dispatch_flow": percentage_threshold_min_dispatch_flow,
+            "max_dispatch_flow": max_dispatch_flow,
+        }
 
         # Clean up temporary caches specific to this call
         if hasattr(self, '_reco_pair_to_paths'):
@@ -463,14 +625,24 @@ class ActionDiscoverer:
         """
         Finds and evaluates relevant line disconnections on the constrained path.
 
-        Populates `self.identified_disconnections`, `self.effective_disconnections`,
-        `self.ineffective_disconnections`, and `self.ignored_disconnections`.
+        Each identified disconnection is scored using an asymmetric bell curve based on
+        the line's redispatch flow relative to min/max acceptable bounds.
+
+        Populates ``self.identified_disconnections``, ``self.effective_disconnections``,
+        ``self.ineffective_disconnections``, ``self.ignored_disconnections``,
+        and ``self.scores_disconnections``.
 
         Args:
             lines_constrained_path_names (List[str]): List of line names on the constrained path.
         """
         identified, effective, ineffective, ignored = {}, [], [], []
+        scores_map: Dict[str, float] = {}
         act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+
+        # Invalidate cached disconnection bounds so they are recomputed for this call
+        if hasattr(self, '_disco_bounds'):
+            del self._disco_bounds
+            del self._disco_capacity_map
 
         print(f"Evaluating {len(self.actions_unfiltered)} potential disconnections...")
         for action_id in sorted(list(self.actions_unfiltered)):#as order in a set is no fixed, and since the order will matter in the subset of actions selected, fix the order for full reproducibility
@@ -485,17 +657,24 @@ class ActionDiscoverer:
                 if lines_in_action.intersection(set(lines_constrained_path_names)):
                     action = self.action_space(action_desc["content"])
                     identified[action_id] = action
+
+                    # Compute heuristic score
+                    score = self.compute_disconnection_score(lines_in_action)
+                    scores_map[action_id] = score
+
                     if self.check_action_simulation:
                         is_rho_reduction, _ = self._check_rho_reduction(
                             self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
                             self.act_reco_maintenance, self.lines_we_care_about
                         )
                         if is_rho_reduction:
-                            print(f"{action_id} reduces overloads by at least 2% line loading")
+                            print(f"{action_id} reduces overloads (score: {score:.3f})")
                             effective.append(action_id)
                         else:
-                            print(f"{action_id} is not effective")
+                            print(f"{action_id} is not effective (score: {score:.3f})")
                             ineffective.append(action_id)
+                    else:
+                        print(f"  {action_id} identified (score: {score:.3f})")
                 else:
                     ignored.append(action_id)
             else:
@@ -506,6 +685,25 @@ class ActionDiscoverer:
         self.effective_disconnections = effective
         self.ineffective_disconnections = ineffective
         self.ignored_disconnections = ignored
+        self.scores_disconnections = scores_map
+
+        # Capture computed bounds before cleanup
+        if hasattr(self, '_disco_bounds'):
+            max_overload_flow, min_redispatch, max_redispatch = self._disco_bounds
+            # Peak redispatch: x_peak = (alpha-1)/(alpha+beta-2) = 2/2.5 = 0.8
+            peak_redispatch = min_redispatch + 0.8 * (max_redispatch - min_redispatch)
+            self.params_disconnections = {
+                "min_redispatch": min_redispatch,
+                "max_redispatch": max_redispatch,
+                "peak_redispatch": peak_redispatch,
+            }
+        else:
+            self.params_disconnections = {}
+
+        # Clean up cached bounds
+        if hasattr(self, '_disco_bounds'):
+            del self._disco_bounds
+            del self._disco_capacity_map
 
 
     def identify_bus_of_interest_in_node_splitting_(self, node_type, buses, buses_negative_inflow,
@@ -732,7 +930,10 @@ class ActionDiscoverer:
             dict_edge_names_buses (dict): Mapping of edge names to bus IDs.
 
         Returns:
-            float: The final score for this splitting action.
+            Tuple[float, Dict]: A tuple of (score, details) where details contains:
+                - node_type: str ("amont", "aval", or other)
+                - bus_of_interest: int (bus number used for scoring)
+                - in_negative_flows, out_negative_flows, in_positive_flows, out_positive_flows: floats
         """
         # 1) Identify node type
         node_type = self.identify_node_splitting_type(node, g_distribution_graph)
@@ -744,7 +945,7 @@ class ActionDiscoverer:
         # Handle edge case: no valid buses found (all disconnected or empty)
         if not buses:
             print(f"Warning: No valid buses found for node {node}, returning score 0")
-            return 0.0
+            return 0.0, {}
 
         # 3) Detect bus of interest
         bus_of_interest = self.identify_bus_of_interest_in_node_splitting_(
@@ -766,7 +967,18 @@ class ActionDiscoverer:
             buses_positive_inflow, buses_positive_out_flow
         )
 
-        return bus_of_interest_score
+        # 5) Build per-action details for the bus of interest
+        bus_idx = buses.index(bus_of_interest)
+        details = {
+            "node_type": node_type,
+            "bus_of_interest": bus_of_interest,
+            "in_negative_flows": float(buses_negative_inflow[bus_idx]),
+            "out_negative_flows": float(buses_negative_out_flow[bus_idx]),
+            "in_positive_flows": float(buses_positive_inflow[bus_idx]),
+            "out_positive_flows": float(buses_positive_out_flow[bus_idx]),
+        }
+
+        return bus_of_interest_score, details
 
     def _get_action_topo_vect(self, sub_impacted_id, action):
         """
@@ -873,7 +1085,7 @@ class ActionDiscoverer:
 #
         #return dict_edge_names_buses
 
-    def compute_node_splitting_action_score(self, action_dict: Any, sub_impacted_id: int, alphaDeesp_ranker: Any) -> float:
+    def compute_node_splitting_action_score(self, action_dict: Any, sub_impacted_id: int, alphaDeesp_ranker: Any) -> Tuple[float, Dict]:
         """
         Computes the heuristic score for a single node splitting action.
 
@@ -883,7 +1095,7 @@ class ActionDiscoverer:
             alphaDeesp_ranker: The initialized AlphaDeesp ranker.
 
         Returns:
-            The heuristic score as a float.
+            Tuple[float, Dict]: The heuristic score and per-action details dict.
         """
         # Extract bus assignments directly from action dictionary (backend-agnostic)
         # This avoids relying on topology vector operations which may not be available
@@ -897,13 +1109,16 @@ class ActionDiscoverer:
         dict_edge_names_buses=self._edge_names_buses_dict(self.obs_defaut, action_topo_vect, sub_impacted_id)
         #dict_edge_names_buses=self._edge_names_buses_dict_new(action_dict)#self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
 
-        score_expert_recommender = self.compute_node_splitting_action_score_value(
+        result = self.compute_node_splitting_action_score_value(
             self.g_overflow.g, self.g_distribution_graph,
             node=sub_impacted_id,
             dict_edge_names_buses=dict_edge_names_buses
         )
 
-        return score_expert_recommender
+        # Handle both old (float) and new (tuple) return formats for backward compatibility
+        if isinstance(result, tuple):
+            return result
+        return result, {}
 
 
     def _get_subs_impacted_from_action_desc(self, action_desc: Dict) -> List[int]:
@@ -1006,8 +1221,8 @@ class ActionDiscoverer:
                 sub_impacted_name = self.obs_defaut.name_sub[sub_impacted_id]
 
                 if sub_impacted_name in hubs_names or sub_impacted_name in nodes_blue_path_names:
-                    score = self.compute_node_splitting_action_score(action_desc["content"], sub_impacted_id, alphaDeesp_ranker)
-                    map_action_score[action_id] = {"action": action, "score": score, "sub_impacted": sub_impacted_name}
+                    score, details = self.compute_node_splitting_action_score(action_desc["content"], sub_impacted_id, alphaDeesp_ranker)
+                    map_action_score[action_id] = {"action": action, "score": score, "sub_impacted": sub_impacted_name, "details": details}
                     #print(action_desc["content"]["set_bus"])
                     #print(action_id+": "+str(score))
                 else:
@@ -1058,19 +1273,92 @@ class ActionDiscoverer:
         self.ineffective_splits = ineffective
         self.ignored_splits = ignored
         self.scores_splits = scores
+        self.scores_splits_dict = {action_id: map_action_score[action_id]["score"]
+                                   for action_id in map_action_score}
+        self.params_splits_dict = {action_id: map_action_score[action_id].get("details", {})
+                                   for action_id in map_action_score}
 
+
+    def compute_node_merging_score(self, sub_id: int, connected_buses: list) -> float:
+        """
+        Computes a heuristic score for a node merging action based on the voltage angle
+        difference (delta phase) between the two buses being merged.
+
+        The bus connected to the red loop (carrying positive dispatch flow) is identified
+        as the one with more positive capacity on its overflow graph edges.
+        Its phase is theta1. The other bus has phase theta2.
+
+        Score = theta2 - theta1. A positive score means flows would naturally go from
+        the higher-phase bus (theta2) towards the lower-phase red loop bus (theta1),
+        which is the desired direction to relieve overloads.
+
+        Args:
+            sub_id: The integer index of the substation being merged.
+            connected_buses: List of connected bus IDs (e.g., [1, 2]).
+
+        Returns:
+            float: The delta phase score (theta2 - theta1).
+        """
+        buses = sorted(connected_buses)
+        if len(buses) < 2:
+            return 0.0
+
+        # Determine which bus carries the red loop (positive dispatch) flow
+        # by summing the positive capacity on overflow graph edges per bus
+        capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
+        edge_names = nx.get_edge_attributes(self.g_overflow.g, "name")
+
+        # Build line-to-bus mapping for this substation using line_or/ex_to_subid and bus arrays
+        self._build_lookup_caches()
+        obs = self.obs_defaut
+
+        line_to_bus = {}
+        for line_id, line_name in enumerate(obs.name_line):
+            if obs.line_or_to_subid[line_id] == sub_id:
+                line_to_bus[line_name] = int(obs.line_or_bus[line_id])
+            elif obs.line_ex_to_subid[line_id] == sub_id:
+                line_to_bus[line_name] = int(obs.line_ex_bus[line_id])
+
+        # Sum positive capacity per bus from overflow graph edges
+        positive_flow_per_bus = {bus: 0.0 for bus in buses}
+        all_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + \
+                    list(self.g_overflow.g.in_edges(sub_id, keys=True))
+
+        for edge in all_edges:
+            cap = capacity_dict.get(edge, 0.0)
+            if cap > 0:
+                ename = edge_names.get(edge, "")
+                bus = line_to_bus.get(ename)
+                if bus in positive_flow_per_bus:
+                    positive_flow_per_bus[bus] += cap
+
+        # The red loop bus is the one with more positive dispatch flow
+        red_loop_bus = max(buses, key=lambda b: positive_flow_per_bus.get(b, 0.0))
+        other_bus = [b for b in buses if b != red_loop_bus][0]
+
+        # Compute theta for each bus
+        theta1 = get_theta_node(self.obs_defaut, sub_id, red_loop_bus)
+        theta2 = get_theta_node(self.obs_defaut, sub_id, other_bus)
+
+        return theta2 - theta1
 
     def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str], percentage_threshold_min_dispatch_flow=0.1):
         """
         Finds and evaluates relevant node merging actions on dispatch paths.
 
-        Populates `self.identified_merges`, `self.effective_merges`, and `self.ineffective_merges`.
+        Only substations that lie on loop dispatch paths and have 2+ connected buses
+        are candidates. They are further filtered by requiring a minimum dispatch flow
+        (at least ``percentage_threshold_min_dispatch_flow`` of the global max).
+
+        Populates `self.identified_merges`, `self.effective_merges`, `self.ineffective_merges`,
+        and `self.scores_merges`.
 
         Args:
             nodes_dispatch_path_names: List of substation names on dispatch paths.
             percentage_threshold_min_dispatch_flow: float between 0 and 1. threshold to filter out unsignificant node merging actions given not significant enough dispatch flow
         """
         identified, effective, ineffective = {}, [], []
+        scores_map = {}
         capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
         max_dispatch_flow=max([abs(val) for val in capacity_dict.values()])
 
@@ -1094,6 +1382,15 @@ class ActionDiscoverer:
                     action_id = f"node_merging_{sub_name}"
                     identified[action_id] = action
 
+                    # Compute delta phase score
+                    try:
+                        score = self.compute_node_merging_score(sub_id, list(connected_buses))
+                        scores_map[action_id] = score
+                        print(f"  Scored node merge {action_id}: delta_phase={score:.4f}")
+                    except Exception as e:
+                        print(f"  Warning: Could not score {action_id}: {e}")
+                        scores_map[action_id] = 0.0
+
                     if self.check_action_simulation:
                         act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
                         is_rho_reduction, _ = self._check_rho_reduction(
@@ -1106,6 +1403,11 @@ class ActionDiscoverer:
         self.identified_merges = identified
         self.effective_merges = effective
         self.ineffective_merges = ineffective
+        self.scores_merges = scores_map
+        self.params_merges = {
+            "percentage_threshold_min_dispatch_flow": percentage_threshold_min_dispatch_flow,
+            "max_dispatch_flow": max_dispatch_flow,
+        }
 
 
     # --- Main Orchestration Method ---
@@ -1131,9 +1433,15 @@ class ActionDiscoverer:
             n_split_max (int): Max number of node splitting actions to prioritize. Defaults to 3.
 
         Returns:
-            Dict[str, Any]: The final dictionary of prioritized actions (Action ID -> Action Object).
-                            The results for each category are also stored in instance attributes
-                            (e.g., `self.effective_splits`).
+            Tuple[Dict[str, Any], Dict[str, Dict]]:
+                - prioritized_actions: The final dictionary of prioritized actions (Action ID -> Action Object).
+                  The results for each category are also stored in instance attributes
+                  (e.g., `self.effective_splits`).
+                - action_scores: A dictionary per action type with keys:
+                  ``"line_reconnection"``, ``"line_disconnection"``, ``"open_coupling"``, ``"close_coupling"``.
+                  Each value is a dict with two fields:
+                    - ``"scores"``: {action_id: float, ...} sorted by descending score.
+                    - ``"params"``: underlying hypotheses/parameters used for scoring.
         """
         self.prioritized_actions = {}
 
@@ -1193,6 +1501,43 @@ class ActionDiscoverer:
             self.prioritized_actions, self.identified_disconnections, n_action_max
         )
 
+        # Build global action scores dictionary per action type, sorted by descending score
+        # Each type contains "scores" (sorted dict) and "params" (underlying hypotheses)
+        # All float values are rounded to 2 decimals for readability
+        def _round_scores(d):
+            return {k: round(v, 2) for k, v in d.items()}
+
+        def _round_params(d):
+            """Round float values in a params dict (handles flat dicts and per-action nested dicts)."""
+            out = {}
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    out[k] = {kk: round(vv, 2) if isinstance(vv, float) else vv for kk, vv in v.items()}
+                elif isinstance(v, float):
+                    out[k] = round(v, 2)
+                else:
+                    out[k] = v
+            return out
+
+        self.action_scores = {
+            "line_reconnection": {
+                "scores": _round_scores(dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_reconnections),
+            },
+            "line_disconnection": {
+                "scores": _round_scores(dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_disconnections),
+            },
+            "open_coupling": {
+                "scores": _round_scores(dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_splits_dict),
+            },
+            "close_coupling": {
+                "scores": _round_scores(dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_merges),
+            },
+        }
+
         print(f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}")
-        return self.prioritized_actions
+        return self.prioritized_actions, self.action_scores
 

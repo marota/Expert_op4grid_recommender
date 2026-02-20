@@ -237,7 +237,7 @@ def test_integration_full_scoring_pipeline(action_discoverer):
         # Mock return: buses=[1], neg_in=[10], neg_out=[100], pos_in=[0], pos_out=[0]
         fake_flow_data = ([1], [10], [100], [0], [0])
         with patch.object(action_discoverer, 'computing_buses_values_of_interest', return_value=fake_flow_data):
-            final_score = action_discoverer.compute_node_splitting_action_score_value(
+            final_score, _ = action_discoverer.compute_node_splitting_action_score_value(
                 overflow_graph=mock_graph,
                 g_distribution_graph=mock_dist_graph,
                 node=10,
@@ -342,3 +342,144 @@ def test_edge_names_buses_dict_parsing(action_discoverer):
     assert result_dict["Line_B"] == 2
     # The Load (Index 1) should not appear in the dictionary
     assert len(result_dict) == 2
+
+
+# --- 8. Tuple Return and Details from compute_node_splitting_action_score_value ---
+
+class TestNodeSplittingScoreValueReturn:
+    """Tests for the (score, details) tuple returned by compute_node_splitting_action_score_value."""
+
+    def test_returns_tuple(self, action_discoverer):
+        """compute_node_splitting_action_score_value must return a (float, dict) tuple."""
+        mock_graph = MagicMock()
+        mock_dist_graph = MagicMock()
+
+        with patch.object(action_discoverer, 'identify_node_splitting_type', return_value="amont"):
+            fake_flow_data = ([1, 2], [10, 5], [100, 20], [0, 0], [0, 0])
+            with patch.object(action_discoverer, 'computing_buses_values_of_interest', return_value=fake_flow_data):
+                result = action_discoverer.compute_node_splitting_action_score_value(
+                    overflow_graph=mock_graph, g_distribution_graph=mock_dist_graph,
+                    node=0, dict_edge_names_buses={}
+                )
+                assert isinstance(result, tuple)
+                assert len(result) == 2
+                score, details = result
+                assert isinstance(score, float)
+                assert isinstance(details, dict)
+
+    def test_details_contains_required_keys(self, action_discoverer):
+        """Details dict must contain node_type, bus_of_interest, and all four flow fields."""
+        mock_graph = MagicMock()
+        mock_dist_graph = MagicMock()
+
+        with patch.object(action_discoverer, 'identify_node_splitting_type', return_value="aval"):
+            fake_flow_data = ([1], [50], [30], [10], [20])
+            with patch.object(action_discoverer, 'computing_buses_values_of_interest', return_value=fake_flow_data):
+                _, details = action_discoverer.compute_node_splitting_action_score_value(
+                    overflow_graph=mock_graph, g_distribution_graph=mock_dist_graph,
+                    node=0, dict_edge_names_buses={}
+                )
+                expected_keys = {"node_type", "bus_of_interest", "in_negative_flows",
+                                 "out_negative_flows", "in_positive_flows", "out_positive_flows"}
+                assert set(details.keys()) == expected_keys
+
+    def test_details_flow_values_match_bus_of_interest(self, action_discoverer):
+        """Details flows must correspond to the bus_of_interest selected by the scoring logic."""
+        mock_graph = MagicMock()
+        mock_dist_graph = MagicMock()
+
+        with patch.object(action_discoverer, 'identify_node_splitting_type', return_value="amont"):
+            # Bus 1: neg_in=10, neg_out=100 (net 90), Bus 2: neg_in=5, neg_out=20 (net 15)
+            # Amont picks max(neg_out - neg_in), so bus 1 is bus_of_interest
+            fake_flow_data = ([1, 2], [10, 5], [100, 20], [3, 7], [8, 2])
+            with patch.object(action_discoverer, 'computing_buses_values_of_interest', return_value=fake_flow_data):
+                _, details = action_discoverer.compute_node_splitting_action_score_value(
+                    overflow_graph=mock_graph, g_distribution_graph=mock_dist_graph,
+                    node=0, dict_edge_names_buses={}
+                )
+                assert details["bus_of_interest"] == 1
+                assert details["in_negative_flows"] == 10.0
+                assert details["out_negative_flows"] == 100.0
+                assert details["in_positive_flows"] == 3.0
+                assert details["out_positive_flows"] == 8.0
+
+    def test_details_node_type_propagated(self, action_discoverer):
+        """Details must propagate the node_type from identify_node_splitting_type."""
+        mock_graph = MagicMock()
+        mock_dist_graph = MagicMock()
+
+        for node_type in ["amont", "aval", "loop"]:
+            with patch.object(action_discoverer, 'identify_node_splitting_type', return_value=node_type):
+                fake_flow_data = ([1], [10], [100], [0], [0])
+                with patch.object(action_discoverer, 'computing_buses_values_of_interest', return_value=fake_flow_data):
+                    _, details = action_discoverer.compute_node_splitting_action_score_value(
+                        overflow_graph=mock_graph, g_distribution_graph=mock_dist_graph,
+                        node=0, dict_edge_names_buses={}
+                    )
+                    assert details["node_type"] == node_type
+
+    def test_empty_buses_returns_zero_score_empty_details(self, action_discoverer):
+        """When no valid buses are found, return (0.0, {})."""
+        mock_graph = MagicMock()
+        mock_dist_graph = MagicMock()
+
+        with patch.object(action_discoverer, 'identify_node_splitting_type', return_value="amont"):
+            fake_flow_data = ([], [], [], [], [])
+            with patch.object(action_discoverer, 'computing_buses_values_of_interest', return_value=fake_flow_data):
+                score, details = action_discoverer.compute_node_splitting_action_score_value(
+                    overflow_graph=mock_graph, g_distribution_graph=mock_dist_graph,
+                    node=0, dict_edge_names_buses={}
+                )
+                assert score == 0.0
+                assert details == {}
+
+
+# --- 9. Backward Compatibility: Float Return ---
+
+def test_compute_node_splitting_action_score_backward_compat(action_discoverer):
+    """
+    compute_node_splitting_action_score wraps compute_node_splitting_action_score_value.
+    When the inner method returns a plain float (old behavior), the wrapper must
+    still return (float, {}).
+    """
+    action_discoverer.action_space = MagicMock(return_value=MagicMock())
+    action_discoverer.g_overflow = MagicMock()
+    action_discoverer.g_distribution_graph = MagicMock()
+
+    with patch.object(action_discoverer, '_get_action_topo_vect', return_value=(np.array([1, 2]), False)):
+        with patch.object(action_discoverer, '_edge_names_buses_dict', return_value={"L1": 1}):
+            # Simulate old behavior: return a plain float (no tuple)
+            with patch.object(action_discoverer, 'compute_node_splitting_action_score_value', return_value=0.75):
+                score, details = action_discoverer.compute_node_splitting_action_score(
+                    action_dict={"set_bus": {"substations_id": [(0, [1, 2])]}},
+                    sub_impacted_id=0,
+                    alphaDeesp_ranker=MagicMock()
+                )
+                assert score == 0.75
+                assert details == {}
+
+
+def test_compute_node_splitting_action_score_tuple_passthrough(action_discoverer):
+    """
+    When compute_node_splitting_action_score_value returns a tuple,
+    compute_node_splitting_action_score must pass it through unchanged.
+    """
+    action_discoverer.action_space = MagicMock(return_value=MagicMock())
+    action_discoverer.g_overflow = MagicMock()
+    action_discoverer.g_distribution_graph = MagicMock()
+
+    expected_details = {"node_type": "amont", "bus_of_interest": 1,
+                        "in_negative_flows": 10.0, "out_negative_flows": 100.0,
+                        "in_positive_flows": 0.0, "out_positive_flows": 0.0}
+
+    with patch.object(action_discoverer, '_get_action_topo_vect', return_value=(np.array([1, 2]), False)):
+        with patch.object(action_discoverer, '_edge_names_buses_dict', return_value={"L1": 1}):
+            with patch.object(action_discoverer, 'compute_node_splitting_action_score_value',
+                              return_value=(0.85, expected_details)):
+                score, details = action_discoverer.compute_node_splitting_action_score(
+                    action_dict={"set_bus": {"substations_id": [(0, [1, 2])]}},
+                    sub_impacted_id=0,
+                    alphaDeesp_ranker=MagicMock()
+                )
+                assert score == 0.85
+                assert details == expected_details
