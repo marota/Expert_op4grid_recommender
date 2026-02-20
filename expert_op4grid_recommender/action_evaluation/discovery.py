@@ -324,6 +324,154 @@ class ActionDiscoverer:
                  blocker = current_blocker
         return False, None, blocker
 
+    # --- Line Disconnection Scoring ---
+
+    @staticmethod
+    def _asymmetric_bell_score(observed_flow: float, min_flow: float, max_flow: float,
+                               alpha: float = 3.0, beta: float = 1.5,
+                               tail_scale: float = 2.0) -> float:
+        """
+        Computes an asymmetric bell-curve score for a line disconnection action.
+
+        The score is based on the Beta(alpha, beta) kernel inside [min_flow, max_flow],
+        which peaks closer to max_flow (since alpha > beta). Outside this range the score
+        becomes negative via quadratic tails.
+
+        Args:
+            observed_flow: The redispatch flow of the line being evaluated.
+            min_flow: Lower bound (minimum redispatch to relieve worst overload).
+            max_flow: Upper bound (maximum redispatch before creating new overloads).
+            alpha: Beta distribution first shape parameter (controls right skew). Default 3.0.
+            beta: Beta distribution second shape parameter. Default 1.5.
+            tail_scale: Multiplier for the negative quadratic tails. Default 2.0.
+
+        Returns:
+            float: Score in [-inf, 1]. Positive inside the acceptable range,
+                   peaking closer to max_flow; zero at boundaries; negative outside.
+        """
+        if max_flow <= min_flow:
+            return 0.0
+
+        # Normalize to [0, 1] where 0=min_flow, 1=max_flow
+        x = (observed_flow - min_flow) / (max_flow - min_flow)
+
+        if 0.0 <= x <= 1.0:
+            # Beta kernel: x^(alpha-1) * (1-x)^(beta-1), zero at boundaries
+            score = (x ** (alpha - 1)) * ((1.0 - x) ** (beta - 1))
+            # Normalize so peak value = 1
+            x_peak = (alpha - 1) / (alpha + beta - 2)
+            peak_val = (x_peak ** (alpha - 1)) * ((1.0 - x_peak) ** (beta - 1))
+            score = score / peak_val if peak_val > 0 else 0.0
+        else:
+            # Negative quadratic tails
+            if x < 0.0:
+                score = -tail_scale * (x ** 2)
+            else:
+                score = -tail_scale * ((x - 1.0) ** 2)
+
+        return score
+
+    def _build_line_capacity_map(self) -> Dict[str, float]:
+        """
+        Builds a mapping from line name to its maximum absolute capacity on the overflow graph.
+
+        Returns:
+            Dict[str, float]: line_name -> max absolute capacity (redispatch flow in MW).
+        """
+        edge_names = nx.get_edge_attributes(self.g_overflow.g, "name")
+        capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
+        name_to_capacity: Dict[str, float] = {}
+        for edge, name in edge_names.items():
+            cap = abs(float(capacity_dict.get(edge, 0.0)))
+            if name not in name_to_capacity or cap > name_to_capacity[name]:
+                name_to_capacity[name] = cap
+        return name_to_capacity
+
+    def _compute_disconnection_flow_bounds(self) -> Tuple[float, float, float]:
+        """
+        Computes the min/max acceptable redispatch flow bounds for scoring disconnection actions.
+
+        The bounds define the window of "useful" redispatch:
+        - min_redispatch: the minimum flow needed to bring the worst overload below 100%.
+          ``(max_rho_overloaded - 1) * max_overload_flow``
+        - max_redispatch: the maximum flow the system can absorb without creating new overloads.
+          For each line with increased loading:
+          ``capacity_l * (1 - rho_before) / (rho_after - rho_before)``
+          The binding constraint (minimum across all such lines) gives max_redispatch.
+
+        Returns:
+            Tuple[float, float, float]:
+                - max_overload_flow: the maximum absolute redispatch flow on any edge.
+                - min_redispatch: the minimum useful redispatch flow (MW).
+                - max_redispatch: the maximum safe redispatch flow (MW).
+        """
+        name_to_capacity = self._build_line_capacity_map()
+        if not name_to_capacity:
+            return 0.0, 0.0, 0.0
+
+        max_overload_flow = max(name_to_capacity.values())
+
+        # --- min_redispatch: excess loading on worst overloaded line ---
+        rho_overloaded = self.obs_defaut.rho[self.lines_overloaded_ids]
+        if len(rho_overloaded) > 0:
+            max_rho_overloaded = float(np.max(rho_overloaded))
+            min_redispatch = (max_rho_overloaded - 1.0) * max_overload_flow
+        else:
+            min_redispatch = 0.0
+
+        # --- max_redispatch: binding flow margin before any line hits 100% ---
+        self._build_lookup_caches()
+        max_redispatch = float('inf')
+        for line_name, capacity_l in name_to_capacity.items():
+            line_id = self._line_name_to_id.get(line_name)
+            if line_id is None or capacity_l < 1e-6:
+                continue
+            rho_before = float(self.obs.rho[line_id])
+            rho_after = float(self.obs_defaut.rho[line_id])
+            delta_rho = rho_after - rho_before
+            if delta_rho > 0.01:
+                ratio = capacity_l * (1.0 - rho_before) / delta_rho
+                if ratio > 0:
+                    max_redispatch = min(max_redispatch, ratio)
+
+        # Fallback if no line provided a binding constraint
+        if max_redispatch == float('inf'):
+            max_redispatch = max_overload_flow
+
+        return max_overload_flow, min_redispatch, max_redispatch
+
+    def compute_disconnection_score(self, lines_in_action: set) -> float:
+        """
+        Computes a heuristic score for a line disconnection action based on its redispatch flow.
+
+        The score uses an asymmetric bell curve that is:
+        - Zero at min_redispatch and max_redispatch boundaries
+        - Positive between them, peaking closer to max_redispatch
+        - Negative outside (too little or too much flow)
+
+        Args:
+            lines_in_action: Set of line names being disconnected by this action.
+
+        Returns:
+            float: The heuristic score for this disconnection action.
+        """
+        # Lazy-compute and cache the bounds and capacity map
+        if not hasattr(self, '_disco_bounds'):
+            self._disco_bounds = self._compute_disconnection_flow_bounds()
+            self._disco_capacity_map = self._build_line_capacity_map()
+
+        max_overload_flow, min_redispatch, max_redispatch = self._disco_bounds
+
+        if max_overload_flow < 1e-6:
+            return 0.0
+
+        # Sum capacities of lines being disconnected (observed redispatch flow)
+        observed_flow = sum(
+            self._disco_capacity_map.get(line, 0.0) for line in lines_in_action
+        )
+
+        return self._asymmetric_bell_score(observed_flow, min_redispatch, max_redispatch)
+
     # --- Action Discovery Methods (Public) ---
 
     def verify_relevant_reconnections(self, lines_to_reconnect: Set[str], red_loop_paths: List[List[str]], percentage_threshold_min_dispatch_flow=0.1):
@@ -469,14 +617,24 @@ class ActionDiscoverer:
         """
         Finds and evaluates relevant line disconnections on the constrained path.
 
-        Populates `self.identified_disconnections`, `self.effective_disconnections`,
-        `self.ineffective_disconnections`, and `self.ignored_disconnections`.
+        Each identified disconnection is scored using an asymmetric bell curve based on
+        the line's redispatch flow relative to min/max acceptable bounds.
+
+        Populates ``self.identified_disconnections``, ``self.effective_disconnections``,
+        ``self.ineffective_disconnections``, ``self.ignored_disconnections``,
+        and ``self.scores_disconnections``.
 
         Args:
             lines_constrained_path_names (List[str]): List of line names on the constrained path.
         """
         identified, effective, ineffective, ignored = {}, [], [], []
+        scores_map: Dict[str, float] = {}
         act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+
+        # Invalidate cached disconnection bounds so they are recomputed for this call
+        if hasattr(self, '_disco_bounds'):
+            del self._disco_bounds
+            del self._disco_capacity_map
 
         print(f"Evaluating {len(self.actions_unfiltered)} potential disconnections...")
         for action_id in sorted(list(self.actions_unfiltered)):#as order in a set is no fixed, and since the order will matter in the subset of actions selected, fix the order for full reproducibility
@@ -491,17 +649,24 @@ class ActionDiscoverer:
                 if lines_in_action.intersection(set(lines_constrained_path_names)):
                     action = self.action_space(action_desc["content"])
                     identified[action_id] = action
+
+                    # Compute heuristic score
+                    score = self.compute_disconnection_score(lines_in_action)
+                    scores_map[action_id] = score
+
                     if self.check_action_simulation:
                         is_rho_reduction, _ = self._check_rho_reduction(
                             self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
                             self.act_reco_maintenance, self.lines_we_care_about
                         )
                         if is_rho_reduction:
-                            print(f"{action_id} reduces overloads by at least 2% line loading")
+                            print(f"{action_id} reduces overloads (score: {score:.3f})")
                             effective.append(action_id)
                         else:
-                            print(f"{action_id} is not effective")
+                            print(f"{action_id} is not effective (score: {score:.3f})")
                             ineffective.append(action_id)
+                    else:
+                        print(f"  {action_id} identified (score: {score:.3f})")
                 else:
                     ignored.append(action_id)
             else:
@@ -512,7 +677,12 @@ class ActionDiscoverer:
         self.effective_disconnections = effective
         self.ineffective_disconnections = ineffective
         self.ignored_disconnections = ignored
-        self.scores_disconnections = {}  # placeholder: scores to be implemented
+        self.scores_disconnections = scores_map
+
+        # Clean up cached bounds
+        if hasattr(self, '_disco_bounds'):
+            del self._disco_bounds
+            del self._disco_capacity_map
 
 
     def identify_bus_of_interest_in_node_splitting_(self, node_type, buses, buses_negative_inflow,

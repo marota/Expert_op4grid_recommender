@@ -315,8 +315,11 @@ def test_discoverer_find_relevant_disconnections(discoverer_instance):
     assert "disco_L1" in discoverer_instance.identified_disconnections
     assert "disco_L1" in discoverer_instance.effective_disconnections
     assert "disco_L2" not in discoverer_instance.identified_disconnections # Not in constrained path
-    # Verify scores dict is empty placeholder
-    assert discoverer_instance.scores_disconnections == {}
+    # Verify scores dict is populated for identified disconnections
+    assert "disco_L1" in discoverer_instance.scores_disconnections
+    assert isinstance(discoverer_instance.scores_disconnections["disco_L1"], float)
+    # disco_L2 should not be scored (not on constrained path)
+    assert "disco_L2" not in discoverer_instance.scores_disconnections
 
 def test_discoverer_find_relevant_node_splitting(discoverer_instance):
     discoverer_instance.find_relevant_node_splitting(hubs_names=["Sub0"], nodes_blue_path_names=["Sub1"])
@@ -569,8 +572,65 @@ class TestGetSubsImpactedFromActionDesc:
                 }
             }
         }
-        
+
         subs = discoverer_for_subs_impacted._get_subs_impacted_from_action_desc(action_desc)
-        
+
         # Should be deduplicated (using set internally)
         assert len(subs) == len(set(subs))
+
+
+# =============================================================================
+# Tests for disconnection scoring (_asymmetric_bell_score, compute_disconnection_score)
+# =============================================================================
+
+class TestAsymmetricBellScore:
+    """Tests for the static _asymmetric_bell_score method."""
+
+    def test_zero_at_min_boundary(self):
+        """Score should be zero at the min_flow boundary."""
+        score = ActionDiscoverer._asymmetric_bell_score(10.0, 10.0, 50.0)
+        assert score == 0.0
+
+    def test_zero_at_max_boundary(self):
+        """Score should be zero at the max_flow boundary."""
+        score = ActionDiscoverer._asymmetric_bell_score(50.0, 10.0, 50.0)
+        assert score == 0.0
+
+    def test_positive_inside_range(self):
+        """Score should be positive between min and max."""
+        score = ActionDiscoverer._asymmetric_bell_score(30.0, 10.0, 50.0)
+        assert score > 0.0
+
+    def test_peak_closer_to_max(self):
+        """Score should be higher closer to max_flow than to min_flow."""
+        # With default alpha=3.0, beta=1.5, peak is at x=0.8
+        score_low = ActionDiscoverer._asymmetric_bell_score(20.0, 10.0, 50.0)   # x=0.25
+        score_high = ActionDiscoverer._asymmetric_bell_score(40.0, 10.0, 50.0)  # x=0.75
+        assert score_high > score_low
+
+    def test_negative_below_min(self):
+        """Score should be negative below min_flow."""
+        score = ActionDiscoverer._asymmetric_bell_score(5.0, 10.0, 50.0)
+        assert score < 0.0
+
+    def test_negative_above_max(self):
+        """Score should be negative above max_flow."""
+        score = ActionDiscoverer._asymmetric_bell_score(60.0, 10.0, 50.0)
+        assert score < 0.0
+
+    def test_increasingly_negative_further_from_range(self):
+        """Score should become more negative the further from the range."""
+        score_close = ActionDiscoverer._asymmetric_bell_score(8.0, 10.0, 50.0)
+        score_far = ActionDiscoverer._asymmetric_bell_score(0.0, 10.0, 50.0)
+        assert score_far < score_close < 0.0
+
+    def test_degenerate_range_returns_zero(self):
+        """Score should be zero when max <= min (no valid range)."""
+        assert ActionDiscoverer._asymmetric_bell_score(5.0, 10.0, 10.0) == 0.0
+        assert ActionDiscoverer._asymmetric_bell_score(5.0, 10.0, 5.0) == 0.0
+
+    def test_peak_value_normalized_to_one(self):
+        """Peak score should be approximately 1.0."""
+        # Peak is at x=0.8 for alpha=3.0, beta=1.5 → observed_flow = 10 + 0.8*40 = 42
+        score_peak = ActionDiscoverer._asymmetric_bell_score(42.0, 10.0, 50.0)
+        assert abs(score_peak - 1.0) < 0.01
