@@ -1318,7 +1318,7 @@ class ActionDiscoverer:
                 - action_scores: A dictionary of action scores per type with keys:
                   ``"line_reconnection"``, ``"line_disconnection"``, ``"open_coupling"``, ``"close_coupling"``.
                   Each value is a dict mapping action_id to its heuristic score.
-                  ``"line_disconnection"`` and ``"close_coupling"`` are empty placeholders for now.
+                  ``"close_coupling"`` is an empty placeholder for now.
         """
         self.prioritized_actions = {}
 

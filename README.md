@@ -88,6 +88,84 @@ Key parameters can be adjusted in `expert_op4grid_recommender/config.py`:
 
 -----
 
+## Action Discovery and Scoring
+
+After building the overflow graph and filtering candidate actions with expert rules, the `ActionDiscoverer` evaluates and scores each candidate action by type. The resulting scores are returned in an `action_scores` dictionary with four keys:
+
+```python
+action_scores = {
+    "line_reconnection":  {action_id: score, ...},
+    "line_disconnection": {action_id: score, ...},
+    "open_coupling":      {action_id: score, ...},
+    "close_coupling":     {},  # placeholder
+}
+```
+
+### Line Reconnection Score (delta-theta)
+
+Reconnection candidates are lines that appear on dispatch paths of the overflow graph and are currently disconnected but reconnectable. The score is the **voltage angle difference** (delta-theta) across the line's endpoints:
+
+```
+score = |theta_or - theta_ex|
+```
+
+A lower delta-theta indicates that the line can be reconnected with less stress on the grid. Actions are sorted by ascending delta-theta (lower is better).
+
+### Line Disconnection Score (asymmetric bell curve)
+
+Disconnection candidates are lines on the constrained path (blue path) of the overflow graph. The score evaluates whether the redispatch flow from disconnecting the line falls within a useful range:
+
+**Flow bounds:**
+- `max_overload_flow`: maximum absolute redispatch flow on the overflow graph (MW)
+- `min_redispatch = (rho_max_overloaded - 1.0) * max_overload_flow` -- the minimum flow needed to bring the worst overloaded line below 100%
+- `max_redispatch`: the binding constraint across all lines with increased loading, computed as:
+
+```
+For each line with delta_rho > 0:
+    ratio = capacity_line * (1 - rho_before) / (rho_after - rho_before)
+    max_redispatch = min(max_redispatch, ratio)
+```
+
+**Scoring function:** An asymmetric bell curve based on a Beta(3.0, 1.5) kernel, normalized so the peak equals 1 and occurs at 80% of the [min, max] range (i.e., closer to max_redispatch):
+
+```
+x = (observed_flow - min_redispatch) / (max_redispatch - min_redispatch)
+
+If 0 <= x <= 1:  score = Beta_kernel(x; alpha=3.0, beta=1.5) / peak_value
+If x < 0:        score = -2.0 * x^2        (quadratic penalty)
+If x > 1:        score = -2.0 * (x - 1)^2  (quadratic penalty)
+```
+
+The score is positive when the disconnection relieves the right amount of flow, with higher scores for actions closer to the maximum useful redispatch. It becomes negative when the redispatch is too small (ineffective) or too large (would create new overloads).
+
+### Node Splitting Score (open coupling -- weighted repulsion)
+
+Node splitting candidates are substations that are either hubs of the overflow graph or lie on the constrained path. The scoring uses `AlphaDeesp` to evaluate how well splitting a substation into two buses separates opposing flows.
+
+The score is based on the **weighted repulsion** of flows on the bus of interest:
+
+```
+TotalFlow = NegativeInflow + NegativeOutflow + PositiveInflow + PositiveOutflow
+
+For upstream (amont) nodes:
+    Repulsion = NegativeOutflow - PositiveOutflow
+    WeightFactor = (NegativeOutflow - OtherFlows) / TotalFlow
+
+For downstream (aval) nodes:
+    Repulsion = NegativeInflow - PositiveInflow
+    WeightFactor = (NegativeInflow - OtherFlows) / TotalFlow
+
+Score = WeightFactor * Repulsion
+```
+
+A higher score indicates a better separation of the overload-relieving (negative/red) flows from the overload-aggravating (positive/green) flows.
+
+### Node Merging Score (close coupling)
+
+Node merging scoring is not yet implemented (placeholder).
+
+-----
+
 ## Dependencies
 
 This project relies on several external libraries, including:
