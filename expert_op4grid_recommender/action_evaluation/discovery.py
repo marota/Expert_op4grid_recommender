@@ -15,7 +15,7 @@ from alphaDeesp.core.alphadeesp import AlphaDeesp_warmStart
 # Default imports for grid2op backend - can be overridden via constructor
 from expert_op4grid_recommender.utils.simulation import check_rho_reduction as _default_check_rho_reduction
 from expert_op4grid_recommender.utils.simulation import create_default_action as _default_create_default_action
-from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, sort_actions_by_score, add_prioritized_actions
+from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, get_theta_node, sort_actions_by_score, add_prioritized_actions
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph # For type hinting
@@ -1239,17 +1239,86 @@ class ActionDiscoverer:
                                    for action_id in map_action_score}
 
 
+    def compute_node_merging_score(self, sub_id: int, connected_buses: list) -> float:
+        """
+        Computes a heuristic score for a node merging action based on the voltage angle
+        difference (delta phase) between the two buses being merged.
+
+        The bus connected to the red loop (carrying negative/overload-relieving dispatch flow)
+        is identified as the one with more negative capacity on its overflow graph edges.
+        Its phase is theta1. The other bus has phase theta2.
+
+        Score = theta2 - theta1. A positive score means flows would naturally go from
+        the higher-phase bus (theta2) towards the lower-phase red loop bus (theta1),
+        which is the desired direction to relieve overloads.
+
+        Args:
+            sub_id: The integer index of the substation being merged.
+            connected_buses: List of connected bus IDs (e.g., [1, 2]).
+
+        Returns:
+            float: The delta phase score (theta2 - theta1).
+        """
+        buses = sorted(connected_buses)
+        if len(buses) < 2:
+            return 0.0
+
+        # Determine which bus carries the red loop (negative dispatch) flow
+        # by summing the negative capacity on overflow graph edges per bus
+        capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
+        edge_names = nx.get_edge_attributes(self.g_overflow.g, "name")
+
+        # Build line-to-bus mapping for this substation using line_or/ex_to_subid and bus arrays
+        self._build_lookup_caches()
+        obs = self.obs_defaut
+
+        line_to_bus = {}
+        for line_id, line_name in enumerate(obs.name_line):
+            if obs.line_or_to_subid[line_id] == sub_id:
+                line_to_bus[line_name] = int(obs.line_or_bus[line_id])
+            elif obs.line_ex_to_subid[line_id] == sub_id:
+                line_to_bus[line_name] = int(obs.line_ex_bus[line_id])
+
+        # Sum negative capacity per bus from overflow graph edges
+        negative_flow_per_bus = {bus: 0.0 for bus in buses}
+        all_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + \
+                    list(self.g_overflow.g.in_edges(sub_id, keys=True))
+
+        for edge in all_edges:
+            cap = capacity_dict.get(edge, 0.0)
+            if cap < 0:
+                ename = edge_names.get(edge, "")
+                bus = line_to_bus.get(ename)
+                if bus in negative_flow_per_bus:
+                    negative_flow_per_bus[bus] += abs(cap)
+
+        # The red loop bus is the one with more negative dispatch flow
+        red_loop_bus = max(buses, key=lambda b: negative_flow_per_bus.get(b, 0.0))
+        other_bus = [b for b in buses if b != red_loop_bus][0]
+
+        # Compute theta for each bus
+        theta1 = get_theta_node(self.obs_defaut, sub_id, red_loop_bus)
+        theta2 = get_theta_node(self.obs_defaut, sub_id, other_bus)
+
+        return theta2 - theta1
+
     def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str], percentage_threshold_min_dispatch_flow=0.1):
         """
         Finds and evaluates relevant node merging actions on dispatch paths.
 
-        Populates `self.identified_merges`, `self.effective_merges`, and `self.ineffective_merges`.
+        Only substations that lie on loop dispatch paths and have 2+ connected buses
+        are candidates. They are further filtered by requiring a minimum dispatch flow
+        (at least ``percentage_threshold_min_dispatch_flow`` of the global max).
+
+        Populates `self.identified_merges`, `self.effective_merges`, `self.ineffective_merges`,
+        and `self.scores_merges`.
 
         Args:
             nodes_dispatch_path_names: List of substation names on dispatch paths.
             percentage_threshold_min_dispatch_flow: float between 0 and 1. threshold to filter out unsignificant node merging actions given not significant enough dispatch flow
         """
         identified, effective, ineffective = {}, [], []
+        scores_map = {}
         capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
         max_dispatch_flow=max([abs(val) for val in capacity_dict.values()])
 
@@ -1273,6 +1342,15 @@ class ActionDiscoverer:
                     action_id = f"node_merging_{sub_name}"
                     identified[action_id] = action
 
+                    # Compute delta phase score
+                    try:
+                        score = self.compute_node_merging_score(sub_id, list(connected_buses))
+                        scores_map[action_id] = score
+                        print(f"  Scored node merge {action_id}: delta_phase={score:.4f}")
+                    except Exception as e:
+                        print(f"  Warning: Could not score {action_id}: {e}")
+                        scores_map[action_id] = 0.0
+
                     if self.check_action_simulation:
                         act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
                         is_rho_reduction, _ = self._check_rho_reduction(
@@ -1285,7 +1363,7 @@ class ActionDiscoverer:
         self.identified_merges = identified
         self.effective_merges = effective
         self.ineffective_merges = ineffective
-        self.scores_merges = {}  # placeholder: scores to be implemented
+        self.scores_merges = scores_map
 
 
     # --- Main Orchestration Method ---
@@ -1317,8 +1395,8 @@ class ActionDiscoverer:
                   (e.g., `self.effective_splits`).
                 - action_scores: A dictionary of action scores per type with keys:
                   ``"line_reconnection"``, ``"line_disconnection"``, ``"open_coupling"``, ``"close_coupling"``.
-                  Each value is a dict mapping action_id to its heuristic score.
-                  ``"close_coupling"`` is an empty placeholder for now.
+                  Each value is a dict mapping action_id to its heuristic score,
+                  sorted by descending score value.
         """
         self.prioritized_actions = {}
 
@@ -1378,12 +1456,12 @@ class ActionDiscoverer:
             self.prioritized_actions, self.identified_disconnections, n_action_max
         )
 
-        # Build global action scores dictionary per action type
+        # Build global action scores dictionary per action type, sorted by descending score
         self.action_scores = {
-            "line_reconnection": dict(self.scores_reconnections),
-            "line_disconnection": dict(self.scores_disconnections),
-            "open_coupling": dict(self.scores_splits_dict),
-            "close_coupling": dict(self.scores_merges),
+            "line_reconnection": dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True)),
+            "line_disconnection": dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True)),
+            "open_coupling": dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True)),
+            "close_coupling": dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True)),
         }
 
         print(f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}")

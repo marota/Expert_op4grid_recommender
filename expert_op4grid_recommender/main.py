@@ -265,11 +265,11 @@ def run_analysis(analysis_date: Optional[datetime],
                     },
                     ...
                 },
-                "action_scores": {
+                "action_scores": {  # each dict sorted by descending score
                     "line_reconnection": {action_id: float, ...},  # delta-theta score
                     "line_disconnection": {action_id: float, ...}, # asymmetric bell curve score
                     "open_coupling": {action_id: float, ...},      # weighted repulsion score
-                    "close_coupling": {},      # placeholder, scores to be implemented
+                    "close_coupling": {action_id: float, ...},     # delta-phase score
                 }
             }
     """

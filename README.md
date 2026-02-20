@@ -90,20 +90,22 @@ Key parameters can be adjusted in `expert_op4grid_recommender/config.py`:
 
 ## Action Discovery and Scoring
 
-After building the overflow graph and filtering candidate actions with expert rules, the `ActionDiscoverer` evaluates and scores each candidate action by type. The resulting scores are returned in an `action_scores` dictionary with four keys:
+After building the overflow graph and filtering candidate actions with expert rules, the `ActionDiscoverer` evaluates and scores each candidate action by type. Each type has its own filtering criteria to narrow down candidates before scoring. The resulting scores are returned in an `action_scores` dictionary with four keys, each sorted by descending score:
 
 ```python
 action_scores = {
-    "line_reconnection":  {action_id: score, ...},
-    "line_disconnection": {action_id: score, ...},
-    "open_coupling":      {action_id: score, ...},
-    "close_coupling":     {},  # placeholder
+    "line_reconnection":  {action_id: score, ...},  # sorted desc
+    "line_disconnection": {action_id: score, ...},  # sorted desc
+    "open_coupling":      {action_id: score, ...},  # sorted desc
+    "close_coupling":     {action_id: score, ...},  # sorted desc
 }
 ```
 
 ### Line Reconnection Score (delta-theta)
 
-Reconnection candidates are lines that appear on dispatch paths of the overflow graph and are currently disconnected but reconnectable. The score is the **voltage angle difference** (delta-theta) across the line's endpoints:
+**Filtering:** Only disconnected lines that are reconnectable and appear on dispatch paths of the overflow graph are considered. Among those, each candidate is checked for a valid red loop path: the path must not be blocked by other disconnected lines that have no active bypass. Additionally, the dispatch flow at the path extremities must exceed a minimum threshold (default 10% of the global max dispatch flow) to ensure the reconnection would have a significant impact.
+
+**Scoring:** The remaining candidates are scored by the **voltage angle difference** (delta-theta) across the line's endpoints:
 
 ```
 score = |theta_or - theta_ex|
@@ -160,9 +162,17 @@ Score = WeightFactor * Repulsion
 
 A higher score indicates a better separation of the overload-relieving (negative/red) flows from the overload-aggravating (positive/green) flows.
 
-### Node Merging Score (close coupling)
+### Node Merging Score (close coupling -- delta phase)
 
-Node merging scoring is not yet implemented (placeholder).
+**Filtering:** Only substations that lie on loop dispatch paths (red loops) and currently have 2 or more connected buses are candidates. They are further filtered by requiring a minimum dispatch flow at the node (at least 10% of the global max dispatch flow) to ensure the merge would have a significant impact on the overload.
+
+**Scoring:** The score is the **delta phase** (voltage angle difference) between the two buses being merged:
+
+```
+score = theta2 - theta1
+```
+
+where theta1 is the voltage angle of the bus connected to the red loop (identified as the bus carrying more negative/overload-relieving dispatch flow on the overflow graph), and theta2 is the voltage angle of the other bus. A positive score means flows would naturally go from the higher-phase bus towards the red loop bus, which is the desired direction to relieve overloads.
 
 -----
 

@@ -297,8 +297,10 @@ def test_discoverer_find_relevant_node_merging(discoverer_instance):
     assert len(discoverer_instance.identified_merges) == 2
     assert len(discoverer_instance.effective_merges) == 1
     assert discoverer_instance.effective_merges[0].substations_id[0][0] == 0
-    # Verify scores dict is empty placeholder
-    assert discoverer_instance.scores_merges == {}
+    # Verify scores dict is populated for identified merges
+    assert len(discoverer_instance.scores_merges) == 2
+    for action_id, score in discoverer_instance.scores_merges.items():
+        assert isinstance(score, float)
 
 def test_discoverer_verify_relevant_reconnections(discoverer_instance, monkeypatch):
     def mock_path_check(*args): return True, ["Sub0", "Sub1", "Sub3"], None # Assume path is always clear
@@ -634,3 +636,67 @@ class TestAsymmetricBellScore:
         # Peak is at x=0.8 for alpha=3.0, beta=1.5 → observed_flow = 10 + 0.8*40 = 42
         score_peak = ActionDiscoverer._asymmetric_bell_score(42.0, 10.0, 50.0)
         assert abs(score_peak - 1.0) < 0.01
+
+
+class TestNodeMergingScore:
+    """Tests for the compute_node_merging_score method."""
+
+    @pytest.fixture
+    def merging_discoverer(self):
+        """Create a discoverer with meaningful theta values for node merging tests."""
+        # Sub0 has 2 buses. L1 originates at Sub0 (bus 1), L2 originates at Sub1.
+        # L1 connects Sub0->Sub1, L2 connects Sub1->Sub2.
+        # Overflow graph: edge (0,1) with L1 has negative capacity (red loop flow).
+        mock_obs = MockObservation(
+            name_sub=["Sub0", "Sub1", "Sub2"],
+            name_line=["L1", "L2"],
+            sub_topologies={0: [1, 2], 1: [1, 1], 2: [1, 1]},
+            sub_info=[2, 2, 2],
+            topo_vect=np.array([1, 2, 1, 1, 1, 1]),
+            line_or_to_subid=[0, 1],
+            line_ex_to_subid=[1, 2],
+            line_or_bus=[1, 1],
+            line_ex_bus=[1, 1],
+            # L1: theta_or=-5.0 (at Sub0 bus 1), theta_ex=-3.0 (at Sub1 bus 1)
+            # L2: theta_or=-3.0 (at Sub1 bus 1), theta_ex=-1.0 (at Sub2 bus 1)
+            theta_or=np.array([-5.0, -3.0]),
+            theta_ex=np.array([-3.0, -1.0]),
+        )
+        mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+        # Edge (0,1) with L1 has NEGATIVE capacity (red loop), edge (1,2) with L2 positive
+        mock_g_overflow = MockOverflowGraph(
+            edge_data={(0, 1): {0: {"name": "L1", "capacity": -10}},
+                       (1, 2): {0: {"name": "L2", "capacity": 5}}}
+        )
+        mock_g_dist = MockDistributionGraph()
+
+        return ActionDiscoverer(
+            env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+            classifier=ActionClassifier(MockActionSpace()),
+            timestep=0, lines_defaut=[], lines_overloaded_ids=[0],
+            act_reco_maintenance=MockActionObject(),
+            non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+            dict_action={}, actions_unfiltered=set(), hubs=[],
+            g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+            simulator_data={}, check_action_simulation=False
+        )
+
+    def test_score_is_float(self, merging_discoverer):
+        """Score should be a float value."""
+        score = merging_discoverer.compute_node_merging_score(0, [1, 2])
+        assert isinstance(score, float)
+
+    def test_red_loop_bus_identified_by_negative_capacity(self, merging_discoverer):
+        """Bus carrying negative capacity edges should be identified as red loop bus."""
+        # Sub0 bus 1 has L1 (line_or_bus[0]=1), and L1 has negative capacity=-10
+        # So bus 1 is the red loop bus (theta1), bus 2 is the other (theta2)
+        # theta1 = get_theta_node(obs, 0, 1) = median of theta_or[0] = -5.0
+        # theta2 = get_theta_node(obs, 0, 2) = 0.0 (no lines on bus 2 in the mock)
+        # score = theta2 - theta1 = 0.0 - (-5.0) = 5.0
+        score = merging_discoverer.compute_node_merging_score(0, [1, 2])
+        assert score > 0.0  # theta2 > theta1 means flow towards red loop
+
+    def test_single_bus_returns_zero(self, merging_discoverer):
+        """Should return 0 when fewer than 2 buses."""
+        score = merging_discoverer.compute_node_merging_score(0, [1])
+        assert score == 0.0
