@@ -1284,8 +1284,8 @@ class ActionDiscoverer:
         Computes a heuristic score for a node merging action based on the voltage angle
         difference (delta phase) between the two buses being merged.
 
-        The bus connected to the red loop (carrying negative/overload-relieving dispatch flow)
-        is identified as the one with more negative capacity on its overflow graph edges.
+        The bus connected to the red loop (carrying positive dispatch flow) is identified
+        as the one with more positive capacity on its overflow graph edges.
         Its phase is theta1. The other bus has phase theta2.
 
         Score = theta2 - theta1. A positive score means flows would naturally go from
@@ -1303,8 +1303,8 @@ class ActionDiscoverer:
         if len(buses) < 2:
             return 0.0
 
-        # Determine which bus carries the red loop (negative dispatch) flow
-        # by summing the negative capacity on overflow graph edges per bus
+        # Determine which bus carries the red loop (positive dispatch) flow
+        # by summing the positive capacity on overflow graph edges per bus
         capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
         edge_names = nx.get_edge_attributes(self.g_overflow.g, "name")
 
@@ -1319,21 +1319,21 @@ class ActionDiscoverer:
             elif obs.line_ex_to_subid[line_id] == sub_id:
                 line_to_bus[line_name] = int(obs.line_ex_bus[line_id])
 
-        # Sum negative capacity per bus from overflow graph edges
-        negative_flow_per_bus = {bus: 0.0 for bus in buses}
+        # Sum positive capacity per bus from overflow graph edges
+        positive_flow_per_bus = {bus: 0.0 for bus in buses}
         all_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + \
                     list(self.g_overflow.g.in_edges(sub_id, keys=True))
 
         for edge in all_edges:
             cap = capacity_dict.get(edge, 0.0)
-            if cap < 0:
+            if cap > 0:
                 ename = edge_names.get(edge, "")
                 bus = line_to_bus.get(ename)
-                if bus in negative_flow_per_bus:
-                    negative_flow_per_bus[bus] += abs(cap)
+                if bus in positive_flow_per_bus:
+                    positive_flow_per_bus[bus] += cap
 
-        # The red loop bus is the one with more negative dispatch flow
-        red_loop_bus = max(buses, key=lambda b: negative_flow_per_bus.get(b, 0.0))
+        # The red loop bus is the one with more positive dispatch flow
+        red_loop_bus = max(buses, key=lambda b: positive_flow_per_bus.get(b, 0.0))
         other_bus = [b for b in buses if b != red_loop_bus][0]
 
         # Compute theta for each bus
@@ -1503,22 +1503,38 @@ class ActionDiscoverer:
 
         # Build global action scores dictionary per action type, sorted by descending score
         # Each type contains "scores" (sorted dict) and "params" (underlying hypotheses)
+        # All float values are rounded to 2 decimals for readability
+        def _round_scores(d):
+            return {k: round(v, 2) for k, v in d.items()}
+
+        def _round_params(d):
+            """Round float values in a params dict (handles flat dicts and per-action nested dicts)."""
+            out = {}
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    out[k] = {kk: round(vv, 2) if isinstance(vv, float) else vv for kk, vv in v.items()}
+                elif isinstance(v, float):
+                    out[k] = round(v, 2)
+                else:
+                    out[k] = v
+            return out
+
         self.action_scores = {
             "line_reconnection": {
-                "scores": dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True)),
-                "params": dict(self.params_reconnections),
+                "scores": _round_scores(dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_reconnections),
             },
             "line_disconnection": {
-                "scores": dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True)),
-                "params": dict(self.params_disconnections),
+                "scores": _round_scores(dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_disconnections),
             },
             "open_coupling": {
-                "scores": dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True)),
-                "params": dict(self.params_splits_dict),
+                "scores": _round_scores(dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_splits_dict),
             },
             "close_coupling": {
-                "scores": dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True)),
-                "params": dict(self.params_merges),
+                "scores": _round_scores(dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_merges),
             },
         }
 

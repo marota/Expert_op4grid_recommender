@@ -646,29 +646,33 @@ class TestNodeMergingScore:
     @pytest.fixture
     def merging_discoverer(self):
         """Create a discoverer with meaningful theta values for node merging tests."""
-        # Sub0 has 2 buses. L1 originates at Sub0 (bus 1), L2 originates at Sub1.
-        # L1 connects Sub0->Sub1, L2 connects Sub1->Sub2.
-        # Overflow graph: edge (0,1) with L1 has negative capacity (red loop flow).
+        # Sub0 has 2 buses. L1 originates at Sub0 (bus 1), L2 also at Sub0 (bus 2).
+        # L3 connects Sub1->Sub2.
+        # Overflow graph: edge (0,1) with L1 has POSITIVE capacity (red loop flow on bus 1),
+        # edge (0,1) with L2 has NEGATIVE capacity (on bus 2).
         mock_obs = MockObservation(
             name_sub=["Sub0", "Sub1", "Sub2"],
-            name_line=["L1", "L2"],
+            name_line=["L1", "L2", "L3"],
             sub_topologies={0: [1, 2], 1: [1, 1], 2: [1, 1]},
-            sub_info=[2, 2, 2],
-            topo_vect=np.array([1, 2, 1, 1, 1, 1]),
-            line_or_to_subid=[0, 1],
-            line_ex_to_subid=[1, 2],
-            line_or_bus=[1, 1],
-            line_ex_bus=[1, 1],
+            sub_info=[3, 3, 3],
+            topo_vect=np.array([1, 2, 1, 1, 1, 1, 1, 1, 1]),
+            line_or_to_subid=[0, 0, 1],
+            line_ex_to_subid=[1, 1, 2],
+            line_or_bus=[1, 2, 1],
+            line_ex_bus=[1, 1, 1],
             # L1: theta_or=-5.0 (at Sub0 bus 1), theta_ex=-3.0 (at Sub1 bus 1)
-            # L2: theta_or=-3.0 (at Sub1 bus 1), theta_ex=-1.0 (at Sub2 bus 1)
-            theta_or=np.array([-5.0, -3.0]),
-            theta_ex=np.array([-3.0, -1.0]),
+            # L2: theta_or=-1.0 (at Sub0 bus 2), theta_ex=-3.0 (at Sub1 bus 1)
+            # L3: theta_or=-3.0 (at Sub1 bus 1), theta_ex=-1.0 (at Sub2 bus 1)
+            theta_or=np.array([-5.0, -1.0, -3.0]),
+            theta_ex=np.array([-3.0, -3.0, -1.0]),
         )
         mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
-        # Edge (0,1) with L1 has NEGATIVE capacity (red loop), edge (1,2) with L2 positive
+        # Edge (0,1) with L1 has POSITIVE capacity (red loop on bus 1),
+        # Edge (0,1) with L2 has NEGATIVE capacity (on bus 2)
         mock_g_overflow = MockOverflowGraph(
-            edge_data={(0, 1): {0: {"name": "L1", "capacity": -10}},
-                       (1, 2): {0: {"name": "L2", "capacity": 5}}}
+            edge_data={(0, 1): {0: {"name": "L1", "capacity": 10},
+                                1: {"name": "L2", "capacity": -5}},
+                       (1, 2): {0: {"name": "L3", "capacity": 3}}}
         )
         mock_g_dist = MockDistributionGraph()
 
@@ -688,13 +692,14 @@ class TestNodeMergingScore:
         score = merging_discoverer.compute_node_merging_score(0, [1, 2])
         assert isinstance(score, float)
 
-    def test_red_loop_bus_identified_by_negative_capacity(self, merging_discoverer):
-        """Bus carrying negative capacity edges should be identified as red loop bus."""
-        # Sub0 bus 1 has L1 (line_or_bus[0]=1), and L1 has negative capacity=-10
+    def test_red_loop_bus_identified_by_positive_capacity(self, merging_discoverer):
+        """Bus carrying positive capacity edges should be identified as red loop bus."""
+        # Sub0 bus 1 has L1 (line_or_bus[0]=1), and L1 has positive capacity=10
+        # Sub0 bus 2 has L2 (line_or_bus[1]=2), and L2 has negative capacity=-5
         # So bus 1 is the red loop bus (theta1), bus 2 is the other (theta2)
         # theta1 = get_theta_node(obs, 0, 1) = median of theta_or[0] = -5.0
-        # theta2 = get_theta_node(obs, 0, 2) = 0.0 (no lines on bus 2 in the mock)
-        # score = theta2 - theta1 = 0.0 - (-5.0) = 5.0
+        # theta2 = get_theta_node(obs, 0, 2) = median of theta_or[1] = -1.0
+        # score = theta2 - theta1 = -1.0 - (-5.0) = 4.0
         score = merging_discoverer.compute_node_merging_score(0, [1, 2])
         assert score > 0.0  # theta2 > theta1 means flow towards red loop
 
