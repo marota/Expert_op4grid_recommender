@@ -438,9 +438,9 @@ class ActionDiscoverer:
                 if ratio > 0:
                     max_redispatch = min(max_redispatch, ratio)
 
-        # Fallback if no line provided a binding constraint
-        if max_redispatch == float('inf'):
-            max_redispatch = max_overload_flow
+        # Fallback: if no line provided a binding constraint, max_redispatch
+        # stays at inf — this signals the "unconstrained" regime where all
+        # disconnections are safe and scoring should use a linear ramp.
 
         return max_overload_flow, min_redispatch, max_redispatch
 
@@ -448,10 +448,17 @@ class ActionDiscoverer:
         """
         Computes a heuristic score for a line disconnection action based on its redispatch flow.
 
-        The score uses an asymmetric bell curve that is:
-        - Zero at min_redispatch and max_redispatch boundaries
-        - Positive between them, peaking closer to max_redispatch
-        - Negative outside (too little or too much flow)
+        Two scoring regimes exist:
+
+        **Constrained** (``max_redispatch < inf``):
+        An asymmetric bell curve between ``min_redispatch`` and ``max_redispatch``,
+        peaking closer to ``max_redispatch``.  Negative outside.
+
+        **Unconstrained** (``max_redispatch == inf``):
+        No line in the overflow graph gets overloaded from the redispatch, so
+        disconnections are inherently safe.  Score = 1 at ``max_overload_flow``
+        (the strongest action), linearly decreasing to 0 at ``min_redispatch``,
+        and negative below.
 
         Args:
             lines_in_action: Set of line names being disconnected by this action.
@@ -474,7 +481,46 @@ class ActionDiscoverer:
             self._disco_capacity_map.get(line, 0.0) for line in lines_in_action
         )
 
-        return self._asymmetric_bell_score(observed_flow, min_redispatch, max_redispatch)
+        if max_redispatch == float('inf'):
+            # Unconstrained regime: linear ramp from 0 (at min_redispatch)
+            # to 1 (at max_overload_flow), negative below min_redispatch
+            return self._unconstrained_linear_score(
+                observed_flow, min_redispatch, max_overload_flow
+            )
+        else:
+            # Constrained regime: bell curve between min and max
+            return self._asymmetric_bell_score(observed_flow, min_redispatch, max_redispatch)
+
+    @staticmethod
+    def _unconstrained_linear_score(observed_flow: float, min_flow: float,
+                                    max_flow: float, tail_scale: float = 2.0) -> float:
+        """
+        Linear score for the unconstrained disconnection regime.
+
+        All disconnections above ``min_flow`` are useful (no upper overload risk).
+        Score = 1 at ``max_flow``, linearly decreasing to 0 at ``min_flow``.
+        Below ``min_flow`` a negative quadratic tail penalises insufficient flow.
+
+        Args:
+            observed_flow: The redispatch flow of the action being evaluated.
+            min_flow: Minimum useful redispatch (score = 0 boundary).
+            max_flow: Maximum redispatch flow on the graph (score = 1).
+            tail_scale: Multiplier for the negative quadratic tail. Default 2.0.
+
+        Returns:
+            float: Score in [-inf, 1].
+        """
+        if max_flow <= min_flow:
+            return 0.0
+
+        x = (observed_flow - min_flow) / (max_flow - min_flow)
+
+        if x >= 0.0:
+            # Linear ramp: 0 at min_flow, 1 at max_flow, >1 beyond (capped at 1)
+            return min(x, 1.0)
+        else:
+            # Negative quadratic tail below min_flow (same convention as bell)
+            return -tail_scale * (x ** 2)
 
     # --- Action Discovery Methods (Public) ---
 
@@ -690,13 +736,23 @@ class ActionDiscoverer:
         # Capture computed bounds before cleanup
         if hasattr(self, '_disco_bounds'):
             max_overload_flow, min_redispatch, max_redispatch = self._disco_bounds
-            # Peak redispatch: x_peak = (alpha-1)/(alpha+beta-2) = 2/2.5 = 0.8
-            peak_redispatch = min_redispatch + 0.8 * (max_redispatch - min_redispatch)
-            self.params_disconnections = {
-                "min_redispatch": min_redispatch,
-                "max_redispatch": max_redispatch,
-                "peak_redispatch": peak_redispatch,
-            }
+            if max_redispatch == float('inf'):
+                # Unconstrained regime: linear ramp, peak at max_overload_flow
+                self.params_disconnections = {
+                    "regime": "unconstrained",
+                    "min_redispatch": min_redispatch,
+                    "max_overload_flow": max_overload_flow,
+                }
+            else:
+                # Constrained regime: bell curve
+                # Peak redispatch: x_peak = (alpha-1)/(alpha+beta-2) = 2/2.5 = 0.8
+                peak_redispatch = min_redispatch + 0.8 * (max_redispatch - min_redispatch)
+                self.params_disconnections = {
+                    "regime": "constrained",
+                    "min_redispatch": min_redispatch,
+                    "max_redispatch": max_redispatch,
+                    "peak_redispatch": peak_redispatch,
+                }
         else:
             self.params_disconnections = {}
 

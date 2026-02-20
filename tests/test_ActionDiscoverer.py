@@ -657,6 +657,44 @@ class TestAsymmetricBellScore:
         assert abs(score_peak - 1.0) < 0.01
 
 
+class TestUnconstrainedLinearScore:
+    """Tests for _unconstrained_linear_score (disconnection scoring when no new overloads arise)."""
+
+    def test_one_at_max_flow(self):
+        """Score should be exactly 1.0 at max_flow."""
+        assert ActionDiscoverer._unconstrained_linear_score(100.0, 20.0, 100.0) == 1.0
+
+    def test_zero_at_min_flow(self):
+        """Score should be exactly 0.0 at min_flow."""
+        assert ActionDiscoverer._unconstrained_linear_score(20.0, 20.0, 100.0) == 0.0
+
+    def test_linear_in_between(self):
+        """Score should be linear between min and max (midpoint = 0.5)."""
+        score = ActionDiscoverer._unconstrained_linear_score(60.0, 20.0, 100.0)
+        assert abs(score - 0.5) < 1e-9
+
+    def test_negative_below_min(self):
+        """Score should be negative below min_flow."""
+        score = ActionDiscoverer._unconstrained_linear_score(10.0, 20.0, 100.0)
+        assert score < 0.0
+
+    def test_capped_at_one_above_max(self):
+        """Score should be capped at 1.0 even beyond max_flow."""
+        score = ActionDiscoverer._unconstrained_linear_score(120.0, 20.0, 100.0)
+        assert score == 1.0
+
+    def test_degenerate_range_returns_zero(self):
+        """Should return 0 when max_flow <= min_flow."""
+        assert ActionDiscoverer._unconstrained_linear_score(50.0, 50.0, 50.0) == 0.0
+        assert ActionDiscoverer._unconstrained_linear_score(50.0, 60.0, 50.0) == 0.0
+
+    def test_increasingly_negative_further_below_min(self):
+        """Score should become more negative the further below min_flow."""
+        s1 = ActionDiscoverer._unconstrained_linear_score(15.0, 20.0, 100.0)
+        s2 = ActionDiscoverer._unconstrained_linear_score(0.0, 20.0, 100.0)
+        assert s2 < s1 < 0.0
+
+
 class TestNodeMergingScore:
     """Tests for the compute_node_merging_score method."""
 
@@ -775,15 +813,18 @@ class TestDiscoveryParamsStorage:
         """find_relevant_disconnections must populate params_disconnections with redispatch bounds."""
         discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
         params = discoverer_instance.params_disconnections
-        # params_disconnections should contain min/max/peak redispatch if _disco_bounds was set
         assert isinstance(params, dict)
-        if params:  # Non-empty when bounds were computed
+        if params:
+            assert "regime" in params
             assert "min_redispatch" in params
-            assert "max_redispatch" in params
-            assert "peak_redispatch" in params
-            # peak is at 80% of the range
-            expected_peak = params["min_redispatch"] + 0.8 * (params["max_redispatch"] - params["min_redispatch"])
-            assert abs(params["peak_redispatch"] - expected_peak) < 1e-9
+            if params["regime"] == "constrained":
+                assert "max_redispatch" in params
+                assert "peak_redispatch" in params
+                expected_peak = params["min_redispatch"] + 0.8 * (params["max_redispatch"] - params["min_redispatch"])
+                assert abs(params["peak_redispatch"] - expected_peak) < 1e-9
+            else:
+                assert params["regime"] == "unconstrained"
+                assert "max_overload_flow" in params
 
     def test_splitting_params_populated_per_action(self, discoverer_instance):
         """find_relevant_node_splitting must store per-action details in params_splits_dict."""
@@ -859,6 +900,7 @@ class TestActionScoresStructureAndRounding:
         }
         discoverer.scores_disconnections = {"disco_1": 0.87654321}
         discoverer.params_disconnections = {
+            "regime": "constrained",
             "min_redispatch": 10.111, "max_redispatch": 50.999, "peak_redispatch": 42.8888,
         }
         discoverer.scores_splits_dict = {"split_1": 0.99999, "split_2": -0.12345}
@@ -922,6 +964,7 @@ class TestActionScoresStructureAndRounding:
         assert reco_params["max_dispatch_flow"] == 123.46
 
         disco_params = action_scores["line_disconnection"]["params"]
+        assert disco_params["regime"] == "constrained"  # String preserved
         assert disco_params["min_redispatch"] == 10.11
         assert disco_params["max_redispatch"] == 51.0
         assert disco_params["peak_redispatch"] == 42.89
