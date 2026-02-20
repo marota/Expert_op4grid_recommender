@@ -92,6 +92,13 @@ class MockObservation:
         self.theta_ex = np.array(kwargs.get('theta_ex', np.zeros(num_lines)))
         # --- End added attributes ---
         self.line_status = np.ones(num_lines, dtype=bool)
+        # Load and generator attributes
+        self.name_load = np.array(kwargs.get('name_load', []))
+        self.name_gen = np.array(kwargs.get('name_gen', []))
+        self.load_to_subid = np.array(kwargs.get('load_to_subid', []), dtype=int) if kwargs.get('load_to_subid') is not None else np.array([], dtype=int)
+        self.gen_to_subid = np.array(kwargs.get('gen_to_subid', []), dtype=int) if kwargs.get('gen_to_subid') is not None else np.array([], dtype=int)
+        # Optional: pre-computed per-substation element lists for get_obj_connect_to
+        self._obj_connect_to = kwargs.get('obj_connect_to', None)
 
         class MockLoadP:
             def __init__(self, values): self._values = np.array(values if values is not None else [100.0])
@@ -107,13 +114,23 @@ class MockObservation:
              new_topo = self.topo_vect.copy(); return MockObservation(**{**self.__dict__, 'topo_vect': new_topo}) # Pass existing attrs
         return self
     def get_energy_graph(self): return None
-    # Add mock for get_obj_connect_to needed by get_theta_node
     def get_obj_connect_to(self, substation_id):
-         # Return dummy indices, assuming lines 0, 1 connect if sub_id is 0 or 1
-         if substation_id < 2:
-             return {'lines_or_id': [substation_id], 'lines_ex_id': [substation_id-1 if substation_id > 0 else 1]}
-         else:
-             return {'lines_or_id': [], 'lines_ex_id': []}
+         """Return element indices per substation. Uses explicit mapping if provided."""
+         if self._obj_connect_to and substation_id in self._obj_connect_to:
+             entry = self._obj_connect_to[substation_id]
+             return {
+                 'loads_id': entry.get('loads_id', []),
+                 'generators_id': entry.get('generators_id', []),
+                 'lines_or_id': entry.get('lines_or_id', []),
+                 'lines_ex_id': entry.get('lines_ex_id', []),
+             }
+         # Fallback: auto-derive from line_or/ex_to_subid
+         lines_or = [i for i, s in enumerate(self.line_or_to_subid) if s == substation_id]
+         lines_ex = [i for i, s in enumerate(self.line_ex_to_subid) if s == substation_id]
+         loads = [i for i, s in enumerate(self.load_to_subid) if s == substation_id]
+         gens = [i for i, s in enumerate(self.gen_to_subid) if s == substation_id]
+         return {'loads_id': loads, 'generators_id': gens,
+                 'lines_or_id': lines_or, 'lines_ex_id': lines_ex}
 
 class MockEnv:
     def __init__(self, name_line=None, maintenance_array=None, name_sub=None):
@@ -640,6 +657,44 @@ class TestAsymmetricBellScore:
         assert abs(score_peak - 1.0) < 0.01
 
 
+class TestUnconstrainedLinearScore:
+    """Tests for _unconstrained_linear_score (disconnection scoring when no new overloads arise)."""
+
+    def test_one_at_max_flow(self):
+        """Score should be exactly 1.0 at max_flow."""
+        assert ActionDiscoverer._unconstrained_linear_score(100.0, 20.0, 100.0) == 1.0
+
+    def test_zero_at_min_flow(self):
+        """Score should be exactly 0.0 at min_flow."""
+        assert ActionDiscoverer._unconstrained_linear_score(20.0, 20.0, 100.0) == 0.0
+
+    def test_linear_in_between(self):
+        """Score should be linear between min and max (midpoint = 0.5)."""
+        score = ActionDiscoverer._unconstrained_linear_score(60.0, 20.0, 100.0)
+        assert abs(score - 0.5) < 1e-9
+
+    def test_negative_below_min(self):
+        """Score should be negative below min_flow."""
+        score = ActionDiscoverer._unconstrained_linear_score(10.0, 20.0, 100.0)
+        assert score < 0.0
+
+    def test_capped_at_one_above_max(self):
+        """Score should be capped at 1.0 even beyond max_flow."""
+        score = ActionDiscoverer._unconstrained_linear_score(120.0, 20.0, 100.0)
+        assert score == 1.0
+
+    def test_degenerate_range_returns_zero(self):
+        """Should return 0 when max_flow <= min_flow."""
+        assert ActionDiscoverer._unconstrained_linear_score(50.0, 50.0, 50.0) == 0.0
+        assert ActionDiscoverer._unconstrained_linear_score(50.0, 60.0, 50.0) == 0.0
+
+    def test_increasingly_negative_further_below_min(self):
+        """Score should become more negative the further below min_flow."""
+        s1 = ActionDiscoverer._unconstrained_linear_score(15.0, 20.0, 100.0)
+        s2 = ActionDiscoverer._unconstrained_linear_score(0.0, 20.0, 100.0)
+        assert s2 < s1 < 0.0
+
+
 class TestNodeMergingScore:
     """Tests for the compute_node_merging_score method."""
 
@@ -647,15 +702,23 @@ class TestNodeMergingScore:
     def merging_discoverer(self):
         """Create a discoverer with meaningful theta values for node merging tests."""
         # Sub0 has 2 buses. L1 originates at Sub0 (bus 1), L2 also at Sub0 (bus 2).
+        # Load0 on bus 1, Gen0 on bus 2 at Sub0.
         # L3 connects Sub1->Sub2.
         # Overflow graph: edge (0,1) with L1 has POSITIVE capacity (red loop flow on bus 1),
         # edge (0,1) with L2 has NEGATIVE capacity (on bus 2).
+        #
+        # sub_topology order for Sub0: [Load0_bus, Gen0_bus, L1_or_bus, L2_or_bus]
+        #                              = [1, 2, 1, 2]
         mock_obs = MockObservation(
             name_sub=["Sub0", "Sub1", "Sub2"],
             name_line=["L1", "L2", "L3"],
-            sub_topologies={0: [1, 2], 1: [1, 1], 2: [1, 1]},
-            sub_info=[3, 3, 3],
-            topo_vect=np.array([1, 2, 1, 1, 1, 1, 1, 1, 1]),
+            name_load=["Load0"],
+            name_gen=["Gen0"],
+            load_to_subid=[0],
+            gen_to_subid=[0],
+            sub_topologies={0: [1, 2, 1, 2], 1: [1, 1], 2: [1, 1]},
+            sub_info=[4, 3, 3],
+            topo_vect=np.array([1, 2, 1, 2, 1, 1, 1, 1, 1, 1]),
             line_or_to_subid=[0, 0, 1],
             line_ex_to_subid=[1, 1, 2],
             line_or_bus=[1, 2, 1],
@@ -687,10 +750,13 @@ class TestNodeMergingScore:
             simulator_data={}, check_action_simulation=False
         )
 
-    def test_score_is_float(self, merging_discoverer):
-        """Score should be a float value."""
-        score = merging_discoverer.compute_node_merging_score(0, [1, 2])
+    def test_returns_tuple(self, merging_discoverer):
+        """compute_node_merging_score must return a (float, dict) tuple."""
+        result = merging_discoverer.compute_node_merging_score(0, [1, 2])
+        assert isinstance(result, tuple) and len(result) == 2
+        score, details = result
         assert isinstance(score, float)
+        assert isinstance(details, dict)
 
     def test_red_loop_bus_identified_by_positive_capacity(self, merging_discoverer):
         """Bus carrying positive capacity edges should be identified as red loop bus."""
@@ -700,13 +766,28 @@ class TestNodeMergingScore:
         # theta1 = get_theta_node(obs, 0, 1) = median of theta_or[0] = -5.0
         # theta2 = get_theta_node(obs, 0, 2) = median of theta_or[1] = -1.0
         # score = theta2 - theta1 = -1.0 - (-5.0) = 4.0
-        score = merging_discoverer.compute_node_merging_score(0, [1, 2])
+        score, details = merging_discoverer.compute_node_merging_score(0, [1, 2])
         assert score > 0.0  # theta2 > theta1 means flow towards red loop
+        assert details["red_loop_bus"] == 1
 
     def test_single_bus_returns_zero(self, merging_discoverer):
-        """Should return 0 when fewer than 2 buses."""
-        score = merging_discoverer.compute_node_merging_score(0, [1])
+        """Should return (0.0, {}) when fewer than 2 buses."""
+        score, details = merging_discoverer.compute_node_merging_score(0, [1])
         assert score == 0.0
+        assert details == {}
+
+    def test_details_contains_assets(self, merging_discoverer):
+        """Details dict must contain assets with lines on the red loop bus."""
+        _, details = merging_discoverer.compute_node_merging_score(0, [1, 2])
+        assert "assets" in details
+        assets = details["assets"]
+        assert "lines" in assets
+        assert "loads" in assets
+        assert "generators" in assets
+        # L1 is on bus 1 (red loop bus) at Sub0 origin
+        assert "L1" in assets["lines"]
+        # L2 is on bus 2 (not red loop bus), should not appear
+        assert "L2" not in assets["lines"]
 
 
 # =============================================================================
@@ -732,15 +813,18 @@ class TestDiscoveryParamsStorage:
         """find_relevant_disconnections must populate params_disconnections with redispatch bounds."""
         discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
         params = discoverer_instance.params_disconnections
-        # params_disconnections should contain min/max/peak redispatch if _disco_bounds was set
         assert isinstance(params, dict)
-        if params:  # Non-empty when bounds were computed
+        if params:
+            assert "regime" in params
             assert "min_redispatch" in params
-            assert "max_redispatch" in params
-            assert "peak_redispatch" in params
-            # peak is at 80% of the range
-            expected_peak = params["min_redispatch"] + 0.8 * (params["max_redispatch"] - params["min_redispatch"])
-            assert abs(params["peak_redispatch"] - expected_peak) < 1e-9
+            if params["regime"] == "constrained":
+                assert "max_redispatch" in params
+                assert "peak_redispatch" in params
+                expected_peak = params["min_redispatch"] + 0.8 * (params["max_redispatch"] - params["min_redispatch"])
+                assert abs(params["peak_redispatch"] - expected_peak) < 1e-9
+            else:
+                assert params["regime"] == "unconstrained"
+                assert "max_overload_flow" in params
 
     def test_splitting_params_populated_per_action(self, discoverer_instance):
         """find_relevant_node_splitting must store per-action details in params_splits_dict."""
@@ -752,15 +836,20 @@ class TestDiscoveryParamsStorage:
             assert action_id in params
             assert isinstance(params[action_id], dict)
 
-    def test_merging_params_populated(self, discoverer_instance):
-        """find_relevant_node_merging must populate params_merges with threshold and max flow."""
+    def test_merging_params_populated_per_action(self, discoverer_instance):
+        """find_relevant_node_merging must store per-action params with assets."""
         discoverer_instance.find_relevant_node_merging(["Sub0", "Sub1", "Sub3"])
         params = discoverer_instance.params_merges
-        assert "percentage_threshold_min_dispatch_flow" in params
-        assert "max_dispatch_flow" in params
-        assert isinstance(params["percentage_threshold_min_dispatch_flow"], (int, float))
-        assert isinstance(params["max_dispatch_flow"], (int, float))
-        assert params["max_dispatch_flow"] > 0
+        assert isinstance(params, dict)
+        # Each scored action should have a per-action details entry
+        for action_id in discoverer_instance.scores_merges:
+            assert action_id in params
+            assert isinstance(params[action_id], dict)
+            assert "assets" in params[action_id]
+            assets = params[action_id]["assets"]
+            assert "lines" in assets
+            assert "loads" in assets
+            assert "generators" in assets
 
 
 # =============================================================================
@@ -811,21 +900,26 @@ class TestActionScoresStructureAndRounding:
         }
         discoverer.scores_disconnections = {"disco_1": 0.87654321}
         discoverer.params_disconnections = {
+            "regime": "constrained",
             "min_redispatch": 10.111, "max_redispatch": 50.999, "peak_redispatch": 42.8888,
         }
         discoverer.scores_splits_dict = {"split_1": 0.99999, "split_2": -0.12345}
         discoverer.params_splits_dict = {
             "split_1": {"node_type": "amont", "bus_of_interest": 1,
                         "in_negative_flows": 12.3456, "out_negative_flows": 78.9012,
-                        "in_positive_flows": 0.0, "out_positive_flows": 5.55555},
+                        "in_positive_flows": 0.0, "out_positive_flows": 5.55555,
+                        "assets": {"lines": ["L1"], "loads": [], "generators": []}},
             "split_2": {"node_type": "aval", "bus_of_interest": 2,
                         "in_negative_flows": 99.9999, "out_negative_flows": 1.11111,
-                        "in_positive_flows": 3.33333, "out_positive_flows": 0.0},
+                        "in_positive_flows": 3.33333, "out_positive_flows": 0.0,
+                        "assets": {"lines": ["L2"], "loads": ["Load_X"], "generators": ["Gen_Y"]}},
         }
         discoverer.scores_merges = {"merge_1": 2.71828}
         discoverer.params_merges = {
-            "percentage_threshold_min_dispatch_flow": 0.10000001,
-            "max_dispatch_flow": 987.654321,
+            "merge_1": {
+                "red_loop_bus": 1,
+                "assets": {"lines": ["L1"], "loads": ["Load_A"], "generators": []},
+            },
         }
         return discoverer
 
@@ -863,22 +957,20 @@ class TestActionScoresStructureAndRounding:
         assert action_scores["close_coupling"]["scores"]["merge_1"] == 2.72
 
     def test_flat_params_rounded_to_two_decimals(self, scores_discoverer):
-        """Flat params (reconnections, disconnections, merges) must have floats rounded."""
+        """Flat params (reconnections, disconnections) must have floats rounded."""
         action_scores = self._build_action_scores(scores_discoverer)
         reco_params = action_scores["line_reconnection"]["params"]
         assert reco_params["percentage_threshold_min_dispatch_flow"] == 0.1
         assert reco_params["max_dispatch_flow"] == 123.46
 
         disco_params = action_scores["line_disconnection"]["params"]
+        assert disco_params["regime"] == "constrained"  # String preserved
         assert disco_params["min_redispatch"] == 10.11
         assert disco_params["max_redispatch"] == 51.0
         assert disco_params["peak_redispatch"] == 42.89
 
-        merge_params = action_scores["close_coupling"]["params"]
-        assert merge_params["max_dispatch_flow"] == 987.65
-
     def test_nested_params_rounded_to_two_decimals(self, scores_discoverer):
-        """Per-action nested params (open_coupling/splits) must have floats rounded."""
+        """Per-action nested params (open/close_coupling) must have floats rounded, non-floats preserved."""
         action_scores = self._build_action_scores(scores_discoverer)
         split_params = action_scores["open_coupling"]["params"]
 
@@ -892,6 +984,12 @@ class TestActionScoresStructureAndRounding:
         s2 = split_params["split_2"]
         assert s2["in_negative_flows"] == 100.0
         assert s2["out_negative_flows"] == 1.11
+
+        # close_coupling (merges) is now per-action too
+        merge_params = action_scores["close_coupling"]["params"]
+        m1 = merge_params["merge_1"]
+        assert m1["red_loop_bus"] == 1  # Int preserved
+        assert isinstance(m1["assets"], dict)  # Dict preserved (not rounded)
 
     def test_empty_scores_produce_empty_entries(self, scores_discoverer):
         """When a category has no scored actions, its scores and params should be empty."""
