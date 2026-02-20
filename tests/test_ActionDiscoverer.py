@@ -768,7 +768,8 @@ class TestNodeMergingScore:
         # score = theta2 - theta1 = -1.0 - (-5.0) = 4.0
         score, details = merging_discoverer.compute_node_merging_score(0, [1, 2])
         assert score > 0.0  # theta2 > theta1 means flow towards red loop
-        assert details["red_loop_bus"] == 1
+        # Red loop bus assets should contain L1 (on bus 1)
+        assert "L1" in details["targeted_node_assets"]["lines"]
 
     def test_single_bus_returns_zero(self, merging_discoverer):
         """Should return (0.0, {}) when fewer than 2 buses."""
@@ -776,11 +777,11 @@ class TestNodeMergingScore:
         assert score == 0.0
         assert details == {}
 
-    def test_details_contains_assets(self, merging_discoverer):
-        """Details dict must contain assets with lines on the red loop bus."""
+    def test_details_contains_targeted_node_assets(self, merging_discoverer):
+        """Details dict must contain targeted_node_assets with lines on the red loop bus."""
         _, details = merging_discoverer.compute_node_merging_score(0, [1, 2])
-        assert "assets" in details
-        assets = details["assets"]
+        assert "targeted_node_assets" in details
+        assets = details["targeted_node_assets"]
         assert "lines" in assets
         assert "loads" in assets
         assert "generators" in assets
@@ -845,8 +846,8 @@ class TestDiscoveryParamsStorage:
         for action_id in discoverer_instance.scores_merges:
             assert action_id in params
             assert isinstance(params[action_id], dict)
-            assert "assets" in params[action_id]
-            assets = params[action_id]["assets"]
+            assert "targeted_node_assets" in params[action_id]
+            assets = params[action_id]["targeted_node_assets"]
             assert "lines" in assets
             assert "loads" in assets
             assert "generators" in assets
@@ -905,20 +906,19 @@ class TestActionScoresStructureAndRounding:
         }
         discoverer.scores_splits_dict = {"split_1": 0.99999, "split_2": -0.12345}
         discoverer.params_splits_dict = {
-            "split_1": {"node_type": "amont", "bus_of_interest": 1,
+            "split_1": {"node_type": "amont",
+                        "targeted_node_assets": {"lines": ["L1"], "loads": [], "generators": []},
                         "in_negative_flows": 12.3456, "out_negative_flows": 78.9012,
-                        "in_positive_flows": 0.0, "out_positive_flows": 5.55555,
-                        "assets": {"lines": ["L1"], "loads": [], "generators": []}},
-            "split_2": {"node_type": "aval", "bus_of_interest": 2,
+                        "in_positive_flows": 0.0, "out_positive_flows": 5.55555},
+            "split_2": {"node_type": "aval",
+                        "targeted_node_assets": {"lines": ["L2"], "loads": ["Load_X"], "generators": ["Gen_Y"]},
                         "in_negative_flows": 99.9999, "out_negative_flows": 1.11111,
-                        "in_positive_flows": 3.33333, "out_positive_flows": 0.0,
-                        "assets": {"lines": ["L2"], "loads": ["Load_X"], "generators": ["Gen_Y"]}},
+                        "in_positive_flows": 3.33333, "out_positive_flows": 0.0},
         }
         discoverer.scores_merges = {"merge_1": 2.71828}
         discoverer.params_merges = {
             "merge_1": {
-                "red_loop_bus": 1,
-                "assets": {"lines": ["L1"], "loads": ["Load_A"], "generators": []},
+                "targeted_node_assets": {"lines": ["L1"], "loads": ["Load_A"], "generators": []},
             },
         }
         return discoverer
@@ -976,7 +976,7 @@ class TestActionScoresStructureAndRounding:
 
         s1 = split_params["split_1"]
         assert s1["node_type"] == "amont"  # String preserved
-        assert s1["bus_of_interest"] == 1  # Int preserved
+        assert isinstance(s1["targeted_node_assets"], dict)  # Assets dict preserved
         assert s1["in_negative_flows"] == 12.35
         assert s1["out_negative_flows"] == 78.9
         assert s1["out_positive_flows"] == 5.56
@@ -988,8 +988,7 @@ class TestActionScoresStructureAndRounding:
         # close_coupling (merges) is now per-action too
         merge_params = action_scores["close_coupling"]["params"]
         m1 = merge_params["merge_1"]
-        assert m1["red_loop_bus"] == 1  # Int preserved
-        assert isinstance(m1["assets"], dict)  # Dict preserved (not rounded)
+        assert isinstance(m1["targeted_node_assets"], dict)  # Assets dict preserved
 
     def test_empty_scores_produce_empty_entries(self, scores_discoverer):
         """When a category has no scored actions, its scores and params should be empty."""

@@ -988,7 +988,7 @@ class ActionDiscoverer:
         Returns:
             Tuple[float, Dict]: A tuple of (score, details) where details contains:
                 - node_type: str ("amont", "aval", or other)
-                - bus_of_interest: int (bus number used for scoring)
+                - targeted_node_bus: int (bus number, replaced by targeted_node_assets downstream)
                 - in_negative_flows, out_negative_flows, in_positive_flows, out_positive_flows: floats
         """
         # 1) Identify node type
@@ -1027,7 +1027,7 @@ class ActionDiscoverer:
         bus_idx = buses.index(bus_of_interest)
         details = {
             "node_type": node_type,
-            "bus_of_interest": bus_of_interest,
+            "targeted_node_bus": bus_of_interest,
             "in_negative_flows": float(buses_negative_inflow[bus_idx]),
             "out_negative_flows": float(buses_negative_out_flow[bus_idx]),
             "in_positive_flows": float(buses_positive_inflow[bus_idx]),
@@ -1237,12 +1237,13 @@ class ActionDiscoverer:
         else:
             score, details = result, {}
 
-        # Enrich details with the list of assets on the bus of interest
-        if details and "bus_of_interest" in details:
-            details["assets"] = self._get_assets_on_bus_for_sub(
-                sub_impacted_id, details["bus_of_interest"],
+        # Replace the raw bus number with the named assets on the targeted node
+        if details and "targeted_node_bus" in details:
+            details["targeted_node_assets"] = self._get_assets_on_bus_for_sub(
+                sub_impacted_id, details["targeted_node_bus"],
                 bus_assignments=action_topo_vect
             )
+            del details["targeted_node_bus"]
 
         return score, details
 
@@ -1424,7 +1425,7 @@ class ActionDiscoverer:
 
         Returns:
             Tuple[float, Dict]: The delta phase score and a details dict containing
-                ``red_loop_bus`` and ``assets`` on that bus.
+                ``targeted_node_assets`` (lines, loads, generators on the red loop bus).
         """
         buses = sorted(connected_buses)
         if len(buses) < 2:
@@ -1469,11 +1470,10 @@ class ActionDiscoverer:
 
         score = theta2 - theta1
 
-        # Build details with assets on the red loop bus (bus of interest)
+        # Build details with assets on the red loop bus (targeted node)
         assets = self._get_assets_on_bus_for_sub(sub_id, red_loop_bus)
         details = {
-            "red_loop_bus": red_loop_bus,
-            "assets": assets,
+            "targeted_node_assets": assets,
         }
 
         return score, details
