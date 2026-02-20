@@ -1013,6 +1013,66 @@ class ActionDiscoverer:
 
         return action_topo_vect, is_single_node
 
+    def _get_assets_on_bus_for_sub(self, sub_id, bus, bus_assignments=None):
+        """Get asset names connected to a specific bus at a substation.
+
+        Uses the element ordering from ``get_obj_connect_to`` / ``sub_topology``
+        (loads, generators, lines_or, lines_ex) to match each element to its bus.
+
+        Args:
+            sub_id: Substation index.
+            bus: Target bus number (1 or 2).
+            bus_assignments: Optional array of bus assignments for all elements at
+                the substation (e.g. from an action's topology vector).
+                If *None*, the current observation's ``sub_topology`` is used.
+
+        Returns:
+            dict with keys ``"lines"``, ``"loads"``, ``"generators"``,
+            each containing a list of element name strings.
+        """
+        obs = self.obs_defaut
+        obj = obs.get_obj_connect_to(substation_id=sub_id)
+
+        if bus_assignments is None:
+            bus_assignments = obs.sub_topology(sub_id=sub_id)
+
+        # sub_topology order: loads, gens, lines_or, lines_ex
+        load_ids = obj.get('loads_id', [])
+        gen_ids = obj.get('generators_id', [])
+        line_or_ids = obj.get('lines_or_id', [])
+        line_ex_ids = obj.get('lines_ex_id', [])
+
+        assets = {"lines": [], "loads": [], "generators": []}
+        pos = 0
+
+        for load_idx in load_ids:
+            if pos < len(bus_assignments) and int(bus_assignments[pos]) == bus:
+                if hasattr(obs, 'name_load') and load_idx < len(obs.name_load):
+                    assets["loads"].append(str(obs.name_load[load_idx]))
+            pos += 1
+
+        for gen_idx in gen_ids:
+            if pos < len(bus_assignments) and int(bus_assignments[pos]) == bus:
+                if hasattr(obs, 'name_gen') and gen_idx < len(obs.name_gen):
+                    assets["generators"].append(str(obs.name_gen[gen_idx]))
+            pos += 1
+
+        for line_idx in line_or_ids:
+            if pos < len(bus_assignments) and int(bus_assignments[pos]) == bus:
+                line_name = str(obs.name_line[line_idx])
+                if line_name not in assets["lines"]:
+                    assets["lines"].append(line_name)
+            pos += 1
+
+        for line_idx in line_ex_ids:
+            if pos < len(bus_assignments) and int(bus_assignments[pos]) == bus:
+                line_name = str(obs.name_line[line_idx])
+                if line_name not in assets["lines"]:
+                    assets["lines"].append(line_name)
+            pos += 1
+
+        return assets
+
     def _edge_names_buses_dict(self, obs, action_topo_vect, sub_impacted_id):
         """
         Creates a mapping between line names and their bus assignments.
@@ -1117,8 +1177,18 @@ class ActionDiscoverer:
 
         # Handle both old (float) and new (tuple) return formats for backward compatibility
         if isinstance(result, tuple):
-            return result
-        return result, {}
+            score, details = result
+        else:
+            score, details = result, {}
+
+        # Enrich details with the list of assets on the bus of interest
+        if details and "bus_of_interest" in details:
+            details["assets"] = self._get_assets_on_bus_for_sub(
+                sub_impacted_id, details["bus_of_interest"],
+                bus_assignments=action_topo_vect
+            )
+
+        return score, details
 
 
     def _get_subs_impacted_from_action_desc(self, action_desc: Dict) -> List[int]:
@@ -1279,7 +1349,7 @@ class ActionDiscoverer:
                                    for action_id in map_action_score}
 
 
-    def compute_node_merging_score(self, sub_id: int, connected_buses: list) -> float:
+    def compute_node_merging_score(self, sub_id: int, connected_buses: list) -> Tuple[float, Dict]:
         """
         Computes a heuristic score for a node merging action based on the voltage angle
         difference (delta phase) between the two buses being merged.
@@ -1297,11 +1367,12 @@ class ActionDiscoverer:
             connected_buses: List of connected bus IDs (e.g., [1, 2]).
 
         Returns:
-            float: The delta phase score (theta2 - theta1).
+            Tuple[float, Dict]: The delta phase score and a details dict containing
+                ``red_loop_bus`` and ``assets`` on that bus.
         """
         buses = sorted(connected_buses)
         if len(buses) < 2:
-            return 0.0
+            return 0.0, {}
 
         # Determine which bus carries the red loop (positive dispatch) flow
         # by summing the positive capacity on overflow graph edges per bus
@@ -1340,7 +1411,16 @@ class ActionDiscoverer:
         theta1 = get_theta_node(self.obs_defaut, sub_id, red_loop_bus)
         theta2 = get_theta_node(self.obs_defaut, sub_id, other_bus)
 
-        return theta2 - theta1
+        score = theta2 - theta1
+
+        # Build details with assets on the red loop bus (bus of interest)
+        assets = self._get_assets_on_bus_for_sub(sub_id, red_loop_bus)
+        details = {
+            "red_loop_bus": red_loop_bus,
+            "assets": assets,
+        }
+
+        return score, details
 
     def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str], percentage_threshold_min_dispatch_flow=0.1):
         """
@@ -1359,6 +1439,7 @@ class ActionDiscoverer:
         """
         identified, effective, ineffective = {}, [], []
         scores_map = {}
+        details_map = {}
         capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
         max_dispatch_flow=max([abs(val) for val in capacity_dict.values()])
 
@@ -1382,14 +1463,16 @@ class ActionDiscoverer:
                     action_id = f"node_merging_{sub_name}"
                     identified[action_id] = action
 
-                    # Compute delta phase score
+                    # Compute delta phase score and per-action details (including assets)
                     try:
-                        score = self.compute_node_merging_score(sub_id, list(connected_buses))
+                        score, details = self.compute_node_merging_score(sub_id, list(connected_buses))
                         scores_map[action_id] = score
+                        details_map[action_id] = details
                         print(f"  Scored node merge {action_id}: delta_phase={score:.4f}")
                     except Exception as e:
                         print(f"  Warning: Could not score {action_id}: {e}")
                         scores_map[action_id] = 0.0
+                        details_map[action_id] = {}
 
                     if self.check_action_simulation:
                         act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
@@ -1404,10 +1487,7 @@ class ActionDiscoverer:
         self.effective_merges = effective
         self.ineffective_merges = ineffective
         self.scores_merges = scores_map
-        self.params_merges = {
-            "percentage_threshold_min_dispatch_flow": percentage_threshold_min_dispatch_flow,
-            "max_dispatch_flow": max_dispatch_flow,
-        }
+        self.params_merges = details_map
 
 
     # --- Main Orchestration Method ---
