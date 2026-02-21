@@ -38,6 +38,8 @@ class ActionDiscoverer:
         env: The Grid2Op environment instance.
         obs (Any): Observation before corrective action (for simulation).
         obs_defaut (Any): Observation after initial contingency (for context).
+        obs_linecut (Any): Observation after alphaDeesp cuts the overloaded lines from
+            obs_defaut (N-2 state). Used for disconnection flow bound computation.
         action_space (Callable): Grid2Op action space function.
         timestep (int): Current simulation timestep.
         lines_defaut (List[str]): Lines defining the initial contingency.
@@ -93,7 +95,8 @@ class ActionDiscoverer:
                  check_action_simulation: bool = True,
                  lines_we_care_about: Optional[List[str]] = None,
                  check_rho_reduction_func: Optional[Callable] = None,
-                 create_default_action_func: Optional[Callable] = None):
+                 create_default_action_func: Optional[Callable] = None,
+                 obs_linecut: Optional[Any] = None):
         """
         Initializes the ActionDiscoverer with the necessary context and parameters.
 
@@ -120,10 +123,15 @@ class ActionDiscoverer:
                                       Defaults to grid2op version if not provided.
             create_default_action_func: Function to create a default (contingency) action.
                                         Defaults to grid2op version if not provided.
+            obs_linecut: Observation after alphaDeesp cuts the overloaded lines from obs_defaut
+                         (the N-2 state). Used in disconnection scoring to determine whether a
+                         disconnection creates new overloads. When None, the disconnection scoring
+                         falls back to the unconstrained regime (no upper redispatch bound).
         """
         self.env = env
         self.obs = obs
         self.obs_defaut = obs_defaut
+        self.obs_linecut = obs_linecut
         self.action_space = env.action_space
         self.timestep = timestep
         self.lines_defaut = lines_defaut
@@ -398,10 +406,14 @@ class ActionDiscoverer:
         The bounds define the window of "useful" redispatch:
         - min_redispatch: the minimum flow needed to bring the worst overload below 100%.
           ``(max_rho_overloaded - 1) * max_overload_flow``
+          Computed from ``obs_defaut`` (the N-1 contingency state).
         - max_redispatch: the maximum flow the system can absorb without creating new overloads.
-          For each line with increased loading:
+          Requires ``obs_linecut`` (the N-2 state after alphaDeesp cuts the overloaded lines).
+          For each line that is MORE loaded in obs_linecut than in obs_defaut:
           ``capacity_l * (1 - rho_before) / (rho_after - rho_before)``
+          where ``rho_before`` comes from ``obs_defaut`` and ``rho_after`` from ``obs_linecut``.
           The binding constraint (minimum across all such lines) gives max_redispatch.
+          If ``obs_linecut`` is not available, max_redispatch stays at inf (unconstrained regime).
 
         Returns:
             Tuple[float, float, float]:
@@ -415,7 +427,7 @@ class ActionDiscoverer:
 
         max_overload_flow = max(name_to_capacity.values())
 
-        # --- min_redispatch: excess loading on worst overloaded line ---
+        # --- min_redispatch: excess loading on worst overloaded line (in N-1 state) ---
         rho_overloaded = self.obs_defaut.rho[self.lines_overloaded_ids]
         if len(rho_overloaded) > 0:
             max_rho_overloaded = float(np.max(rho_overloaded))
@@ -424,22 +436,27 @@ class ActionDiscoverer:
             min_redispatch = 0.0
 
         # --- max_redispatch: binding flow margin before any line hits 100% ---
+        # Compare obs_defaut (N-1 baseline) with obs_linecut (N-2, after disconnecting
+        # the overloaded lines). Lines that are MORE loaded in obs_linecut than in
+        # obs_defaut represent potential new overloads from the disconnection.
+        # If obs_linecut is unavailable, leave max_redispatch at inf (unconstrained).
         self._build_lookup_caches()
         max_redispatch = float('inf')
-        for line_name, capacity_l in name_to_capacity.items():
-            line_id = self._line_name_to_id.get(line_name)
-            if line_id is None or capacity_l < 1e-6:
-                continue
-            rho_before = float(self.obs.rho[line_id])
-            rho_after = float(self.obs_defaut.rho[line_id])
-            delta_rho = rho_after - rho_before
-            if delta_rho > 0.01:
-                ratio = capacity_l * (1.0 - rho_before) / delta_rho
-                if ratio > 0:
-                    max_redispatch = min(max_redispatch, ratio)
+        if self.obs_linecut is not None:
+            for line_name, capacity_l in name_to_capacity.items():
+                line_id = self._line_name_to_id.get(line_name)
+                if line_id is None or capacity_l < 1e-6:
+                    continue
+                rho_before = float(self.obs_defaut.rho[line_id])
+                rho_after = float(self.obs_linecut.rho[line_id])
+                delta_rho = rho_after - rho_before
+                if delta_rho > 0.01:
+                    ratio = capacity_l * (1.0 - rho_before) / delta_rho
+                    if ratio > 0:
+                        max_redispatch = min(max_redispatch, ratio)
 
-        # Fallback: if no line provided a binding constraint, max_redispatch
-        # stays at inf — this signals the "unconstrained" regime where all
+        # Fallback: if no line provided a binding constraint (or obs_linecut is None),
+        # max_redispatch stays at inf — this signals the "unconstrained" regime where all
         # disconnections are safe and scoring should use a linear ramp.
 
         return max_overload_flow, min_redispatch, max_redispatch

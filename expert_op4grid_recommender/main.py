@@ -510,7 +510,8 @@ def run_analysis(analysis_date: Optional[datetime],
             check_action_simulation=config.CHECK_ACTION_SIMULATION,
             lines_we_care_about=lines_we_care_about,
             check_rho_reduction_func=check_rho_reduction,
-            create_default_action_func=create_default_action
+            create_default_action_func=create_default_action,
+            obs_linecut=getattr(overflow_sim, 'obs_linecut', None)
         )
 
         prioritized_actions, action_scores = discoverer.discover_and_prioritize(
