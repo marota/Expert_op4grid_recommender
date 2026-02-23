@@ -404,6 +404,9 @@ class ActionDiscoverer:
         Computes the min/max acceptable redispatch flow bounds for scoring disconnection actions.
 
         The bounds define the window of "useful" redispatch:
+        - max_overload_flow: the capacity of the overloaded line(s) in the overflow graph,
+          i.e. the flow they were carrying before being cut.  Disconnecting the overloaded
+          line relieves exactly this flow → reference score of 1.0.
         - min_redispatch: the minimum flow needed to bring the worst overload below 100%.
           ``(max_rho_overloaded - 1) * max_overload_flow``
           Computed from ``obs_defaut`` (the N-1 contingency state).
@@ -419,7 +422,12 @@ class ActionDiscoverer:
 
         Returns:
             Tuple[float, float, float]:
-                - max_overload_flow: the maximum absolute redispatch flow on any edge.
+                - max_overload_flow: the absolute capacity of the most-loaded overloaded line
+                  in the overflow graph (i.e. the flow it was carrying before being cut).
+                  This is the natural reference for scoring: disconnecting the overloaded line
+                  itself relieves exactly this amount and therefore scores 1.0.
+                  Falls back to the global max edge capacity if the overloaded line is absent
+                  from the overflow graph.
                 - min_redispatch: the minimum useful redispatch flow (MW).
                 - max_redispatch: the maximum safe redispatch flow (MW).
         """
@@ -427,7 +435,12 @@ class ActionDiscoverer:
         if not name_to_capacity:
             return 0.0, 0.0, 0.0
 
-        max_overload_flow = max(name_to_capacity.values())
+        # max_overload_flow: capacity of the overloaded line(s) in the overflow graph.
+        # The overloaded line's capacity equals the flow it was carrying before being cut.
+        # Disconnecting it relieves exactly this flow → score = 1.0 for that action.
+        overloaded_line_names = {self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids}
+        overloaded_caps = [name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity]
+        max_overload_flow = max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
 
         # --- min_redispatch: excess loading on worst overloaded line (in N-1 state) ---
         rho_overloaded = self.obs_defaut.rho[self.lines_overloaded_ids]

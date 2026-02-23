@@ -826,12 +826,21 @@ class TestComputeDisconnectionFlowBounds:
         _, min_redispatch, _ = d._compute_disconnection_flow_bounds()
         assert min_redispatch == pytest.approx(30.0, rel=1e-6)
 
-    def test_max_overload_flow_is_max_edge_capacity(self):
-        """max_overload_flow must equal the largest absolute capacity in the overflow graph."""
+    def test_max_overload_flow_is_overloaded_line_capacity(self):
+        """max_overload_flow must equal the overloaded line's capacity, not the global max."""
+        # L0 is overloaded (rho=1.2, lines_overloaded_ids=[0], capacity=100).
+        # L1 has a smaller capacity (50). max_overload_flow = capacity of L0 = 100.
         d = self._make_discoverer(rho_defaut=[1.2, 0.5], rho_linecut=None)
         max_overload_flow, _, _ = d._compute_disconnection_flow_bounds()
-        # L0 capacity=100, L1 capacity=50 → max is 100
         assert max_overload_flow == pytest.approx(100.0, rel=1e-6)
+
+    def test_max_overload_flow_uses_overloaded_line_not_global_max(self):
+        """When the overloaded line is NOT the highest-capacity edge, use its capacity."""
+        # L0 has capacity 100 (higher), L1 (overloaded, lines_overloaded_ids=[1]) has capacity 50.
+        # max_overload_flow must be 50 (L1's capacity), not 100 (L0's capacity).
+        d = self._make_discoverer(rho_defaut=[0.5, 1.2], rho_linecut=None, lines_overloaded_ids=[1])
+        max_overload_flow, _, _ = d._compute_disconnection_flow_bounds()
+        assert max_overload_flow == pytest.approx(50.0, rel=1e-6)
 
 
 class TestNodeMergingScore:
