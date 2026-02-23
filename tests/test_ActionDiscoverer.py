@@ -757,8 +757,10 @@ class TestComputeDisconnectionFlowBounds:
         assert max_redispatch == float('inf')
 
     def test_unconstrained_when_obs_linecut_equals_obs_defaut(self):
-        """When obs_linecut == obs_defaut (no change), max_redispatch must be inf."""
-        rho = [1.2, 0.8]
+        """When obs_linecut == obs_defaut and no lines are overloaded, max_redispatch is inf."""
+        # In practice, overloaded lines are always cut in obs_linecut (rho → 0).
+        # This test covers the case where no lines cross 100% in either observation.
+        rho = [0.8, 0.7]
         d = self._make_discoverer(rho_defaut=rho, rho_linecut=rho)
         _, _, max_redispatch = d._compute_disconnection_flow_bounds()
         assert max_redispatch == float('inf')
@@ -782,11 +784,17 @@ class TestComputeDisconnectionFlowBounds:
         _, _, max_redispatch = d._compute_disconnection_flow_bounds()
         assert max_redispatch == pytest.approx(60.0, rel=1e-6)
 
-    def test_unconstrained_when_already_overloaded_line_stays_overloaded(self):
-        """A line already overloaded in obs_defaut (rho_before >= 1) must NOT constrain."""
-        # L0 is already overloaded in obs_defaut (rho=1.1), stays overloaded in obs_linecut
-        # (rho=1.3). Condition rho_before < 1.0 is false → no constraint.
+    def test_constrained_when_existing_overload_not_relieved(self):
+        """An existing overload that is NOT relieved in obs_linecut (rho_after > 1) fully constrains."""
+        # L0: rho_defaut=1.1 (overloaded), rho_linecut=1.3 (still overloaded) → max_redispatch = 0
         d = self._make_discoverer(rho_defaut=[1.1, 0.5], rho_linecut=[1.3, 0.6])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == 0.0
+
+    def test_unconstrained_when_existing_overload_is_relieved(self):
+        """An existing overload that IS relieved in obs_linecut (rho_after < 1) must NOT constrain."""
+        # L0: rho_defaut=1.2 (overloaded), rho_linecut=0.5 (relieved) → rho_after < 1.0 → no constraint
+        d = self._make_discoverer(rho_defaut=[1.2, 0.5], rho_linecut=[0.5, 0.6])
         _, _, max_redispatch = d._compute_disconnection_flow_bounds()
         assert max_redispatch == float('inf')
 

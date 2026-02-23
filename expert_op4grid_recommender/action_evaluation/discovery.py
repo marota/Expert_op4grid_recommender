@@ -439,9 +439,11 @@ class ActionDiscoverer:
 
         # --- max_redispatch: binding flow margin before any line hits 100% ---
         # Compare obs_defaut (N-1 baseline) with obs_linecut (N-2, after disconnecting
-        # the overloaded lines). A line creates a binding constraint only when it would
-        # be NEWLY OVERLOADED by the disconnection: rho_after > 1.0 while rho_before < 1.0.
-        # Lines that are already overloaded or remain below 100% do NOT constrain.
+        # the overloaded lines). A line creates a binding constraint when rho_after > 1.0:
+        #   - rho_before < 1.0  (newly overloaded): use formula to find exact binding margin.
+        #   - rho_before >= 1.0 (existing overload not relieved): fully constrained → 0.
+        # The good case (rho_after < 1.0, rho_before >= 1.0) means the overload was relieved
+        # and does NOT constrain. Lines that stay below 100% also do NOT constrain.
         # If obs_linecut is unavailable, leave max_redispatch at inf (unconstrained).
         self._build_lookup_caches()
         max_redispatch = float('inf')
@@ -452,12 +454,16 @@ class ActionDiscoverer:
                     continue
                 rho_before = float(self.obs_defaut.rho[line_id])
                 rho_after = float(self.obs_linecut.rho[line_id])
-                # Only constrain on lines that become NEWLY overloaded
-                if rho_after > 1.0 and rho_before < 1.0:
-                    delta_rho = rho_after - rho_before
-                    ratio = capacity_l * (1.0 - rho_before) / delta_rho
-                    if ratio > 0:
-                        max_redispatch = min(max_redispatch, ratio)
+                if rho_after > 1.0:
+                    if rho_before >= 1.0:
+                        # Existing overload not relieved in obs_linecut: fully constrained
+                        max_redispatch = 0.0
+                    else:
+                        # Newly overloaded line: compute binding flow margin
+                        delta_rho = rho_after - rho_before
+                        ratio = capacity_l * (1.0 - rho_before) / delta_rho
+                        if ratio > 0:
+                            max_redispatch = min(max_redispatch, ratio)
 
         # Fallback: if no line provided a binding constraint (or obs_linecut is None),
         # max_redispatch stays at inf — this signals the "unconstrained" regime where all
