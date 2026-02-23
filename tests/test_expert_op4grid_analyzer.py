@@ -1178,9 +1178,23 @@ def test_reproducibility_bare_env_small_grid_test():
             assert score_type in result["action_scores"], f"Missing '{score_type}' in action_scores"
             assert isinstance(result["action_scores"][score_type], dict), f"action_scores['{score_type}'] should be a dict"
 
+        # Verify disconnection scoring uses unconstrained regime (issue #30):
+        # Cutting the overloaded line (BEON L31CPVAN) from obs_defaut does NOT create
+        # new overloads in obs_linecut, so the regime must be unconstrained and the
+        # highest disconnection score must be close to 1.0 (not negative).
+        disco_entry = result["action_scores"]["line_disconnection"]
+        disco_params = disco_entry["params"]
+        disco_scores = disco_entry["scores"]
+        assert disco_params.get("regime") == "unconstrained", \
+            f"Expected unconstrained disconnection regime, got: {disco_params}"
+        if disco_scores:
+            max_disco_score = max(disco_scores.values())
+            assert max_disco_score > 0.5, \
+                f"Highest disconnection score should be close to 1.0, got {max_disco_score}"
+
         print(f"\n Test Passed: {test_id}")
         print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
-        
+
     finally:
         # IMPORTANT: Restore original config values after test
         # This ensures other tests are not affected by our overrides
@@ -1301,6 +1315,20 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
         for score_type in ("line_reconnection", "line_disconnection", "open_coupling", "close_coupling"):
             assert score_type in result["action_scores"], f"Missing '{score_type}' in action_scores"
             assert isinstance(result["action_scores"][score_type], dict), f"action_scores['{score_type}'] should be a dict"
+
+        # Verify disconnection scoring uses unconstrained regime (issue #30):
+        # Cutting the overloaded line (BEON L31CPVAN) from obs_defaut does NOT create
+        # new overloads in obs_linecut, so the regime must be unconstrained and the
+        # highest disconnection score must be close to 1.0 (not negative).
+        disco_entry = result["action_scores"]["line_disconnection"]
+        disco_params = disco_entry["params"]
+        disco_scores = disco_entry["scores"]
+        assert disco_params.get("regime") == "unconstrained", \
+            f"Expected unconstrained disconnection regime, got: {disco_params}"
+        if disco_scores:
+            max_disco_score = max(disco_scores.values())
+            assert max_disco_score > 0.5, \
+                f"Highest disconnection score should be close to 1.0, got {max_disco_score}"
 
         print(f"\n Test Passed: {test_id}")
         print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
