@@ -763,21 +763,40 @@ class TestComputeDisconnectionFlowBounds:
         _, _, max_redispatch = d._compute_disconnection_flow_bounds()
         assert max_redispatch == float('inf')
 
-    def test_constrained_when_obs_linecut_has_higher_loading(self):
-        """When obs_linecut shows higher loading on a line, max_redispatch must be finite."""
-        # L0: capacity=100, rho_defaut=0.7, rho_linecut=0.9 → delta=0.2 → ratio=100*(1-0.7)/0.2=150
-        # L1: capacity=50,  rho_defaut=0.5, rho_linecut=0.6  → delta=0.1 → ratio=50*(1-0.5)/0.1=250
-        # binding is min(150, 250) = 150
+    def test_unconstrained_when_obs_linecut_has_higher_but_not_overloaded(self):
+        """Loading increase that stays below 1.0 must NOT constrain max_redispatch."""
+        # L0 goes 0.7 → 0.9 (increased but < 1.0) → should NOT trigger constraint
+        # L1 goes 0.5 → 0.6 (increased but < 1.0) → should NOT trigger constraint
         d = self._make_discoverer(rho_defaut=[0.7, 0.5], rho_linecut=[0.9, 0.6])
         _, _, max_redispatch = d._compute_disconnection_flow_bounds()
-        assert max_redispatch == pytest.approx(150.0, rel=1e-6)
+        assert max_redispatch == float('inf')
+
+    def test_constrained_when_obs_linecut_causes_new_overload(self):
+        """When obs_linecut shows a line is NEWLY overloaded, max_redispatch must be finite."""
+        # L0: capacity=100, rho_defaut=0.7, rho_linecut=1.2  (newly overloaded)
+        #   ratio = 100 * (1 - 0.7) / (1.2 - 0.7) = 100 * 0.3 / 0.5 = 60
+        # L1: capacity=50, rho_defaut=0.5, rho_linecut=0.8   (NOT overloaded)
+        #   does NOT constrain
+        # binding = 60
+        d = self._make_discoverer(rho_defaut=[0.7, 0.5], rho_linecut=[1.2, 0.8])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == pytest.approx(60.0, rel=1e-6)
+
+    def test_unconstrained_when_already_overloaded_line_stays_overloaded(self):
+        """A line already overloaded in obs_defaut (rho_before >= 1) must NOT constrain."""
+        # L0 is already overloaded in obs_defaut (rho=1.1), stays overloaded in obs_linecut
+        # (rho=1.3). Condition rho_before < 1.0 is false → no constraint.
+        d = self._make_discoverer(rho_defaut=[1.1, 0.5], rho_linecut=[1.3, 0.6])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
 
     def test_max_redispatch_uses_obs_defaut_as_rho_before(self):
         """rho_before in the ratio formula must come from obs_defaut, not obs."""
         # Deliberately set obs (self.obs) differently from obs_defaut to confirm the
         # method reads obs_defaut for rho_before, not obs.
+        # L0: rho_defaut=0.6, rho_linecut=1.2 → newly overloaded
         rho_defaut = [0.6, 0.5]
-        rho_linecut = [0.8, 0.5]  # only L0 increases
+        rho_linecut = [1.2, 0.5]  # L0 becomes newly overloaded
         d = self._make_discoverer(rho_defaut=rho_defaut, rho_linecut=rho_linecut)
         # Patch self.obs to have a very different rho to ensure it is NOT used
         d.obs = MockObservation(
@@ -788,9 +807,9 @@ class TestComputeDisconnectionFlowBounds:
             line_ex_to_subid=list(range(1, 3)),
         )
         _, _, max_redispatch = d._compute_disconnection_flow_bounds()
-        # Expected: capacity_L0=100, rho_before=0.6 (obs_defaut), rho_after=0.8 (obs_linecut)
-        # ratio = 100 * (1 - 0.6) / (0.8 - 0.6) = 100 * 0.4 / 0.2 = 200
-        assert max_redispatch == pytest.approx(200.0, rel=1e-6)
+        # Expected: capacity_L0=100, rho_before=0.6 (obs_defaut), rho_after=1.2 (obs_linecut)
+        # ratio = 100 * (1 - 0.6) / (1.2 - 0.6) = 100 * 0.4 / 0.6 = 66.67
+        assert max_redispatch == pytest.approx(66.67, rel=1e-3)
 
     def test_min_redispatch_uses_obs_defaut(self):
         """min_redispatch must reflect the worst overload in obs_defaut."""

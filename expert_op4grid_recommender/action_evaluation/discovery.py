@@ -409,11 +409,13 @@ class ActionDiscoverer:
           Computed from ``obs_defaut`` (the N-1 contingency state).
         - max_redispatch: the maximum flow the system can absorb without creating new overloads.
           Requires ``obs_linecut`` (the N-2 state after alphaDeesp cuts the overloaded lines).
-          For each line that is MORE loaded in obs_linecut than in obs_defaut:
+          Only lines that are NEWLY OVERLOADED in obs_linecut (rho_after > 1.0 AND
+          rho_before < 1.0) create a binding constraint:
           ``capacity_l * (1 - rho_before) / (rho_after - rho_before)``
           where ``rho_before`` comes from ``obs_defaut`` and ``rho_after`` from ``obs_linecut``.
-          The binding constraint (minimum across all such lines) gives max_redispatch.
-          If ``obs_linecut`` is not available, max_redispatch stays at inf (unconstrained regime).
+          The binding constraint (minimum across all such newly-overloaded lines) gives
+          max_redispatch. If no line is newly overloaded, or if ``obs_linecut`` is not
+          available, max_redispatch stays at inf (unconstrained regime).
 
         Returns:
             Tuple[float, float, float]:
@@ -437,8 +439,9 @@ class ActionDiscoverer:
 
         # --- max_redispatch: binding flow margin before any line hits 100% ---
         # Compare obs_defaut (N-1 baseline) with obs_linecut (N-2, after disconnecting
-        # the overloaded lines). Lines that are MORE loaded in obs_linecut than in
-        # obs_defaut represent potential new overloads from the disconnection.
+        # the overloaded lines). A line creates a binding constraint only when it would
+        # be NEWLY OVERLOADED by the disconnection: rho_after > 1.0 while rho_before < 1.0.
+        # Lines that are already overloaded or remain below 100% do NOT constrain.
         # If obs_linecut is unavailable, leave max_redispatch at inf (unconstrained).
         self._build_lookup_caches()
         max_redispatch = float('inf')
@@ -449,8 +452,9 @@ class ActionDiscoverer:
                     continue
                 rho_before = float(self.obs_defaut.rho[line_id])
                 rho_after = float(self.obs_linecut.rho[line_id])
-                delta_rho = rho_after - rho_before
-                if delta_rho > 0.01:
+                # Only constrain on lines that become NEWLY overloaded
+                if rho_after > 1.0 and rho_before < 1.0:
+                    delta_rho = rho_after - rho_before
                     ratio = capacity_l * (1.0 - rho_before) / delta_rho
                     if ratio > 0:
                         max_redispatch = min(max_redispatch, ratio)
