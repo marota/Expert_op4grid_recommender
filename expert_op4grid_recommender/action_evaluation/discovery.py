@@ -496,9 +496,10 @@ class ActionDiscoverer:
 
         **Unconstrained** (``max_redispatch == inf``):
         No line in the overflow graph gets overloaded from the redispatch, so
-        disconnections are inherently safe.  Score = 1 at ``max_overload_flow``
-        (the strongest action), linearly decreasing to 0 at ``min_redispatch``,
-        and negative below.
+        disconnections are inherently safe.  Score equals the ratio of the
+        action's redispatch flow to the overloaded line's flow:
+        ``observed_flow / max_overload_flow``, capped at 1.0.
+        Disconnecting the overloaded line itself scores 1.0.
 
         Args:
             lines_in_action: Set of line names being disconnected by this action.
@@ -522,10 +523,12 @@ class ActionDiscoverer:
         )
 
         if max_redispatch == float('inf'):
-            # Unconstrained regime: linear ramp from 0 (at min_redispatch)
-            # to 1 (at max_overload_flow), negative below min_redispatch
+            # Unconstrained regime: simple ratio of observed flow to overloaded
+            # line's flow.  All disconnections are safe (no new overloads), so
+            # we don't penalise partial relief — score is just how much of the
+            # overloaded flow this action redirects: 0 at 0 MW, 1 at full flow.
             return self._unconstrained_linear_score(
-                observed_flow, min_redispatch, max_overload_flow
+                observed_flow, 0.0, max_overload_flow
             )
         else:
             # Constrained regime: bell curve between min and max
