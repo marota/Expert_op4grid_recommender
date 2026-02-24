@@ -695,6 +695,154 @@ class TestUnconstrainedLinearScore:
         assert s2 < s1 < 0.0
 
 
+class TestComputeDisconnectionFlowBounds:
+    """Tests for _compute_disconnection_flow_bounds with obs_linecut fix (issue #30)."""
+
+    def _make_discoverer(self, rho_defaut, rho_linecut=None, lines_overloaded_ids=None):
+        """Helper to build a discoverer with controlled rho values."""
+        n_lines = len(rho_defaut)
+        name_line = [f"L{i}" for i in range(n_lines)]
+        name_sub = [f"S{i}" for i in range(n_lines + 1)]
+
+        mock_obs_defaut = MockObservation(
+            name_sub=name_sub,
+            name_line=name_line,
+            rho=np.array(rho_defaut, dtype=float),
+            line_or_to_subid=list(range(n_lines)),
+            line_ex_to_subid=list(range(1, n_lines + 1)),
+        )
+        mock_obs_linecut = None
+        if rho_linecut is not None:
+            mock_obs_linecut = MockObservation(
+                name_sub=name_sub,
+                name_line=name_line,
+                rho=np.array(rho_linecut, dtype=float),
+                line_or_to_subid=list(range(n_lines)),
+                line_ex_to_subid=list(range(1, n_lines + 1)),
+            )
+
+        mock_env = MockEnv(name_line=name_line, name_sub=name_sub)
+        # Overflow graph: edge 0->1 named L0 with capacity 100, edge 1->2 named L1 with capacity 50
+        edge_data = {}
+        for i in range(min(n_lines, 2)):
+            edge_data[(i, i + 1)] = {0: {"name": f"L{i}", "capacity": 100.0 / (i + 1)}}
+        mock_g_overflow = MockOverflowGraph(edge_data=edge_data)
+        mock_g_dist = MockDistributionGraph()
+
+        return ActionDiscoverer(
+            env=mock_env,
+            obs=mock_obs_defaut,
+            obs_defaut=mock_obs_defaut,
+            obs_linecut=mock_obs_linecut,
+            classifier=ActionClassifier(MockActionSpace()),
+            timestep=0,
+            lines_defaut=[],
+            lines_overloaded_ids=lines_overloaded_ids or [0],
+            act_reco_maintenance=MockActionObject(),
+            non_connected_reconnectable_lines=[],
+            all_disconnected_lines=[],
+            dict_action={},
+            actions_unfiltered=set(),
+            hubs=[],
+            g_overflow=mock_g_overflow,
+            g_distribution_graph=mock_g_dist,
+            simulator_data={},
+            check_action_simulation=False,
+        )
+
+    def test_unconstrained_when_obs_linecut_is_none(self):
+        """When obs_linecut is None, max_redispatch must be inf (unconstrained regime)."""
+        d = self._make_discoverer(rho_defaut=[1.2, 0.8], rho_linecut=None)
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
+
+    def test_unconstrained_when_obs_linecut_equals_obs_defaut(self):
+        """When obs_linecut == obs_defaut and no lines are overloaded, max_redispatch is inf."""
+        # In practice, overloaded lines are always cut in obs_linecut (rho → 0).
+        # This test covers the case where no lines cross 100% in either observation.
+        rho = [0.8, 0.7]
+        d = self._make_discoverer(rho_defaut=rho, rho_linecut=rho)
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
+
+    def test_unconstrained_when_obs_linecut_has_higher_but_not_overloaded(self):
+        """Loading increase that stays below 1.0 must NOT constrain max_redispatch."""
+        # L0 goes 0.7 → 0.9 (increased but < 1.0) → should NOT trigger constraint
+        # L1 goes 0.5 → 0.6 (increased but < 1.0) → should NOT trigger constraint
+        d = self._make_discoverer(rho_defaut=[0.7, 0.5], rho_linecut=[0.9, 0.6])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
+
+    def test_constrained_when_obs_linecut_causes_new_overload(self):
+        """When obs_linecut shows a line is NEWLY overloaded, max_redispatch must be finite."""
+        # L0: capacity=100, rho_defaut=0.7, rho_linecut=1.2  (newly overloaded)
+        #   ratio = 100 * (1 - 0.7) / (1.2 - 0.7) = 100 * 0.3 / 0.5 = 60
+        # L1: capacity=50, rho_defaut=0.5, rho_linecut=0.8   (NOT overloaded)
+        #   does NOT constrain
+        # binding = 60
+        d = self._make_discoverer(rho_defaut=[0.7, 0.5], rho_linecut=[1.2, 0.8])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == pytest.approx(60.0, rel=1e-6)
+
+    def test_constrained_when_existing_overload_not_relieved(self):
+        """An existing overload that is NOT relieved in obs_linecut (rho_after > 1) fully constrains."""
+        # L0: rho_defaut=1.1 (overloaded), rho_linecut=1.3 (still overloaded) → max_redispatch = 0
+        d = self._make_discoverer(rho_defaut=[1.1, 0.5], rho_linecut=[1.3, 0.6])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == 0.0
+
+    def test_unconstrained_when_existing_overload_is_relieved(self):
+        """An existing overload that IS relieved in obs_linecut (rho_after < 1) must NOT constrain."""
+        # L0: rho_defaut=1.2 (overloaded), rho_linecut=0.5 (relieved) → rho_after < 1.0 → no constraint
+        d = self._make_discoverer(rho_defaut=[1.2, 0.5], rho_linecut=[0.5, 0.6])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
+
+    def test_max_redispatch_uses_obs_defaut_as_rho_before(self):
+        """rho_before in the ratio formula must come from obs_defaut, not obs."""
+        # Deliberately set obs (self.obs) differently from obs_defaut to confirm the
+        # method reads obs_defaut for rho_before, not obs.
+        # L0: rho_defaut=0.6, rho_linecut=1.2 → newly overloaded
+        rho_defaut = [0.6, 0.5]
+        rho_linecut = [1.2, 0.5]  # L0 becomes newly overloaded
+        d = self._make_discoverer(rho_defaut=rho_defaut, rho_linecut=rho_linecut)
+        # Patch self.obs to have a very different rho to ensure it is NOT used
+        d.obs = MockObservation(
+            name_sub=d.obs.name_sub,
+            name_line=d.obs.name_line,
+            rho=np.array([0.1, 0.1]),  # very different from obs_defaut
+            line_or_to_subid=list(range(2)),
+            line_ex_to_subid=list(range(1, 3)),
+        )
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        # Expected: capacity_L0=100, rho_before=0.6 (obs_defaut), rho_after=1.2 (obs_linecut)
+        # ratio = 100 * (1 - 0.6) / (1.2 - 0.6) = 100 * 0.4 / 0.6 = 66.67
+        assert max_redispatch == pytest.approx(66.67, rel=1e-3)
+
+    def test_min_redispatch_uses_obs_defaut(self):
+        """min_redispatch must reflect the worst overload in obs_defaut."""
+        # L0 rho=1.3 → min_redispatch = (1.3-1)*100 = 30
+        d = self._make_discoverer(rho_defaut=[1.3, 0.5], rho_linecut=None, lines_overloaded_ids=[0])
+        _, min_redispatch, _ = d._compute_disconnection_flow_bounds()
+        assert min_redispatch == pytest.approx(30.0, rel=1e-6)
+
+    def test_max_overload_flow_is_overloaded_line_capacity(self):
+        """max_overload_flow must equal the overloaded line's capacity, not the global max."""
+        # L0 is overloaded (rho=1.2, lines_overloaded_ids=[0], capacity=100).
+        # L1 has a smaller capacity (50). max_overload_flow = capacity of L0 = 100.
+        d = self._make_discoverer(rho_defaut=[1.2, 0.5], rho_linecut=None)
+        max_overload_flow, _, _ = d._compute_disconnection_flow_bounds()
+        assert max_overload_flow == pytest.approx(100.0, rel=1e-6)
+
+    def test_max_overload_flow_uses_overloaded_line_not_global_max(self):
+        """When the overloaded line is NOT the highest-capacity edge, use its capacity."""
+        # L0 has capacity 100 (higher), L1 (overloaded, lines_overloaded_ids=[1]) has capacity 50.
+        # max_overload_flow must be 50 (L1's capacity), not 100 (L0's capacity).
+        d = self._make_discoverer(rho_defaut=[0.5, 1.2], rho_linecut=None, lines_overloaded_ids=[1])
+        max_overload_flow, _, _ = d._compute_disconnection_flow_bounds()
+        assert max_overload_flow == pytest.approx(50.0, rel=1e-6)
+
+
 class TestNodeMergingScore:
     """Tests for the compute_node_merging_score method."""
 

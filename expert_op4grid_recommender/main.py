@@ -461,6 +461,8 @@ def run_analysis(analysis_date: Optional[datetime],
             by_description=config.CHECK_WITH_ACTION_DESCRIPTION
         )
 
+        print(f"DEBUG: 'disco_BEON L31CPVAN' in dict_action before filtering: {'disco_BEON L31CPVAN' in dict_action}")
+
         actions_to_filter, actions_unfiltered = validator.categorize_actions(
             dict_action=dict_action,
             timestep=current_timestep,
@@ -472,6 +474,9 @@ def run_analysis(analysis_date: Optional[datetime],
         )
 
         print_filtered_out_action(len(dict_action), actions_to_filter)
+        print(f"DEBUG: 'disco_BEON L31CPVAN' in actions_unfiltered after filtering: {'disco_BEON L31CPVAN' in actions_unfiltered}")
+        if 'disco_BEON L31CPVAN' not in actions_unfiltered and 'disco_BEON L31CPVAN' in dict_action:
+             print(f"DEBUG: Reason for filtering disco_BEON L31CPVAN: {actions_to_filter.get('disco_BEON L31CPVAN', 'Unknown')}")
 
     # Pre-process graph for AlphaDeesp
     with Timer("Pre-process for AlphaDeesp"):
@@ -510,7 +515,8 @@ def run_analysis(analysis_date: Optional[datetime],
             check_action_simulation=config.CHECK_ACTION_SIMULATION,
             lines_we_care_about=lines_we_care_about,
             check_rho_reduction_func=check_rho_reduction,
-            create_default_action_func=create_default_action
+            create_default_action_func=create_default_action,
+            obs_linecut=getattr(overflow_sim, 'obs_linecut', None)
         )
 
         prioritized_actions, action_scores = discoverer.discover_and_prioritize(
