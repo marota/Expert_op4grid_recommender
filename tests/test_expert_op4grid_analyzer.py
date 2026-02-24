@@ -1329,10 +1329,6 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
             max_disco_score = max(disco_scores.values())
             assert max_disco_score > 0.5, \
                 f"Highest disconnection score should be close to 1.0, got {max_disco_score}"
-
-        print(f"\n Test Passed: {test_id}")
-        print(f"All {len(actual_keys_set)} prioritized actions match expected output.")
-        print(f"pypowsybl backend produces same results as grid2op backend.")
         
     finally:
         # IMPORTANT: Restore original config values after test

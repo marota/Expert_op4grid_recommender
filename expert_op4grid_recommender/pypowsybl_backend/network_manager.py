@@ -159,7 +159,7 @@ class NetworkManager:
                 self._gen_to_sub = self._cached_gen_df['voltage_level_id'].to_dict()
             if 'p' in self._cached_gen_df.columns:
                 p_arr = self._cached_gen_df['p'].values
-                self._gen_p_values = np.where(np.isnan(p_arr), 0.0, np.abs(p_arr))
+                self._gen_p_values = np.where(np.isnan(p_arr), 0.0, p_arr)
 
         # Loads - cache DataFrame for reuse
         self._cached_load_df = self.network.get_loads()
@@ -175,7 +175,7 @@ class NetworkManager:
                 self._load_to_sub = self._cached_load_df['voltage_level_id'].to_dict()
             if 'p' in self._cached_load_df.columns:
                 p_arr = self._cached_load_df['p'].values
-                self._load_p_values = np.where(np.isnan(p_arr), 0.0, np.abs(p_arr))
+                self._load_p_values = np.where(np.isnan(p_arr), 0.0, p_arr)
 
         # OPTIMIZATION: Pre-compute elements per substation
         self._cache_elements_per_substation()
