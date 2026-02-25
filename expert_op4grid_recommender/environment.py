@@ -152,7 +152,11 @@ def setup_environment_configs(analysis_date: datetime): # Add analysis_date argu
 
     lines_non_reconnectable += list(DELETED_LINE_NAME)
 
-    lines_we_care_about = load_interesting_lines(file_name=os.path.join(config.ENV_FOLDER, "lignes_a_monitorer.csv"))
+    if config.IGNORE_LINES_MONITORING:
+        lines_we_care_about = []
+    else:
+        lines_we_care_about = load_interesting_lines(file_name=os.path.join(config.ENV_FOLDER, "lignes_a_monitorer.csv"))
+
 
     return env, obs, path_chronic, chronic_name, custom_layout, dict_action, lines_non_reconnectable, lines_we_care_about
 

@@ -659,7 +659,25 @@ def main():
         default=300.0,
         help="Voltage filter threshold for REPAS actions (default: 300)"
     )
+    parser.add_argument(
+        "--ignore-lines-monitoring",
+        action='store_true',
+        help="If set, ignores the lignes_a_monitorer.csv file and monitors all lines."
+    )
     args = parser.parse_args()
+
+    if args.ignore_lines_monitoring:
+        config.IGNORE_LINES_MONITORING = True
+
+    sum_min_actions = (config.MIN_LINE_RECONNECTIONS +
+                       config.MIN_CLOSE_COUPLING +
+                       config.MIN_OPEN_COUPLING +
+                       config.MIN_LINE_DISCONNECTIONS)
+    
+    if sum_min_actions > config.N_PRIORITIZED_ACTIONS:
+        print(f"Warning: The sum of minimum actions per type ({sum_min_actions}) exceeds the "
+              f"maximum number of prioritized actions overall ({config.N_PRIORITIZED_ACTIONS}). "
+              f"Some minimums will not be respected.", file=sys.stderr)
 
     # --- Handle explicit "None" string for date ---
     date_arg = args.date

@@ -185,13 +185,16 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
     
     # Load lines to monitor
     lines_we_care_about = []
-    try:
-        lines_we_care_about = load_interesting_lines(
-            file_name=os.path.join(str(env_folder), "lignes_a_monitorer.csv")
-        )
-    except FileNotFoundError:
-        # If no specific lines, consider all lines
-        lines_we_care_about = list(env.name_line)
+    if config.IGNORE_LINES_MONITORING:
+        pass # Empty list signals all lines
+    else:
+        try:
+            lines_we_care_about = load_interesting_lines(
+                file_name=os.path.join(str(env_folder), "lignes_a_monitorer.csv")
+            )
+        except FileNotFoundError:
+            # If no specific lines, consider all lines
+            lines_we_care_about = list(env.name_line)
     
     return (env, obs, env_path, chronic_name, custom_layout, 
             dict_action, lines_non_reconnectable, lines_we_care_about)
