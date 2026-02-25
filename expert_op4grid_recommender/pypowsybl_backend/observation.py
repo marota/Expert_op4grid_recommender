@@ -128,6 +128,7 @@ class PypowsyblObservation:
         Uses i1 (side 1 current) for rho calculation since thermal limits
         are defined for side 1 in pypowsybl convention.
         """
+        from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
         nm = self._network_manager
         n_line = nm.n_line
         line_names = nm.name_line
@@ -141,8 +142,22 @@ class PypowsyblObservation:
                 i1 = i1 if not np.isnan(i1) else 0.0
 
                 thermal_limit = self._thermal_limits.get(line_id, 9999.0)
-                if thermal_limit > 0:
-                    rho[i] = i1 / thermal_limit
+                if isinstance(thermal_limit, (tuple, list)):
+                    limit_or = thermal_limit[0]
+                    limit_ex = thermal_limit[1]
+                else:
+                    limit_or = thermal_limit
+                    limit_ex = thermal_limit
+
+                if MAX_RHO_BOTH_EXTREMITIES:
+                    i2 = abs(self._line_flows_i2.get(line_id, 0.0))
+                    i2 = i2 if not np.isnan(i2) else 0.0
+                    rho_or = i1 / limit_or if limit_or > 0 else 0.0
+                    rho_ex = i2 / limit_ex if limit_ex > 0 else 0.0
+                    rho[i] = max(rho_or, rho_ex)
+                else:
+                    if limit_or > 0:
+                        rho[i] = i1 / limit_or
 
         self._rho = rho
     

@@ -365,7 +365,7 @@ class NetworkManager:
         
         return all_branches
     
-    def get_thermal_limits(self) -> Dict[str, float]:
+    def get_thermal_limits(self) -> Dict[str, Union[float, Tuple[float, float]]]:
         """
         Get thermal limits for all lines.
         
