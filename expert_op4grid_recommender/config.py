@@ -68,6 +68,13 @@ DO_SAVE_DATA_FOR_TEST = False
 CHECK_ACTION_SIMULATION = True
 N_PRIORITIZED_ACTIONS = 5
 IGNORE_RECONNECTIONS = False
+IGNORE_LINES_MONITORING = False
+
+# Minimum number of prioritized actions per type
+MIN_LINE_RECONNECTIONS = 0
+MIN_CLOSE_COUPLING = 0
+MIN_OPEN_COUPLING = 0
+MIN_LINE_DISCONNECTIONS = 0
 
 # -------------------
 #  Expert System Parameters

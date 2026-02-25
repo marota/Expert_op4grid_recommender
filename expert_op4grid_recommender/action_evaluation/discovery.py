@@ -1658,24 +1658,41 @@ class ActionDiscoverer:
         interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
         print(interesting_lines_to_reconnect)
         self.verify_relevant_reconnections(interesting_lines_to_reconnect, red_loop_paths_names)
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max
-        )
 
         print("\n--- Verifying relevant node merging ---")
         self.find_relevant_node_merging(nodes_dispatch_loop_names)
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_merges, n_action_max
-        )
 
         print("\n--- Verifying relevant node splitting ---")
         self.find_relevant_node_splitting(hubs_names, nodes_blue_path_names)
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=n_split_max
-        )
 
         print("\n--- Verifying relevant line disconnections ---")
         self.find_relevant_disconnections(lines_constrained_names)
+
+        # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
+        from expert_op4grid_recommender import config
+        self.prioritized_actions = add_prioritized_actions(
+            self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_RECONNECTIONS
+        )
+        self.prioritized_actions = add_prioritized_actions(
+            self.prioritized_actions, self.identified_merges, n_action_max, n_action_max_per_type=config.MIN_CLOSE_COUPLING
+        )
+        self.prioritized_actions = add_prioritized_actions(
+            self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=config.MIN_OPEN_COUPLING
+        )
+        self.prioritized_actions = add_prioritized_actions(
+            self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
+        )
+
+        # 2. Fill the remaining slots sequentially using the original priority logic and limits
+        self.prioritized_actions = add_prioritized_actions(
+            self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max
+        )
+        self.prioritized_actions = add_prioritized_actions(
+            self.prioritized_actions, self.identified_merges, n_action_max
+        )
+        self.prioritized_actions = add_prioritized_actions(
+            self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=n_split_max
+        )
         self.prioritized_actions = add_prioritized_actions(
             self.prioritized_actions, self.identified_disconnections, n_action_max
         )

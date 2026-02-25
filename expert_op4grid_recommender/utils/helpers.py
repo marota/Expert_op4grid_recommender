@@ -143,6 +143,8 @@ def add_prioritized_actions(prioritized_actions: Dict[str, Any],
     n_added_this_type = 0
     # Iterate through the actions identified for this type/category
     for action_id, action in identified_actions.items():
+        if action_id in prioritized_actions:
+            continue # Skip actions already added in a previous batch
         # Stop if total limit or per-type limit for this batch is reached
         if len(prioritized_actions) >= n_action_max_total or n_added_this_type >= n_action_max_per_type:
             break
