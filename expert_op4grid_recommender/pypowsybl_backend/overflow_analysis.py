@@ -302,20 +302,37 @@ class OverflowSimulator:
             })
 
             # ===== COMPUTE RHO (same logic as _create_obs_linecut) =====
+            from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
+            
             i1_arr = np.abs(i1_arr)
             i2_arr = np.abs(i2_arr)
 
-            # Create trafo mask for using i1 vs max(i1, i2)
-            trafo_mask = np.array([lid in self._nm._trafos_set for lid in line_names])
+            # Get thermal limits as arrays
+            limit_or_list = []
+            limit_ex_list = []
+            for lid in line_names:
+                limit = thermal_limits.get(lid, 9999.0)
+                if isinstance(limit, (tuple, list)):
+                    limit_or_list.append(limit[0])
+                    limit_ex_list.append(limit[1])
+                else:
+                    limit_or_list.append(limit)
+                    limit_ex_list.append(limit)
+            thermal_or_arr = np.array(limit_or_list)
+            thermal_ex_arr = np.array(limit_ex_list)
 
-            # Compute i_for_rho: use i1 for transformers, max(i1, i2) for lines
-            i_for_rho = np.where(trafo_mask, i1_arr, np.maximum(i1_arr, i2_arr))
-
-            # Get thermal limits as array
-            thermal_arr = np.array([thermal_limits.get(lid, 9999.0) for lid in line_names])
-
-            # Compute rho (avoid division by zero)
-            rho = np.where(thermal_arr > 0, i_for_rho / thermal_arr, 0.0)
+            if MAX_RHO_BOTH_EXTREMITIES:
+                rho_or = np.where(thermal_or_arr > 0, i1_arr / thermal_or_arr, 0.0)
+                rho_ex = np.where(thermal_ex_arr > 0, i2_arr / thermal_ex_arr, 0.0)
+                rho = np.maximum(rho_or, rho_ex)
+            else:
+                # Create trafo mask for using i1 vs max(i1, i2)
+                trafo_mask = np.array([lid in self._nm._trafos_set for lid in line_names])
+    
+                # Compute i_for_rho: use i1 for transformers, max(i1, i2) for lines
+                i_for_rho = np.where(trafo_mask, i1_arr, np.maximum(i1_arr, i2_arr))
+                # Compute rho (avoid division by zero)
+                rho = np.where(thermal_or_arr > 0, i_for_rho / thermal_or_arr, 0.0)
 
             return df, rho
 

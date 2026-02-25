@@ -70,6 +70,7 @@ N_PRIORITIZED_ACTIONS = 5
 IGNORE_RECONNECTIONS = False
 IGNORE_LINES_MONITORING = False
 DO_VISUALIZATION = False  # Skip visualization in tests for faster execution
+MAX_RHO_BOTH_EXTREMITIES = False  # only possible for now with pypowsybl backend
 
 # Minimum number of prioritized actions per type
 MIN_LINE_RECONNECTIONS = 0
