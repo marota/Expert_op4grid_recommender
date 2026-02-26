@@ -693,6 +693,10 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
     df_of_g = overflow_sim.get_dataframe()
     df_of_g["line_name"] = obs.name_line
     
+    # Apply flow swap correction - this negates delta_flows for lines where
+    # new_flows_swapped=True, making them negative (blue) instead of positive (red)
+    df_of_g = _inhibit_swapped_flows(df_of_g)
+    
     # Build topology info for alphaDeesp
     topo = overflow_sim.topo
     
@@ -742,6 +746,34 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
     
     return df_of_g, overflow_sim, g_overflow, real_hubs, g_distribution_graph, node_name_mapping
 
+def _inhibit_swapped_flows(df_of_g: pd.DataFrame) -> pd.DataFrame:
+    """
+    Correct flow direction swapping in the DataFrame.
+    
+    When flows are swapped, the delta_flows sign and idx_or/idx_ex need to be corrected.
+    
+    Args:
+        df_of_g: DataFrame with flow changes
+        
+    Returns:
+        Corrected DataFrame
+    """
+    if 'new_flows_swapped' not in df_of_g.columns:
+        return df_of_g
+    
+    swapped_mask = df_of_g.new_flows_swapped
+    if not swapped_mask.any():
+        return df_of_g
+    
+    # Negate delta_flows for swapped lines
+    df_of_g.loc[swapped_mask, "delta_flows"] = -df_of_g.loc[swapped_mask, "delta_flows"]
+    
+    # Swap idx_or and idx_ex
+    idx_or = df_of_g.loc[swapped_mask, "idx_or"].copy()
+    df_of_g.loc[swapped_mask, "idx_or"] = df_of_g.loc[swapped_mask, "idx_ex"]
+    df_of_g.loc[swapped_mask, "idx_ex"] = idx_or
+    
+    return df_of_g
 
 
 
