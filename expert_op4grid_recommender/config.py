@@ -69,6 +69,7 @@ CHECK_ACTION_SIMULATION = True
 N_PRIORITIZED_ACTIONS = 5
 IGNORE_RECONNECTIONS = False
 IGNORE_LINES_MONITORING = False
+LINES_MONITORING_FILE = None
 MAX_RHO_BOTH_EXTREMITIES = False  # only possible for now with pypowsybl backend
 
 # Minimum number of prioritized actions per type

@@ -189,9 +189,10 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
         pass # Empty list signals all lines
     else:
         try:
-            lines_we_care_about = load_interesting_lines(
-                file_name=os.path.join(str(env_folder), "lignes_a_monitorer.csv")
-            )
+            monitoring_file = getattr(config, 'LINES_MONITORING_FILE', None)
+            if monitoring_file is None:
+                monitoring_file = os.path.join(str(env_folder), "lignes_a_monitorer.csv")
+            lines_we_care_about = load_interesting_lines(file_name=monitoring_file)
         except FileNotFoundError:
             # If no specific lines, consider all lines
             lines_we_care_about = list(env.name_line)
