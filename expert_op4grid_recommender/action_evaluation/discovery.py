@@ -462,6 +462,10 @@ class ActionDiscoverer:
         max_redispatch = float('inf')
         if self.obs_linecut is not None:
             for line_name, capacity_l in name_to_capacity.items():
+                if self.lines_we_care_about is not None and len(self.lines_we_care_about) > 0:
+                    if line_name not in self.lines_we_care_about:
+                        continue
+                        
                 line_id = self._line_name_to_id.get(line_name)
                 if line_id is None or capacity_l < 1e-6:
                     continue
