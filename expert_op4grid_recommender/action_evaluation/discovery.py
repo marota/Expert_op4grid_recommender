@@ -774,7 +774,14 @@ class ActionDiscoverer:
                 ignored.append(action_id)
 
         print(f"  Found {len(effective)} effective, {len(ineffective)} ineffective disconnections.")
-        self.identified_disconnections = identified
+
+        # Sort identified disconnections by score descending (higher score = better candidate)
+        map_action_score_disco = {
+            action_id: {"action": action, "score": scores_map[action_id]}
+            for action_id, action in identified.items()
+        }
+        sorted_actions, _, _ = sort_actions_by_score(map_action_score_disco)
+        self.identified_disconnections = sorted_actions
         self.effective_disconnections = effective
         self.ineffective_disconnections = ineffective
         self.ignored_disconnections = ignored
