@@ -71,6 +71,7 @@ IGNORE_RECONNECTIONS = False
 IGNORE_LINES_MONITORING = False
 DO_VISUALIZATION = False  # Skip visualization in tests for faster execution
 MAX_RHO_BOTH_EXTREMITIES = False  # only possible for now with pypowsybl backend
+MONITORING_FACTOR_THERMAL_LIMITS = 0.95  # factor applied to permanent thermal limits when loading from operational limits
 
 # Minimum number of prioritized actions per type
 MIN_LINE_RECONNECTIONS = 0

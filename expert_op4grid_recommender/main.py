@@ -343,7 +343,7 @@ def run_analysis(analysis_date: Optional[datetime],
                 n_grid = env.backend._grid.network
             else:
                 n_grid = env.network_manager.network
-            env = set_thermal_limits(n_grid, env, thresold_thermal_limit=0.95)
+            env = set_thermal_limits(n_grid, env, thresold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS)
             obs = env.reset() if backend == Backend.GRID2OP else env.get_obs()
 
     # --- Instantiate Classifier ---
