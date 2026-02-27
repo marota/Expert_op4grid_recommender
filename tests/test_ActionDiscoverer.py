@@ -340,6 +340,65 @@ def test_discoverer_find_relevant_disconnections(discoverer_instance):
     # disco_L2 should not be scored (not on constrained path)
     assert "disco_L2" not in discoverer_instance.scores_disconnections
 
+
+def test_disconnections_sorted_by_score_descending(discoverer_instance, monkeypatch):
+    """identified_disconnections must be ordered highest-score-first after find_relevant_disconnections."""
+    # Add two extra open_line actions both touching constrained line L1
+    discoverer_instance.dict_action["disco_L1_A"] = {
+        "type": "open_line",
+        "description_unitaire": "Ouverture L1 variant A",
+        "content": {"set_bus": {"lines_ex_id": {"L1": -1}}},
+    }
+    discoverer_instance.dict_action["disco_L1_B"] = {
+        "type": "open_line",
+        "description_unitaire": "Ouverture L1 variant B",
+        "content": {"set_bus": {"lines_or_id": {"L1": -1}}},
+    }
+    discoverer_instance.actions_unfiltered |= {"disco_L1_A", "disco_L1_B"}
+
+    # Actions are processed in sorted(actions_unfiltered) alphabetical order.
+    # Among the three on-path open_line actions the alphabetical order is:
+    #   disco_L1 (1st), disco_L1_A (2nd), disco_L1_B (3rd).
+    # Assign scores [0.1, 0.9, 0.4] in that processing order so the expected
+    # descending sort is: disco_L1_A (0.9) > disco_L1_B (0.4) > disco_L1 (0.1),
+    # which differs from alphabetical order and thus truly exercises the sort.
+    score_iter = iter([0.1, 0.9, 0.4])
+    monkeypatch.setattr(discoverer_instance, "compute_disconnection_score", lambda lines: next(score_iter))
+
+    discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
+
+    keys = list(discoverer_instance.identified_disconnections.keys())
+    assert len(keys) == 3, f"Expected 3 identified disconnections, got {keys}"
+    assert keys[0] == "disco_L1_A", f"Highest-score action should be first, got {keys}"
+    assert keys[1] == "disco_L1_B", f"Second action should be disco_L1_B, got {keys}"
+    assert keys[2] == "disco_L1", f"Lowest-score action should be last, got {keys}"
+
+
+def test_disconnections_identified_order_matches_scores_order(discoverer_instance, monkeypatch):
+    """The insertion order of identified_disconnections must match descending scores_disconnections."""
+    # Add one more disco action on L1 so we have two to compare.
+    # Alphabetical processing order: disco_L1 (1st), disco_L1_high (2nd).
+    # Assign 0.2 then 0.8 so disco_L1_high ends up first after sorting.
+    discoverer_instance.dict_action["disco_L1_high"] = {
+        "type": "open_line",
+        "description_unitaire": "Ouverture L1 high score",
+        "content": {"set_bus": {"lines_ex_id": {"L1": -1}}},
+    }
+    discoverer_instance.actions_unfiltered |= {"disco_L1_high"}
+
+    score_iter = iter([0.2, 0.8])
+    monkeypatch.setattr(discoverer_instance, "compute_disconnection_score", lambda lines: next(score_iter))
+
+    discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
+
+    identified_keys = list(discoverer_instance.identified_disconnections.keys())
+    scores = [discoverer_instance.scores_disconnections[k] for k in identified_keys]
+    assert scores == sorted(scores, reverse=True), (
+        f"identified_disconnections keys are not in descending score order: "
+        f"{list(zip(identified_keys, scores))}"
+    )
+
+
 def test_discoverer_find_relevant_node_splitting(discoverer_instance):
     discoverer_instance.find_relevant_node_splitting(hubs_names=["Sub0"], nodes_blue_path_names=["Sub1"])
     assert "split_S0" in discoverer_instance.identified_splits
