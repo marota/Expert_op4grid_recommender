@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.4] - 2026-02-28
+
+### Added
+
+- **Pre-Existing Overload Filtering**: Pre-existing overloads (already overloaded in N state) are excluded from N-1 analysis results and `max_rho` prioritization, unless worsened by a configurable threshold. Controlled by `PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD` (default 0.02).
+- Return value `pre_existing_overloads` from the analysis results.
+
+### Tests
+
+- Add `test_pre_existing_overloads_excluded_from_analysis` and `test_pre_existing_overloads_excluded_from_max_rho`.
+- Regression test for `run_analysis` to handle pre-existing overloads correctly when all lines are monitored.
+
+---
 ## [0.1.3] - 2026-02-25
 
 ### Added
