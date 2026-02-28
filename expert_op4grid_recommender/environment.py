@@ -153,7 +153,7 @@ def setup_environment_configs(analysis_date: datetime): # Add analysis_date argu
     lines_non_reconnectable += list(DELETED_LINE_NAME)
 
     if config.IGNORE_LINES_MONITORING:
-        lines_we_care_about = []
+        lines_we_care_about = np.array(list(env.name_line))
     else:
         monitoring_file = getattr(config, 'LINES_MONITORING_FILE', None)
         if monitoring_file is None:

@@ -148,7 +148,8 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
     env, obs, env_path = get_env_first_obs_pypowsybl(
         env_folder, 
         env_name,
-        is_DC=config.USE_DC_LOAD_FLOW
+        is_DC=config.USE_DC_LOAD_FLOW,
+        threshold_thermal_limit=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 0.95)
     )
     
     # For static analysis, use env_name as chronic_name
@@ -186,7 +187,7 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
     # Load lines to monitor
     lines_we_care_about = []
     if config.IGNORE_LINES_MONITORING:
-        pass # Empty list signals all lines
+        lines_we_care_about = np.array(list(env.name_line))
     else:
         try:
             monitoring_file = getattr(config, 'LINES_MONITORING_FILE', None)
