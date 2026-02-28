@@ -472,6 +472,11 @@ class ActionDiscoverer:
                 rho_before = float(self.obs_defaut.rho[line_id])
                 rho_after = float(self.obs_linecut.rho[line_id])
                 if rho_after > 1.0:
+                    # Skip pre-existing overloads: lines already overloaded in N-state
+                    # (before any contingency) should not constrain disconnection scoring
+                    n_state_rho = float(self.obs.rho[line_id])
+                    if n_state_rho >= 1.0:
+                        continue
                     if rho_before >= 1.0:
                         # Existing overload not relieved in obs_linecut: fully constrained
                         max_redispatch = 0.0
