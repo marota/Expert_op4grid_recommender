@@ -1338,3 +1338,186 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
         config.ACTION_FILE_PATH = original_action_file_path
         config.TIMESTEP = original_timestep
         config.LINES_DEFAUT = original_lines_defaut
+
+
+@pytest.mark.slow
+def test_pre_existing_overloads_excluded_from_analysis():
+    """
+    Verify that pre-existing overloads (lines already overloaded in N state)
+    are excluded from the contingency analysis results.
+
+    Using bare_env_small_grid_test with MAX_RHO_BOTH_EXTREMITIES=True and
+    IGNORE_LINES_MONITORING=True, certain transformers (BUGEYY712, BUGEYY714,
+    N.SE5Y711, N.SE5Y712) are already overloaded in the N state. These should
+    NOT appear in lines_overloaded_names (which only lists N-1 induced overloads).
+    """
+    import expert_op4grid_recommender.config as config
+
+    original_values = {
+        'ENV_NAME': config.ENV_NAME,
+        'FILE_ACTION_SPACE_DESC': config.FILE_ACTION_SPACE_DESC,
+        'ACTION_FILE_PATH': config.ACTION_FILE_PATH,
+        'TIMESTEP': config.TIMESTEP,
+        'LINES_DEFAUT': config.LINES_DEFAUT,
+        'IGNORE_LINES_MONITORING': config.IGNORE_LINES_MONITORING,
+        'MAX_RHO_BOTH_EXTREMITIES': config.MAX_RHO_BOTH_EXTREMITIES,
+    }
+
+    try:
+        config.ENV_NAME = "bare_env_small_grid_test"
+        config.FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json"
+        config.ACTION_FILE_PATH = config.ACTION_SPACE_FOLDER / config.FILE_ACTION_SPACE_DESC
+        config.TIMESTEP = 0
+        config.LINES_DEFAUT = ["P.SAOL31RONCI"]
+        config.IGNORE_LINES_MONITORING = True
+        config.MAX_RHO_BOTH_EXTREMITIES = True
+
+        result = run_analysis(
+            analysis_date=None,
+            current_timestep=0,
+            current_lines_defaut=["P.SAOL31RONCI"],
+            backend=Backend.PYPOWSYBL
+        )
+
+        # Pre-existing overloads must NOT appear in lines_overloaded_names
+        pre_existing_names = {"BUGEYY712", "BUGEYY714", "N.SE5Y711", "N.SE5Y712"}
+        overloaded_set = set(result["lines_overloaded_names"])
+        overlap = overloaded_set & pre_existing_names
+        assert len(overlap) == 0, \
+            f"Pre-existing overloads should be excluded from lines_overloaded_names but found: {overlap}"
+
+        # lines_overloaded_names should still contain the N-1 induced overload
+        assert "BEON L31CPVAN" in overloaded_set, \
+            f"Expected 'BEON L31CPVAN' in overloaded lines but got: {overloaded_set}"
+
+        # pre_existing_overloads info should be returned
+        assert "pre_existing_overloads" in result, \
+            "Result should contain 'pre_existing_overloads' info"
+        pre_existing_info = result["pre_existing_overloads"]
+        assert len(pre_existing_info) > 0, \
+            "Expected at least one pre-existing overload entry"
+        pre_existing_reported_names = {entry["name"] for entry in pre_existing_info}
+        assert pre_existing_reported_names & pre_existing_names, \
+            f"Expected pre-existing overloads info to include some of {pre_existing_names}, " \
+            f"got: {pre_existing_reported_names}"
+
+    finally:
+        for key, val in original_values.items():
+            setattr(config, key, val)
+
+
+@pytest.mark.slow
+def test_pre_existing_overloads_excluded_from_max_rho():
+    """
+    Verify that max_rho on action cards does not reference pre-existing
+    overloaded lines (unless they worsen beyond the threshold).
+
+    With MAX_RHO_BOTH_EXTREMITIES=True, N.SE5Y711 has rho~3.96 in N state.
+    After an action, its rho should still be ~3.96. Since it's pre-existing and
+    not worsened beyond the 2% threshold, max_rho_line should NOT be N.SE5Y711.
+    """
+    import expert_op4grid_recommender.config as config
+
+    original_values = {
+        'ENV_NAME': config.ENV_NAME,
+        'FILE_ACTION_SPACE_DESC': config.FILE_ACTION_SPACE_DESC,
+        'ACTION_FILE_PATH': config.ACTION_FILE_PATH,
+        'TIMESTEP': config.TIMESTEP,
+        'LINES_DEFAUT': config.LINES_DEFAUT,
+        'IGNORE_LINES_MONITORING': config.IGNORE_LINES_MONITORING,
+        'MAX_RHO_BOTH_EXTREMITIES': config.MAX_RHO_BOTH_EXTREMITIES,
+        'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD': config.PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD,
+    }
+
+    try:
+        config.ENV_NAME = "bare_env_small_grid_test"
+        config.FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json"
+        config.ACTION_FILE_PATH = config.ACTION_SPACE_FOLDER / config.FILE_ACTION_SPACE_DESC
+        config.TIMESTEP = 0
+        config.LINES_DEFAUT = ["P.SAOL31RONCI"]
+        config.IGNORE_LINES_MONITORING = True
+        config.MAX_RHO_BOTH_EXTREMITIES = True
+        config.PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02
+
+        result = run_analysis(
+            analysis_date=None,
+            current_timestep=0,
+            current_lines_defaut=["P.SAOL31RONCI"],
+            backend=Backend.PYPOWSYBL
+        )
+
+        pre_existing_names = {"BUGEYY712", "BUGEYY714", "N.SE5Y711", "N.SE5Y712"}
+
+        # For each prioritized action, max_rho_line should NOT be a pre-existing overload
+        for action_id, action_detail in result["prioritized_actions"].items():
+            max_rho_line = action_detail.get("max_rho_line", "")
+            assert max_rho_line not in pre_existing_names, \
+                f"Action {action_id}: max_rho_line is '{max_rho_line}' which is a pre-existing " \
+                f"overload. It should be excluded unless worsened beyond threshold."
+
+    finally:
+        for key, val in original_values.items():
+            setattr(config, key, val)
+
+
+@pytest.mark.slow
+def test_analysis_produces_results_with_all_lines_monitored():
+    """
+    Regression test: when IGNORE_LINES_MONITORING=True (all lines monitored),
+    the analysis must still produce prioritized actions. Previously, pre-existing
+    overloads on transformers caused the overflow graph connectivity check to fail,
+    resulting in zero actions.
+    """
+    import expert_op4grid_recommender.config as config
+
+    original_values = {
+        'ENV_NAME': config.ENV_NAME,
+        'FILE_ACTION_SPACE_DESC': config.FILE_ACTION_SPACE_DESC,
+        'ACTION_FILE_PATH': config.ACTION_FILE_PATH,
+        'TIMESTEP': config.TIMESTEP,
+        'LINES_DEFAUT': config.LINES_DEFAUT,
+        'IGNORE_LINES_MONITORING': config.IGNORE_LINES_MONITORING,
+        'MAX_RHO_BOTH_EXTREMITIES': config.MAX_RHO_BOTH_EXTREMITIES,
+    }
+
+    try:
+        config.ENV_NAME = "bare_env_small_grid_test"
+        config.FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json"
+        config.ACTION_FILE_PATH = config.ACTION_SPACE_FOLDER / config.FILE_ACTION_SPACE_DESC
+        config.TIMESTEP = 0
+        config.LINES_DEFAUT = ["P.SAOL31RONCI"]
+        config.IGNORE_LINES_MONITORING = True
+        config.MAX_RHO_BOTH_EXTREMITIES = True
+
+        result = run_analysis(
+            analysis_date=None,
+            current_timestep=0,
+            current_lines_defaut=["P.SAOL31RONCI"],
+            backend=Backend.PYPOWSYBL
+        )
+
+        # Must produce prioritized actions (regression: previously returned 0)
+        assert len(result["prioritized_actions"]) > 0, \
+            "Expected prioritized actions but got none. " \
+            "Pre-existing overloads may be interfering with the analysis."
+
+        # Should match the same expected actions as the monitored-subset test
+        expected_keys = {
+            '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6',
+            'f344b395-9908-43c2-bca0-75c5f298465e_COUCHP6',
+            'node_merging_PYMONP3',
+            'reco_CHALOL31LOUHA',
+            'reco_GEN.PY762',
+        }
+        actual_keys = set(result["prioritized_actions"].keys())
+        assert actual_keys == expected_keys, \
+            f"Action keys mismatch with all lines monitored.\n" \
+            f"Expected: {sorted(expected_keys)}\n" \
+            f"Actual:   {sorted(actual_keys)}\n" \
+            f"Missing:  {sorted(expected_keys - actual_keys)}\n" \
+            f"Extra:    {sorted(actual_keys - expected_keys)}"
+
+    finally:
+        for key, val in original_values.items():
+            setattr(config, key, val)
+
