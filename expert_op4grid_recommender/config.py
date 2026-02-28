@@ -30,9 +30,9 @@ PROJECT_ROOT = CONFIG_DIR.parent.resolve()
 # timestep = 32#1#47#18#13#22#9#1#15#1#35#10#14#14#13#22 #1 # 36
 # lines_defaut = "CHALOY631"#"CPVANL61ZMAGN"#"P.SAOL31RONCI"#"COUCHL31VOSNE"#"MAGNYY633"#"CPVANY633"#"CHALOL61CPVAN"#"C.REGL61ZMAGN"#"BEON L31CPVAN"#"CPVANL61ZMAGN"#"CPVANL31RIBAU"#"BEON L31CPVAN"#"MAGNYY633"#"BEON L31CPVAN"##AISERL31RONCI, P.SAOL31RONCI, AISERL31MAGNY, BEON L31CPVAN, "FRON5L31LOUHA"
 
-DATE = datetime(2024, 12, 7)#datetime(2024, 12, 7)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 12, 9)#datetime(2024, 12, 2)#datetime(2024, 8, 28)  # we choose a date for the chronic
-TIMESTEP = 9#9#1#15#1#35#10#14#14#13#22 #1 # 36
-LINES_DEFAUT = ["CHALOL61CPVAN"]#"CHALOL61CPVAN"#"C.REGL61ZMAGN"#"BEON L31CPVAN"#"CPVANL61ZMAGN"#"CPVANL31RIBAU"#"BEON L31CPVAN"#"MAGNYY633"#"BEON L31CPVAN"##AISERL31RONCI, P.SAOL31RONCI, AISERL31MAGNY, BEON L31CPVAN, "FRON5L31LOUHA"
+DATE = datetime(2024, 8, 28)#datetime(2024, 12, 7)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 27)#datetime(2024, 9, 19)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 11, 25)#datetime(2024, 12, 9)#datetime(2024, 12, 2)#datetime(2024, 8, 28)  # we choose a date for the chronic
+TIMESTEP = 0#9#1#15#1#35#10#14#14#13#22 #1 # 36
+LINES_DEFAUT = ["P.SAOL31RONCI"]#"CHALOL61CPVAN"#"C.REGL61ZMAGN"#"BEON L31CPVAN"#"CPVANL61ZMAGN"#"CPVANL31RIBAU"#"BEON L31CPVAN"#"MAGNYY633"#"BEON L31CPVAN"##AISERL31RONCI, P.SAOL31RONCI, AISERL31MAGNY, BEON L31CPVAN, "FRON5L31LOUHA"
 CASE_NAME = "defaut_" + "_".join(map(str, LINES_DEFAUT)) + "_t" + str(TIMESTEP)
 
 # -------------------
@@ -40,13 +40,13 @@ CASE_NAME = "defaut_" + "_".join(map(str, LINES_DEFAUT)) + "_t" + str(TIMESTEP)
 # -------------------
 # ENV_FOLDER = "../data" # OLD - Incorrect when run from root
 ENV_FOLDER = PROJECT_ROOT / "data" # NEW - Path relative to project root
-ENV_NAME = "env_dijon_v2_assistant"
+ENV_NAME = "bare_env_small_grid_test"
 ENV_PATH = ENV_FOLDER / ENV_NAME # Use Path object joining
 
 # ACTION_SPACE_FOLDER = os.path.join(ENV_FOLDER,"action_space") # OLD
 ACTION_SPACE_FOLDER = ENV_FOLDER / "action_space" # NEW
 
-FILE_ACTION_SPACE_DESC = "reduced_model_actions.json" #"actions_repas_most_frequent_topologies_revised.json"
+FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json" #"actions_repas_most_frequent_topologies_revised.json"
 # ACTION_FILE_PATH = os.path.join(ACTION_SPACE_FOLDER, FILE_ACTION_SPACE_DESC) # OLD
 ACTION_FILE_PATH = ACTION_SPACE_FOLDER / FILE_ACTION_SPACE_DESC # NEW
 
@@ -65,13 +65,15 @@ DRAW_ONLY_SIGNIFICANT_EDGES = True
 USE_GRID_LAYOUT = False
 DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART = False
 DO_SAVE_DATA_FOR_TEST = False
-CHECK_ACTION_SIMULATION = True
+CHECK_ACTION_SIMULATION = False
 N_PRIORITIZED_ACTIONS = 5
 IGNORE_RECONNECTIONS = False
 IGNORE_LINES_MONITORING = False
 LINES_MONITORING_FILE = None
 MAX_RHO_BOTH_EXTREMITIES = False  # only possible for now with pypowsybl backend
 MONITORING_FACTOR_THERMAL_LIMITS = 0.95  # factor applied to permanent thermal limits when loading from operational limits
+PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # 2% – pre-existing overloads excluded from analysis unless current increased by this fraction
+DO_VISUALIZATION=False
 
 # Minimum number of prioritized actions per type
 MIN_LINE_RECONNECTIONS = 0
