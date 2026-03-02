@@ -187,7 +187,14 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
     # Load lines to monitor
     lines_we_care_about = []
     if config.IGNORE_LINES_MONITORING:
-        lines_we_care_about = np.array(list(env.name_line))
+        limits_df = env.network_manager.network.get_operational_limits().reset_index()
+        branches_with_perm_limits = set(
+            limits_df[limits_df['name'] == 'permanent_limit']['element_id'].unique()
+        )
+        lines_we_care_about = np.array([l for l in env.name_line if l in branches_with_perm_limits])
+        n_excluded = len(env.name_line) - len(lines_we_care_about)
+        if n_excluded > 0:
+            print(f"Excluded {n_excluded} branch(es) without permanent operational limits from monitoring.")
     else:
         try:
             monitoring_file = getattr(config, 'LINES_MONITORING_FILE', None)
@@ -195,8 +202,15 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
                 monitoring_file = os.path.join(str(env_folder), "lignes_a_monitorer.csv")
             lines_we_care_about = load_interesting_lines(file_name=monitoring_file)
         except FileNotFoundError:
-            # If no specific lines, consider all lines
-            lines_we_care_about = list(env.name_line)
+            # No monitoring file: consider all branches that have permanent operational limits
+            limits_df = env.network_manager.network.get_operational_limits().reset_index()
+            branches_with_perm_limits = set(
+                limits_df[limits_df['name'] == 'permanent_limit']['element_id'].unique()
+            )
+            lines_we_care_about = np.array([l for l in env.name_line if l in branches_with_perm_limits])
+            n_excluded = len(env.name_line) - len(lines_we_care_about)
+            if n_excluded > 0:
+                print(f"Excluded {n_excluded} branch(es) without permanent operational limits from monitoring.")
     
     return (env, obs, env_path, chronic_name, custom_layout, 
             dict_action, lines_non_reconnectable, lines_we_care_about)

@@ -13,6 +13,7 @@ import os
 import json
 import datetime
 import sys
+import numpy as np
 from expert_op4grid_recommender import config
 from expert_op4grid_recommender.data_loader import load_interesting_lines, DELETED_LINE_NAME, load_actions
 from expert_op4grid_recommender.utils.simulation import simulate_contingency, check_simu_overloads
@@ -153,7 +154,19 @@ def setup_environment_configs(analysis_date: datetime): # Add analysis_date argu
     lines_non_reconnectable += list(DELETED_LINE_NAME)
 
     if config.IGNORE_LINES_MONITORING:
-        lines_we_care_about = np.array(list(env.name_line))
+        try:
+            n_grid = env.backend._grid.network
+            limits_df = n_grid.get_operational_limits().reset_index()
+            branches_with_perm_limits = set(
+                limits_df[limits_df['name'] == 'permanent_limit']['element_id'].unique()
+            )
+            lines_we_care_about = np.array([l for l in env.name_line if l in branches_with_perm_limits])
+            n_excluded = len(env.name_line) - len(lines_we_care_about)
+            if n_excluded > 0:
+                print(f"Excluded {n_excluded} branch(es) without permanent operational limits from monitoring.")
+        except Exception as e:
+            print(f"Warning: Could not filter branches by permanent limits: {e}. Monitoring all lines.")
+            lines_we_care_about = np.array(list(env.name_line))
     else:
         monitoring_file = getattr(config, 'LINES_MONITORING_FILE', None)
         if monitoring_file is None:

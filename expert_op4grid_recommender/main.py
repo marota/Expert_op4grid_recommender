@@ -448,7 +448,7 @@ def run_analysis(analysis_date: Optional[datetime],
             lines_swapped = list(df_of_g[df_of_g.new_flows_swapped].line_name)
             make_overflow_graph_visualization(
                 env, overflow_sim, g_overflow, hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped,
-                custom_layout
+                custom_layout, lines_we_care_about=lines_we_care_about
             )
     else:
         print("Skipping visualization (DO_VISUALIZATION=False)")
