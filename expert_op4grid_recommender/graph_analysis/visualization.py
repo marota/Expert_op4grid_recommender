@@ -180,10 +180,21 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
             is_DC = False
     
     if not is_DC:
+        # Filter to keep only non-grey edges for highlighting
+        non_grey_line_names = {
+            data.get("name")
+            for _, _, _, data in g_overflow.g.edges(data=True, keys=True)
+            if data.get("color") != "gray"
+        }
+
         ind_assets_to_monitor = np.where(overflow_sim.obs_linecut.rho >= 0.9)[0]
         if lines_we_care_about is not None and len(lines_we_care_about) > 0:
             monitored_mask = np.isin(env.name_line, lines_we_care_about)
             ind_assets_to_monitor = ind_assets_to_monitor[monitored_mask[ind_assets_to_monitor]]
+
+        # Keep only assets that are non-grey in the graph
+        ind_assets_to_monitor = np.array([ind for ind in ind_assets_to_monitor if env.name_line[ind] in non_grey_line_names])
+
         ind_assets_to_monitor = np.append(ind_assets_to_monitor, overflow_sim.ltc)
         dict_significant_change = {
             env.name_line[ind]: {"before": int(obs_simu.rho[ind] * 100),
