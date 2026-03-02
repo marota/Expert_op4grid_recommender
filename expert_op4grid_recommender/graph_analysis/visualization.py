@@ -195,7 +195,7 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
         # Keep only assets that are non-grey in the graph
         ind_assets_to_monitor = np.array([ind for ind in ind_assets_to_monitor if env.name_line[ind] in non_grey_line_names])
 
-        ind_assets_to_monitor = np.append(ind_assets_to_monitor, overflow_sim.ltc)
+        ind_assets_to_monitor = np.append(ind_assets_to_monitor, overflow_sim.ltc).astype(int)
         dict_significant_change = {
             env.name_line[ind]: {"before": int(obs_simu.rho[ind] * 100),
                                  "after": int(overflow_sim.obs_linecut.rho[ind] * 100)}
