@@ -343,7 +343,7 @@ def run_analysis(analysis_date: Optional[datetime],
                 n_grid = env.backend._grid.network
             else:
                 n_grid = env.network_manager.network
-            env = set_thermal_limits(n_grid, env, thresold_thermal_limit=0.95)
+            env = set_thermal_limits(n_grid, env, thresold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS)
             obs = env.reset() if backend == Backend.GRID2OP else env.get_obs()
 
     # --- Instantiate Classifier ---
@@ -372,9 +372,23 @@ def run_analysis(analysis_date: Optional[datetime],
     if not has_converged:
         raise RuntimeError("Initial contingency simulation failed. Cannot proceed.")
 
-    # Find overloads and reconnectable lines
-    lines_overloaded_ids = [i for i, l in enumerate(obs_simu_defaut.name_line) if
-                            l in lines_we_care_about and obs_simu_defaut.rho[i] >= 1]
+    # Find overloads caused by the contingency (not pre-existing)
+    lines_overloaded_ids = []
+    pre_existing_overloads = []  # for logging
+    pre_existing_rho = {}  # {line_idx: rho_N} — used to exclude from max_rho unless worsened
+    for i, l in enumerate(obs_simu_defaut.name_line):
+        if l in lines_we_care_about and obs_simu_defaut.rho[i] >= 1:
+            if obs.rho[i] >= 1:
+                # This line was already overloaded before the contingency — skip it
+                pre_existing_overloads.append(
+                    f"{l} (rho_N={obs.rho[i]:.3f}, rho_N-1={obs_simu_defaut.rho[i]:.3f})"
+                )
+                pre_existing_rho[i] = float(obs.rho[i])
+            else:
+                lines_overloaded_ids.append(i)
+    if pre_existing_overloads:
+        print(f"Ignoring {len(pre_existing_overloads)} pre-existing overload(s) "
+              f"(already overloaded before contingency): {pre_existing_overloads}")
     non_connected_reconnectable_lines = [
         l_name for i, l_name in enumerate(env.name_line)
         if
@@ -461,6 +475,8 @@ def run_analysis(analysis_date: Optional[datetime],
             by_description=config.CHECK_WITH_ACTION_DESCRIPTION
         )
 
+        print(f"DEBUG: 'disco_BEON L31CPVAN' in dict_action before filtering: {'disco_BEON L31CPVAN' in dict_action}")
+
         actions_to_filter, actions_unfiltered = validator.categorize_actions(
             dict_action=dict_action,
             timestep=current_timestep,
@@ -472,6 +488,9 @@ def run_analysis(analysis_date: Optional[datetime],
         )
 
         print_filtered_out_action(len(dict_action), actions_to_filter)
+        print(f"DEBUG: 'disco_BEON L31CPVAN' in actions_unfiltered after filtering: {'disco_BEON L31CPVAN' in actions_unfiltered}")
+        if 'disco_BEON L31CPVAN' not in actions_unfiltered and 'disco_BEON L31CPVAN' in dict_action:
+             print(f"DEBUG: Reason for filtering disco_BEON L31CPVAN: {actions_to_filter.get('disco_BEON L31CPVAN', 'Unknown')}")
 
     # Pre-process graph for AlphaDeesp
     with Timer("Pre-process for AlphaDeesp"):
@@ -510,7 +529,8 @@ def run_analysis(analysis_date: Optional[datetime],
             check_action_simulation=config.CHECK_ACTION_SIMULATION,
             lines_we_care_about=lines_we_care_about,
             check_rho_reduction_func=check_rho_reduction,
-            create_default_action_func=create_default_action
+            create_default_action_func=create_default_action,
+            obs_linecut=getattr(overflow_sim, 'obs_linecut', None)
         )
 
         prioritized_actions, action_scores = discoverer.discover_and_prioritize(
@@ -558,21 +578,24 @@ def run_analysis(analysis_date: Optional[datetime],
                 if rho_before is not None:
                     is_rho_reduction = bool(np.all(rho_after + 0.01 < rho_before))
 
-                # Find max rho among lines_we_care_about (or all lines)
-                if lines_we_care_about is not None and len(lines_we_care_about) > 0:
-                    care_mask = np.isin(obs_simu_action.name_line, lines_we_care_about)
-                    if np.any(care_mask):
-                        rhos_of_interest = obs_simu_action.rho[care_mask]
-                        max_rho = float(np.max(rhos_of_interest))
-                        max_rho_line_idx = np.where(obs_simu_action.rho == max_rho)[0]
-                        if max_rho_line_idx.size > 0 and max_rho_line_idx[0] < len(obs.name_line):
-                            max_rho_line = obs.name_line[max_rho_line_idx[0]]
-                else:
-                    if obs_simu_action.rho.size > 0:
-                        max_rho_idx = int(np.argmax(obs_simu_action.rho))
-                        max_rho = float(obs_simu_action.rho[max_rho_idx])
-                        if max_rho_idx < len(obs.name_line):
-                            max_rho_line = obs.name_line[max_rho_idx]
+                # Find max rho among lines_we_care_about (or all lines),
+                # excluding pre-existing overloads unless worsened beyond threshold
+                worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
+                action_rho = obs_simu_action.rho
+                for idx in range(len(action_rho)):
+                    line_name = obs_simu_action.name_line[idx]
+                    # Skip lines not in care set
+                    if lines_we_care_about is not None and len(lines_we_care_about) > 0:
+                        if line_name not in lines_we_care_about:
+                            continue
+                    # Skip pre-existing overloads unless worsened
+                    if idx in pre_existing_rho:
+                        if action_rho[idx] <= pre_existing_rho[idx] * (1 + worsening_threshold):
+                            continue
+                    rho_val = float(action_rho[idx])
+                    if rho_val > max_rho:
+                        max_rho = rho_val
+                        max_rho_line = line_name
 
             # Print summary
             print(f"{action_id}")
@@ -593,10 +616,17 @@ def run_analysis(analysis_date: Optional[datetime],
                 "observation": obs_simu_action,
             }
 
+    # Build pre-existing overloads info for the frontend
+    pre_existing_info = [
+        {"name": str(obs.name_line[i]), "rho_N": pre_existing_rho[i]}
+        for i in sorted(pre_existing_rho.keys())
+    ]
+
     return {
         "lines_overloaded_names": lines_overloaded_names,
         "prioritized_actions": detailed_actions,
         "action_scores": action_scores,
+        "pre_existing_overloads": pre_existing_info,
     }
 
 
@@ -653,7 +683,25 @@ def main():
         default=300.0,
         help="Voltage filter threshold for REPAS actions (default: 300)"
     )
+    parser.add_argument(
+        "--ignore-lines-monitoring",
+        action='store_true',
+        help="If set, ignores the lignes_a_monitorer.csv file and monitors all lines."
+    )
     args = parser.parse_args()
+
+    if args.ignore_lines_monitoring:
+        config.IGNORE_LINES_MONITORING = True
+
+    sum_min_actions = (config.MIN_LINE_RECONNECTIONS +
+                       config.MIN_CLOSE_COUPLING +
+                       config.MIN_OPEN_COUPLING +
+                       config.MIN_LINE_DISCONNECTIONS)
+    
+    if sum_min_actions > config.N_PRIORITIZED_ACTIONS:
+        print(f"Warning: The sum of minimum actions per type ({sum_min_actions}) exceeds the "
+              f"maximum number of prioritized actions overall ({config.N_PRIORITIZED_ACTIONS}). "
+              f"Some minimums will not be respected.", file=sys.stderr)
 
     # --- Handle explicit "None" string for date ---
     date_arg = args.date

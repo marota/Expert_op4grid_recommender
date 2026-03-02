@@ -127,7 +127,7 @@ def check_rho_reduction_with_baseline(obs: Any, timestep: int, act_defaut: Any, 
             max_rho = 0.0
 
             # Find the maximum rho specifically among 'lines_we_care_about' if provided
-            if lines_we_care_about is not None and lines_we_care_about.size > 0:
+            if lines_we_care_about is not None and len(lines_we_care_about) > 0:
                 # Create a mask for lines we care about
                 care_mask = np.isin(obs_simu_action.name_line, lines_we_care_about)
                 if np.any(care_mask):

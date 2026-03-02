@@ -295,6 +295,23 @@ class TestObservation:
             # Info should have exception key
             assert "exception" in info
 
+    def test_max_rho_both_extremities(self, observation):
+        """Test max rho from both extremities calculation."""
+        from unittest.mock import patch
+        obs, nm, action_space = observation
+        
+        with patch('expert_op4grid_recommender.config.MAX_RHO_BOTH_EXTREMITIES', True):
+            obs._refresh_state()
+            rho_both = obs.rho.copy()
+            
+        with patch('expert_op4grid_recommender.config.MAX_RHO_BOTH_EXTREMITIES', False):
+            obs._refresh_state()
+            rho_single = obs.rho.copy()
+        
+        assert len(rho_both) == nm.n_line
+        assert len(rho_single) == nm.n_line
+        assert np.all(rho_both >= rho_single)
+
 
 class TestSimulationEnvironment:
     """Tests for SimulationEnvironment class."""

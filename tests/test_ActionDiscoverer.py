@@ -340,6 +340,65 @@ def test_discoverer_find_relevant_disconnections(discoverer_instance):
     # disco_L2 should not be scored (not on constrained path)
     assert "disco_L2" not in discoverer_instance.scores_disconnections
 
+
+def test_disconnections_sorted_by_score_descending(discoverer_instance, monkeypatch):
+    """identified_disconnections must be ordered highest-score-first after find_relevant_disconnections."""
+    # Add two extra open_line actions both touching constrained line L1
+    discoverer_instance.dict_action["disco_L1_A"] = {
+        "type": "open_line",
+        "description_unitaire": "Ouverture L1 variant A",
+        "content": {"set_bus": {"lines_ex_id": {"L1": -1}}},
+    }
+    discoverer_instance.dict_action["disco_L1_B"] = {
+        "type": "open_line",
+        "description_unitaire": "Ouverture L1 variant B",
+        "content": {"set_bus": {"lines_or_id": {"L1": -1}}},
+    }
+    discoverer_instance.actions_unfiltered |= {"disco_L1_A", "disco_L1_B"}
+
+    # Actions are processed in sorted(actions_unfiltered) alphabetical order.
+    # Among the three on-path open_line actions the alphabetical order is:
+    #   disco_L1 (1st), disco_L1_A (2nd), disco_L1_B (3rd).
+    # Assign scores [0.1, 0.9, 0.4] in that processing order so the expected
+    # descending sort is: disco_L1_A (0.9) > disco_L1_B (0.4) > disco_L1 (0.1),
+    # which differs from alphabetical order and thus truly exercises the sort.
+    score_iter = iter([0.1, 0.9, 0.4])
+    monkeypatch.setattr(discoverer_instance, "compute_disconnection_score", lambda lines: next(score_iter))
+
+    discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
+
+    keys = list(discoverer_instance.identified_disconnections.keys())
+    assert len(keys) == 3, f"Expected 3 identified disconnections, got {keys}"
+    assert keys[0] == "disco_L1_A", f"Highest-score action should be first, got {keys}"
+    assert keys[1] == "disco_L1_B", f"Second action should be disco_L1_B, got {keys}"
+    assert keys[2] == "disco_L1", f"Lowest-score action should be last, got {keys}"
+
+
+def test_disconnections_identified_order_matches_scores_order(discoverer_instance, monkeypatch):
+    """The insertion order of identified_disconnections must match descending scores_disconnections."""
+    # Add one more disco action on L1 so we have two to compare.
+    # Alphabetical processing order: disco_L1 (1st), disco_L1_high (2nd).
+    # Assign 0.2 then 0.8 so disco_L1_high ends up first after sorting.
+    discoverer_instance.dict_action["disco_L1_high"] = {
+        "type": "open_line",
+        "description_unitaire": "Ouverture L1 high score",
+        "content": {"set_bus": {"lines_ex_id": {"L1": -1}}},
+    }
+    discoverer_instance.actions_unfiltered |= {"disco_L1_high"}
+
+    score_iter = iter([0.2, 0.8])
+    monkeypatch.setattr(discoverer_instance, "compute_disconnection_score", lambda lines: next(score_iter))
+
+    discoverer_instance.find_relevant_disconnections(lines_constrained_path_names=["L1"])
+
+    identified_keys = list(discoverer_instance.identified_disconnections.keys())
+    scores = [discoverer_instance.scores_disconnections[k] for k in identified_keys]
+    assert scores == sorted(scores, reverse=True), (
+        f"identified_disconnections keys are not in descending score order: "
+        f"{list(zip(identified_keys, scores))}"
+    )
+
+
 def test_discoverer_find_relevant_node_splitting(discoverer_instance):
     discoverer_instance.find_relevant_node_splitting(hubs_names=["Sub0"], nodes_blue_path_names=["Sub1"])
     assert "split_S0" in discoverer_instance.identified_splits
@@ -695,6 +754,154 @@ class TestUnconstrainedLinearScore:
         assert s2 < s1 < 0.0
 
 
+class TestComputeDisconnectionFlowBounds:
+    """Tests for _compute_disconnection_flow_bounds with obs_linecut fix (issue #30)."""
+
+    def _make_discoverer(self, rho_defaut, rho_linecut=None, lines_overloaded_ids=None):
+        """Helper to build a discoverer with controlled rho values."""
+        n_lines = len(rho_defaut)
+        name_line = [f"L{i}" for i in range(n_lines)]
+        name_sub = [f"S{i}" for i in range(n_lines + 1)]
+
+        mock_obs_defaut = MockObservation(
+            name_sub=name_sub,
+            name_line=name_line,
+            rho=np.array(rho_defaut, dtype=float),
+            line_or_to_subid=list(range(n_lines)),
+            line_ex_to_subid=list(range(1, n_lines + 1)),
+        )
+        mock_obs_linecut = None
+        if rho_linecut is not None:
+            mock_obs_linecut = MockObservation(
+                name_sub=name_sub,
+                name_line=name_line,
+                rho=np.array(rho_linecut, dtype=float),
+                line_or_to_subid=list(range(n_lines)),
+                line_ex_to_subid=list(range(1, n_lines + 1)),
+            )
+
+        mock_env = MockEnv(name_line=name_line, name_sub=name_sub)
+        # Overflow graph: edge 0->1 named L0 with capacity 100, edge 1->2 named L1 with capacity 50
+        edge_data = {}
+        for i in range(min(n_lines, 2)):
+            edge_data[(i, i + 1)] = {0: {"name": f"L{i}", "capacity": 100.0 / (i + 1)}}
+        mock_g_overflow = MockOverflowGraph(edge_data=edge_data)
+        mock_g_dist = MockDistributionGraph()
+
+        return ActionDiscoverer(
+            env=mock_env,
+            obs=mock_obs_defaut,
+            obs_defaut=mock_obs_defaut,
+            obs_linecut=mock_obs_linecut,
+            classifier=ActionClassifier(MockActionSpace()),
+            timestep=0,
+            lines_defaut=[],
+            lines_overloaded_ids=lines_overloaded_ids or [0],
+            act_reco_maintenance=MockActionObject(),
+            non_connected_reconnectable_lines=[],
+            all_disconnected_lines=[],
+            dict_action={},
+            actions_unfiltered=set(),
+            hubs=[],
+            g_overflow=mock_g_overflow,
+            g_distribution_graph=mock_g_dist,
+            simulator_data={},
+            check_action_simulation=False,
+        )
+
+    def test_unconstrained_when_obs_linecut_is_none(self):
+        """When obs_linecut is None, max_redispatch must be inf (unconstrained regime)."""
+        d = self._make_discoverer(rho_defaut=[1.2, 0.8], rho_linecut=None)
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
+
+    def test_unconstrained_when_obs_linecut_equals_obs_defaut(self):
+        """When obs_linecut == obs_defaut and no lines are overloaded, max_redispatch is inf."""
+        # In practice, overloaded lines are always cut in obs_linecut (rho → 0).
+        # This test covers the case where no lines cross 100% in either observation.
+        rho = [0.8, 0.7]
+        d = self._make_discoverer(rho_defaut=rho, rho_linecut=rho)
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
+
+    def test_unconstrained_when_obs_linecut_has_higher_but_not_overloaded(self):
+        """Loading increase that stays below 1.0 must NOT constrain max_redispatch."""
+        # L0 goes 0.7 → 0.9 (increased but < 1.0) → should NOT trigger constraint
+        # L1 goes 0.5 → 0.6 (increased but < 1.0) → should NOT trigger constraint
+        d = self._make_discoverer(rho_defaut=[0.7, 0.5], rho_linecut=[0.9, 0.6])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
+
+    def test_constrained_when_obs_linecut_causes_new_overload(self):
+        """When obs_linecut shows a line is NEWLY overloaded, max_redispatch must be finite."""
+        # L0: capacity=100, rho_defaut=0.7, rho_linecut=1.2  (newly overloaded)
+        #   ratio = 100 * (1 - 0.7) / (1.2 - 0.7) = 100 * 0.3 / 0.5 = 60
+        # L1: capacity=50, rho_defaut=0.5, rho_linecut=0.8   (NOT overloaded)
+        #   does NOT constrain
+        # binding = 60
+        d = self._make_discoverer(rho_defaut=[0.7, 0.5], rho_linecut=[1.2, 0.8])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == pytest.approx(60.0, rel=1e-6)
+
+    def test_constrained_when_existing_overload_not_relieved(self):
+        """An existing overload that is NOT relieved in obs_linecut (rho_after > 1) fully constrains."""
+        # L0: rho_defaut=1.1 (overloaded), rho_linecut=1.3 (still overloaded) → max_redispatch = 0
+        d = self._make_discoverer(rho_defaut=[1.1, 0.5], rho_linecut=[1.3, 0.6])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == 0.0
+
+    def test_unconstrained_when_existing_overload_is_relieved(self):
+        """An existing overload that IS relieved in obs_linecut (rho_after < 1) must NOT constrain."""
+        # L0: rho_defaut=1.2 (overloaded), rho_linecut=0.5 (relieved) → rho_after < 1.0 → no constraint
+        d = self._make_discoverer(rho_defaut=[1.2, 0.5], rho_linecut=[0.5, 0.6])
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        assert max_redispatch == float('inf')
+
+    def test_max_redispatch_uses_obs_defaut_as_rho_before(self):
+        """rho_before in the ratio formula must come from obs_defaut, not obs."""
+        # Deliberately set obs (self.obs) differently from obs_defaut to confirm the
+        # method reads obs_defaut for rho_before, not obs.
+        # L0: rho_defaut=0.6, rho_linecut=1.2 → newly overloaded
+        rho_defaut = [0.6, 0.5]
+        rho_linecut = [1.2, 0.5]  # L0 becomes newly overloaded
+        d = self._make_discoverer(rho_defaut=rho_defaut, rho_linecut=rho_linecut)
+        # Patch self.obs to have a very different rho to ensure it is NOT used
+        d.obs = MockObservation(
+            name_sub=d.obs.name_sub,
+            name_line=d.obs.name_line,
+            rho=np.array([0.1, 0.1]),  # very different from obs_defaut
+            line_or_to_subid=list(range(2)),
+            line_ex_to_subid=list(range(1, 3)),
+        )
+        _, _, max_redispatch = d._compute_disconnection_flow_bounds()
+        # Expected: capacity_L0=100, rho_before=0.6 (obs_defaut), rho_after=1.2 (obs_linecut)
+        # ratio = 100 * (1 - 0.6) / (1.2 - 0.6) = 100 * 0.4 / 0.6 = 66.67
+        assert max_redispatch == pytest.approx(66.67, rel=1e-3)
+
+    def test_min_redispatch_uses_obs_defaut(self):
+        """min_redispatch must reflect the worst overload in obs_defaut."""
+        # L0 rho=1.3 → min_redispatch = (1.3-1)*100 = 30
+        d = self._make_discoverer(rho_defaut=[1.3, 0.5], rho_linecut=None, lines_overloaded_ids=[0])
+        _, min_redispatch, _ = d._compute_disconnection_flow_bounds()
+        assert min_redispatch == pytest.approx(30.0, rel=1e-6)
+
+    def test_max_overload_flow_is_overloaded_line_capacity(self):
+        """max_overload_flow must equal the overloaded line's capacity, not the global max."""
+        # L0 is overloaded (rho=1.2, lines_overloaded_ids=[0], capacity=100).
+        # L1 has a smaller capacity (50). max_overload_flow = capacity of L0 = 100.
+        d = self._make_discoverer(rho_defaut=[1.2, 0.5], rho_linecut=None)
+        max_overload_flow, _, _ = d._compute_disconnection_flow_bounds()
+        assert max_overload_flow == pytest.approx(100.0, rel=1e-6)
+
+    def test_max_overload_flow_uses_overloaded_line_not_global_max(self):
+        """When the overloaded line is NOT the highest-capacity edge, use its capacity."""
+        # L0 has capacity 100 (higher), L1 (overloaded, lines_overloaded_ids=[1]) has capacity 50.
+        # max_overload_flow must be 50 (L1's capacity), not 100 (L0's capacity).
+        d = self._make_discoverer(rho_defaut=[0.5, 1.2], rho_linecut=None, lines_overloaded_ids=[1])
+        max_overload_flow, _, _ = d._compute_disconnection_flow_bounds()
+        assert max_overload_flow == pytest.approx(50.0, rel=1e-6)
+
+
 class TestNodeMergingScore:
     """Tests for the compute_node_merging_score method."""
 
@@ -768,7 +975,8 @@ class TestNodeMergingScore:
         # score = theta2 - theta1 = -1.0 - (-5.0) = 4.0
         score, details = merging_discoverer.compute_node_merging_score(0, [1, 2])
         assert score > 0.0  # theta2 > theta1 means flow towards red loop
-        assert details["red_loop_bus"] == 1
+        # Red loop bus assets should contain L1 (on bus 1)
+        assert "L1" in details["targeted_node_assets"]["lines"]
 
     def test_single_bus_returns_zero(self, merging_discoverer):
         """Should return (0.0, {}) when fewer than 2 buses."""
@@ -776,11 +984,11 @@ class TestNodeMergingScore:
         assert score == 0.0
         assert details == {}
 
-    def test_details_contains_assets(self, merging_discoverer):
-        """Details dict must contain assets with lines on the red loop bus."""
+    def test_details_contains_targeted_node_assets(self, merging_discoverer):
+        """Details dict must contain targeted_node_assets with lines on the red loop bus."""
         _, details = merging_discoverer.compute_node_merging_score(0, [1, 2])
-        assert "assets" in details
-        assets = details["assets"]
+        assert "targeted_node_assets" in details
+        assets = details["targeted_node_assets"]
         assert "lines" in assets
         assert "loads" in assets
         assert "generators" in assets
@@ -845,8 +1053,8 @@ class TestDiscoveryParamsStorage:
         for action_id in discoverer_instance.scores_merges:
             assert action_id in params
             assert isinstance(params[action_id], dict)
-            assert "assets" in params[action_id]
-            assets = params[action_id]["assets"]
+            assert "targeted_node_assets" in params[action_id]
+            assets = params[action_id]["targeted_node_assets"]
             assert "lines" in assets
             assert "loads" in assets
             assert "generators" in assets
@@ -905,20 +1113,19 @@ class TestActionScoresStructureAndRounding:
         }
         discoverer.scores_splits_dict = {"split_1": 0.99999, "split_2": -0.12345}
         discoverer.params_splits_dict = {
-            "split_1": {"node_type": "amont", "bus_of_interest": 1,
+            "split_1": {"node_type": "amont",
+                        "targeted_node_assets": {"lines": ["L1"], "loads": [], "generators": []},
                         "in_negative_flows": 12.3456, "out_negative_flows": 78.9012,
-                        "in_positive_flows": 0.0, "out_positive_flows": 5.55555,
-                        "assets": {"lines": ["L1"], "loads": [], "generators": []}},
-            "split_2": {"node_type": "aval", "bus_of_interest": 2,
+                        "in_positive_flows": 0.0, "out_positive_flows": 5.55555},
+            "split_2": {"node_type": "aval",
+                        "targeted_node_assets": {"lines": ["L2"], "loads": ["Load_X"], "generators": ["Gen_Y"]},
                         "in_negative_flows": 99.9999, "out_negative_flows": 1.11111,
-                        "in_positive_flows": 3.33333, "out_positive_flows": 0.0,
-                        "assets": {"lines": ["L2"], "loads": ["Load_X"], "generators": ["Gen_Y"]}},
+                        "in_positive_flows": 3.33333, "out_positive_flows": 0.0},
         }
         discoverer.scores_merges = {"merge_1": 2.71828}
         discoverer.params_merges = {
             "merge_1": {
-                "red_loop_bus": 1,
-                "assets": {"lines": ["L1"], "loads": ["Load_A"], "generators": []},
+                "targeted_node_assets": {"lines": ["L1"], "loads": ["Load_A"], "generators": []},
             },
         }
         return discoverer
@@ -976,7 +1183,7 @@ class TestActionScoresStructureAndRounding:
 
         s1 = split_params["split_1"]
         assert s1["node_type"] == "amont"  # String preserved
-        assert s1["bus_of_interest"] == 1  # Int preserved
+        assert isinstance(s1["targeted_node_assets"], dict)  # Assets dict preserved
         assert s1["in_negative_flows"] == 12.35
         assert s1["out_negative_flows"] == 78.9
         assert s1["out_positive_flows"] == 5.56
@@ -988,8 +1195,7 @@ class TestActionScoresStructureAndRounding:
         # close_coupling (merges) is now per-action too
         merge_params = action_scores["close_coupling"]["params"]
         m1 = merge_params["merge_1"]
-        assert m1["red_loop_bus"] == 1  # Int preserved
-        assert isinstance(m1["assets"], dict)  # Dict preserved (not rounded)
+        assert isinstance(m1["targeted_node_assets"], dict)  # Assets dict preserved
 
     def test_empty_scores_produce_empty_entries(self, scores_discoverer):
         """When a category has no scored actions, its scores and params should be empty."""

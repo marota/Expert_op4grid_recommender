@@ -68,6 +68,7 @@ DO_SAVE_DATA_FOR_TEST = False
 CHECK_ACTION_SIMULATION = True
 N_PRIORITIZED_ACTIONS = 5
 IGNORE_RECONNECTIONS = False
+MONITORING_FACTOR_THERMAL_LIMITS = 0.95  # factor applied to permanent thermal limits when loading from operational limits
 
 # -------------------
 #  Expert System Parameters
