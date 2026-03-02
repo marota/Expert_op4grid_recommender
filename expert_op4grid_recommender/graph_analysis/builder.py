@@ -104,6 +104,8 @@ def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected
         g_overflow.add_relevant_null_flow_lines_all_paths(g_distribution_graph,
                                                           non_connected_lines=non_connected_reconnectable_lines,
                                                           non_reconnectable_lines=lines_non_reconnectable)
+
+        g_overflow.keep_overloads_components()#remove unecessary components
         g_distribution_graph = Structured_Overload_Distribution_Graph(g_overflow.g,possible_hubs=c_path_init)
 
     return df_of_g, overflow_sim, g_overflow, real_hubs, g_distribution_graph, node_name_mapping
