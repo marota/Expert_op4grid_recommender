@@ -20,6 +20,7 @@ from expert_op4grid_recommender.action_evaluation.classifier import ActionClassi
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph # For type hinting
 import networkx as nx
+from expert_op4grid_recommender import config
 
 class ActionDiscoverer:
     """
@@ -471,21 +472,27 @@ class ActionDiscoverer:
                     continue
                 rho_before = float(self.obs_defaut.rho[line_id])
                 rho_after = float(self.obs_linecut.rho[line_id])
-                if rho_after > 1.0:
-                    # Skip pre-existing overloads: lines already overloaded in N-state
-                    # (before any contingency) should not constrain disconnection scoring
+                if rho_after > rho_before:
+                    # Skip pre-existing overloads unless they worsen beyond threshold
                     n_state_rho = float(self.obs.rho[line_id])
+                    worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
+                    
                     if n_state_rho >= 1.0:
-                        continue
-                    if rho_before >= 1.0:
-                        # Existing overload not relieved in obs_linecut: fully constrained
-                        max_redispatch = 0.0
-                    else:
-                        # Newly overloaded line: compute binding flow margin
-                        delta_rho = rho_after - rho_before
-                        ratio = capacity_l * (1.0 - rho_before) / delta_rho
-                        if ratio > 0:
-                            max_redispatch = min(max_redispatch, ratio)
+                        if rho_after > n_state_rho * (1 + worsening_threshold):
+                            # Worsened pre-existing: consider with ratio = capacity_l (per user request)
+                            max_redispatch = min(max_redispatch, capacity_l)
+                        else:
+                            continue
+                    elif rho_after > 1.0:
+                        if rho_before >= 1.0:
+                            # Existing overload not relieved in obs_linecut: fully constrained
+                            max_redispatch = 0.0
+                        else:
+                            # Newly overloaded line: compute binding flow margin using user-revised formula
+                            # ratio = capacity_l * (rho_after - 1) / (rho_after - rho_before)
+                            ratio = capacity_l * (rho_after - 1.0) / (rho_after - rho_before)
+                            if ratio > 0:
+                                max_redispatch = min(max_redispatch, ratio)
 
         # Fallback: if no line provided a binding constraint (or obs_linecut is None),
         # max_redispatch stays at inf — this signals the "unconstrained" regime where all
