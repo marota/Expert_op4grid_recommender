@@ -67,7 +67,7 @@ class NetworkManager:
         return lf.Parameters(
             read_slack_bus=False,
             write_slack_bus=False,
-            voltage_init_mode=lf.VoltageInitMode.DC_VALUES,
+            voltage_init_mode=lf.VoltageInitMode.PREVIOUS_VALUES,
             transformer_voltage_control_on=True,
             use_reactive_limits=True,
             shunt_compensator_voltage_control_on=True,
