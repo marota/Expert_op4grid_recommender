@@ -79,39 +79,56 @@ class PypowsyblObservation:
         nm = self._network_manager
         net = nm.network
 
-        # Line information - get once
-        self._line_flows = nm.get_line_flows()
-        reindexed_flows = self._line_flows.reindex(nm.name_line)
+        with Timer("Refresh state: pypowsybl data retrieval"):
+            # Line and transformer information - fetch all at once including terminal buses
+            # Columns needed for: flows, status, angles, and bus assignments
+            line_cols = ['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2', 'bus1_id', 'bus2_id']
+            # nm.get_line_flows doesn't yet support bus1/2_id easily without internal logic change
+            # Let's just do it here to ensure absolute control and minimal calls
+            lines_df = net.get_lines()[line_cols]
+            trafos_df = net.get_2_windings_transformers()[line_cols]
+            all_terminals_df = pd.concat([lines_df, trafos_df])
+            reindexed_flows = all_terminals_df.reindex(nm.name_line)
 
-        # Cache line currents and powers as arrays for fast access
-        self._cache_line_arrays(reindexed_flows)
+            # Bus voltages and angles - fetch with voltage_level_id for bus assignments
+            bus_cols = ['v_mag', 'v_angle', 'voltage_level_id']
+            bus_data_df = net.get_buses()[bus_cols]
+            bus_df_aligned = bus_data_df.reindex(nm.name_sub)
 
-        # Compute rho (loading ratio)
-        self._compute_rho()
+        with Timer("Refresh state: cache line arrays"):
+            # Cache line currents and powers as arrays for fast access
+            self._cache_line_arrays(reindexed_flows)
 
-        # Line status
-        self._line_status = reindexed_flows['connected'].fillna(False).astype(bool).values
+        with Timer("Refresh state: compute rho"):
+            # Compute rho (loading ratio)
+            self._compute_rho()
 
-        # Bus voltages and angles
-        bus_df = nm.get_bus_voltages()
-        # bus_df is indexed by name_sub, so reindex is good for safety/order
-        bus_df_aligned = bus_df.reindex(nm.name_sub)
-        self._v_mag = bus_df_aligned['v_mag'].values
-        self._v_angle = bus_df_aligned['v_angle'].values
+        with Timer("Refresh state: line status"):
+            # Line status - robustly convert to bool to avoid warnings
+            self._line_status = reindexed_flows['connected1'].fillna(True).astype(bool).values & \
+                                reindexed_flows['connected2'].fillna(True).astype(bool).values
 
-        # Get angles per line terminal
-        self._compute_line_angles()
+        with Timer("Refresh state: bus voltages"):
+            # Bus voltages and angles
+            self._v_mag = bus_df_aligned['v_mag'].values
+            self._v_angle = bus_df_aligned['v_angle'].values
 
-        # Compute bus assignments for line terminals
-        self._compute_line_buses()
+        with Timer("Refresh state: compute terminal angles"):
+            # Get angles per line terminal - pass pre-fetched bus data
+            self._compute_line_angles(reindexed_flows, bus_data_df['v_angle'])
 
-        # Load and generation - ensure alignment with name_load/name_gen
-        loads_df = net.get_loads().reindex(nm.name_load)
-        gens_df = net.get_generators().reindex(nm.name_gen)
-        self._load_p = loads_df['p'].fillna(0.0).values
-        self._load_q = loads_df['q'].fillna(0.0).values
-        self._gen_p = gens_df['p'].fillna(0.0).values
-        self._gen_q = gens_df['q'].fillna(0.0).values
+        with Timer("Refresh state: compute terminal buses"):
+            # Compute bus assignments for line terminals - pass pre-fetched data
+            self._compute_line_buses(reindexed_flows, bus_data_df)
+
+        with Timer("Refresh state: load and gen"):
+            # Load and generation - ensure alignment with name_load/name_gen
+            loads_df = net.get_loads()[['p', 'q']].reindex(nm.name_load)
+            gens_df = net.get_generators()[['p', 'q']].reindex(nm.name_gen)
+            self._load_p = loads_df['p'].fillna(0.0).values
+            self._load_q = loads_df['q'].fillna(0.0).values
+            self._gen_p = gens_df['p'].fillna(0.0).values
+            self._gen_q = gens_df['q'].fillna(0.0).values
     
     def _cache_line_arrays(self, reindexed_flows: pd.DataFrame):
         """Cache line current and power arrays for fast property access. OPTIMIZED with reindex."""
@@ -144,58 +161,19 @@ class PypowsyblObservation:
         else:
             self._rho = i_or / limit_or
     
-    def _compute_line_angles(self):
+    def _compute_line_angles(self, terminals: pd.DataFrame, bus_angles: pd.Series):
         """Compute voltage angles at line terminals. OPTIMIZED with vectorization."""
-        nm = self._network_manager
-        net = nm.network
-        line_names = nm.name_line
-
-        # Get line terminal info
-        lines_df = net.get_lines()
-        trafos_df = net.get_2_windings_transformers()
-        
-        # Build terminal mapping for all lines and transformers
-        cols = ['bus1_id', 'bus2_id']
-        terminals = pd.concat([
-            lines_df[cols] if not lines_df.empty else pd.DataFrame(columns=cols),
-            trafos_df[cols] if not trafos_df.empty else pd.DataFrame(columns=cols)
-        ])
-        
-        # Reindex to match nm.name_line order
-        terminals = terminals.reindex(line_names)
-        
-        # Get bus angles
-        bus_angles = net.get_buses()['v_angle']
+        # terminals is already reindexed to nm.name_line
         
         # Map angles to terminals
         self._theta_or = terminals['bus1_id'].map(bus_angles).fillna(0.0).values / 360 * 2 * np.pi
         self._theta_ex = terminals['bus2_id'].map(bus_angles).fillna(0.0).values / 360 * 2 * np.pi
     
-    def _compute_line_buses(self):
+    def _compute_line_buses(self, terminals: pd.DataFrame, buses_df: pd.DataFrame):
         """Compute bus assignments for line terminals. OPTIMIZED with vectorization."""
-        nm = self._network_manager
-        net = nm.network
-        line_names = nm.name_line
-
-        # 1. Get terminal connectivity and bus assignments
-        lines_df = net.get_lines()
-        trafos_df = net.get_2_windings_transformers()
+        # terminals is already reindexed to nm.name_line
         
-        # pypowsybl usually has 'connected1' and 'connected2' for lines
-        # Transformers might not have them in some versions, default to True
-        cols = ['bus1_id', 'bus2_id']
-        lcols = cols + ['connected1', 'connected2']
-        
-        terminals = pd.concat([
-            lines_df[lcols] if not lines_df.empty else pd.DataFrame(columns=lcols),
-            trafos_df[cols] if not trafos_df.empty else pd.DataFrame(columns=cols)
-        ], sort=False)
-        
-        # Reindex to match nm.name_line order
-        terminals = terminals.reindex(line_names)
-        
-        # 2. Pre-calculate local bus ranks (1, 2, ...) per Voltage Level
-        buses_df = net.get_buses()
+        # 1. Pre-calculate local bus ranks (1, 2, ...) per Voltage Level
         if not buses_df.empty:
             # Sort by ID within each VL to ensure consistent 1, 2 numbering
             buses_sorted = buses_df.sort_index()
@@ -205,8 +183,9 @@ class PypowsyblObservation:
         else:
             bus_to_rank = pd.Series(dtype=int)
 
-        # 3. Map ranks and handle disconnections
+        # 2. Map ranks and handle disconnections
         # Default connected to True if missing (transformers often connected)
+        # Fix downcasting warnings by casting to bool after fillna
         conn1 = terminals['connected1'].fillna(True).astype(bool).values
         conn2 = terminals['connected2'].fillna(True).astype(bool).values
         

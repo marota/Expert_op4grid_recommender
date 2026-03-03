@@ -377,18 +377,37 @@ class NetworkManager:
                 id=line_id, connected1=True, connected2=True
             )
     
-    def get_line_flows(self) -> pd.DataFrame:
+    def get_line_flows(self, columns: Optional[List[str]] = None) -> pd.DataFrame:
         """
         Get current line flows (P, Q, I) for all lines.
         
+        Args:
+            columns: Optional list of columns to retrieve. 
+                    If None, returns all flow and connectivity columns.
+        
         Returns:
-            DataFrame with columns: p1, q1, i1, p2, q2, i2, connected
+            DataFrame with requested columns.
         """
-        lines_df = self.network.get_lines()[['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2']]
-        trafos_df = self.network.get_2_windings_transformers()[['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2']]
+        default_cols = ['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2']
+        if columns is None:
+            # Need to ensure connected1/2 are present for the 'connected' calculation below
+            cols_to_fetch = default_cols
+        else:
+            cols_to_fetch = columns
+            # But if the user wants 'connected', we might need to fetch the parts
+            if 'connected' in cols_to_fetch:
+                if 'connected1' not in cols_to_fetch: cols_to_fetch.append('connected1')
+                if 'connected2' not in cols_to_fetch: cols_to_fetch.append('connected2')
+        
+        # Filter columns to only those present in pypowsybl (some transformers might lack connected1/2)
+        # Actually pypowsybl columns are usually consistent per type.
+        lines_df = self.network.get_lines()[cols_to_fetch]
+        trafos_df = self.network.get_2_windings_transformers()[cols_to_fetch]
         
         all_branches = pd.concat([lines_df, trafos_df])
-        all_branches['connected'] = all_branches['connected1'] & all_branches['connected2']
+        
+        if 'connected' in cols_to_fetch or columns is None:
+            all_branches['connected'] = all_branches['connected1'] & all_branches['connected2']
         
         return all_branches
     
@@ -418,9 +437,10 @@ class NetworkManager:
         
         return thermal_limits
     
-    def get_bus_voltages(self) -> pd.DataFrame:
+    def get_bus_voltages(self, columns: Optional[List[str]] = None) -> pd.DataFrame:
         """Get bus voltage magnitudes and angles."""
-        return self.network.get_buses()[['v_mag', 'v_angle']]
+        cols = columns or ['v_mag', 'v_angle']
+        return self.network.get_buses()[cols]
     
     def reset_to_base(self):
         """Reset working variant to base state."""
