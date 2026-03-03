@@ -15,11 +15,12 @@ from alphaDeesp.core.alphadeesp import AlphaDeesp_warmStart
 # Default imports for grid2op backend - can be overridden via constructor
 from expert_op4grid_recommender.utils.simulation import check_rho_reduction as _default_check_rho_reduction
 from expert_op4grid_recommender.utils.simulation import create_default_action as _default_create_default_action
-from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, get_theta_node, sort_actions_by_score, add_prioritized_actions
+from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, get_theta_node, sort_actions_by_score, add_prioritized_actions, Timer
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph # For type hinting
 import networkx as nx
+from expert_op4grid_recommender import config
 
 class ActionDiscoverer:
     """
@@ -186,25 +187,23 @@ class ActionDiscoverer:
         if not hasattr(self, '_line_name_to_id'):
             self._line_name_to_id = {name: idx for idx, name in enumerate(self.obs.name_line)}
             self._sub_name_to_id = {name: idx for idx, name in enumerate(self.obs.name_sub)}
-            # Pre-compute line -> (sub_or_name, sub_ex_name) mapping
-            self._line_to_subs = {}
-            for name, line_id in self._line_name_to_id.items():
-                sub_or_name = self.obs.name_sub[self.obs.line_or_to_subid[line_id]]
-                sub_ex_name = self.obs.name_sub[self.obs.line_ex_to_subid[line_id]]
-                self._line_to_subs[name] = (sub_or_name, sub_ex_name)
+            # Vectorized pre-computation of line -> (sub_or_name, sub_ex_name) mapping
+            or_subs = self.obs.name_sub[self.obs.line_or_to_subid]
+            ex_subs = self.obs.name_sub[self.obs.line_ex_to_subid]
+            self._line_to_subs = dict(zip(self.obs.name_line, zip(or_subs, ex_subs)))
 
     def _build_active_edges_cache(self):
         """Pre-computes which node pairs have active (non-dashed/dotted) edges."""
         if hasattr(self, '_active_edges_cache'):
             return
-        self._active_edges_cache = {}
+        from collections import defaultdict
+        self._active_edges_cache = defaultdict(list)
         graph = self.g_overflow.g
-        for u, v, key, data in graph.edges(keys=True, data=True):
+        for u, v, data in graph.edges(data=True):
             style = data.get("style", "")
             if style not in ("dashed", "dotted") and "name" in data:
-                pair = (min(u, v), max(u, v))
-                if pair not in self._active_edges_cache:
-                    self._active_edges_cache[pair] = []
+                # Use a stable tuple key for undirected lookup
+                pair = (u, v) if u < v else (v, u)
                 self._active_edges_cache[pair].append(data["name"])
 
     def _get_active_edges_between_cached(self, sub_or_name: str, sub_ex_name: str) -> List[str]:
@@ -471,21 +470,27 @@ class ActionDiscoverer:
                     continue
                 rho_before = float(self.obs_defaut.rho[line_id])
                 rho_after = float(self.obs_linecut.rho[line_id])
-                if rho_after > 1.0:
-                    # Skip pre-existing overloads: lines already overloaded in N-state
-                    # (before any contingency) should not constrain disconnection scoring
+                if rho_after > rho_before:
+                    # Skip pre-existing overloads unless they worsen beyond threshold
                     n_state_rho = float(self.obs.rho[line_id])
+                    worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
+                    
                     if n_state_rho >= 1.0:
-                        continue
-                    if rho_before >= 1.0:
-                        # Existing overload not relieved in obs_linecut: fully constrained
-                        max_redispatch = 0.0
-                    else:
-                        # Newly overloaded line: compute binding flow margin
-                        delta_rho = rho_after - rho_before
-                        ratio = capacity_l * (1.0 - rho_before) / delta_rho
-                        if ratio > 0:
-                            max_redispatch = min(max_redispatch, ratio)
+                        if rho_after > n_state_rho * (1 + worsening_threshold):
+                            # Worsened pre-existing: consider with ratio = capacity_l (per user request)
+                            max_redispatch = min(max_redispatch, capacity_l)
+                        else:
+                            continue
+                    elif rho_after > 1.0:
+                        if rho_before >= 1.0:
+                            # Existing overload not relieved in obs_linecut: fully constrained
+                            max_redispatch = 0.0
+                        else:
+                            # Newly overloaded line: compute binding flow margin using user-revised formula
+                            # ratio = capacity_l * (rho_after - 1) / (rho_after - rho_before)
+                            ratio = capacity_l * (rho_after - 1.0) / (rho_after - rho_before)
+                            if ratio > 0:
+                                max_redispatch = min(max_redispatch, ratio)
 
         # Fallback: if no line provided a binding constraint (or obs_linecut is None),
         # max_redispatch stays at inf — this signals the "unconstrained" regime where all
@@ -587,10 +592,13 @@ class ActionDiscoverer:
             lines_to_reconnect (Set[str]): Set of candidate line names for reconnection.
             red_loop_paths (List[List[str]]): List of relevant network paths (substation names).
         """
+        if not lines_to_reconnect:
+            return
+
         map_action_score = {}
         red_loop_paths_sorted = sorted(red_loop_paths, key=len)
         capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
-        max_dispatch_flow = max(abs(val) for val in capacity_dict.values())
+        max_dispatch_flow = max(abs(val) for val in capacity_dict.values()) if capacity_dict else 0.0
 
         # --- Pre-compute data structures for O(1) lookups ---
         self._build_lookup_caches()
@@ -600,7 +608,6 @@ class ActionDiscoverer:
         path_pairs_list = self._build_path_consecutive_pairs(red_loop_paths_sorted)
 
         # Build reverse index: substation pair -> set of path indices that contain it
-        # This replaces the O(n_paths) scan per candidate with an O(1) dict lookup
         self._reco_pair_to_paths = {}
         for path_idx, pairs_set in enumerate(path_pairs_list):
             for pair in pairs_set:
@@ -608,32 +615,40 @@ class ActionDiscoverer:
                     self._reco_pair_to_paths[pair] = set()
                 self._reco_pair_to_paths[pair].add(path_idx)
 
-        # Pre-compute blocking disconnected lines per path
-        # This replaces the O(n_disconnected) inner loop per candidate×path with an O(1) set lookup
+        # Optimization: Pre-compute blocking status for all relevant segments globally
+        # Identify which segments are "blocked" (no active bypass) for EACH disconnected line
+        segment_to_blockers = {}
+        for disc_line in self.all_disconnected_lines:
+            disc_subs = self._line_to_subs.get(disc_line)
+            if not disc_subs:
+                continue
+            u, v = disc_subs
+            # Check if there's any active edge between these substations
+            if not self._get_active_edges_between_cached(u, v):
+                # This segment is blocked by this line
+                pair = tuple(sorted((u, v)))
+                if pair not in segment_to_blockers:
+                    segment_to_blockers[pair] = set()
+                segment_to_blockers[pair].add(disc_line)
+
+        # Pre-compute blocking lines per path by unioning blocked segments
         self._reco_path_blockers = {}
         for path_idx, pairs_set in enumerate(path_pairs_list):
-            blockers = set()
-            for disc_line in self.all_disconnected_lines:
-                disc_subs = self._line_to_subs.get(disc_line)
-                if disc_subs is None:
-                    continue
-                d_sub_or, d_sub_ex = disc_subs
-                if (d_sub_or, d_sub_ex) not in pairs_set and (d_sub_ex, d_sub_or) not in pairs_set:
-                    continue
-                # This disconnected line is on this path — check if active edges bypass it
-                if not self._get_active_edges_between_cached(d_sub_or, d_sub_ex):
-                    blockers.add(disc_line)
-            self._reco_path_blockers[path_idx] = blockers
+            path_blockers = set()
+            for pair in pairs_set:
+                sorted_pair = tuple(sorted(pair))
+                if sorted_pair in segment_to_blockers:
+                    path_blockers.update(segment_to_blockers[sorted_pair])
+            self._reco_path_blockers[path_idx] = path_blockers
 
-        # Pre-compute max dispatch flow per node to avoid repeated edge iteration
-        max_dispatch_flow_per_node = {}
-        for node in self.g_overflow.g.nodes():
-            sub_edges = list(self.g_overflow.g.out_edges(node, keys=True)) + list(
-                self.g_overflow.g.in_edges(node, keys=True))
-            if sub_edges:
-                max_dispatch_flow_per_node[node] = max(abs(capacity_dict[edge]) for edge in sub_edges)
-            else:
-                max_dispatch_flow_per_node[node] = 0.0
+        # Pre-compute max dispatch flow per node in O(E) instead of O(V*deg)
+        max_dispatch_flow_per_node = {node: 0.0 for node in self.g_overflow.g.nodes()}
+        for (u, v, key), cap in capacity_dict.items():
+            abs_cap = abs(cap)
+            if abs_cap > max_dispatch_flow_per_node.get(u, 0.0):
+                max_dispatch_flow_per_node[u] = abs_cap
+            if abs_cap > max_dispatch_flow_per_node.get(v, 0.0):
+                max_dispatch_flow_per_node[v] = abs_cap
 
         dispatch_flow_threshold = max_dispatch_flow * percentage_threshold_min_dispatch_flow
 
@@ -1640,78 +1655,99 @@ class ActionDiscoverer:
         """
         self.prioritized_actions = {}
 
-        # --- Extract Path Information (Convert Indices to Names) ---
-        lines_dispatch, _ = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=False)
-        # Since the graph nodes are now indices, lines_dispatch contains indices. We need names.
-        # However, check_other_reconnectable_line_on_path uses obs to map names to subs, so it expects names.
-        # Let's get the names from the obs object.
-        lines_dispatch_names = lines_dispatch  # [obs.name_line[line_idx] for line_idx in lines_dispatch]
+        with Timer("Priorization Preparation"):
+            name_sub_arr = np.array(self.obs.name_sub)
+            n_subs = len(name_sub_arr)
 
-        if hasattr(self.g_distribution_graph, 'red_loops') and self.g_distribution_graph.red_loops is not None and not self.g_distribution_graph.red_loops.empty:
-            df = self.g_distribution_graph.red_loops
-            try: # Robust check for Path column existence
-                if "Path" in df.columns:
-                    indices = list(df["Path"].astype(str).drop_duplicates().index)
-                    paths_indices = df["Path"].iloc[indices]
-                    red_loop_paths_names = [[self.obs.name_sub[idx] for idx in p if idx < len(self.obs.name_sub)] for p in paths_indices]
-                else: red_loop_paths_names = []
-            except Exception as e:
-                print(f"Warning: Error processing red_loops DataFrame: {e}")
+
+            # --- Extract Path Information (Convert Indices to Names) ---
+            lines_dispatch, _ = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=False)
+            # Since the graph nodes are now indices, lines_dispatch contains indices. We need names.
+            # However, check_other_reconnectable_line_on_path uses obs to map names to subs, so it expects names.
+            # Let's get the names from the obs object.
+            lines_dispatch_names = lines_dispatch  # [obs.name_line[line_idx] for line_idx in lines_dispatch]
+
+
+            if hasattr(self.g_distribution_graph, 'red_loops') and self.g_distribution_graph.red_loops is not None and not self.g_distribution_graph.red_loops.empty:
+                df = self.g_distribution_graph.red_loops
+                try:
+                    if "Path" in df.columns:
+                        # Use tuples instead of string conversion for faster deduplication
+                        unique_paths = df["Path"].map(tuple).unique()
+                        # Use NumPy fancy indexing for much faster name lookups
+                        red_loop_paths_names = [
+                            list(name_sub_arr[[idx for idx in p if idx < n_subs]])
+                            for p in unique_paths
+                        ]
+                    else:
+                        red_loop_paths_names = []
+                except Exception as e:
+                    print(f"Warning: Error processing red_loops DataFrame: {e}")
+                    red_loop_paths_names = []
+            else:
                 red_loop_paths_names = []
-        else:
-            red_loop_paths_names = []
 
-        _, nodes_dispatch_loop_indices = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
-        nodes_dispatch_loop_names = [self.obs.name_sub[idx] for idx in nodes_dispatch_loop_indices if idx < len(self.obs.name_sub)]
+            _, nodes_dispatch_loop_indices = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
+            nodes_dispatch_loop_names = list(name_sub_arr[[idx for idx in nodes_dispatch_loop_indices if idx < n_subs]])
 
-        lines_constrained_names, nodes_constrained_indices, _, other_blue_nodes_indices = self.g_distribution_graph.get_constrained_edges_nodes()
-        nodes_blue_path_indices = nodes_constrained_indices + other_blue_nodes_indices
-        nodes_blue_path_names = [self.obs.name_sub[idx] for idx in nodes_blue_path_indices if idx < len(self.obs.name_sub)]
-        hubs_names = self.hubs # Assume hubs passed during init were already names
+
+            lines_constrained_names, nodes_constrained_indices, _, other_blue_nodes_indices = self.g_distribution_graph.get_constrained_edges_nodes()
+            nodes_blue_path_indices = nodes_constrained_indices + other_blue_nodes_indices
+            nodes_blue_path_names = list(name_sub_arr[[idx for idx in nodes_blue_path_indices if idx < n_subs]])
+            hubs_names = self.hubs # Assume hubs passed during init were already names
 
         # --- Call Discovery Methods ---
-        print("\n--- Verifying relevant line reconnections ---")
         interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
-        print(interesting_lines_to_reconnect)
-        self.verify_relevant_reconnections(interesting_lines_to_reconnect, red_loop_paths_names)
+        if interesting_lines_to_reconnect:
+            with Timer("Verifying relevant line reconnections"):
+                print("\n--- Verifying relevant line reconnections ---")
+                print(interesting_lines_to_reconnect)
+                self.verify_relevant_reconnections(interesting_lines_to_reconnect, red_loop_paths_names)
 
-        print("\n--- Verifying relevant node merging ---")
-        self.find_relevant_node_merging(nodes_dispatch_loop_names)
+        if nodes_dispatch_loop_names:
+            with Timer("Verifying relevant node merging"):
+                print("\n--- Verifying relevant node merging ---")
+                self.find_relevant_node_merging(nodes_dispatch_loop_names)
 
-        print("\n--- Verifying relevant node splitting ---")
-        self.find_relevant_node_splitting(hubs_names, nodes_blue_path_names)
+        if hubs_names or nodes_blue_path_names:
+            with Timer("Verifying relevant node splitting"):
+                print("\n--- Verifying relevant node splitting ---")
+                self.find_relevant_node_splitting(hubs_names, nodes_blue_path_names)
 
-        print("\n--- Verifying relevant line disconnections ---")
-        self.find_relevant_disconnections(lines_constrained_names)
+        if lines_constrained_names:
+            with Timer("Verifying relevant line disconnections"):
+                print("\n--- Verifying relevant line disconnections ---")
+                self.find_relevant_disconnections(lines_constrained_names)
 
-        # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
-        from expert_op4grid_recommender import config
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_RECONNECTIONS
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_merges, n_action_max, n_action_max_per_type=config.MIN_CLOSE_COUPLING
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=config.MIN_OPEN_COUPLING
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
-        )
+        with Timer("Finalizing   Priorization"):
+            # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
+            from expert_op4grid_recommender import config
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_RECONNECTIONS
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_merges, n_action_max, n_action_max_per_type=config.MIN_CLOSE_COUPLING
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=config.MIN_OPEN_COUPLING
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
+            )
 
-        # 2. Fill the remaining slots sequentially using the original priority logic and limits
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_merges, n_action_max
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=n_split_max
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_disconnections, n_action_max
-        )
+            # 2. Fill the remaining slots sequentially using the original priority logic and limits
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_merges, n_action_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=n_split_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_disconnections, n_action_max
+            )
 
         # Build global action scores dictionary per action type, sorted by descending score
         # Each type contains "scores" (sorted dict) and "params" (underlying hypotheses)

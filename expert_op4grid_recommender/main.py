@@ -372,17 +372,25 @@ def run_analysis(analysis_date: Optional[datetime],
     if not has_converged:
         raise RuntimeError("Initial contingency simulation failed. Cannot proceed.")
 
-    # Find overloads caused by the contingency (not pre-existing)
+    # Find overloads caused by the contingency (not pre-existing, or significantly worsened)
     lines_overloaded_ids = []
     pre_existing_overloads = []  # for logging
     pre_existing_rho = {}  # {line_idx: rho_N} — used to exclude from max_rho unless worsened
+    worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
+
     for i, l in enumerate(obs_simu_defaut.name_line):
         if l in lines_we_care_about and obs_simu_defaut.rho[i] >= 1:
             if obs.rho[i] >= 1:
-                # This line was already overloaded before the contingency — skip it
-                pre_existing_overloads.append(
-                    f"{l} (rho_N={obs.rho[i]:.3f}, rho_N-1={obs_simu_defaut.rho[i]:.3f})"
-                )
+                # This line was already overloaded before the contingency
+                # Check if it worsened significantly
+                if obs_simu_defaut.rho[i] > obs.rho[i] * (1 + worsening_threshold):
+                    # Worsened pre-existing overload: include in analysis
+                    lines_overloaded_ids.append(i)
+                else:
+                    # Not worsened enough: skip and log
+                    pre_existing_overloads.append(
+                        f"{l} (rho_N={obs.rho[i]:.3f}, rho_N-1={obs_simu_defaut.rho[i]:.3f})"
+                    )
                 pre_existing_rho[i] = float(obs.rho[i])
             else:
                 lines_overloaded_ids.append(i)
