@@ -1659,42 +1659,42 @@ class ActionDiscoverer:
             name_sub_arr = np.array(self.obs.name_sub)
             n_subs = len(name_sub_arr)
 
-            with Timer("lines_dispatch"):
-                # --- Extract Path Information (Convert Indices to Names) ---
-                lines_dispatch, _ = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=False)
-                # Since the graph nodes are now indices, lines_dispatch contains indices. We need names.
-                # However, check_other_reconnectable_line_on_path uses obs to map names to subs, so it expects names.
-                # Let's get the names from the obs object.
-                lines_dispatch_names = lines_dispatch  # [obs.name_line[line_idx] for line_idx in lines_dispatch]
 
-            with Timer("red_loops"):
-                if hasattr(self.g_distribution_graph, 'red_loops') and self.g_distribution_graph.red_loops is not None and not self.g_distribution_graph.red_loops.empty:
-                    df = self.g_distribution_graph.red_loops
-                    try:
-                        if "Path" in df.columns:
-                            # Use tuples instead of string conversion for faster deduplication
-                            unique_paths = df["Path"].map(tuple).unique()
-                            # Use NumPy fancy indexing for much faster name lookups
-                            red_loop_paths_names = [
-                                list(name_sub_arr[[idx for idx in p if idx < n_subs]])
-                                for p in unique_paths
-                            ]
-                        else:
-                            red_loop_paths_names = []
-                    except Exception as e:
-                        print(f"Warning: Error processing red_loops DataFrame: {e}")
+            # --- Extract Path Information (Convert Indices to Names) ---
+            lines_dispatch, _ = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=False)
+            # Since the graph nodes are now indices, lines_dispatch contains indices. We need names.
+            # However, check_other_reconnectable_line_on_path uses obs to map names to subs, so it expects names.
+            # Let's get the names from the obs object.
+            lines_dispatch_names = lines_dispatch  # [obs.name_line[line_idx] for line_idx in lines_dispatch]
+
+
+            if hasattr(self.g_distribution_graph, 'red_loops') and self.g_distribution_graph.red_loops is not None and not self.g_distribution_graph.red_loops.empty:
+                df = self.g_distribution_graph.red_loops
+                try:
+                    if "Path" in df.columns:
+                        # Use tuples instead of string conversion for faster deduplication
+                        unique_paths = df["Path"].map(tuple).unique()
+                        # Use NumPy fancy indexing for much faster name lookups
+                        red_loop_paths_names = [
+                            list(name_sub_arr[[idx for idx in p if idx < n_subs]])
+                            for p in unique_paths
+                        ]
+                    else:
                         red_loop_paths_names = []
-                else:
+                except Exception as e:
+                    print(f"Warning: Error processing red_loops DataFrame: {e}")
                     red_loop_paths_names = []
-            with Timer("nodes_dispatch_loop_indices"):
-                _, nodes_dispatch_loop_indices = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
-                nodes_dispatch_loop_names = list(name_sub_arr[[idx for idx in nodes_dispatch_loop_indices if idx < n_subs]])
+            else:
+                red_loop_paths_names = []
 
-            with Timer("nodes_constrained_indices"):
-                lines_constrained_names, nodes_constrained_indices, _, other_blue_nodes_indices = self.g_distribution_graph.get_constrained_edges_nodes()
-                nodes_blue_path_indices = nodes_constrained_indices + other_blue_nodes_indices
-                nodes_blue_path_names = list(name_sub_arr[[idx for idx in nodes_blue_path_indices if idx < n_subs]])
-                hubs_names = self.hubs # Assume hubs passed during init were already names
+            _, nodes_dispatch_loop_indices = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
+            nodes_dispatch_loop_names = list(name_sub_arr[[idx for idx in nodes_dispatch_loop_indices if idx < n_subs]])
+
+
+            lines_constrained_names, nodes_constrained_indices, _, other_blue_nodes_indices = self.g_distribution_graph.get_constrained_edges_nodes()
+            nodes_blue_path_indices = nodes_constrained_indices + other_blue_nodes_indices
+            nodes_blue_path_names = list(name_sub_arr[[idx for idx in nodes_blue_path_indices if idx < n_subs]])
+            hubs_names = self.hubs # Assume hubs passed during init were already names
 
         # --- Call Discovery Methods ---
         interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
