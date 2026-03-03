@@ -1655,34 +1655,46 @@ class ActionDiscoverer:
         """
         self.prioritized_actions = {}
 
-        # --- Extract Path Information (Convert Indices to Names) ---
-        lines_dispatch, _ = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=False)
-        # Since the graph nodes are now indices, lines_dispatch contains indices. We need names.
-        # However, check_other_reconnectable_line_on_path uses obs to map names to subs, so it expects names.
-        # Let's get the names from the obs object.
-        lines_dispatch_names = lines_dispatch  # [obs.name_line[line_idx] for line_idx in lines_dispatch]
+        with Timer("Priorization Preparation"):
+            name_sub_arr = np.array(self.obs.name_sub)
+            n_subs = len(name_sub_arr)
 
-        if hasattr(self.g_distribution_graph, 'red_loops') and self.g_distribution_graph.red_loops is not None and not self.g_distribution_graph.red_loops.empty:
-            df = self.g_distribution_graph.red_loops
-            try: # Robust check for Path column existence
-                if "Path" in df.columns:
-                    indices = list(df["Path"].astype(str).drop_duplicates().index)
-                    paths_indices = df["Path"].iloc[indices]
-                    red_loop_paths_names = [[self.obs.name_sub[idx] for idx in p if idx < len(self.obs.name_sub)] for p in paths_indices]
-                else: red_loop_paths_names = []
-            except Exception as e:
-                print(f"Warning: Error processing red_loops DataFrame: {e}")
-                red_loop_paths_names = []
-        else:
-            red_loop_paths_names = []
+            with Timer("lines_dispatch"):
+                # --- Extract Path Information (Convert Indices to Names) ---
+                lines_dispatch, _ = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=False)
+                # Since the graph nodes are now indices, lines_dispatch contains indices. We need names.
+                # However, check_other_reconnectable_line_on_path uses obs to map names to subs, so it expects names.
+                # Let's get the names from the obs object.
+                lines_dispatch_names = lines_dispatch  # [obs.name_line[line_idx] for line_idx in lines_dispatch]
 
-        _, nodes_dispatch_loop_indices = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
-        nodes_dispatch_loop_names = [self.obs.name_sub[idx] for idx in nodes_dispatch_loop_indices if idx < len(self.obs.name_sub)]
+            with Timer("red_loops"):
+                if hasattr(self.g_distribution_graph, 'red_loops') and self.g_distribution_graph.red_loops is not None and not self.g_distribution_graph.red_loops.empty:
+                    df = self.g_distribution_graph.red_loops
+                    try:
+                        if "Path" in df.columns:
+                            # Use tuples instead of string conversion for faster deduplication
+                            unique_paths = df["Path"].map(tuple).unique()
+                            # Use NumPy fancy indexing for much faster name lookups
+                            red_loop_paths_names = [
+                                list(name_sub_arr[[idx for idx in p if idx < n_subs]])
+                                for p in unique_paths
+                            ]
+                        else:
+                            red_loop_paths_names = []
+                    except Exception as e:
+                        print(f"Warning: Error processing red_loops DataFrame: {e}")
+                        red_loop_paths_names = []
+                else:
+                    red_loop_paths_names = []
+            with Timer("nodes_dispatch_loop_indices"):
+                _, nodes_dispatch_loop_indices = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
+                nodes_dispatch_loop_names = list(name_sub_arr[[idx for idx in nodes_dispatch_loop_indices if idx < n_subs]])
 
-        lines_constrained_names, nodes_constrained_indices, _, other_blue_nodes_indices = self.g_distribution_graph.get_constrained_edges_nodes()
-        nodes_blue_path_indices = nodes_constrained_indices + other_blue_nodes_indices
-        nodes_blue_path_names = [self.obs.name_sub[idx] for idx in nodes_blue_path_indices if idx < len(self.obs.name_sub)]
-        hubs_names = self.hubs # Assume hubs passed during init were already names
+            with Timer("nodes_constrained_indices"):
+                lines_constrained_names, nodes_constrained_indices, _, other_blue_nodes_indices = self.g_distribution_graph.get_constrained_edges_nodes()
+                nodes_blue_path_indices = nodes_constrained_indices + other_blue_nodes_indices
+                nodes_blue_path_names = list(name_sub_arr[[idx for idx in nodes_blue_path_indices if idx < n_subs]])
+                hubs_names = self.hubs # Assume hubs passed during init were already names
 
         # --- Call Discovery Methods ---
         interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
@@ -1707,34 +1719,35 @@ class ActionDiscoverer:
                 print("\n--- Verifying relevant line disconnections ---")
                 self.find_relevant_disconnections(lines_constrained_names)
 
-        # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
-        from expert_op4grid_recommender import config
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_RECONNECTIONS
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_merges, n_action_max, n_action_max_per_type=config.MIN_CLOSE_COUPLING
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=config.MIN_OPEN_COUPLING
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
-        )
+        with Timer("Finalizing   Priorization"):
+            # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
+            from expert_op4grid_recommender import config
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_RECONNECTIONS
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_merges, n_action_max, n_action_max_per_type=config.MIN_CLOSE_COUPLING
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=config.MIN_OPEN_COUPLING
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
+            )
 
-        # 2. Fill the remaining slots sequentially using the original priority logic and limits
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_merges, n_action_max
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=n_split_max
-        )
-        self.prioritized_actions = add_prioritized_actions(
-            self.prioritized_actions, self.identified_disconnections, n_action_max
-        )
+            # 2. Fill the remaining slots sequentially using the original priority logic and limits
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_merges, n_action_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=n_split_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_disconnections, n_action_max
+            )
 
         # Build global action scores dictionary per action type, sorted by descending score
         # Each type contains "scores" (sorted dict) and "params" (underlying hypotheses)
