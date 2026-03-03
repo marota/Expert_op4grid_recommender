@@ -1677,19 +1677,23 @@ class ActionDiscoverer:
         hubs_names = self.hubs # Assume hubs passed during init were already names
 
         # --- Call Discovery Methods ---
-        print("\n--- Verifying relevant line reconnections ---")
-        interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
-        print(interesting_lines_to_reconnect)
-        self.verify_relevant_reconnections(interesting_lines_to_reconnect, red_loop_paths_names)
+        with Timer("Verifying relevant line reconnections"):
+            print("\n--- Verifying relevant line reconnections ---")
+            interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
+            print(interesting_lines_to_reconnect)
+            self.verify_relevant_reconnections(interesting_lines_to_reconnect, red_loop_paths_names)
 
-        print("\n--- Verifying relevant node merging ---")
-        self.find_relevant_node_merging(nodes_dispatch_loop_names)
+        with Timer("Verifying relevant node merging"):
+            print("\n--- Verifying relevant node merging ---")
+            self.find_relevant_node_merging(nodes_dispatch_loop_names)
 
-        print("\n--- Verifying relevant node splitting ---")
-        self.find_relevant_node_splitting(hubs_names, nodes_blue_path_names)
+        with Timer("Verifying relevant node splitting"):
+            print("\n--- Verifying relevant node splitting ---")
+            self.find_relevant_node_splitting(hubs_names, nodes_blue_path_names)
 
-        print("\n--- Verifying relevant line disconnections ---")
-        self.find_relevant_disconnections(lines_constrained_names)
+        with Timer("Verifying relevant line disconnections"):
+            print("\n--- Verifying relevant line disconnections ---")
+            self.find_relevant_disconnections(lines_constrained_names)
 
         # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
         from expert_op4grid_recommender import config
