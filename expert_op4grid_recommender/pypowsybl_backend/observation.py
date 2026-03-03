@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
 import pypowsybl.loadflow as lf
-from expert_op4grid_recommender.utils.helpers import Timer
+# from expert_op4grid_recommender.utils.helpers import Timer
 
 if TYPE_CHECKING:
     from .network_manager import NetworkManager
@@ -79,56 +79,48 @@ class PypowsyblObservation:
         nm = self._network_manager
         net = nm.network
 
-        with Timer("Refresh state: pypowsybl data retrieval"):
-            # Line and transformer information - fetch all at once including terminal buses
-            # Columns needed for: flows, status, angles, and bus assignments
-            line_cols = ['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2', 'bus1_id', 'bus2_id']
-            # nm.get_line_flows doesn't yet support bus1/2_id easily without internal logic change
-            # Let's just do it here to ensure absolute control and minimal calls
-            lines_df = net.get_lines()[line_cols]
-            trafos_df = net.get_2_windings_transformers()[line_cols]
-            all_terminals_df = pd.concat([lines_df, trafos_df])
-            reindexed_flows = all_terminals_df.reindex(nm.name_line)
+        # Line and transformer information - fetch all at once including terminal buses
+        # Columns needed for: flows, status, angles, and bus assignments
+        line_cols = ['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2', 'bus1_id', 'bus2_id']
+        # nm.get_line_flows doesn't yet support bus1/2_id easily without internal logic change
+        # Let's just do it here to ensure absolute control and minimal calls
+        lines_df = net.get_lines()[line_cols]
+        trafos_df = net.get_2_windings_transformers()[line_cols]
+        all_terminals_df = pd.concat([lines_df, trafos_df])
+        reindexed_flows = all_terminals_df.reindex(nm.name_line)
 
-            # Bus voltages and angles - fetch with voltage_level_id for bus assignments
-            bus_cols = ['v_mag', 'v_angle', 'voltage_level_id']
-            bus_data_df = net.get_buses()[bus_cols]
-            bus_df_aligned = bus_data_df.reindex(nm.name_sub)
+        # Bus voltages and angles - fetch with voltage_level_id for bus assignments
+        bus_cols = ['v_mag', 'v_angle', 'voltage_level_id']
+        bus_data_df = net.get_buses()[bus_cols]
+        bus_df_aligned = bus_data_df.reindex(nm.name_sub)
 
-        with Timer("Refresh state: cache line arrays"):
-            # Cache line currents and powers as arrays for fast access
-            self._cache_line_arrays(reindexed_flows)
+        # Cache line currents and powers as arrays for fast access
+        self._cache_line_arrays(reindexed_flows)
 
-        with Timer("Refresh state: compute rho"):
-            # Compute rho (loading ratio)
-            self._compute_rho()
+        # Compute rho (loading ratio)
+        self._compute_rho()
 
-        with Timer("Refresh state: line status"):
-            # Line status - robustly convert to bool to avoid warnings
-            self._line_status = reindexed_flows['connected1'].fillna(True).astype(bool).values & \
-                                reindexed_flows['connected2'].fillna(True).astype(bool).values
+        # Line status - robustly convert to bool to avoid warnings
+        self._line_status = reindexed_flows['connected1'].fillna(True).astype(bool).values & \
+                            reindexed_flows['connected2'].fillna(True).astype(bool).values
 
-        with Timer("Refresh state: bus voltages"):
-            # Bus voltages and angles
-            self._v_mag = bus_df_aligned['v_mag'].values
-            self._v_angle = bus_df_aligned['v_angle'].values
+        # Bus voltages and angles
+        self._v_mag = bus_df_aligned['v_mag'].values
+        self._v_angle = bus_df_aligned['v_angle'].values
 
-        with Timer("Refresh state: compute terminal angles"):
-            # Get angles per line terminal - pass pre-fetched bus data
-            self._compute_line_angles(reindexed_flows, bus_data_df['v_angle'])
+        # Get angles per line terminal - pass pre-fetched bus data
+        self._compute_line_angles(reindexed_flows, bus_data_df['v_angle'])
 
-        with Timer("Refresh state: compute terminal buses"):
-            # Compute bus assignments for line terminals - pass pre-fetched data
-            self._compute_line_buses(reindexed_flows, bus_data_df)
+        # Compute bus assignments for line terminals - pass pre-fetched data
+        self._compute_line_buses(reindexed_flows, bus_data_df)
 
-        with Timer("Refresh state: load and gen"):
-            # Load and generation - ensure alignment with name_load/name_gen
-            loads_df = net.get_loads()[['p', 'q']].reindex(nm.name_load)
-            gens_df = net.get_generators()[['p', 'q']].reindex(nm.name_gen)
-            self._load_p = loads_df['p'].fillna(0.0).values
-            self._load_q = loads_df['q'].fillna(0.0).values
-            self._gen_p = gens_df['p'].fillna(0.0).values
-            self._gen_q = gens_df['q'].fillna(0.0).values
+        # Load and generation - ensure alignment with name_load/name_gen
+        loads_df = net.get_loads()[['p', 'q']].reindex(nm.name_load)
+        gens_df = net.get_generators()[['p', 'q']].reindex(nm.name_gen)
+        self._load_p = loads_df['p'].fillna(0.0).values
+        self._load_q = loads_df['q'].fillna(0.0).values
+        self._gen_p = gens_df['p'].fillna(0.0).values
+        self._gen_q = gens_df['q'].fillna(0.0).values
     
     def _cache_line_arrays(self, reindexed_flows: pd.DataFrame):
         """Cache line current and power arrays for fast property access. OPTIMIZED with reindex."""
@@ -644,36 +636,30 @@ class PypowsyblObservation:
         info = {"exception": []}
 
         try:
-            with Timer("Action simulation"):
-                with Timer("Variant creation"):
-                    # Create temporary variant
-                    nm.create_variant(variant_id)
-                    nm.set_working_variant(variant_id)
-    
-                with Timer("Apply action"):
-                    # Apply action
-                    action.apply(nm)
-    
-                with Timer("Run load flow"):
-                    # Run load flow
-                    result = nm.run_load_flow()
-    
-                if result is None or result.status != lf.ComponentStatus.CONVERGED:
-                    info["exception"].append(
-                        Exception(f"Load flow did not converge: {result.status if result else 'No result'}")
-                    )
-                    # Return observation with NaN values
-                    with Timer("Observation creation (failed)"):
-                        obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits, 
-                                                       variant_id=variant_id if keep_variant else None)
-                    return obs_simu, 0.0, True, info
-    
-                # Create observation from simulated state
-                with Timer("Observation creation (success)"):
-                    obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
-                                                   variant_id=variant_id if keep_variant else None)
-    
-                return obs_simu, 0.0, False, info
+            # Create temporary variant
+            nm.create_variant(variant_id)
+            nm.set_working_variant(variant_id)
+
+            # Apply action
+            action.apply(nm)
+
+            # Run load flow
+            result = nm.run_load_flow()
+
+            if result is None or result.status != lf.ComponentStatus.CONVERGED:
+                info["exception"].append(
+                    Exception(f"Load flow did not converge: {result.status if result else 'No result'}")
+                )
+                # Return observation with NaN values
+                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits, 
+                                               variant_id=variant_id if keep_variant else None)
+                return obs_simu, 0.0, True, info
+
+            # Create observation from simulated state
+            obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
+                                           variant_id=variant_id if keep_variant else None)
+
+            return obs_simu, 0.0, False, info
 
         except Exception as e:
             print(f"Warning: Action simulation failed for action {action}: {e}")
