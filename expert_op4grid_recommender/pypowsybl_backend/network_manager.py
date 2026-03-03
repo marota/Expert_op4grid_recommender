@@ -345,7 +345,20 @@ class NetworkManager:
                 # DC load flow - run_dc uses its own default parameters
                 results = lf.run_dc(self.network)
             else:
-                results = lf.run_ac(self.network, parameters=self.lf_parameters)
+                try:
+                    results = lf.run_ac(self.network, parameters=self.lf_parameters)
+                except Exception as e:
+                    # If PREVIOUS_VALUES failed (e.g. undefined voltage), retry with DC_VALUES
+                    if self.lf_parameters.voltage_init_mode == lf.VoltageInitMode.PREVIOUS_VALUES:
+                        # Create a copy or new parameters with DC_VALUES
+                        # For simplicity, we can just create a temporary Parameters object
+                        # or update the existing one if we want it to be permanent (but here temporary is safer/better)
+                        fallback_params = lf.Parameters.from_json(self.lf_parameters.to_json())
+                        fallback_params.voltage_init_mode = lf.VoltageInitMode.DC_VALUES
+                        print(f"Warning: Load flow with PREVIOUS_VALUES failed ({e}). Retrying with DC_VALUES...")
+                        results = lf.run_ac(self.network, parameters=fallback_params)
+                    else:
+                        raise e
             
             return results[0] if results else None
         except Exception as e:
