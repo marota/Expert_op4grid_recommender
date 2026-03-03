@@ -544,9 +544,23 @@ def run_analysis(analysis_date: Optional[datetime],
         act_defaut = create_default_action(env.action_space, current_lines_defaut)
 
         # Compute baseline rho once for all actions
-        baseline_rho, _ = compute_baseline(
-            obs, current_timestep, act_defaut, act_reco_maintenance, lines_overloaded_ids
-        )
+        baseline_rho=obs_simu_defaut.rho[lines_overloaded_ids]
+        #baseline_rho, _ = compute_baseline(
+        #    obs, current_timestep, act_defaut, act_reco_maintenance, lines_overloaded_ids
+        #)
+
+        # Performance optimization: Pre-calculate masks and baseline for large grids
+        num_lines = len(obs.name_line)
+        pre_existing_baseline = np.zeros(num_lines)
+        is_pre_existing = np.zeros(num_lines, dtype=bool)
+        for idx, rho_val in pre_existing_rho.items():
+            pre_existing_baseline[idx] = rho_val
+            is_pre_existing[idx] = True
+
+        if lines_we_care_about is not None and len(lines_we_care_about) > 0:
+            care_mask = np.isin(obs.name_line, list(lines_we_care_about))
+        else:
+            care_mask = np.ones(num_lines, dtype=bool)
 
         detailed_actions = {}
         for action_id, action in prioritized_actions.items():
@@ -582,20 +596,18 @@ def run_analysis(analysis_date: Optional[datetime],
                 # excluding pre-existing overloads unless worsened beyond threshold
                 worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
                 action_rho = obs_simu_action.rho
-                for idx in range(len(action_rho)):
-                    line_name = obs_simu_action.name_line[idx]
-                    # Skip lines not in care set
-                    if lines_we_care_about is not None and len(lines_we_care_about) > 0:
-                        if line_name not in lines_we_care_about:
-                            continue
-                    # Skip pre-existing overloads unless worsened
-                    if idx in pre_existing_rho:
-                        if action_rho[idx] <= pre_existing_rho[idx] * (1 + worsening_threshold):
-                            continue
-                    rho_val = float(action_rho[idx])
-                    if rho_val > max_rho:
-                        max_rho = rho_val
-                        max_rho_line = line_name
+
+                # Optimized vectorized max rho calculation
+                # Keep lines that are in care set AND (NOT pre-existing OR worsened beyond threshold)
+                worsened_mask = action_rho > pre_existing_baseline * (1 + worsening_threshold)
+                eligible_mask = care_mask & (~is_pre_existing | worsened_mask)
+
+                if np.any(eligible_mask):
+                    masked_rho = action_rho[eligible_mask]
+                    max_idx_in_masked = np.argmax(masked_rho)
+                    max_rho = float(masked_rho[max_idx_in_masked])
+                    # Map back to original index to get the line name
+                    max_rho_line = obs_simu_action.name_line[np.where(eligible_mask)[0][max_idx_in_masked]]
 
             # Print summary
             print(f"{action_id}")
@@ -604,7 +616,6 @@ def run_analysis(analysis_date: Optional[datetime],
             if rho_before is not None and rho_after is not None:
                 print(f"  Rho reduction from {np.round(rho_before, 2)} to {np.round(rho_after, 2)}")
                 print(f"  New max rho is {max_rho:.2f} on line {max_rho_line}")
-
             detailed_actions[action_id] = {
                 "action": action,
                 "description_unitaire": description_unitaire,
