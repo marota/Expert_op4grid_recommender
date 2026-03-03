@@ -40,13 +40,13 @@ CASE_NAME = "defaut_" + "_".join(map(str, LINES_DEFAUT)) + "_t" + str(TIMESTEP)
 # -------------------
 # ENV_FOLDER = "../data" # OLD - Incorrect when run from root
 ENV_FOLDER = PROJECT_ROOT / "data" # NEW - Path relative to project root
-ENV_NAME = "bare_env_small_grid_test"#"bare_env_20241125T1400Z"#"bare_env_20240828T0100Z"#"bare_env_small_grid_test"#"bare_env_20240828T0100Z"#"bare_env_20240828T0100Z_dijon_only"#"env_dijon_v2_assistant"
+ENV_NAME = "bare_env_20240828T0100Z"#"bare_env_20241125T1400Z"#"bare_env_20240828T0100Z"#"bare_env_small_grid_test"#"bare_env_20240828T0100Z"#"bare_env_20240828T0100Z_dijon_only"#"env_dijon_v2_assistant"
 ENV_PATH = ENV_FOLDER / ENV_NAME # Use Path object joining
 
 # ACTION_SPACE_FOLDER = os.path.join(ENV_FOLDER,"action_space") # OLD
 ACTION_SPACE_FOLDER = ENV_FOLDER / "action_space" # NEW
 
-FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json"#"AllFrance_coupling_reco_deco_actions_20240828T0100Z.json"#"AllFrance_coupling_reco_deco_actions_20241125T1400Z.json"#"reduced_model_actions_test.json"#"AllFrance_coupling_reco_deco_actions_20240828T0100Z.json" #"actions_repas_most_frequent_topologies_revised.json"
+FILE_ACTION_SPACE_DESC = "AllFrance_coupling_reco_deco_actions_20240828T0100Z.json"#"AllFrance_coupling_reco_deco_actions_20240828T0100Z.json"#"AllFrance_coupling_reco_deco_actions_20241125T1400Z.json"#"reduced_model_actions_test.json"#"AllFrance_coupling_reco_deco_actions_20240828T0100Z.json" #"actions_repas_most_frequent_topologies_revised.json"
 # ACTION_FILE_PATH = os.path.join(ACTION_SPACE_FOLDER, FILE_ACTION_SPACE_DESC) # OLD
 ACTION_FILE_PATH = ACTION_SPACE_FOLDER / FILE_ACTION_SPACE_DESC # NEW
 

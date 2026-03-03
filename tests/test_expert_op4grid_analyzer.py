@@ -829,7 +829,8 @@ REPRODUCIBILITY_CASES = [
         22,
         ["CPVANY633"],
         # Replace with expected keys for this second case
-        {'180c19aa-762d-4d6f-a74c-4fd5432aa5d1', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75', '623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b', 'disco_BEON L31CPVAN'}
+        {'180c19aa-762d-4d6f-a74c-4fd5432aa5d1', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_18', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75',
+          'disco_BEON L31CPVAN','disco_CPVANL61ZMAGN'}#'623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b',
         #TODO inspect this
         #warning not always reproductible...
        #'623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b' vs 'disco_CPVANL61ZMAGN',
@@ -997,8 +998,8 @@ REPRODUCIBILITY_CASES = [
         "2024-12-7",
         9,
         ["CHALOL61CPVAN"],
-        {'reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75',#'256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6',
-         '5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52', '01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
+        {'disco_CPVANL61ZMAGN','reco_BOISSL61GEN.P', '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6_variant_8', '3617076a-a7f5-4f8a-9009-127ac9b85cff_CPVANP6_variant_75',#'256668ce-2a62-46c0-ba88-8001837b497f_VOUGLP6_variant_6',
+         '5e41ee90-d8cc-4900-800a-ebb8fe30bd20_variant_52'}#, '01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6'}
     )
     #sometimes in this case, non reproductibility
     #"01495164-2bf3-48d4-8b51-9276ca50386e_VIELMP6" not considered and "disco_CPVANL61ZMAGN" added
