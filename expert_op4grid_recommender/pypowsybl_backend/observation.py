@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
 import pypowsybl.loadflow as lf
+from expert_op4grid_recommender.utils.helpers import Timer
 
 if TYPE_CHECKING:
     from .network_manager import NetworkManager
@@ -744,30 +745,36 @@ class PypowsyblObservation:
         info = {"exception": []}
 
         try:
-            # Create temporary variant
-            nm.create_variant(variant_id)
-            nm.set_working_variant(variant_id)
-
-            # Apply action
-            action.apply(nm)
-
-            # Run load flow
-            result = nm.run_load_flow()
-
-            if result is None or result.status != lf.ComponentStatus.CONVERGED:
-                info["exception"].append(
-                    Exception(f"Load flow did not converge: {result.status if result else 'No result'}")
-                )
-                # Return observation with NaN values
-                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits, 
-                                               variant_id=variant_id if keep_variant else None)
-                return obs_simu, 0.0, True, info
-
-            # Create observation from simulated state
-            obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
-                                           variant_id=variant_id if keep_variant else None)
-
-            return obs_simu, 0.0, False, info
+            with Timer("Action simulation"):
+                with Timer("Variant creation"):
+                    # Create temporary variant
+                    nm.create_variant(variant_id)
+                    nm.set_working_variant(variant_id)
+    
+                with Timer("Apply action"):
+                    # Apply action
+                    action.apply(nm)
+    
+                with Timer("Run load flow"):
+                    # Run load flow
+                    result = nm.run_load_flow()
+    
+                if result is None or result.status != lf.ComponentStatus.CONVERGED:
+                    info["exception"].append(
+                        Exception(f"Load flow did not converge: {result.status if result else 'No result'}")
+                    )
+                    # Return observation with NaN values
+                    with Timer("Observation creation (failed)"):
+                        obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits, 
+                                                       variant_id=variant_id if keep_variant else None)
+                    return obs_simu, 0.0, True, info
+    
+                # Create observation from simulated state
+                with Timer("Observation creation (success)"):
+                    obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
+                                                   variant_id=variant_id if keep_variant else None)
+    
+                return obs_simu, 0.0, False, info
 
         except Exception as e:
             print(f"Warning: Action simulation failed for action {action}: {e}")
