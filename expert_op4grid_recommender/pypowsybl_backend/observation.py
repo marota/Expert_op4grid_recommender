@@ -770,12 +770,14 @@ class PypowsyblObservation:
             return obs_simu, 0.0, False, info
 
         except Exception as e:
+            print(f"Warning: Action simulation failed for action {action}: {e}")
             info["exception"].append(e)
             # Try to create an observation anyway
             try:
                 obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
                                                variant_id=variant_id if keep_variant else None)
-            except:
+            except Exception as inner_e:
+                print(f"Error: Failed to create fallback observation: {inner_e}")
                 obs_simu = self  # Return self if we can't create new obs
             return obs_simu, 0.0, True, info
 

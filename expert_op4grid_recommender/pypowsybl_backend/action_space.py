@@ -7,6 +7,7 @@ the network topology (line switching, bus reconfigurations).
 """
 
 import numpy as np
+import pandas as pd
 from typing import Dict, List, Any, Optional, Union, TYPE_CHECKING
 from .observation import PypowsyblAction
 
@@ -49,19 +50,38 @@ class SwitchAction(PypowsyblAction):
         
         def apply_switch_changes(nm: 'NetworkManager'):
             net = nm.network
-            # Batch updates by grouping switches that should be open vs closed
-            to_open = [sid for sid, is_open in self.switch_states.items() if is_open]
-            to_close = [sid for sid, is_open in self.switch_states.items() if not is_open]
+            
+            # Helper to find actual switch ID if prefixed
+            def get_actual_sid(sid):
+                if sid in net.get_switches().index:
+                    return sid
+                # Try with underscores replaced or prefix removed
+                # Example: PYMONP3_PYMON3COUPL -> PYMON3COUPL
+                if '_' in sid:
+                    parts = sid.split('_', 1)
+                    if parts[1] in net.get_switches().index:
+                        return parts[1]
+                return None
+
+            to_open = []
+            to_close = []
+            for sid, is_open in self.switch_states.items():
+                actual_sid = get_actual_sid(sid)
+                if actual_sid:
+                    if is_open: to_open.append(actual_sid)
+                    else: to_close.append(actual_sid)
+                else:
+                    print(f"Warning: Switch ID {sid} not found in network (even with prefix stripping)")
             
             if to_open:
                 try:
-                    net.update_switches(id=to_open, open=True)
+                    net.update_switches(id=to_open, open=[True] * len(to_open))
                 except Exception as e:
                     print(f"Warning: Batch open switches failed: {e}")
             
             if to_close:
                 try:
-                    net.update_switches(id=to_close, open=False)
+                    net.update_switches(id=to_close, open=[False] * len(to_close))
                 except Exception as e:
                     print(f"Warning: Batch close switches failed: {e}")
         
@@ -99,75 +119,76 @@ class BusAction(PypowsyblAction):
             lines_set = nm._lines_set
             trafos_set = nm._trafos_set
             
-            # Batch line/trafo origin changes
+            # 1. Batch line/trafo origin changes (simple connected/disconnected)
             lines_or_disco = [lid for lid, bus in self.lines_or_bus.items() if bus == -1 and lid in lines_set]
             trafos_or_disco = [lid for lid, bus in self.lines_or_bus.items() if bus == -1 and lid in trafos_set]
             lines_or_reco = [lid for lid, bus in self.lines_or_bus.items() if bus >= 1 and lid in lines_set]
             trafos_or_reco = [lid for lid, bus in self.lines_or_bus.items() if bus >= 1 and lid in trafos_set]
             
-            if lines_or_disco: net.update_lines(id=lines_or_disco, connected1=False)
-            if trafos_or_disco: net.update_2_windings_transformers(id=trafos_or_disco, connected1=False)
-            if lines_or_reco: net.update_lines(id=lines_or_reco, connected1=True)
-            if trafos_or_reco: net.update_2_windings_transformers(id=trafos_or_reco, connected1=True)
+            if lines_or_disco: net.update_lines(id=lines_or_disco, connected1=[False] * len(lines_or_disco))
+            if trafos_or_disco: net.update_2_windings_transformers(id=trafos_or_disco, connected1=[False] * len(trafos_or_disco))
+            if lines_or_reco: net.update_lines(id=lines_or_reco, connected1=[True] * len(lines_or_reco))
+            if trafos_or_reco: net.update_2_windings_transformers(id=trafos_or_reco, connected1=[True] * len(trafos_or_reco))
             
-            # Batch line/trafo extremity changes
+            # 2. Batch line/trafo extremity changes
             lines_ex_disco = [lid for lid, bus in self.lines_ex_bus.items() if bus == -1 and lid in lines_set]
             trafos_ex_disco = [lid for lid, bus in self.lines_ex_bus.items() if bus == -1 and lid in trafos_set]
             lines_ex_reco = [lid for lid, bus in self.lines_ex_bus.items() if bus >= 1 and lid in lines_set]
             trafos_ex_reco = [lid for lid, bus in self.lines_ex_bus.items() if bus >= 1 and lid in trafos_set]
             
-            if lines_ex_disco: net.update_lines(id=lines_ex_disco, connected2=False)
-            if trafos_ex_disco: net.update_2_windings_transformers(id=trafos_ex_disco, connected2=False)
-            if lines_ex_reco: net.update_lines(id=lines_ex_reco, connected2=True)
-            if trafos_ex_reco: net.update_2_windings_transformers(id=trafos_ex_reco, connected2=True)
+            if lines_ex_disco: net.update_lines(id=lines_ex_disco, connected2=[False] * len(lines_ex_disco))
+            if trafos_ex_disco: net.update_2_windings_transformers(id=trafos_ex_disco, connected2=[False] * len(trafos_ex_disco))
+            if lines_ex_reco: net.update_lines(id=lines_ex_reco, connected2=[True] * len(lines_ex_reco))
+            if trafos_ex_reco: net.update_2_windings_transformers(id=trafos_ex_reco, connected2=[True] * len(trafos_ex_reco))
             
-            # Batch load changes
+            # 3. Batch load/generator changes
             loads_disco = [lid for lid, bus in self.loads_bus.items() if bus == -1]
             loads_reco = [lid for lid, bus in self.loads_bus.items() if bus >= 1]
-            if loads_disco: net.update_loads(id=loads_disco, connected=False)
-            if loads_reco: net.update_loads(id=loads_reco, connected=True)
+            if loads_disco: net.update_loads(id=loads_disco, connected=[False] * len(loads_disco))
+            if loads_reco: net.update_loads(id=loads_reco, connected=[True] * len(loads_reco))
             
-            # Batch generator changes
             gens_disco = [lid for lid, bus in self.gens_bus.items() if bus == -1]
             gens_reco = [lid for lid, bus in self.gens_bus.items() if bus >= 1]
-            if gens_disco: net.update_generators(id=gens_disco, connected=False)
-            if gens_reco: net.update_generators(id=gens_reco, connected=True)
+            if gens_disco: net.update_generators(id=gens_disco, connected=[False] * len(gens_disco))
+            if gens_reco: net.update_generators(id=gens_reco, connected=[True] * len(gens_reco))
 
-            # Handle full substation topology changes
-            # This implements node merging/splitting via coupler switch manipulation
-            for sub_id, topo_vector in self.substations.items():
-                try:
-                    # Get substation name from ID
-                    if sub_id not in nm.name_sub:
-                        print(f"Warning: Substation ID {sub_id} not found in NetworkManager mapping")
-                        continue
+            # 4. Handle full substation topology changes (Grid2Op substations_id / topo_vector)
+            # This implements node merging/splitting via coupler manipulation
+            # Note: Selector switch toggling is NOT needed for pypowsybl for these experto actions.
+            if self.substations:
+                all_switches = net.get_switches()
+                for sub_id, topo_vector in self.substations.items():
+                    try:
+                        if sub_id < 0 or sub_id >= len(nm.name_sub):
+                            print(f"Warning: Substation ID {sub_id} out of range (max {len(nm.name_sub)-1})")
+                            continue
+                            
+                        sub_name = nm.name_sub[sub_id]
                         
-                    sub_name = nm.name_sub[sub_id]
-    
-                    # Determine if this is a merge (all connected elements on bus 1)
-                    # or split (elements on different buses)
-                    connected_buses = set(b for b in topo_vector if b >= 1)
-                    is_merge = len(connected_buses) <= 1 and (not connected_buses or 1 in connected_buses)
-    
-                    # Find coupler switches in this substation
-                    switches_df = net.get_switches()
-                    sub_switches = switches_df[switches_df['voltage_level_id'] == sub_name]
-    
-                    # Look for coupler switches (containing "COUPL" in name)
-                    to_update = []
-                    for switch_id, row in sub_switches.iterrows():
-                        switch_name = row.get('name', switch_id)
-                        if 'COUPL' in switch_name.upper():
-                            if row['kind'] == 'BREAKER':
-                                to_update.append(switch_id)
-                    
-                    if to_update:
-                        try:
-                            net.update_switches(id=to_update, open=not is_merge)
-                        except Exception as e:
-                            print(f"Warning: Failed to update coupler switches for {sub_name}: {e}")
-                except Exception as e:
-                    print(f"Warning: Failed to apply substation topology changes for ID {sub_id}: {e}")
+                        # Determine if this is a merge (all connected elements on same bus)
+                        connected_buses = set(b for b in topo_vector if b >= 1)
+                        is_merge = len(connected_buses) <= 1
+        
+                        # Filter switches for this substation
+                        sub_switches = all_switches[all_switches['voltage_level_id'] == sub_name]
+                        
+                        # Update Coupler switches (COUPL or TRO in name)
+                        # For a merge, these should be CLOSED. For a split, OPENED.
+                        coupler_ids = []
+                        for sw_id, row in sub_switches.iterrows():
+                            sw_name = row['name'] if 'name' in row and pd.notna(row['name']) and row['name'] != "" else sw_id
+                            sw_name = str(sw_name).upper()
+                            if 'COUPL' in sw_name or 'TRO' in sw_name:
+                                coupler_ids.append(sw_id)
+                        
+                        if coupler_ids:
+                            try:
+                                # Grid2Op 'merge' means couplers are closed (open=False)
+                                net.update_switches(id=coupler_ids, open=[not is_merge] * len(coupler_ids))
+                            except Exception as e:
+                                print(f"Warning: Coupler update failed for {sub_name}: {e}")
+                    except Exception as e:
+                        print(f"Warning: Failed to apply substation topology changes for ID {sub_id}: {e}")
 
         self._modifications.append(apply_bus_changes)
 
