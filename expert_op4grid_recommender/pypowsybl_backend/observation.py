@@ -40,7 +40,8 @@ class PypowsyblObservation:
     def __init__(self, 
                  network_manager: 'NetworkManager',
                  action_space: 'ActionSpace',
-                 thermal_limits: Optional[Dict[str, float]] = None):
+                 thermal_limits: Optional[Dict[str, float]] = None,
+                 variant_id: Optional[str] = None):
         """
         Initialize observation from network state.
         
@@ -52,6 +53,22 @@ class PypowsyblObservation:
         self._network_manager = network_manager
         self._action_space = action_space
         self._thermal_limits = thermal_limits or network_manager.get_thermal_limits()
+        self._variant_id = variant_id
+
+        # Pre-calculate thermal limit arrays for efficient access
+        all_lines = self._network_manager.name_line
+        limit_or, limit_ex = self._network_manager.get_thermal_limits_arrays()
+        self._limit_or = pd.Series(limit_or, index=all_lines)
+        self._limit_ex = pd.Series(limit_ex, index=all_lines)
+        
+        # Apply overrides if any
+        if thermal_limits:
+            overrides = pd.Series(thermal_limits)
+            # Find lines that are in both all_lines and overrides
+            common = overrides.index.intersection(all_lines)
+            if not common.empty:
+                self._limit_or.update(overrides[common])
+                self._limit_ex.update(overrides[common])
         
         # Cache current state
         self._refresh_state()
@@ -68,6 +85,10 @@ class PypowsyblObservation:
         self._line_flows_p1 = self._line_flows['p1'].to_dict()
         self._line_flows_p2 = self._line_flows['p2'].to_dict()
         self._line_flows_index_set = set(self._line_flows.index)
+
+        # Cache line currents and powers as arrays for fast access
+        # MUST be called before _compute_rho as it populates _cached_i_or/_cached_i_ex
+        self._cache_line_arrays()
 
         # Compute rho (loading ratio)
         self._compute_rho()
@@ -93,9 +114,6 @@ class PypowsyblObservation:
         self._load_q = loads_df['q'].values
         self._gen_p = gens_df['p'].values
         self._gen_q = gens_df['q'].values
-
-        # Cache line currents and powers as arrays for fast access
-        self._cache_line_arrays()
     
     def _cache_line_arrays(self):
         """Cache line current and power arrays for fast property access."""
@@ -123,43 +141,27 @@ class PypowsyblObservation:
                 self._cached_p_ex[i] = p2 if not np.isnan(p2) else 0.0
 
     def _compute_rho(self):
-        """Compute line loading ratios. OPTIMIZED with cached dicts.
-
-        Uses i1 (side 1 current) for rho calculation since thermal limits
-        are defined for side 1 in pypowsybl convention.
-        """
+        """Compute line loading ratios. OPTIMIZED with vectorized operations."""
         from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
-        nm = self._network_manager
-        n_line = nm.n_line
-        line_names = nm.name_line
+        
+        # Use pre-calculated thermal limits (including overrides)
+        limit_or = self._limit_or.values
+        limit_ex = self._limit_ex.values
 
-        rho = np.zeros(n_line)
+        # Avoid division by zero
+        limit_or = np.where(limit_or < 1e-6, 1e-6, limit_or)
+        limit_ex = np.where(limit_ex < 1e-6, 1e-6, limit_ex)
 
-        # Use cached dict for fast lookup instead of df.loc
-        for i, line_id in enumerate(line_names):
-            if line_id in self._line_flows_index_set:
-                i1 = abs(self._line_flows_i1.get(line_id, 0.0))
-                i1 = i1 if not np.isnan(i1) else 0.0
-
-                thermal_limit = self._thermal_limits.get(line_id, 9999.0)
-                if isinstance(thermal_limit, (tuple, list)):
-                    limit_or = thermal_limit[0]
-                    limit_ex = thermal_limit[1]
-                else:
-                    limit_or = thermal_limit
-                    limit_ex = thermal_limit
-
-                if MAX_RHO_BOTH_EXTREMITIES:
-                    i2 = abs(self._line_flows_i2.get(line_id, 0.0))
-                    i2 = i2 if not np.isnan(i2) else 0.0
-                    rho_or = i1 / limit_or if limit_or > 0 else 0.0
-                    rho_ex = i2 / limit_ex if limit_ex > 0 else 0.0
-                    rho[i] = max(rho_or, rho_ex)
-                else:
-                    if limit_or > 0:
-                        rho[i] = i1 / limit_or
-
-        self._rho = rho
+        # Use cached current arrays (cached in _cache_line_arrays via _refresh_state)
+        i_or = np.abs(self._cached_i_or)
+        
+        if MAX_RHO_BOTH_EXTREMITIES:
+            i_ex = np.abs(self._cached_i_ex)
+            rho_or = i_or / limit_or
+            rho_ex = i_ex / limit_ex
+            self._rho = np.maximum(rho_or, rho_ex)
+        else:
+            self._rho = i_or / limit_or
     
     def _compute_line_angles(self):
         """Compute voltage angles at line terminals. OPTIMIZED with dict lookups."""
@@ -757,15 +759,13 @@ class PypowsyblObservation:
                     Exception(f"Load flow did not converge: {result.status if result else 'No result'}")
                 )
                 # Return observation with NaN values
-                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits)
-                if keep_variant:
-                    obs_simu._variant_id = variant_id
+                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits, 
+                                               variant_id=variant_id if keep_variant else None)
                 return obs_simu, 0.0, True, info
 
             # Create observation from simulated state
-            obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits)
-            if keep_variant:
-                obs_simu._variant_id = variant_id
+            obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
+                                           variant_id=variant_id if keep_variant else None)
 
             return obs_simu, 0.0, False, info
 
@@ -773,7 +773,8 @@ class PypowsyblObservation:
             info["exception"].append(e)
             # Try to create an observation anyway
             try:
-                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits)
+                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
+                                               variant_id=variant_id if keep_variant else None)
             except:
                 obs_simu = self  # Return self if we can't create new obs
             return obs_simu, 0.0, True, info

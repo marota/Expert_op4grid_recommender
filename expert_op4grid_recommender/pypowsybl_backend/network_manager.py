@@ -180,6 +180,9 @@ class NetworkManager:
         # OPTIMIZATION: Pre-compute elements per substation
         self._cache_elements_per_substation()
 
+        # OPTIMIZATION: Pre-compute thermal limits for all lines
+        self._cache_thermal_limits()
+
     def _cache_elements_per_substation(self):
         """Cache which elements belong to each substation."""
         n_sub = self._n_sub
@@ -222,6 +225,30 @@ class NetworkManager:
             len(self._lines_or_per_sub[i]) + len(self._lines_ex_per_sub[i])
             for i in range(n_sub)
         ], dtype=int)
+
+    def _cache_thermal_limits(self):
+        """Pre-compute thermal limits for all lines in array format."""
+        limits_df = self.network.get_operational_limits()
+        # Reset index to make 'name' and 'element_id' columns
+        limits_df = limits_df.reset_index()
+        # Keep only permanent limits
+        perm_limits = limits_df[limits_df['name'] == 'permanent_limit']
+        
+        # Mapping element_id -> limit value
+        limit_map = perm_limits.set_index('element_id')['value'].to_dict()
+        
+        self._cached_thermal_limit_or = np.zeros(self._n_line)
+        self._cached_thermal_limit_ex = np.zeros(self._n_line)
+        
+        default_limit = 9999.0
+        for i, line_id in enumerate(self._line_ids):
+            limit = limit_map.get(line_id, default_limit)
+            self._cached_thermal_limit_or[i] = limit
+            self._cached_thermal_limit_ex[i] = limit
+
+    def get_thermal_limits_arrays(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get pre-computed thermal limits for all lines."""
+        return self._cached_thermal_limit_or.copy(), self._cached_thermal_limit_ex.copy()
     
     @property
     def name_line(self) -> np.ndarray:
