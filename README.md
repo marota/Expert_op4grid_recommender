@@ -68,6 +68,20 @@ The script will:
 
 -----
 
+## Pypowsybl Backend
+
+The `pypowsybl` backend provides a high-performance alternative to Grid2Op for network simulation and what-if analysis.
+
+### Performance Optimizations
+*   **Incremental Branching**: Remedial actions are simulated directly from the converged N-1 state using network variants, significantly reducing computation time.
+*   **Vectorized State Reading**: Core network state (flows, voltages, bus assignments) is read using vectorized pypowsybl operations.
+*   **Batched Action Application**: Multiple topological changes are applied in batches to minimize overhead.
+
+> [!NOTE]
+> **Simulation Simplification**: To maximize speed during what-if analyses (N-1 and remedial actions), voltage control for transformers and shunts is disabled in variant simulations. The base N-state observation maintains full regulation to provide a high-fidelity reference point.
+
+-----
+
 An option that can be activated for specific use is to rebuild an action space from one segmentation of a grid to another or the full grid:
 
 ```bash

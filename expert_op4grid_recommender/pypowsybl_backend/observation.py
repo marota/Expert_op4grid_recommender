@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
 import pypowsybl.loadflow as lf
+# from expert_op4grid_recommender.utils.helpers import Timer
 
 if TYPE_CHECKING:
     from .network_manager import NetworkManager
@@ -40,7 +41,8 @@ class PypowsyblObservation:
     def __init__(self, 
                  network_manager: 'NetworkManager',
                  action_space: 'ActionSpace',
-                 thermal_limits: Optional[Dict[str, float]] = None):
+                 thermal_limits: Optional[Dict[str, float]] = None,
+                 variant_id: Optional[str] = None):
         """
         Initialize observation from network state.
         
@@ -52,6 +54,22 @@ class PypowsyblObservation:
         self._network_manager = network_manager
         self._action_space = action_space
         self._thermal_limits = thermal_limits or network_manager.get_thermal_limits()
+        self._variant_id = variant_id
+
+        # Pre-calculate thermal limit arrays for efficient access
+        all_lines = self._network_manager.name_line
+        limit_or, limit_ex = self._network_manager.get_thermal_limits_arrays()
+        self._limit_or = pd.Series(limit_or, index=all_lines)
+        self._limit_ex = pd.Series(limit_ex, index=all_lines)
+        
+        # Apply overrides if any
+        if thermal_limits:
+            overrides = pd.Series(thermal_limits)
+            # Find lines that are in both all_lines and overrides
+            common = overrides.index.intersection(all_lines)
+            if not common.empty:
+                self._limit_or.update(overrides[common])
+                self._limit_ex.update(overrides[common])
         
         # Cache current state
         self._refresh_state()
@@ -61,240 +79,116 @@ class PypowsyblObservation:
         nm = self._network_manager
         net = nm.network
 
-        # Line information - get once and cache columns as dicts for fast lookup
-        self._line_flows = nm.get_line_flows()
-        self._line_flows_i1 = self._line_flows['i1'].to_dict()
-        self._line_flows_i2 = self._line_flows['i2'].to_dict()
-        self._line_flows_p1 = self._line_flows['p1'].to_dict()
-        self._line_flows_p2 = self._line_flows['p2'].to_dict()
-        self._line_flows_index_set = set(self._line_flows.index)
+        # Line and transformer information - fetch all at once including terminal buses
+        # Columns needed for: flows, status, angles, and bus assignments
+        line_cols = ['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2', 'bus1_id', 'bus2_id']
+        # nm.get_line_flows doesn't yet support bus1/2_id easily without internal logic change
+        # Let's just do it here to ensure absolute control and minimal calls
+        lines_df = net.get_lines()[line_cols]
+        trafos_df = net.get_2_windings_transformers()[line_cols]
+        all_terminals_df = pd.concat([lines_df, trafos_df])
+        reindexed_flows = all_terminals_df.reindex(nm.name_line)
+
+        # Bus voltages and angles - fetch with voltage_level_id for bus assignments
+        bus_cols = ['v_mag', 'v_angle', 'voltage_level_id']
+        bus_data_df = net.get_buses()[bus_cols]
+        bus_df_aligned = bus_data_df.reindex(nm.name_sub)
+
+        # Cache line currents and powers as arrays for fast access
+        self._cache_line_arrays(reindexed_flows)
 
         # Compute rho (loading ratio)
         self._compute_rho()
 
-        # Line status
-        self._line_status = self._line_flows['connected'].values
+        # Line status - robustly convert to bool to avoid warnings
+        self._line_status = reindexed_flows['connected1'].fillna(True).astype(bool).values & \
+                            reindexed_flows['connected2'].fillna(True).astype(bool).values
 
         # Bus voltages and angles
-        bus_df = nm.get_bus_voltages()
-        self._v_mag = bus_df['v_mag'].values
-        self._v_angle = bus_df['v_angle'].values
+        self._v_mag = bus_df_aligned['v_mag'].values
+        self._v_angle = bus_df_aligned['v_angle'].values
 
-        # Get angles per line terminal
-        self._compute_line_angles()
+        # Get angles per line terminal - pass pre-fetched bus data
+        self._compute_line_angles(reindexed_flows, bus_data_df['v_angle'])
 
-        # Compute bus assignments for line terminals
-        self._compute_line_buses()
+        # Compute bus assignments for line terminals - pass pre-fetched data
+        self._compute_line_buses(reindexed_flows, bus_data_df)
 
-        # Load and generation - get once
-        loads_df = net.get_loads()
-        gens_df = net.get_generators()
-        self._load_p = loads_df['p'].values
-        self._load_q = loads_df['q'].values
-        self._gen_p = gens_df['p'].values
-        self._gen_q = gens_df['q'].values
-
-        # Cache line currents and powers as arrays for fast access
-        self._cache_line_arrays()
+        # Load and generation - ensure alignment with name_load/name_gen
+        loads_df = net.get_loads()[['p', 'q']].reindex(nm.name_load)
+        gens_df = net.get_generators()[['p', 'q']].reindex(nm.name_gen)
+        self._load_p = loads_df['p'].fillna(0.0).values
+        self._load_q = loads_df['q'].fillna(0.0).values
+        self._gen_p = gens_df['p'].fillna(0.0).values
+        self._gen_q = gens_df['q'].fillna(0.0).values
     
-    def _cache_line_arrays(self):
-        """Cache line current and power arrays for fast property access."""
-        nm = self._network_manager
-        n_line = nm.n_line
-        line_names = nm.name_line
-
-        # Pre-allocate arrays
-        self._cached_i_or = np.zeros(n_line)
-        self._cached_i_ex = np.zeros(n_line)
-        self._cached_p_or = np.zeros(n_line)
-        self._cached_p_ex = np.zeros(n_line)
-
-        # Fill arrays using cached dicts (much faster than df.loc in loop)
-        for i, line_id in enumerate(line_names):
-            if line_id in self._line_flows_index_set:
-                i1 = self._line_flows_i1.get(line_id, 0.0)
-                i2 = self._line_flows_i2.get(line_id, 0.0)
-                p1 = self._line_flows_p1.get(line_id, 0.0)
-                p2 = self._line_flows_p2.get(line_id, 0.0)
-
-                self._cached_i_or[i] = i1 if not np.isnan(i1) else 0.0
-                self._cached_i_ex[i] = i2 if not np.isnan(i2) else 0.0
-                self._cached_p_or[i] = p1 if not np.isnan(p1) else 0.0
-                self._cached_p_ex[i] = p2 if not np.isnan(p2) else 0.0
+    def _cache_line_arrays(self, reindexed_flows: pd.DataFrame):
+        """Cache line current and power arrays for fast property access. OPTIMIZED with reindex."""
+        # reindexed_flows is already aligned with nm.name_line
+        self._cached_i_or = reindexed_flows['i1'].fillna(0.0).values
+        self._cached_i_ex = reindexed_flows['i2'].fillna(0.0).values
+        self._cached_p_or = reindexed_flows['p1'].fillna(0.0).values
+        self._cached_p_ex = reindexed_flows['p2'].fillna(0.0).values
 
     def _compute_rho(self):
-        """Compute line loading ratios. OPTIMIZED with cached dicts.
-
-        Uses i1 (side 1 current) for rho calculation since thermal limits
-        are defined for side 1 in pypowsybl convention.
-        """
+        """Compute line loading ratios. OPTIMIZED with vectorized operations."""
         from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
-        nm = self._network_manager
-        n_line = nm.n_line
-        line_names = nm.name_line
+        
+        # Use pre-calculated thermal limits (including overrides)
+        limit_or = self._limit_or.values
+        limit_ex = self._limit_ex.values
 
-        rho = np.zeros(n_line)
+        # Avoid division by zero
+        limit_or = np.where(limit_or < 1e-6, 1e-6, limit_or)
+        limit_ex = np.where(limit_ex < 1e-6, 1e-6, limit_ex)
 
-        # Use cached dict for fast lookup instead of df.loc
-        for i, line_id in enumerate(line_names):
-            if line_id in self._line_flows_index_set:
-                i1 = abs(self._line_flows_i1.get(line_id, 0.0))
-                i1 = i1 if not np.isnan(i1) else 0.0
-
-                thermal_limit = self._thermal_limits.get(line_id, 9999.0)
-                if isinstance(thermal_limit, (tuple, list)):
-                    limit_or = thermal_limit[0]
-                    limit_ex = thermal_limit[1]
-                else:
-                    limit_or = thermal_limit
-                    limit_ex = thermal_limit
-
-                if MAX_RHO_BOTH_EXTREMITIES:
-                    i2 = abs(self._line_flows_i2.get(line_id, 0.0))
-                    i2 = i2 if not np.isnan(i2) else 0.0
-                    rho_or = i1 / limit_or if limit_or > 0 else 0.0
-                    rho_ex = i2 / limit_ex if limit_ex > 0 else 0.0
-                    rho[i] = max(rho_or, rho_ex)
-                else:
-                    if limit_or > 0:
-                        rho[i] = i1 / limit_or
-
-        self._rho = rho
+        # Use cached current arrays (cached in _cache_line_arrays via _refresh_state)
+        i_or = np.abs(self._cached_i_or)
+        
+        if MAX_RHO_BOTH_EXTREMITIES:
+            i_ex = np.abs(self._cached_i_ex)
+            rho_or = i_or / limit_or
+            rho_ex = i_ex / limit_ex
+            self._rho = np.maximum(rho_or, rho_ex)
+        else:
+            self._rho = i_or / limit_or
     
-    def _compute_line_angles(self):
-        """Compute voltage angles at line terminals. OPTIMIZED with dict lookups."""
-        nm = self._network_manager
-        net = nm.network
-
-        n_line = nm.n_line
-        self._theta_or = np.zeros(n_line)
-        self._theta_ex = np.zeros(n_line)
-
-        # Get bus information - extract as dicts for fast lookup
-        lines_df = net.get_lines()
-        trafos_df = net.get_2_windings_transformers()
-        buses_df = net.get_buses()
-
-        # Pre-extract columns as dicts
-        lines_bus1 = lines_df['bus1_id'].to_dict() if len(lines_df) > 0 else {}
-        lines_bus2 = lines_df['bus2_id'].to_dict() if len(lines_df) > 0 else {}
-        trafos_bus1 = trafos_df['bus1_id'].to_dict() if len(trafos_df) > 0 else {}
-        trafos_bus2 = trafos_df['bus2_id'].to_dict() if len(trafos_df) > 0 else {}
-        bus_angles = buses_df['v_angle'].to_dict() if len(buses_df) > 0 else {}
-
-        # Use cached sets from NetworkManager
-        lines_set = nm._lines_set
-        trafos_set = nm._trafos_set
-
-        for i, line_id in enumerate(nm.name_line):
-            try:
-                if line_id in lines_set:
-                    bus1_id = lines_bus1.get(line_id)
-                    bus2_id = lines_bus2.get(line_id)
-                elif line_id in trafos_set:
-                    bus1_id = trafos_bus1.get(line_id)
-                    bus2_id = trafos_bus2.get(line_id)
-                else:
-                    continue
-
-                if pd.notna(bus1_id) and bus1_id in bus_angles:
-                    self._theta_or[i] = bus_angles[bus1_id] / 360 * 2 * np.pi
-                if pd.notna(bus2_id) and bus2_id in bus_angles:
-                    self._theta_ex[i] = bus_angles[bus2_id] / 360 * 2 * np.pi
-            except (KeyError, TypeError):
-                pass
+    def _compute_line_angles(self, terminals: pd.DataFrame, bus_angles: pd.Series):
+        """Compute voltage angles at line terminals. OPTIMIZED with vectorization."""
+        # terminals is already reindexed to nm.name_line
+        
+        # Map angles to terminals
+        self._theta_or = terminals['bus1_id'].map(bus_angles).fillna(0.0).values / 360 * 2 * np.pi
+        self._theta_ex = terminals['bus2_id'].map(bus_angles).fillna(0.0).values / 360 * 2 * np.pi
     
-    def _compute_line_buses(self):
-        """
-        Compute bus assignments for line terminals. OPTIMIZED with dict lookups.
+    def _compute_line_buses(self, terminals: pd.DataFrame, buses_df: pd.DataFrame):
+        """Compute bus assignments for line terminals. OPTIMIZED with vectorization."""
+        # terminals is already reindexed to nm.name_line
+        
+        # 1. Pre-calculate local bus ranks (1, 2, ...) per Voltage Level
+        if not buses_df.empty:
+            # Sort by ID within each VL to ensure consistent 1, 2 numbering
+            buses_sorted = buses_df.sort_index()
+            # cumcount() gives 0, 1, ... so add 1 for bus numbers
+            buses_sorted['rank'] = buses_sorted.groupby('voltage_level_id').cumcount() + 1
+            bus_to_rank = buses_sorted['rank']
+        else:
+            bus_to_rank = pd.Series(dtype=int)
 
-        In grid2op, line_or_bus and line_ex_bus indicate which local bus (1 or 2)
-        each line terminal is connected to within its substation.
-        -1 means disconnected.
-
-        In pypowsybl with bus/breaker topology, we map the bus_id to a local
-        bus number within the voltage level (substation).
-        """
-        nm = self._network_manager
-        net = nm.network
-
-        n_line = nm.n_line
-        self._line_or_bus = np.ones(n_line, dtype=int)  # Default to bus 1
-        self._line_ex_bus = np.ones(n_line, dtype=int)  # Default to bus 1
-
-        # Get line and transformer data - extract columns as dicts
-        lines_df = net.get_lines()
-        trafos_df = net.get_2_windings_transformers()
-
-        lines_bus1 = lines_df['bus1_id'].to_dict() if len(lines_df) > 0 else {}
-        lines_bus2 = lines_df['bus2_id'].to_dict() if len(lines_df) > 0 else {}
-        lines_conn1 = lines_df['connected1'].to_dict() if 'connected1' in lines_df.columns else {}
-        lines_conn2 = lines_df['connected2'].to_dict() if 'connected2' in lines_df.columns else {}
-
-        trafos_bus1 = trafos_df['bus1_id'].to_dict() if len(trafos_df) > 0 else {}
-        trafos_bus2 = trafos_df['bus2_id'].to_dict() if len(trafos_df) > 0 else {}
-        trafos_conn1 = trafos_df['connected1'].to_dict() if 'connected1' in trafos_df.columns else {}
-        trafos_conn2 = trafos_df['connected2'].to_dict() if 'connected2' in trafos_df.columns else {}
-
-        # Build a mapping of voltage_level -> list of bus_ids
-        buses_df = net.get_buses()
-        bus_to_vl = buses_df['voltage_level_id'].to_dict() if len(buses_df) > 0 else {}
-        buses_set = set(buses_df.index)
-
-        vl_to_buses = {}
-        for bus_id, vl_id in bus_to_vl.items():
-            if vl_id not in vl_to_buses:
-                vl_to_buses[vl_id] = []
-            vl_to_buses[vl_id].append(bus_id)
-
-        # Sort buses within each voltage level for consistent numbering
-        # and build index lookup for O(1) access
-        vl_bus_to_local = {}
-        for vl_id, bus_list in vl_to_buses.items():
-            sorted_buses = sorted(bus_list)
-            vl_to_buses[vl_id] = sorted_buses
-            for idx, bus_id in enumerate(sorted_buses):
-                vl_bus_to_local[(vl_id, bus_id)] = idx + 1
-
-        # Use cached sets from NetworkManager
-        lines_set = nm._lines_set
-        trafos_set = nm._trafos_set
-
-        for i, line_id in enumerate(nm.name_line):
-            try:
-                # Get bus IDs for this line
-                if line_id in lines_set:
-                    bus1_id = lines_bus1.get(line_id)
-                    bus2_id = lines_bus2.get(line_id)
-                    connected1 = lines_conn1.get(line_id, True)
-                    connected2 = lines_conn2.get(line_id, True)
-                elif line_id in trafos_set:
-                    bus1_id = trafos_bus1.get(line_id)
-                    bus2_id = trafos_bus2.get(line_id)
-                    connected1 = trafos_conn1.get(line_id, True)
-                    connected2 = trafos_conn2.get(line_id, True)
-                else:
-                    continue
-
-                # Determine local bus number for origin (bus1)
-                if pd.isna(bus1_id) or (isinstance(connected1, bool) and not connected1):
-                    self._line_or_bus[i] = -1  # Disconnected
-                elif bus1_id in buses_set:
-                    vl_id = bus_to_vl.get(bus1_id, '')
-                    local_bus = vl_bus_to_local.get((vl_id, bus1_id), 1)
-                    self._line_or_bus[i] = local_bus
-
-                # Determine local bus number for extremity (bus2)
-                if pd.isna(bus2_id) or (isinstance(connected2, bool) and not connected2):
-                    self._line_ex_bus[i] = -1  # Disconnected
-                elif bus2_id in buses_set:
-                    vl_id = bus_to_vl.get(bus2_id, '')
-                    local_bus = vl_bus_to_local.get((vl_id, bus2_id), 1)
-                    self._line_ex_bus[i] = local_bus
-
-            except (KeyError, TypeError):
-                # Default to bus 1 if we can't determine
-                pass
+        # 2. Map ranks and handle disconnections
+        # Default connected to True if missing (transformers often connected)
+        # Fix downcasting warnings by casting to bool after fillna
+        conn1 = terminals['connected1'].fillna(True).astype(bool).values
+        conn2 = terminals['connected2'].fillna(True).astype(bool).values
+        
+        # Map bus ranks
+        rank1 = terminals['bus1_id'].map(bus_to_rank).fillna(1).astype(int).values
+        rank2 = terminals['bus2_id'].map(bus_to_rank).fillna(1).astype(int).values
+        
+        # Disconnected terminals set to -1
+        # Also handle cases where bus_id is NaN but connected is True (should not happen in converged net)
+        self._line_or_bus = np.where(conn1 & terminals['bus1_id'].notna(), rank1, -1)
+        self._line_ex_bus = np.where(conn2 & terminals['bus2_id'].notna(), rank2, -1)
     
     # ========== Grid2op-compatible properties ==========
     
@@ -742,39 +636,41 @@ class PypowsyblObservation:
         info = {"exception": []}
 
         try:
-            # Create temporary variant
-            nm.create_variant(variant_id)
+            # Create a new variant branching from the current observation's variant
+            # (or from the base variant if self._variant_id is None)
+            nm.create_variant(variant_id, from_variant=self._variant_id)
             nm.set_working_variant(variant_id)
 
             # Apply action
             action.apply(nm)
 
-            # Run load flow
-            result = nm.run_load_flow()
+            # Run load flow in fast mode (disabled voltage control) for variants
+            result = nm.run_load_flow(fast=True)
 
             if result is None or result.status != lf.ComponentStatus.CONVERGED:
                 info["exception"].append(
                     Exception(f"Load flow did not converge: {result.status if result else 'No result'}")
                 )
                 # Return observation with NaN values
-                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits)
-                if keep_variant:
-                    obs_simu._variant_id = variant_id
+                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits, 
+                                               variant_id=variant_id if keep_variant else None)
                 return obs_simu, 0.0, True, info
 
             # Create observation from simulated state
-            obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits)
-            if keep_variant:
-                obs_simu._variant_id = variant_id
+            obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
+                                           variant_id=variant_id if keep_variant else None)
 
             return obs_simu, 0.0, False, info
 
         except Exception as e:
+            print(f"Warning: Action simulation failed for action {action}: {e}")
             info["exception"].append(e)
             # Try to create an observation anyway
             try:
-                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits)
-            except:
+                obs_simu = PypowsyblObservation(nm, self._action_space, self._thermal_limits,
+                                               variant_id=variant_id if keep_variant else None)
+            except Exception as inner_e:
+                print(f"Error: Failed to create fallback observation: {inner_e}")
                 obs_simu = self  # Return self if we can't create new obs
             return obs_simu, 0.0, True, info
 

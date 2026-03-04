@@ -1242,10 +1242,12 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
     original_action_file_path = config.ACTION_FILE_PATH
     original_timestep = config.TIMESTEP
     original_lines_defaut = config.LINES_DEFAUT
+    original_fast_mode = getattr(config, 'PYPOWSYBL_FAST_MODE', True)
     
     try:
         # Override config for this test
         # These overrides modify the config that run_analysis will use
+        config.PYPOWSYBL_FAST_MODE = True  # Enable fast mode to test fallback
         config.ENV_NAME = "bare_env_small_grid_test"  # Override environment
         config.FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json"  # Override action file
         # CRITICAL: Must recompute ACTION_FILE_PATH since it depends on FILE_ACTION_SPACE_DESC

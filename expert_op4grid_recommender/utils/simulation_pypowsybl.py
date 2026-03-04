@@ -61,7 +61,12 @@ def simulate_contingency(env: Any, obs: Any, lines_defaut: List[str],
     act_deco_defaut = env.action_space({"set_line_status": [(line, -1) for line in lines_defaut]})
     
     # Combine contingency disconnection with maintenance reconnection and simulate
-    obs_simu, _, _, info = obs.simulate(act_deco_defaut + act_reco_maintenance, time_step=timestep)
+    # We KEEP the variant so we can branch from it later
+    obs_simu, _, _, info = obs.simulate(
+        act_deco_defaut + act_reco_maintenance, 
+        time_step=timestep,
+        keep_variant=True
+    )
 
     # Check if the simulation raised any exceptions
     if info["exception"]:
@@ -101,9 +106,11 @@ def check_rho_reduction_with_baseline(obs: Any, timestep: int, act_defaut: Any, 
             - is_rho_reduction (bool): True if all rho values decreased by more than tolerance.
             - obs_simu_action (Optional[Any]): The observation after applying the candidate action.
     """
-    # Simulate the candidate state (contingency + maintenance + candidate action)
+    # Simulate the candidate state (branching from the already contingency-applied observation)
+    # This automatically includes the contingency and maintenance from 'obs'
+    # without double-applying them.
     obs_simu_action, _, _, info_action = obs.simulate(
-        action + act_defaut + act_reco_maintenance, time_step=timestep
+        action, time_step=timestep
     )
 
     if info_action["exception"]:
@@ -162,8 +169,10 @@ def compute_baseline_simulation(obs: Any, timestep: int, act_defaut: Any,
                                                    or None if simulation failed.
             - obs_baseline (Optional[Any]): The baseline observation, or None if failed.
     """
+    # Simulate the baseline state (contingency + maintenance)
+    # We branch from the base observation 'obs'
     obs_baseline, _, _, info_baseline = obs.simulate(
-        act_defaut + act_reco_maintenance, time_step=timestep
+        act_defaut + act_reco_maintenance, time_step=timestep, keep_variant=True
     )
 
     if info_baseline["exception"]:

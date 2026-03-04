@@ -67,7 +67,7 @@ class NetworkManager:
         return lf.Parameters(
             read_slack_bus=False,
             write_slack_bus=False,
-            voltage_init_mode=lf.VoltageInitMode.DC_VALUES,
+            voltage_init_mode=lf.VoltageInitMode.PREVIOUS_VALUES,
             transformer_voltage_control_on=True,
             use_reactive_limits=True,
             shunt_compensator_voltage_control_on=True,
@@ -180,6 +180,9 @@ class NetworkManager:
         # OPTIMIZATION: Pre-compute elements per substation
         self._cache_elements_per_substation()
 
+        # OPTIMIZATION: Pre-compute thermal limits for all lines
+        self._cache_thermal_limits()
+
     def _cache_elements_per_substation(self):
         """Cache which elements belong to each substation."""
         n_sub = self._n_sub
@@ -222,6 +225,30 @@ class NetworkManager:
             len(self._lines_or_per_sub[i]) + len(self._lines_ex_per_sub[i])
             for i in range(n_sub)
         ], dtype=int)
+
+    def _cache_thermal_limits(self):
+        """Pre-compute thermal limits for all lines in array format."""
+        limits_df = self.network.get_operational_limits()
+        # Reset index to make 'name' and 'element_id' columns
+        limits_df = limits_df.reset_index()
+        # Keep only permanent limits
+        perm_limits = limits_df[limits_df['name'] == 'permanent_limit']
+        
+        # Mapping element_id -> limit value
+        limit_map = perm_limits.set_index('element_id')['value'].to_dict()
+        
+        self._cached_thermal_limit_or = np.zeros(self._n_line)
+        self._cached_thermal_limit_ex = np.zeros(self._n_line)
+        
+        default_limit = 9999.0
+        for i, line_id in enumerate(self._line_ids):
+            limit = limit_map.get(line_id, default_limit)
+            self._cached_thermal_limit_or[i] = limit
+            self._cached_thermal_limit_ex[i] = limit
+
+    def get_thermal_limits_arrays(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get pre-computed thermal limits for all lines."""
+        return self._cached_thermal_limit_or.copy(), self._cached_thermal_limit_ex.copy()
     
     @property
     def name_line(self) -> np.ndarray:
@@ -299,13 +326,27 @@ class NetworkManager:
             if variant_id in self.network.get_variant_ids():
                 self.network.remove_variant(variant_id)
     
-    def run_load_flow(self, dc: Optional[bool] = None) -> lf.ComponentResult:
+    def _run_ac_with_init_fallback(self, params: lf.Parameters):
+        """Helper to run AC load flow, retrying with DC_VALUES if PREVIOUS_VALUES fails."""
+        try:
+            return lf.run_ac(self.network, parameters=params)
+        except Exception as e:
+            if params.voltage_init_mode == lf.VoltageInitMode.PREVIOUS_VALUES:
+                fallback_params = lf.Parameters.from_json(params.to_json())
+                fallback_params.voltage_init_mode = lf.VoltageInitMode.DC_VALUES
+                print(f"Warning: Load flow with PREVIOUS_VALUES failed ({e}). Retrying with DC_VALUES...")
+                return lf.run_ac(self.network, parameters=fallback_params)
+            else:
+                raise e
+
+    def run_load_flow(self, dc: Optional[bool] = None, fast: bool = False):
         """
         Run load flow on the current working variant.
         
         Args:
             dc: If True, run DC load flow instead of AC. 
                 If None, uses the _default_dc attribute.
+            fast: If True, disable voltage control for transformers and shunts.
             
         Returns:
             Load flow result object
@@ -313,14 +354,42 @@ class NetworkManager:
         # Use default if not specified
         use_dc = dc if dc is not None else self._default_dc
         
+        # Prepare parameters
+        params = self.lf_parameters
+        if fast and not use_dc:
+            # Create a shallow copy via JSON to avoid modifying the main lf_parameters
+            params = lf.Parameters.from_json(self.lf_parameters.to_json())
+            params.transformer_voltage_control_on = False
+            params.shunt_compensator_voltage_control_on = False
+        
         try:
             if use_dc:
                 # DC load flow - run_dc uses its own default parameters
                 results = lf.run_dc(self.network)
+                return results[0] if results else None
             else:
-                results = lf.run_ac(self.network, parameters=self.lf_parameters)
-            
-            return results[0] if results else None
+                try:
+                    results = self._run_ac_with_init_fallback(params)
+                    result_obj = results[0] if results else None
+                except Exception as e:
+                    result_obj = None
+                    fast_exception = str(e)
+                else:
+                    fast_exception = None
+                    
+                # If we ran in fast mode and it didn't converge, retry in slow mode
+                if fast and (result_obj is None or result_obj.status != lf.ComponentStatus.CONVERGED):
+                    reason = fast_exception if result_obj is None else f"status: {result_obj.status}"
+                    print(f"Warning: Fast load flow failed or diverged ({reason}). Retrying in slow mode...")
+                    try:
+                        results = self._run_ac_with_init_fallback(self.lf_parameters)
+                        result_obj = results[0] if results else None
+                    except Exception as e2:
+                        print(f"Load flow failed in slow mode: {e2}")
+                        return None
+                        
+                return result_obj
+                
         except Exception as e:
             print(f"Load flow failed: {e}")
             return None
@@ -350,18 +419,37 @@ class NetworkManager:
                 id=line_id, connected1=True, connected2=True
             )
     
-    def get_line_flows(self) -> pd.DataFrame:
+    def get_line_flows(self, columns: Optional[List[str]] = None) -> pd.DataFrame:
         """
         Get current line flows (P, Q, I) for all lines.
         
+        Args:
+            columns: Optional list of columns to retrieve. 
+                    If None, returns all flow and connectivity columns.
+        
         Returns:
-            DataFrame with columns: p1, q1, i1, p2, q2, i2, connected
+            DataFrame with requested columns.
         """
-        lines_df = self.network.get_lines()[['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2']]
-        trafos_df = self.network.get_2_windings_transformers()[['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2']]
+        default_cols = ['p1', 'q1', 'i1', 'p2', 'q2', 'i2', 'connected1', 'connected2']
+        if columns is None:
+            # Need to ensure connected1/2 are present for the 'connected' calculation below
+            cols_to_fetch = default_cols
+        else:
+            cols_to_fetch = columns
+            # But if the user wants 'connected', we might need to fetch the parts
+            if 'connected' in cols_to_fetch:
+                if 'connected1' not in cols_to_fetch: cols_to_fetch.append('connected1')
+                if 'connected2' not in cols_to_fetch: cols_to_fetch.append('connected2')
+        
+        # Filter columns to only those present in pypowsybl (some transformers might lack connected1/2)
+        # Actually pypowsybl columns are usually consistent per type.
+        lines_df = self.network.get_lines()[cols_to_fetch]
+        trafos_df = self.network.get_2_windings_transformers()[cols_to_fetch]
         
         all_branches = pd.concat([lines_df, trafos_df])
-        all_branches['connected'] = all_branches['connected1'] & all_branches['connected2']
+        
+        if 'connected' in cols_to_fetch or columns is None:
+            all_branches['connected'] = all_branches['connected1'] & all_branches['connected2']
         
         return all_branches
     
@@ -391,9 +479,10 @@ class NetworkManager:
         
         return thermal_limits
     
-    def get_bus_voltages(self) -> pd.DataFrame:
+    def get_bus_voltages(self, columns: Optional[List[str]] = None) -> pd.DataFrame:
         """Get bus voltage magnitudes and angles."""
-        return self.network.get_buses()[['v_mag', 'v_angle']]
+        cols = columns or ['v_mag', 'v_angle']
+        return self.network.get_buses()[cols]
     
     def reset_to_base(self):
         """Reset working variant to base state."""

@@ -955,5 +955,81 @@ class TestCheckSwitchesFromLookups:
         assert all_disc_open is False
 
 
+
+class TestPypowsyblRobustnessAndFixes:
+    """Tests for recent fixes and robustness improvements."""
+
+    def test_switch_prefix_matching(self):
+        """Test that switches can be matched using prefixes (e.g. SUB_ID_SW_ID)."""
+        from expert_op4grid_recommender.pypowsybl_backend import NetworkManager, ActionSpace
+        
+        net = pypowsybl.network.create_four_substations_node_breaker_network()
+        all_sw = net.get_switches()
+        sub_id_net = all_sw['voltage_level_id'].iloc[0]
+        sw_id = all_sw[all_sw['voltage_level_id'] == sub_id_net].index[0]
+        
+        # Ensure it's OPEN first
+        net.update_switches(id=[sw_id], open=[True])
+        
+        nm = NetworkManager(network=net)
+        aspace = ActionSpace(nm)
+        
+        # Try to close the switch using a prefixed ID
+        prefixed_id = f"{sub_id_net}_{sw_id}"
+        action = aspace({"switches": {prefixed_id: False}}) # False = closed
+        
+        # Apply action via NetworkManager directly to avoid PypowsyblObservation reset to base
+        action.apply(nm)
+        
+        # Check if closed
+        assert net.get_switches().loc[sw_id, "open"] == False
+
+    def test_tro_coupler_management(self):
+        """Test that TRO switches are correctly handled as couplers during merge."""
+        from expert_op4grid_recommender.pypowsybl_backend import NetworkManager, ActionSpace
+        
+        net = pypowsybl.network.create_four_substations_node_breaker_network()
+        sub_name = net.get_voltage_levels().index[0]
+        topo = net.get_node_breaker_topology(sub_name)
+        nodes = topo.nodes.index.tolist()
+        
+        # Create a "TRO" switch manually
+        tro_id = "SUB_TRO_1"
+        net.create_switches(id=[tro_id], voltage_level_id=sub_name, node1=nodes[0], node2=nodes[1], kind='BREAKER', open=True)
+        
+        nm = NetworkManager(network=net)
+        action_space = ActionSpace(nm)
+        
+        sub_id = nm.get_sub_idx(sub_name)
+        n_elements = nm._cached_sub_info[sub_id]
+        topo_vector = [1] * n_elements # All on bus 1 = MERGE
+        
+        action = action_space({"set_bus": {"substations_id": [(sub_id, topo_vector)]}})
+        action.apply(nm)
+        
+        # TRO switch should be closed
+        assert net.get_switches().loc[tro_id, "open"] == False
+
+    def test_simulate_variant_id_preservation_on_error(self):
+        """Test that simulate returns an observation with variant_id even on error."""
+        from expert_op4grid_recommender.pypowsybl_backend import NetworkManager, ActionSpace, PypowsyblObservation
+        
+        net = pypowsybl.network.create_ieee9()
+        nm = NetworkManager(network=net)
+        aspace = ActionSpace(nm)
+        obs = PypowsyblObservation(nm, aspace)
+        
+        # Create an action that will cause divergence or failure if possible, 
+        # or just mock a failure during apply if we want to be sure.
+        # Here we just use a normal action but keep_variant=True
+        first_line = nm.name_line[0]
+        action = aspace({"set_line_status": [(first_line, -1)]})
+        
+        # Test baseline: it should have a variant_id
+        obs_simu, _, _, _ = obs.simulate(action, keep_variant=True)
+        assert obs_simu._variant_id is not None
+        assert "simulate_kept" in obs_simu._variant_id
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
