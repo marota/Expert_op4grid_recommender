@@ -36,17 +36,19 @@ class OverflowSimulator:
     Uses pypowsybl's load flow (AC or DC) to compute flow redistribution 
     after line outages.
     
-    This replaces alphaDeesp's Grid2opSimulation for overflow graph building.
+        This replaces alphaDeesp's Grid2opSimulation for overflow graph building.
     
     Attributes:
         use_dc: If True, uses DC load flow. If False, uses AC load flow.
+        fast_mode: If True, uses fast mode for load flow (no voltage control).
     """
     
     def __init__(self, 
                  network_manager: 'NetworkManager',
                  obs: 'PypowsyblObservation',
                  use_dc: bool = False,
-                 param_options: Optional[Dict] = None):
+                 param_options: Optional[Dict] = None,
+                 fast_mode: bool = True):
         """
         Initialize the overflow simulator.
         
@@ -55,12 +57,14 @@ class OverflowSimulator:
             obs: Current observation (after initial contingency)
             use_dc: If True, use DC load flow. If False, use AC (default).
             param_options: Configuration parameters (thresholds, etc.)
+            fast_mode: If True, uses fast mode for load flow.
         """
         self._nm = network_manager
         self._obs = obs
         self._net = network_manager.network
         self._use_dc = use_dc
         self._param_options = param_options or {}
+        self._fast_mode = fast_mode
         
         # Get current line flows FROM THE OBSERVATION (not network)
         # This ensures we have the correct base flows even if the observation
@@ -76,9 +80,7 @@ class OverflowSimulator:
     
     def _run_load_flow(self) -> lf.ComponentResult:
         """Run load flow with configured mode (AC or DC) and fast optimization."""
-        from expert_op4grid_recommender import config
-        fast_mode = getattr(config, 'PYPOWSYBL_FAST_MODE', True)
-        return self._nm.run_load_flow(dc=self._use_dc, fast=fast_mode)
+        return self._nm.run_load_flow(dc=self._use_dc, fast=self._fast_mode)
     
     def _get_line_flows(self) -> Dict[str, float]:
         """Get active power flows for all lines (MW at terminal 1)."""
@@ -677,6 +679,8 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
     from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph
     
     params = param_options or PARAM_OPTIONS_EXPERT_OP
+    # Keep the fast_mode extraction flexible
+    fast_mode = params.get("fast_mode", True) if isinstance(params, dict) else True
     
     # Create alphaDeesp-compatible adapter (replaces Grid2opSimulation)
     overflow_sim = AlphaDeespAdapter(
@@ -688,7 +692,8 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
         ltc=overloaded_line_ids,
         plot=False,
         simu_step=timestep,
-        use_dc=use_dc
+        use_dc=use_dc,
+        fast_mode=fast_mode
     )
     
     # Get flow changes DataFrame
@@ -830,7 +835,8 @@ class AlphaDeespAdapter:
                  ltc: List[int] = None,
                  plot: bool = False,
                  simu_step: int = 0,
-                 use_dc: bool = False):
+                 use_dc: bool = False,
+                 fast_mode: bool = True):
         """
         Initialize adapter with alphaDeesp-compatible interface.
         
@@ -862,7 +868,8 @@ class AlphaDeespAdapter:
             network_manager=obs._network_manager,
             obs=obs,
             use_dc=use_dc,
-            param_options=param_options
+            param_options=param_options,
+            fast_mode=fast_mode
         )
         
         # Build topology info
