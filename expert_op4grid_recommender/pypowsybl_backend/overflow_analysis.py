@@ -75,8 +75,10 @@ class OverflowSimulator:
         self._base_currents = dict(zip(line_names, self._base_currents_arr))
     
     def _run_load_flow(self) -> lf.ComponentResult:
-        """Run load flow with configured mode (AC or DC)."""
-        return self._nm.run_load_flow(dc=self._use_dc)
+        """Run load flow with configured mode (AC or DC) and fast optimization."""
+        from expert_op4grid_recommender import config
+        fast_mode = getattr(config, 'PYPOWSYBL_FAST_MODE', True)
+        return self._nm.run_load_flow(dc=self._use_dc, fast=fast_mode)
     
     def _get_line_flows(self) -> Dict[str, float]:
         """Get active power flows for all lines (MW at terminal 1)."""
