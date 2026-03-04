@@ -132,12 +132,13 @@ class TestSwitchAction:
         """Test that SwitchAction can be applied to a network."""
         from expert_op4grid_recommender.pypowsybl_backend.action_space import SwitchAction
         
-        switch_states = {"SW1": True, "SW2": False}
+        # Use IDs that exist in the mock network from create_mock_network_with_topology
+        switch_states = {"VL1_SW1": True, "VL1_SW2": False}
         action = SwitchAction(switch_states)
         
-        # Create a mock network manager
+        # Create a mock network manager with realistic switch index
         mock_nm = MagicMock()
-        mock_nm.network = MagicMock()
+        mock_nm.network = create_mock_network_with_topology()
         
         # Apply the action
         action.apply(mock_nm)
