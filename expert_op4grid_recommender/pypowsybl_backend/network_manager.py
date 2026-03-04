@@ -326,6 +326,19 @@ class NetworkManager:
             if variant_id in self.network.get_variant_ids():
                 self.network.remove_variant(variant_id)
     
+    def _run_ac_with_init_fallback(self, params: lf.Parameters):
+        """Helper to run AC load flow, retrying with DC_VALUES if PREVIOUS_VALUES fails."""
+        try:
+            return lf.run_ac(self.network, parameters=params)
+        except Exception as e:
+            if params.voltage_init_mode == lf.VoltageInitMode.PREVIOUS_VALUES:
+                fallback_params = lf.Parameters.from_json(params.to_json())
+                fallback_params.voltage_init_mode = lf.VoltageInitMode.DC_VALUES
+                print(f"Warning: Load flow with PREVIOUS_VALUES failed ({e}). Retrying with DC_VALUES...")
+                return lf.run_ac(self.network, parameters=fallback_params)
+            else:
+                raise e
+
     def run_load_flow(self, dc: Optional[bool] = None, fast: bool = False):
         """
         Run load flow on the current working variant.
@@ -353,21 +366,30 @@ class NetworkManager:
             if use_dc:
                 # DC load flow - run_dc uses its own default parameters
                 results = lf.run_dc(self.network)
+                return results[0] if results else None
             else:
                 try:
-                    results = lf.run_ac(self.network, parameters=params)
+                    results = self._run_ac_with_init_fallback(params)
+                    result_obj = results[0] if results else None
                 except Exception as e:
-                    # If PREVIOUS_VALUES failed (e.g. undefined voltage), retry with DC_VALUES
-                    if params.voltage_init_mode == lf.VoltageInitMode.PREVIOUS_VALUES:
-                        # Create a copy or new parameters with DC_VALUES
-                        fallback_params = lf.Parameters.from_json(params.to_json())
-                        fallback_params.voltage_init_mode = lf.VoltageInitMode.DC_VALUES
-                        print(f"Warning: Load flow with PREVIOUS_VALUES failed ({e}). Retrying with DC_VALUES...")
-                        results = lf.run_ac(self.network, parameters=fallback_params)
-                    else:
-                        raise e
-            
-            return results[0] if results else None
+                    result_obj = None
+                    fast_exception = str(e)
+                else:
+                    fast_exception = None
+                    
+                # If we ran in fast mode and it didn't converge, retry in slow mode
+                if fast and (result_obj is None or result_obj.status != lf.ComponentStatus.CONVERGED):
+                    reason = fast_exception if result_obj is None else f"status: {result_obj.status}"
+                    print(f"Warning: Fast load flow failed or diverged ({reason}). Retrying in slow mode...")
+                    try:
+                        results = self._run_ac_with_init_fallback(self.lf_parameters)
+                        result_obj = results[0] if results else None
+                    except Exception as e2:
+                        print(f"Load flow failed in slow mode: {e2}")
+                        return None
+                        
+                return result_obj
+                
         except Exception as e:
             print(f"Load flow failed: {e}")
             return None
