@@ -73,6 +73,7 @@ DO_VISUALIZATION = False  # Skip visualization in tests for faster execution
 MAX_RHO_BOTH_EXTREMITIES = False  # only possible for now with pypowsybl backend
 MONITORING_FACTOR_THERMAL_LIMITS = 0.95  # factor applied to permanent thermal limits when loading from operational limits
 PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # 2% – pre-existing overloads excluded from analysis unless current increased by this fraction
+PYPOWSYBL_FAST_MODE=False
 
 # Minimum number of prioritized actions per type
 MIN_LINE_RECONNECTIONS = 0

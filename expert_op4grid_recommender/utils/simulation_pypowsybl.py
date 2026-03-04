@@ -34,7 +34,7 @@ def create_default_action(action_space: Callable, defauts: List[str]) -> Any:
 
 
 def simulate_contingency(env: Any, obs: Any, lines_defaut: List[str], 
-                         act_reco_maintenance: Any, timestep: int) -> Tuple[Any, bool]:
+                         act_reco_maintenance: Any, timestep: int, fast_mode: bool = True) -> Tuple[Any, bool]:
     """
     Simulates the application of an initial N-1 contingency and any maintenance reconnections.
 
@@ -65,7 +65,8 @@ def simulate_contingency(env: Any, obs: Any, lines_defaut: List[str],
     obs_simu, _, _, info = obs.simulate(
         act_deco_defaut + act_reco_maintenance, 
         time_step=timestep,
-        keep_variant=True
+        keep_variant=True,
+        fast_mode=fast_mode
     )
 
     # Check if the simulation raised any exceptions
@@ -81,7 +82,8 @@ def check_rho_reduction_with_baseline(obs: Any, timestep: int, act_defaut: Any, 
                                        baseline_rho: np.ndarray,
                                        lines_we_care_about: Optional[np.ndarray] = None,
                                        rho_tolerance: float = 0.01,
-                                       verbose: bool = True) -> Tuple[bool, Optional[Any]]:
+                                       verbose: bool = True,
+                                       fast_mode: bool = True) -> Tuple[bool, Optional[Any]]:
     """
     Checks if applying a candidate action reduces line loadings (rho) below a pre-computed baseline.
 
@@ -110,7 +112,7 @@ def check_rho_reduction_with_baseline(obs: Any, timestep: int, act_defaut: Any, 
     # This automatically includes the contingency and maintenance from 'obs'
     # without double-applying them.
     obs_simu_action, _, _, info_action = obs.simulate(
-        action, time_step=timestep
+        action, time_step=timestep, fast_mode=fast_mode
     )
 
     if info_action["exception"]:
@@ -152,7 +154,7 @@ def check_rho_reduction_with_baseline(obs: Any, timestep: int, act_defaut: Any, 
 
 def compute_baseline_simulation(obs: Any, timestep: int, act_defaut: Any,
                                  act_reco_maintenance: Any,
-                                 overload_ids: List[int]) -> Tuple[Optional[np.ndarray], Optional[Any]]:
+                                 overload_ids: List[int], fast_mode=True) -> Tuple[Optional[np.ndarray], Optional[Any]]:
     """
     Computes the baseline simulation once for use with multiple candidate actions.
 
@@ -172,7 +174,7 @@ def compute_baseline_simulation(obs: Any, timestep: int, act_defaut: Any,
     # Simulate the baseline state (contingency + maintenance)
     # We branch from the base observation 'obs'
     obs_baseline, _, _, info_baseline = obs.simulate(
-        act_defaut + act_reco_maintenance, time_step=timestep, keep_variant=True
+        act_defaut + act_reco_maintenance, time_step=timestep, keep_variant=True, fast_mode=fast_mode
     )
 
     if info_baseline["exception"]:
@@ -186,7 +188,7 @@ def compute_baseline_simulation(obs: Any, timestep: int, act_defaut: Any,
 def check_rho_reduction(obs: Any, timestep: int, act_defaut: Any, action: Any,
                         overload_ids: List[int], act_reco_maintenance: Any,
                         lines_we_care_about: Optional[np.ndarray] = None,
-                        rho_tolerance: float = 0.01) -> Tuple[bool, Optional[Any]]:
+                        rho_tolerance: float = 0.01, fast_mode: bool = True) -> Tuple[bool, Optional[Any]]:
     """
     Checks if applying a candidate action reduces line loadings (rho) below a baseline.
 
@@ -218,7 +220,7 @@ def check_rho_reduction(obs: Any, timestep: int, act_defaut: Any, action: Any,
     """
     # Compute baseline
     baseline_rho, obs_baseline = compute_baseline_simulation(
-        obs, timestep, act_defaut, act_reco_maintenance, overload_ids
+        obs, timestep, act_defaut, act_reco_maintenance, overload_ids, fast_mode=fast_mode
     )
 
     if baseline_rho is None:
@@ -227,13 +229,13 @@ def check_rho_reduction(obs: Any, timestep: int, act_defaut: Any, action: Any,
     # Use the optimized function
     return check_rho_reduction_with_baseline(
         obs, timestep, act_defaut, action, overload_ids, act_reco_maintenance,
-        baseline_rho, lines_we_care_about, rho_tolerance
+        baseline_rho, lines_we_care_about, rho_tolerance, fast_mode=fast_mode
     )
 
 
 def check_simu_overloads(obs: Any, obs_defaut: Any, action_space: Callable, timestep: int,
                          lines_defaut: List[str], lines_overloaded_ids: List[int],
-                         lines_reco_maintenance: List[str]) -> Tuple[bool, bool]:
+                         lines_reco_maintenance: List[str], fast_mode: bool = True) -> Tuple[bool, bool]:
     """
     Simulates disconnecting all specified overloaded lines simultaneously.
 
@@ -271,7 +273,7 @@ def check_simu_overloads(obs: Any, obs_defaut: Any, action_space: Callable, time
     # Simulate the combined action
     obs_simu, _, _, info = obs.simulate(
         act_deco_overloads + act_deco_defaut + act_reco_maintenance_obj, 
-        time_step=timestep
+        time_step=timestep, fast_mode=fast_mode
     )
 
     # Check for simulation failure

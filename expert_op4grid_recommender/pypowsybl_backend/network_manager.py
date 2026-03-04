@@ -377,10 +377,11 @@ class NetworkManager:
                 else:
                     fast_exception = None
                     
-                # If we ran in fast mode and it didn't converge, retry in slow mode
-                if fast and (result_obj is None or result_obj.status != lf.ComponentStatus.CONVERGED):
-                    reason = fast_exception if result_obj is None else f"status: {result_obj.status}"
-                    print(f"Warning: Fast load flow failed or diverged ({reason}). Retrying in slow mode...")
+                # If we didn't converge, retry in slow mode
+                #if fast and (result_obj is None or result_obj.status != lf.ComponentStatus.CONVERGED):
+                if (result_obj is None or result_obj.status != lf.ComponentStatus.CONVERGED):
+                    #reason = fast_exception if result_obj is None else f"status: {result_obj.status}"
+                    #print(f"Warning: Load flow failed or diverged ({reason}). Retrying in slow mode...")
                     try:
                         results = self._run_ac_with_init_fallback(self.lf_parameters)
                         result_obj = results[0] if results else None

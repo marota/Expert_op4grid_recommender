@@ -170,18 +170,18 @@ def switch_to_dc_pypowsybl(env, analysis_date, current_timestep, current_lines_d
                                              maintenance_to_reco_at_t)
 
 
-def simulate_contingency_pypowsybl(env, obs, lines_defaut, act_reco_maintenance, timestep):
+def simulate_contingency_pypowsybl(env, obs, lines_defaut, act_reco_maintenance, timestep, fast_mode=True):
     """Simulate contingency using pypowsybl."""
     from expert_op4grid_recommender.utils.simulation_pypowsybl import simulate_contingency
-    return simulate_contingency(env, obs, lines_defaut, act_reco_maintenance, timestep)
+    return simulate_contingency(env, obs, lines_defaut, act_reco_maintenance, timestep, fast_mode=fast_mode)
 
 
 def check_simu_overloads_pypowsybl(obs, obs_defaut, action_space, timestep, lines_defaut,
-                                    lines_overloaded_ids_kept, maintenance_to_reco_at_t):
+                                    lines_overloaded_ids_kept, maintenance_to_reco_at_t, fast_mode=True):
     """Check simulation overloads using pypowsybl."""
     from expert_op4grid_recommender.utils.simulation_pypowsybl import check_simu_overloads
     return check_simu_overloads(obs, obs_defaut, action_space, timestep, lines_defaut,
-                                 lines_overloaded_ids_kept, maintenance_to_reco_at_t)
+                                 lines_overloaded_ids_kept, maintenance_to_reco_at_t, fast_mode=fast_mode)
 
 
 def create_default_action_pypowsybl(action_space, defauts):
@@ -191,38 +191,38 @@ def create_default_action_pypowsybl(action_space, defauts):
 
 
 def check_rho_reduction_pypowsybl(obs, timestep, act_defaut, action, overload_ids,
-                                   act_reco_maintenance, lines_we_care_about):
+                                   act_reco_maintenance, lines_we_care_about, fast_mode=True):
     """Check rho reduction using pypowsybl."""
     from expert_op4grid_recommender.utils.simulation_pypowsybl import check_rho_reduction
     return check_rho_reduction(obs, timestep, act_defaut, action, overload_ids,
-                                act_reco_maintenance, lines_we_care_about)
+                                act_reco_maintenance, lines_we_care_about, fast_mode=fast_mode)
 
 
-def compute_baseline_simulation_pypowsybl(obs, timestep, act_defaut, act_reco_maintenance, overload_ids):
+def compute_baseline_simulation_pypowsybl(obs, timestep, act_defaut, act_reco_maintenance, overload_ids, fast_mode=True):
     """Compute baseline simulation using pypowsybl."""
     from expert_op4grid_recommender.utils.simulation_pypowsybl import compute_baseline_simulation
-    return compute_baseline_simulation(obs, timestep, act_defaut, act_reco_maintenance, overload_ids)
+    return compute_baseline_simulation(obs, timestep, act_defaut, act_reco_maintenance, overload_ids, fast_mode=fast_mode)
 
 
 def build_overflow_graph_pypowsybl(env, obs_simu_defaut, lines_overloaded_ids_kept,
                                     non_connected_reconnectable_lines, lines_non_reconnectable,
-                                    timestep, do_consolidate_graph, use_dc=False):
+                                    timestep, do_consolidate_graph, use_dc=False, fast_mode=True):
     """Build overflow graph using pypowsybl."""
     from expert_op4grid_recommender.pypowsybl_backend.overflow_analysis import build_overflow_graph_pypowsybl as _build
     return _build(env, obs_simu_defaut, lines_overloaded_ids_kept,
                   non_connected_reconnectable_lines, lines_non_reconnectable,
-                  timestep, do_consolidate_graph=do_consolidate_graph, use_dc=use_dc)
+                  timestep, do_consolidate_graph=do_consolidate_graph, use_dc=use_dc, param_options={"fast_mode": fast_mode})
 
 
 def build_overflow_graph_pypowsybl_wrapper(env, obs_simu_defaut, lines_overloaded_ids_kept,
                                            non_connected_reconnectable_lines, lines_non_reconnectable,
-                                           timestep, do_consolidate_graph):
+                                           timestep, do_consolidate_graph, fast_mode=True):
     """Wrapper for pypowsybl overflow graph builder with correct signature."""
     from expert_op4grid_recommender.pypowsybl_backend.overflow_analysis import build_overflow_graph_pypowsybl as _build
     return _build(env, obs_simu_defaut, lines_overloaded_ids_kept,
                   non_connected_reconnectable_lines, lines_non_reconnectable,
                   timestep, do_consolidate_graph=do_consolidate_graph, 
-                  use_dc=config.USE_DC_LOAD_FLOW)
+                  use_dc=config.USE_DC_LOAD_FLOW, param_options={"fast_mode": fast_mode})
 
 
 # =============================================================================
@@ -234,7 +234,8 @@ def run_analysis(analysis_date: Optional[datetime],
                  current_lines_defaut: List[str],
                  env_path: Optional[str] = None, 
                  env_name: Optional[str] = None,
-                 backend: Backend = Backend.GRID2OP) -> Dict[str, Any]:
+                 backend: Backend = Backend.GRID2OP,
+                 fast_mode: Optional[bool] = None) -> Dict[str, Any]:
     """
     Runs the expert system analysis for a given date, timestep, and contingency.
 
@@ -367,10 +368,16 @@ def run_analysis(analysis_date: Optional[datetime],
 
     # Simulate Contingency
     is_pypowsybl = backend == Backend.PYPOWSYBL
+    if fast_mode:
+        actual_fast_mode = True
+    else:
+        # Resolve fast_mode if not correctly specified, falling back to config for default
+        actual_fast_mode = config.PYPOWSYBL_FAST_MODE if fast_mode is None else fast_mode
+
     with Timer("Initial Contingency Simulation"):
         if is_pypowsybl:
             obs_simu_defaut, has_converged = simulate_contingency_pypowsybl(
-                env, obs, current_lines_defaut, act_reco_maintenance, current_timestep
+                env, obs, current_lines_defaut, act_reco_maintenance, current_timestep, fast_mode=actual_fast_mode
             )
         else:
             obs_simu_defaut, has_converged = simulate_contingency(
@@ -437,10 +444,16 @@ def run_analysis(analysis_date: Optional[datetime],
 
     # Build the overflow graph
     with Timer("Graph Building & DC Switch"):
-        has_converged, has_lost_load = check_simu_overloads(
-            obs, obs_simu_defaut, env.action_space, current_timestep, current_lines_defaut, lines_overloaded_ids_kept,
-            maintenance_to_reco_at_t
-        )
+        if is_pypowsybl:
+            has_converged, has_lost_load = check_simu_overloads(
+                obs, obs_simu_defaut, env.action_space, current_timestep, current_lines_defaut, lines_overloaded_ids_kept,
+                maintenance_to_reco_at_t, fast_mode=actual_fast_mode
+            )
+        else:
+            has_converged, has_lost_load = check_simu_overloads(
+                obs, obs_simu_defaut, env.action_space, current_timestep, current_lines_defaut, lines_overloaded_ids_kept,
+                maintenance_to_reco_at_t
+            )
 
         use_dc = config.USE_DC_LOAD_FLOW
         if not has_converged and not config.DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART:
@@ -450,10 +463,16 @@ def run_analysis(analysis_date: Optional[datetime],
                 maintenance_to_reco_at_t
             )
 
-        df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
-            env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable,
-            current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH
-        )
+        if is_pypowsybl:
+            df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
+                env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable,
+                current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH, fast_mode=actual_fast_mode
+            )
+        else:
+            df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
+                env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable,
+                current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH
+            )
 
     # Visualize graph (only if enabled in config)
     if config.DO_VISUALIZATION:
@@ -547,6 +566,11 @@ def run_analysis(analysis_date: Optional[datetime],
             create_default_action_func=create_default_action,
             obs_linecut=getattr(overflow_sim, 'obs_linecut', None)
         )
+        
+        # Monkey patch check_rho_reduction if using PyPowSybl so we can pass fast_mode through the discoverer indirectly
+        if is_pypowsybl:
+            original_check = discoverer._check_rho_reduction
+            discoverer._check_rho_reduction = lambda *args, **kwargs: original_check(*args, fast_mode=actual_fast_mode, **kwargs)
 
         prioritized_actions, action_scores = discoverer.discover_and_prioritize(
             n_action_max=config.N_PRIORITIZED_ACTIONS
@@ -593,7 +617,8 @@ def run_analysis(analysis_date: Optional[datetime],
                 obs_simu_action, _, _, info_action = obs_simu_defaut.simulate(
                     action,
                     time_step=current_timestep,
-                    keep_variant=True
+                    keep_variant=True,
+                    fast_mode=actual_fast_mode
                 )
             else:
                 # Standard backend behavior
