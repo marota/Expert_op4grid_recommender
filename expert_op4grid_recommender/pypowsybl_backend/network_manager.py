@@ -326,13 +326,14 @@ class NetworkManager:
             if variant_id in self.network.get_variant_ids():
                 self.network.remove_variant(variant_id)
     
-    def run_load_flow(self, dc: Optional[bool] = None) -> lf.ComponentResult:
+    def run_load_flow(self, dc: Optional[bool] = None, fast: bool = False):
         """
         Run load flow on the current working variant.
         
         Args:
             dc: If True, run DC load flow instead of AC. 
                 If None, uses the _default_dc attribute.
+            fast: If True, disable voltage control for transformers and shunts.
             
         Returns:
             Load flow result object
@@ -340,20 +341,26 @@ class NetworkManager:
         # Use default if not specified
         use_dc = dc if dc is not None else self._default_dc
         
+        # Prepare parameters
+        params = self.lf_parameters
+        if fast and not use_dc:
+            # Create a shallow copy via JSON to avoid modifying the main lf_parameters
+            params = lf.Parameters.from_json(self.lf_parameters.to_json())
+            params.transformer_voltage_control_on = False
+            params.shunt_compensator_voltage_control_on = False
+        
         try:
             if use_dc:
                 # DC load flow - run_dc uses its own default parameters
                 results = lf.run_dc(self.network)
             else:
                 try:
-                    results = lf.run_ac(self.network, parameters=self.lf_parameters)
+                    results = lf.run_ac(self.network, parameters=params)
                 except Exception as e:
                     # If PREVIOUS_VALUES failed (e.g. undefined voltage), retry with DC_VALUES
-                    if self.lf_parameters.voltage_init_mode == lf.VoltageInitMode.PREVIOUS_VALUES:
+                    if params.voltage_init_mode == lf.VoltageInitMode.PREVIOUS_VALUES:
                         # Create a copy or new parameters with DC_VALUES
-                        # For simplicity, we can just create a temporary Parameters object
-                        # or update the existing one if we want it to be permanent (but here temporary is safer/better)
-                        fallback_params = lf.Parameters.from_json(self.lf_parameters.to_json())
+                        fallback_params = lf.Parameters.from_json(params.to_json())
                         fallback_params.voltage_init_mode = lf.VoltageInitMode.DC_VALUES
                         print(f"Warning: Load flow with PREVIOUS_VALUES failed ({e}). Retrying with DC_VALUES...")
                         results = lf.run_ac(self.network, parameters=fallback_params)

@@ -644,8 +644,8 @@ class PypowsyblObservation:
             # Apply action
             action.apply(nm)
 
-            # Run load flow
-            result = nm.run_load_flow()
+            # Run load flow in fast mode (disabled voltage control) for variants
+            result = nm.run_load_flow(fast=True)
 
             if result is None or result.status != lf.ComponentStatus.CONVERGED:
                 info["exception"].append(
