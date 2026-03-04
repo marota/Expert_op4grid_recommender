@@ -793,6 +793,11 @@ def main():
         action='store_true',
         help="If set, ignores the lignes_a_monitorer.csv file and monitors all lines."
     )
+    parser.add_argument(
+        "--fast-mode",
+        action='store_true',
+        help="If set, uses pypowsybl fast mode (no voltage control) for grid simulations."
+    )
     args = parser.parse_args()
 
     if args.ignore_lines_monitoring:
