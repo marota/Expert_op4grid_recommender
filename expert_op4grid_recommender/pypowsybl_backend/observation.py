@@ -636,8 +636,9 @@ class PypowsyblObservation:
         info = {"exception": []}
 
         try:
-            # Create temporary variant
-            nm.create_variant(variant_id)
+            # Create a new variant branching from the current observation's variant
+            # (or from the base variant if self._variant_id is None)
+            nm.create_variant(variant_id, from_variant=self._variant_id)
             nm.set_working_variant(variant_id)
 
             # Apply action

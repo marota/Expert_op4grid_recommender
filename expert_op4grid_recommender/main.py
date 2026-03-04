@@ -366,9 +366,16 @@ def run_analysis(analysis_date: Optional[datetime],
             )
 
     # Simulate Contingency
+    is_pypowsybl = backend == Backend.PYPOWSYBL
     with Timer("Initial Contingency Simulation"):
-        obs_simu_defaut, has_converged = simulate_contingency(env, obs, current_lines_defaut, act_reco_maintenance,
-                                                              current_timestep)
+        if is_pypowsybl:
+            obs_simu_defaut, has_converged = simulate_contingency_pypowsybl(
+                env, obs, current_lines_defaut, act_reco_maintenance, current_timestep
+            )
+        else:
+            obs_simu_defaut, has_converged = simulate_contingency(
+                env, obs, current_lines_defaut, act_reco_maintenance, current_timestep
+            )
     if not has_converged:
         raise RuntimeError("Initial contingency simulation failed. Cannot proceed.")
 
@@ -580,11 +587,20 @@ def run_analysis(analysis_date: Optional[datetime],
 
             # Simulate action
             is_pypowsybl = backend == Backend.PYPOWSYBL
-            obs_simu_action, _, _, info_action = obs.simulate(
-                action + act_defaut + act_reco_maintenance,
-                time_step=current_timestep,
-                **({'keep_variant': True} if is_pypowsybl else {})
-            )
+            if is_pypowsybl:
+                # Optimized for pypowsybl: simulate starting from the N-1 converged state
+                # Branching from obs_simu_defaut automatically includes act_defaut + act_reco_maintenance
+                obs_simu_action, _, _, info_action = obs_simu_defaut.simulate(
+                    action,
+                    time_step=current_timestep,
+                    keep_variant=True
+                )
+            else:
+                # Standard backend behavior
+                obs_simu_action, _, _, info_action = obs.simulate(
+                    action + act_defaut + act_reco_maintenance,
+                    time_step=current_timestep
+                )
 
             # Compute rho evolution and max rho
             rho_before = baseline_rho
