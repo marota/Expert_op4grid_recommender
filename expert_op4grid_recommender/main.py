@@ -229,61 +229,19 @@ def build_overflow_graph_pypowsybl_wrapper(env, obs_simu_defaut, lines_overloade
 # UNIFIED ANALYSIS FUNCTION
 # =============================================================================
 
-def run_analysis(analysis_date: Optional[datetime], 
-                 current_timestep: int, 
-                 current_lines_defaut: List[str],
-                 env_path: Optional[str] = None, 
-                 env_name: Optional[str] = None,
-                 backend: Backend = Backend.GRID2OP) -> Dict[str, Any]:
+def run_analysis_step1(analysis_date: Optional[datetime], 
+                       current_timestep: int, 
+                       current_lines_defaut: List[str],
+                       env_path: Optional[str] = None, 
+                       env_name: Optional[str] = None,
+                       backend: Backend = Backend.GRID2OP) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     """
-    Runs the expert system analysis for a given date, timestep, and contingency.
-
-    Args:
-        analysis_date: Date for the chronic (None for bare environment)
-        current_timestep: Timestep index within the chronic
-        current_lines_defaut: List of line names for N-1 contingency
-        env_path: Override for environment path
-        env_name: Override for environment name
-        backend: Which backend to use (Backend.GRID2OP or Backend.PYPOWSYBL)
+    First part of the expert system analysis up to detection and selection of overloads.
 
     Returns:
-        Dictionary with the following structure::
-
-            {
-                "lines_overloaded_names": List[str],
-                "prioritized_actions": {
-                    action_id: {
-                        "action": Action object,
-                        "description_unitaire": str or None,
-                        "rho_before": np.ndarray,  # baseline rho on overloaded lines
-                        "rho_after": np.ndarray,    # rho after action on overloaded lines
-                        "max_rho": float,           # new max rho across monitored lines
-                        "max_rho_line": str,        # name of line with max rho
-                        "is_rho_reduction": bool,   # whether action reduces all overloads
-                        "observation": Observation,  # observation after action
-                        # pypowsybl only: observation._variant_id contains the kept variant
-                    },
-                    ...
-                },
-                "action_scores": {  # per-type: scores (sorted desc) + params (hypotheses)
-                    "line_reconnection": {
-                        "scores": {action_id: float, ...},
-                        "params": {"percentage_threshold_min_dispatch_flow": float, "max_dispatch_flow": float}
-                    },
-                    "line_disconnection": {
-                        "scores": {action_id: float, ...},
-                        "params": {"min_redispatch": float, "max_redispatch": float, "peak_redispatch": float}
-                    },
-                    "open_coupling": {
-                        "scores": {action_id: float, ...},
-                        "params": {action_id: {"node_type": str, "bus_of_interest": int, ...}, ...}
-                    },
-                    "close_coupling": {
-                        "scores": {action_id: float, ...},
-                        "params": {"percentage_threshold_min_dispatch_flow": float, "max_dispatch_flow": float}
-                    },
-                }
-            }
+        (final_result, context):
+            - If final_result is not None, it means the analysis should stop here (e.g. no overloads).
+            - Otherwise, context contains all information needed for Step 2.
     """
     # --- Select backend functions ---
     if backend == Backend.GRID2OP:
@@ -325,7 +283,7 @@ def run_analysis(analysis_date: Optional[datetime],
         raise TypeError("analysis_date must be a datetime object, string, or None")
 
     date_str = analysis_date.strftime('%Y-%m-%d') if analysis_date else "None"
-    print(f"Running analysis for Date: {date_str}, Timestep: {current_timestep}, Contingency: {current_lines_defaut}")
+    print(f"Running Step 1 analysis for Date: {date_str}, Timestep: {current_timestep}, Contingency: {current_lines_defaut}")
 
     if env_name is not None:
         config.ENV_NAME = env_name
@@ -381,20 +339,16 @@ def run_analysis(analysis_date: Optional[datetime],
 
     # Find overloads caused by the contingency (not pre-existing, or significantly worsened)
     lines_overloaded_ids = []
-    pre_existing_overloads = []  # for logging
-    pre_existing_rho = {}  # {line_idx: rho_N} — used to exclude from max_rho unless worsened
+    pre_existing_overloads = []
+    pre_existing_rho = {}
     worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
 
     for i, l in enumerate(obs_simu_defaut.name_line):
         if l in lines_we_care_about and obs_simu_defaut.rho[i] >= 1:
             if obs.rho[i] >= 1:
-                # This line was already overloaded before the contingency
-                # Check if it worsened significantly
                 if obs_simu_defaut.rho[i] > obs.rho[i] * (1 + worsening_threshold):
-                    # Worsened pre-existing overload: include in analysis
                     lines_overloaded_ids.append(i)
                 else:
-                    # Not worsened enough: skip and log
                     pre_existing_overloads.append(
                         f"{l} (rho_N={obs.rho[i]:.3f}, rho_N-1={obs_simu_defaut.rho[i]:.3f})"
                     )
@@ -433,7 +387,80 @@ def run_analysis(analysis_date: Optional[datetime],
                 "open_coupling": {"scores": {}, "params": {}},
                 "close_coupling": {"scores": {}, "params": {}},
             },
-        }
+        }, None
+
+    # Pack everything into context for Step 2
+    context = {
+        "backend": backend,
+        "env": env,
+        "obs": obs,
+        "obs_simu_defaut": obs_simu_defaut,
+        "analysis_date": analysis_date,
+        "current_timestep": current_timestep,
+        "current_lines_defaut": current_lines_defaut,
+        "lines_overloaded_ids": lines_overloaded_ids,
+        "lines_overloaded_ids_kept": lines_overloaded_ids_kept,
+        "maintenance_to_reco_at_t": maintenance_to_reco_at_t,
+        "act_reco_maintenance": act_reco_maintenance,
+        "lines_non_reconnectable": lines_non_reconnectable,
+        "lines_we_care_about": lines_we_care_about,
+        "classifier": classifier,
+        "custom_layout": custom_layout,
+        "chronic_name": chronic_name,
+        "pre_existing_rho": pre_existing_rho,
+        "lines_overloaded_names": lines_overloaded_names,
+        "non_connected_reconnectable_lines": non_connected_reconnectable_lines,
+        "dict_action": dict_action,
+        "is_bare_env": is_bare_env,
+        # Backend specific functions
+        "check_simu_overloads": check_simu_overloads,
+        "switch_to_dc": switch_to_dc,
+        "build_overflow_graph": build_overflow_graph,
+        "get_env_first_obs": get_env_first_obs,
+        "simulate_contingency": simulate_contingency,
+        "create_default_action": create_default_action,
+        "check_rho_reduction": check_rho_reduction,
+        "compute_baseline": compute_baseline,
+    }
+
+    return None, context
+
+
+def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Second part of the expert system analysis after detection/selection of overloads.
+
+    Args:
+        context: Dictionary containing all state from Step 1.
+    """
+    # Unpack context
+    backend = context["backend"]
+    env = context["env"]
+    obs = context["obs"]
+    obs_simu_defaut = context["obs_simu_defaut"]
+    analysis_date = context["analysis_date"]
+    current_timestep = context["current_timestep"]
+    current_lines_defaut = context["current_lines_defaut"]
+    lines_overloaded_ids = context["lines_overloaded_ids"]
+    lines_overloaded_ids_kept = context["lines_overloaded_ids_kept"]
+    maintenance_to_reco_at_t = context["maintenance_to_reco_at_t"]
+    act_reco_maintenance = context["act_reco_maintenance"]
+    lines_non_reconnectable = context["lines_non_reconnectable"]
+    lines_we_care_about = context["lines_we_care_about"]
+    classifier = context["classifier"]
+    custom_layout = context["custom_layout"]
+    chronic_name = context["chronic_name"]
+    pre_existing_rho = context["pre_existing_rho"]
+    lines_overloaded_names = context["lines_overloaded_names"]
+    non_connected_reconnectable_lines = context["non_connected_reconnectable_lines"]
+    dict_action = context["dict_action"]
+    
+    check_simu_overloads = context["check_simu_overloads"]
+    switch_to_dc = context["switch_to_dc"]
+    build_overflow_graph = context["build_overflow_graph"]
+    get_env_first_obs = context["get_env_first_obs"]
+    create_default_action = context["create_default_action"]
+    check_rho_reduction = context["check_rho_reduction"]
 
     # Build the overflow graph
     with Timer("Graph Building & DC Switch"):
@@ -490,8 +517,6 @@ def run_analysis(analysis_date: Optional[datetime],
             by_description=config.CHECK_WITH_ACTION_DESCRIPTION
         )
 
-        print(f"DEBUG: 'disco_BEON L31CPVAN' in dict_action before filtering: {'disco_BEON L31CPVAN' in dict_action}")
-
         actions_to_filter, actions_unfiltered = validator.categorize_actions(
             dict_action=dict_action,
             timestep=current_timestep,
@@ -503,9 +528,6 @@ def run_analysis(analysis_date: Optional[datetime],
         )
 
         print_filtered_out_action(len(dict_action), actions_to_filter)
-        print(f"DEBUG: 'disco_BEON L31CPVAN' in actions_unfiltered after filtering: {'disco_BEON L31CPVAN' in actions_unfiltered}")
-        if 'disco_BEON L31CPVAN' not in actions_unfiltered and 'disco_BEON L31CPVAN' in dict_action:
-             print(f"DEBUG: Reason for filtering disco_BEON L31CPVAN: {actions_to_filter.get('disco_BEON L31CPVAN', 'Unknown')}")
 
     # Pre-process graph for AlphaDeesp
     with Timer("Pre-process for AlphaDeesp"):
@@ -515,12 +537,8 @@ def run_analysis(analysis_date: Optional[datetime],
 
     if use_dc:
         print("Warning: you have used the DC load flow, so results are more approximate")
-        if backend == Backend.GRID2OP:
-            env, obs, path_chronic = get_env_first_obs(config.ENV_FOLDER, config.ENV_NAME,
-                                                       config.USE_EVALUATION_CONFIG, analysis_date, is_DC=False)
-        else:
-            env, obs, path_chronic = get_env_first_obs(config.ENV_FOLDER, config.ENV_NAME,
-                                                       config.USE_EVALUATION_CONFIG, analysis_date, is_DC=False)
+        env, obs, path_chronic = get_env_first_obs(config.ENV_FOLDER, config.ENV_NAME,
+                                                   config.USE_EVALUATION_CONFIG, analysis_date, is_DC=False)
 
     # Run the discovery process
     with Timer("Action Discovery"):
@@ -559,10 +577,7 @@ def run_analysis(analysis_date: Optional[datetime],
         act_defaut = create_default_action(env.action_space, current_lines_defaut)
 
         # Compute baseline rho once for all actions
-        baseline_rho=obs_simu_defaut.rho[lines_overloaded_ids]
-        #baseline_rho, _ = compute_baseline(
-        #    obs, current_timestep, act_defaut, act_reco_maintenance, lines_overloaded_ids
-        #)
+        baseline_rho = obs_simu_defaut.rho[lines_overloaded_ids]
 
         # Performance optimization: Pre-calculate masks and baseline for large grids
         num_lines = len(obs.name_line)
@@ -589,7 +604,6 @@ def run_analysis(analysis_date: Optional[datetime],
             is_pypowsybl = backend == Backend.PYPOWSYBL
             if is_pypowsybl:
                 # Optimized for pypowsybl: simulate starting from the N-1 converged state
-                # Branching from obs_simu_defaut automatically includes act_defaut + act_reco_maintenance
                 obs_simu_action, _, _, info_action = obs_simu_defaut.simulate(
                     action,
                     time_step=current_timestep,
@@ -616,13 +630,11 @@ def run_analysis(analysis_date: Optional[datetime],
                 if rho_before is not None:
                     is_rho_reduction = bool(np.all(rho_after + 0.01 < rho_before))
 
-                # Find max rho among lines_we_care_about (or all lines),
-                # excluding pre-existing overloads unless worsened beyond threshold
+                # Find max rho among lines_we_care_about (or all lines)
                 worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
                 action_rho = obs_simu_action.rho
 
                 # Optimized vectorized max rho calculation
-                # Keep lines that are in care set AND (NOT pre-existing OR worsened beyond threshold)
                 worsened_mask = action_rho > pre_existing_baseline * (1 + worsening_threshold)
                 eligible_mask = care_mask & (~is_pre_existing | worsened_mask)
 
@@ -630,7 +642,6 @@ def run_analysis(analysis_date: Optional[datetime],
                     masked_rho = action_rho[eligible_mask]
                     max_idx_in_masked = np.argmax(masked_rho)
                     max_rho = float(masked_rho[max_idx_in_masked])
-                    # Map back to original index to get the line name
                     max_rho_line = obs_simu_action.name_line[np.where(eligible_mask)[0][max_idx_in_masked]]
 
             # Print summary
@@ -663,6 +674,33 @@ def run_analysis(analysis_date: Optional[datetime],
         "action_scores": action_scores,
         "pre_existing_overloads": pre_existing_info,
     }
+
+
+def run_analysis(analysis_date: Optional[datetime], 
+                 current_timestep: int, 
+                 current_lines_defaut: List[str],
+                 env_path: Optional[str] = None, 
+                 env_name: Optional[str] = None,
+                 backend: Backend = Backend.GRID2OP) -> Dict[str, Any]:
+    """
+    Runs the expert system analysis for a given date, timestep, and contingency.
+    (Now refactored to use run_analysis_step1 and run_analysis_step2)
+    """
+    # Step 1: Detect overloads and selection of overloads to keep
+    res_step1, context = run_analysis_step1(
+        analysis_date=analysis_date,
+        current_timestep=current_timestep,
+        current_lines_defaut=current_lines_defaut,
+        env_path=env_path,
+        env_name=env_name,
+        backend=backend
+    )
+
+    if res_step1 is not None:
+        return res_step1
+
+    # Step 2: Run the remaining analysis
+    return run_analysis_step2(context)
 
 
 def main():
