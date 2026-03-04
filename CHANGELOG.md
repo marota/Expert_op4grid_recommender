@@ -7,15 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.4] - 2026-02-28
+## [0.1.4] - 2026-03-04
 
 ### Added
 
 - **Pre-Existing Overload Filtering**: Pre-existing overloads (already overloaded in N state) are excluded from N-1 analysis results and `max_rho` prioritization, unless worsened by a configurable threshold. Controlled by `PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD` (default 0.02).
-- Return value `pre_existing_overloads` from the analysis results.
+- **Pypowsybl Backend Optimizations**:
+    - **Incremental Simulation Branching**: Remedial actions now branch directly from converged N-1 contingency states, leveraging "hot starts" and ensuring state consistency.
+    - **Simulation Fast Mode**: Introduced `PYPOWSYBL_FAST_MODE` (default: true) which disables voltage control for shunts and transformers during variants to significantly boost speed.
+    - **Automatic Fallback Mechanism**: Simulations in "fast" mode automatically fallback and retry in standard "slow" mode if they fail to converge or diverge.
+    - **Vectorized Observation Creation**: Over 80% reduction in observation initialization time via NumPy-based state extraction.
+    - **Batched Topological Changes**: Multiple switch and bus changes are now applied in fewer pypowsybl update calls.
+- **Robustness Improvements**:
+    - **Flexible Switch ID Matching**: Improved ID matching supporting substation-prefixed switch names.
+    - **Unified Initialization Fallback**: Consistent fallback from `PREVIOUS_VALUES` to `DC_VALUES` initialization in `network_manager`.
+    - **Consistent Simulation Tuning**: Applied "fast" mode logic consistently across `observation.simulate` and `overflow_analysis` (PTDF-based) passes.
+
+### Fixed
+
+- **Switch Action Test Fix**: Corrected mock registry in `test_switch_action_apply_to_network` to properly verify batch switch updates.
 
 ### Tests
 
+- Added `verify_incremental_branching.py` script for end-to-end variant state validation.
+- Enhanced `tests/test_pypowsybl_backend.py` with specific test cases for incremental branching and fast mode logic.
 - Add `test_pre_existing_overloads_excluded_from_analysis` and `test_pre_existing_overloads_excluded_from_max_rho`.
 - Regression test for `run_analysis` to handle pre-existing overloads correctly when all lines are monitored.
 
