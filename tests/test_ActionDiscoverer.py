@@ -901,6 +901,176 @@ class TestComputeDisconnectionFlowBounds:
         assert max_overload_flow == pytest.approx(50.0, rel=1e-6)
 
 
+class TestOverloadDisconnectionPriority:
+    """Tests for prioritization of direct overload line disconnections.
+
+    When an action disconnects one of the overloaded lines (lines_overloaded_ids)
+    and the regime is unconstrained (no new overloads), the score should be boosted
+    above 1.0 to rank above all other disconnection actions.
+    """
+
+    def _make_discoverer(self, rho_defaut, rho_linecut=None, lines_overloaded_ids=None,
+                         dict_action=None, actions_unfiltered=None):
+        """Build a discoverer with controlled rho values and optional action dicts."""
+        n_lines = len(rho_defaut)
+        name_line = [f"L{i}" for i in range(n_lines)]
+        name_sub = [f"S{i}" for i in range(n_lines + 1)]
+
+        mock_obs_defaut = MockObservation(
+            name_sub=name_sub,
+            name_line=name_line,
+            rho=np.array(rho_defaut, dtype=float),
+            line_or_to_subid=list(range(n_lines)),
+            line_ex_to_subid=list(range(1, n_lines + 1)),
+        )
+        mock_obs_linecut = None
+        if rho_linecut is not None:
+            mock_obs_linecut = MockObservation(
+                name_sub=name_sub,
+                name_line=name_line,
+                rho=np.array(rho_linecut, dtype=float),
+                line_or_to_subid=list(range(n_lines)),
+                line_ex_to_subid=list(range(1, n_lines + 1)),
+            )
+
+        mock_env = MockEnv(name_line=name_line, name_sub=name_sub)
+        edge_data = {}
+        for i in range(min(n_lines, 2)):
+            edge_data[(i, i + 1)] = {0: {"name": f"L{i}", "capacity": 100.0 / (i + 1)}}
+        mock_g_overflow = MockOverflowGraph(edge_data=edge_data)
+        mock_g_dist = MockDistributionGraph()
+
+        return ActionDiscoverer(
+            env=mock_env,
+            obs=mock_obs_defaut,
+            obs_defaut=mock_obs_defaut,
+            obs_linecut=mock_obs_linecut,
+            classifier=ActionClassifier(MockActionSpace()),
+            timestep=0,
+            lines_defaut=[],
+            lines_overloaded_ids=lines_overloaded_ids or [0],
+            act_reco_maintenance=MockActionObject(),
+            non_connected_reconnectable_lines=[],
+            all_disconnected_lines=[],
+            dict_action=dict_action or {},
+            actions_unfiltered=actions_unfiltered or set(),
+            hubs=[],
+            g_overflow=mock_g_overflow,
+            g_distribution_graph=mock_g_dist,
+            simulator_data={},
+            check_action_simulation=False,
+        )
+
+    def test_overload_disconnection_score_boosted_in_unconstrained_regime(self):
+        """Disconnecting an overloaded line in unconstrained regime should score > 1.0."""
+        # L0 is overloaded (index 0), no obs_linecut → unconstrained regime
+        d = self._make_discoverer(rho_defaut=[1.2, 0.8], rho_linecut=None, lines_overloaded_ids=[0])
+        # Force bounds to be computed
+        d._disco_bounds = d._compute_disconnection_flow_bounds()
+        d._disco_capacity_map = d._build_line_capacity_map()
+        # Disconnecting L0 (the overloaded line) should get score > 1.0
+        score = d.compute_disconnection_score({"L0"})
+        assert score > 1.0, f"Expected score > 1.0 for overload disconnection, got {score}"
+
+    def test_non_overload_disconnection_score_not_boosted(self):
+        """Disconnecting a non-overloaded line should stay in [0, 1] in unconstrained regime."""
+        # L0 is overloaded, L1 is not. Unconstrained regime (no obs_linecut).
+        d = self._make_discoverer(rho_defaut=[1.2, 0.8], rho_linecut=None, lines_overloaded_ids=[0])
+        d._disco_bounds = d._compute_disconnection_flow_bounds()
+        d._disco_capacity_map = d._build_line_capacity_map()
+        # Disconnecting L1 (NOT overloaded) should score <= 1.0
+        score = d.compute_disconnection_score({"L1"})
+        assert score <= 1.0, f"Expected score <= 1.0 for non-overload disconnection, got {score}"
+
+    def test_overload_disconnection_ranks_above_non_overload(self):
+        """Overload line disconnection must rank above all non-overload disconnections."""
+        # L0 is overloaded. Unconstrained regime.
+        d = self._make_discoverer(rho_defaut=[1.2, 0.8], rho_linecut=None, lines_overloaded_ids=[0])
+        d._disco_bounds = d._compute_disconnection_flow_bounds()
+        d._disco_capacity_map = d._build_line_capacity_map()
+        score_overload = d.compute_disconnection_score({"L0"})
+        score_other = d.compute_disconnection_score({"L1"})
+        assert score_overload > score_other, (
+            f"Overload disconnection (L0, score={score_overload}) must rank above "
+            f"non-overload disconnection (L1, score={score_other})"
+        )
+
+    def test_overload_disconnection_no_bonus_in_constrained_regime(self):
+        """Overload line disconnection must NOT get the bonus in constrained regime."""
+        # L0 is overloaded; L1 is not overloaded but would become overloaded if L0 is cut.
+        # rho_defaut: L0=1.2 (overloaded), L1=0.7
+        # rho_linecut: L0=0.0 (cut), L1=1.5 (newly overloaded → constrained regime)
+        d = self._make_discoverer(
+            rho_defaut=[1.2, 0.7],
+            rho_linecut=[0.0, 1.5],
+            lines_overloaded_ids=[0],
+        )
+        d._disco_bounds = d._compute_disconnection_flow_bounds()
+        d._disco_capacity_map = d._build_line_capacity_map()
+        _, _, max_redispatch = d._disco_bounds
+        assert max_redispatch < float('inf'), "Regime must be constrained for this test"
+        # In constrained regime there is no bonus, so score must be <= 1.0
+        score = d.compute_disconnection_score({"L0"})
+        assert score <= 1.0, (
+            f"No priority bonus should apply in constrained regime, got score={score}"
+        )
+
+    def test_overload_disconnection_included_even_if_not_on_constrained_path(self):
+        """An action disconnecting an overloaded line must be considered even if not on the constrained path."""
+        # L0 is overloaded. Constrained path contains only L1 (not L0).
+        d = self._make_discoverer(
+            rho_defaut=[1.2, 0.8],
+            rho_linecut=None,
+            lines_overloaded_ids=[0],
+            dict_action={
+                "disco_L0": {
+                    "type": "open_line",
+                    "description_unitaire": "Ouverture L0",
+                    "content": {"set_bus": {"lines_ex_id": {"L0": -1}}},
+                },
+                "disco_L1": {
+                    "type": "open_line",
+                    "description_unitaire": "Ouverture L1",
+                    "content": {"set_bus": {"lines_ex_id": {"L1": -1}}},
+                },
+            },
+            actions_unfiltered={"disco_L0", "disco_L1"},
+        )
+        # Only L1 is on the constrained path; L0 is the overloaded line itself
+        d.find_relevant_disconnections(lines_constrained_path_names=["L1"])
+        assert "disco_L0" in d.identified_disconnections, (
+            "Overload line disconnection (L0) must be included even if not on constrained path"
+        )
+
+    def test_overload_disconnection_ranks_first_among_all_disconnections(self):
+        """After find_relevant_disconnections, the overloaded line action ranks first."""
+        # L0 is overloaded. Constrained path includes both L0 and L1.
+        d = self._make_discoverer(
+            rho_defaut=[1.2, 0.8],
+            rho_linecut=None,
+            lines_overloaded_ids=[0],
+            dict_action={
+                "disco_L0": {
+                    "type": "open_line",
+                    "description_unitaire": "Ouverture L0",
+                    "content": {"set_bus": {"lines_ex_id": {"L0": -1}}},
+                },
+                "disco_L1": {
+                    "type": "open_line",
+                    "description_unitaire": "Ouverture L1",
+                    "content": {"set_bus": {"lines_ex_id": {"L1": -1}}},
+                },
+            },
+            actions_unfiltered={"disco_L0", "disco_L1"},
+        )
+        d.find_relevant_disconnections(lines_constrained_path_names=["L0", "L1"])
+        keys = list(d.identified_disconnections.keys())
+        assert keys[0] == "disco_L0", (
+            f"Overload disconnection (L0) should rank first, but got order: {keys}"
+        )
+        assert d.scores_disconnections["disco_L0"] > d.scores_disconnections["disco_L1"]
+
+
 class TestNodeMergingScore:
     """Tests for the compute_node_merging_score method."""
 
