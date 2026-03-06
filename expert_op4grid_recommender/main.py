@@ -514,7 +514,8 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
             lines_swapped = list(df_of_g[df_of_g.new_flows_swapped].line_name)
             make_overflow_graph_visualization(
                 env, overflow_sim, g_overflow, hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped,
-                custom_layout, lines_we_care_about=lines_we_care_about
+                custom_layout, lines_we_care_about=lines_we_care_about,
+                monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
             )
     else:
         print("Skipping visualization (DO_VISUALIZATION=False)")
