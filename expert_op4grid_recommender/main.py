@@ -46,7 +46,7 @@ from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscove
 from expert_op4grid_recommender.utils.helpers import Timer, get_maintenance_timestep, print_filtered_out_action, \
     save_data_for_test
 from expert_op4grid_recommender.utils.action_rebuilder import run_rebuild_actions
-from expert_op4grid_recommender.data_loader import load_actions
+from expert_op4grid_recommender.data_loader import load_actions, enrich_actions_lazy
 
 
 class Backend(Enum):
@@ -296,14 +296,19 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         env, obs, path_chronic, chronic_name, custom_layout, dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment(
             analysis_date)
 
+        # Get pypowsybl network reference
+        if backend == Backend.GRID2OP:
+            n_grid = env.backend._grid.network
+        else:
+            n_grid = env.network_manager.network
+
         # Temporary fix for thermal limits
         if np.mean(env.get_thermal_limit()) >= 10 ** 4:
-            if backend == Backend.GRID2OP:
-                n_grid = env.backend._grid.network
-            else:
-                n_grid = env.network_manager.network
             env = set_thermal_limits(n_grid, env, thresold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS)
             obs = env.reset() if backend == Backend.GRID2OP else env.get_obs()
+
+        # Wrap action dicts for lazy content computation from switches
+        dict_action = enrich_actions_lazy(dict_action, n_grid)
 
     # --- Instantiate Classifier ---
     classifier = ActionClassifier(grid2op_action_space=env.action_space)
