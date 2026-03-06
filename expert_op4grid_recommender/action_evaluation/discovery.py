@@ -515,6 +515,13 @@ class ActionDiscoverer:
         ``observed_flow / max_overload_flow``, capped at 1.0.
         Disconnecting the overloaded line itself scores 1.0.
 
+        **Overload disconnection priority bonus:**
+        When the action directly disconnects one of the overloaded lines (the most
+        straightforward corrective action) AND we are in the unconstrained regime
+        (no new overloads are created), the score is boosted by adding 1.0.  This
+        places such actions in the [1.0, 2.0] range, above all other disconnections
+        which remain in the [-inf, 1.0] range.
+
         Args:
             lines_in_action: Set of line names being disconnected by this action.
 
@@ -541,9 +548,17 @@ class ActionDiscoverer:
             # line's flow.  All disconnections are safe (no new overloads), so
             # we don't penalise partial relief — score is just how much of the
             # overloaded flow this action redirects: 0 at 0 MW, 1 at full flow.
-            return self._unconstrained_linear_score(
+            score = self._unconstrained_linear_score(
                 observed_flow, 0.0, max_overload_flow
             )
+            # Priority bonus: directly disconnecting an overloaded line is the most
+            # straightforward corrective action and should rank above all other
+            # disconnections.  Boost the score by 1.0 so these actions occupy the
+            # [1.0, 2.0] range while others stay in [0.0, 1.0].
+            overloaded_line_names = {self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids}
+            if lines_in_action.intersection(overloaded_line_names):
+                score += 1.0
+            return score
         else:
             # Constrained regime: bell curve between min and max
             return self._asymmetric_bell_score(observed_flow, min_redispatch, max_redispatch)
@@ -757,6 +772,7 @@ class ActionDiscoverer:
             del self._disco_bounds
             del self._disco_capacity_map
 
+        overloaded_line_names = {self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids}
         print(f"Evaluating {len(self.actions_unfiltered)} potential disconnections...")
         for action_id in sorted(list(self.actions_unfiltered)):#as order in a set is no fixed, and since the order will matter in the subset of actions selected, fix the order for full reproducibility
             action_desc = self.dict_action[action_id]
@@ -767,7 +783,12 @@ class ActionDiscoverer:
                 lines_in_action = set(list(content.get('lines_ex_id', {}).keys()) +
                                       list(content.get('lines_or_id', {}).keys()))
 
-                if lines_in_action.intersection(set(lines_constrained_path_names)):
+                # Include actions on the constrained path OR that directly disconnect an overloaded
+                # line (the most straightforward corrective action deserves consideration even if
+                # not strictly on the alphaDeesp-computed constrained path).
+                is_on_constrained_path = bool(lines_in_action.intersection(set(lines_constrained_path_names)))
+                is_overload_disconnection = bool(lines_in_action.intersection(overloaded_line_names))
+                if is_on_constrained_path or is_overload_disconnection:
                     action = self.action_space(action_desc["content"])
                     identified[action_id] = action
 
