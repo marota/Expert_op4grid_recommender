@@ -165,6 +165,65 @@ def test_set_thermal_limits_respects_custom_factor():
           f"{permanent_limit_value} -> {applied_limits[0]}")
 
 
+def test_min_action_count_params_exist_with_defaults():
+    """Verify all MIN_* action count parameters exist in config with default value 0."""
+    from expert_op4grid_recommender import config
+
+    for param in ('MIN_LINE_RECONNECTIONS', 'MIN_CLOSE_COUPLING', 'MIN_OPEN_COUPLING', 'MIN_LINE_DISCONNECTIONS'):
+        assert hasattr(config, param), \
+            f"FAIL: {param} attribute not found in config"
+        value = getattr(config, param)
+        assert value == 0, \
+            f"FAIL: {param} should be 0, got {value}"
+
+    print("\n✓ All MIN_* parameters exist and default to 0")
+
+
+def test_lines_monitoring_file_defaults_to_none():
+    """Verify LINES_MONITORING_FILE is absent or None in test config (getattr fallback behaviour)."""
+    from expert_op4grid_recommender import config
+
+    # The environment.py code uses getattr(config, 'LINES_MONITORING_FILE', None)
+    # So whether the attribute is absent or explicitly None, the result must be None.
+    value = getattr(config, 'LINES_MONITORING_FILE', None)
+    assert value is None, \
+        f"FAIL: LINES_MONITORING_FILE should be None (or absent), got {value!r}"
+
+    print(f"\n✓ LINES_MONITORING_FILE resolves to None as expected")
+
+
+def test_ignore_lines_monitoring_exists_in_test_config():
+    """Verify IGNORE_LINES_MONITORING is present in the test config."""
+    from expert_op4grid_recommender import config
+
+    assert hasattr(config, 'IGNORE_LINES_MONITORING'), \
+        "FAIL: IGNORE_LINES_MONITORING attribute not found in config"
+
+    # The test config deliberately sets this to True so that tests do not need
+    # an actual monitoring CSV file on disk.
+    assert isinstance(config.IGNORE_LINES_MONITORING, bool), \
+        f"FAIL: IGNORE_LINES_MONITORING should be bool, got {type(config.IGNORE_LINES_MONITORING)}"
+
+    print(f"\n✓ IGNORE_LINES_MONITORING = {config.IGNORE_LINES_MONITORING}")
+
+
+def test_sum_min_actions_does_not_exceed_n_prioritized_actions():
+    """Verify the default MIN_* values don't exceed N_PRIORITIZED_ACTIONS."""
+    from expert_op4grid_recommender import config
+
+    sum_min = (config.MIN_LINE_RECONNECTIONS +
+               config.MIN_CLOSE_COUPLING +
+               config.MIN_OPEN_COUPLING +
+               config.MIN_LINE_DISCONNECTIONS)
+
+    assert sum_min <= config.N_PRIORITIZED_ACTIONS, (
+        f"FAIL: sum of MIN_* ({sum_min}) exceeds N_PRIORITIZED_ACTIONS "
+        f"({config.N_PRIORITIZED_ACTIONS}) in test config"
+    )
+
+    print(f"\n✓ sum(MIN_*) = {sum_min} <= N_PRIORITIZED_ACTIONS = {config.N_PRIORITIZED_ACTIONS}")
+
+
 if __name__ == "__main__":
     # Allow running this file directly for debugging
     print("Running config override verification...")
@@ -178,6 +237,10 @@ if __name__ == "__main__":
     test_monitoring_factor_thermal_limits_exists()
     test_set_thermal_limits_uses_monitoring_factor()
     test_set_thermal_limits_respects_custom_factor()
+    test_min_action_count_params_exist_with_defaults()
+    test_lines_monitoring_file_defaults_to_none()
+    test_ignore_lines_monitoring_exists_in_test_config()
+    test_sum_min_actions_does_not_exceed_n_prioritized_actions()
 
     print("=" * 70)
     print("✓ ALL VERIFICATION TESTS PASSED!")
