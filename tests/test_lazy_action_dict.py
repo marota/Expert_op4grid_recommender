@@ -107,12 +107,48 @@ class TestLazyActionDict:
         assert result == existing_content
         cache.compute_bus_assignments.assert_not_called()
 
-    def test_no_switches_returns_empty_set_bus(self):
-        """Actions without switches should get empty set_bus."""
+    def test_disco_action_from_action_id(self):
+        """disco_* actions should derive content from action ID."""
+        from expert_op4grid_recommender.data_loader import LazyActionDict
+
+        lazy = LazyActionDict(
+            {"description_unitaire": "Ouverture de la ligne 'AISERL31MAGNY'"},
+            topology_cache=MagicMock(),
+            action_id="disco_AISERL31MAGNY"
+        )
+
+        content = lazy["content"]
+
+        assert content["set_bus"]["lines_or_id"] == {"AISERL31MAGNY": -1}
+        assert content["set_bus"]["lines_ex_id"] == {"AISERL31MAGNY": -1}
+        assert content["set_bus"]["loads_id"] == {}
+        assert content["set_bus"]["generators_id"] == {}
+
+    def test_disco_action_from_description(self):
+        """disco actions should fall back to description if action_id has no disco_ prefix."""
+        from expert_op4grid_recommender.data_loader import LazyActionDict
+
+        lazy = LazyActionDict(
+            {"description_unitaire": "Ouverture de la ligne 'CPVANL61ZMAGN'"},
+            topology_cache=MagicMock(),
+            action_id="some_other_id"
+        )
+
+        content = lazy["content"]
+
+        assert content["set_bus"]["lines_or_id"] == {"CPVANL61ZMAGN": -1}
+        assert content["set_bus"]["lines_ex_id"] == {"CPVANL61ZMAGN": -1}
+
+    def test_no_switches_no_disco_returns_empty_set_bus(self):
+        """Actions without switches and not disco_* should get empty set_bus."""
         from expert_op4grid_recommender.data_loader import LazyActionDict
 
         cache = MagicMock()
-        lazy = LazyActionDict({"description": "some action"}, topology_cache=cache)
+        lazy = LazyActionDict(
+            {"description": "some non-disco action"},
+            topology_cache=cache,
+            action_id="unknown_action"
+        )
 
         content = lazy["content"]
 
@@ -120,7 +156,7 @@ class TestLazyActionDict:
         cache.compute_bus_assignments.assert_not_called()
 
     def test_no_cache_returns_empty_set_bus(self):
-        """Actions without a topology cache should get empty set_bus."""
+        """Switch actions without a topology cache should get empty set_bus."""
         from expert_op4grid_recommender.data_loader import LazyActionDict
 
         lazy = LazyActionDict({"switches": {"sw1": False}}, topology_cache=None)
@@ -266,3 +302,39 @@ class TestEnrichActionsLazy:
 
             assert result["a1"]._content_computed
             assert result["a1"]["content"] == existing_content
+
+    def test_action_id_passed_to_lazy_dict(self):
+        """Each LazyActionDict should receive its action_id."""
+        from expert_op4grid_recommender.data_loader import enrich_actions_lazy
+
+        mock_network = MagicMock()
+        with patch('expert_op4grid_recommender.utils.conversion_actions_repas.NetworkTopologyCache') as MockCache:
+            MockCache.return_value = MagicMock()
+
+            dict_actions = {
+                "disco_LINEA": {"description_unitaire": "Ouverture de la ligne 'LINEA'"},
+                "switch_action": {"switches": {"sw1": False}},
+            }
+
+            result = enrich_actions_lazy(dict_actions, mock_network)
+
+            assert result["disco_LINEA"]._action_id == "disco_LINEA"
+            assert result["switch_action"]._action_id == "switch_action"
+
+    def test_disco_action_content_via_enrich(self):
+        """disco_* actions should produce correct content after enrich_actions_lazy."""
+        from expert_op4grid_recommender.data_loader import enrich_actions_lazy
+
+        mock_network = MagicMock()
+        with patch('expert_op4grid_recommender.utils.conversion_actions_repas.NetworkTopologyCache') as MockCache:
+            MockCache.return_value = MagicMock()
+
+            dict_actions = {
+                "disco_MYLINE": {"description_unitaire": "Ouverture de la ligne 'MYLINE'"},
+            }
+
+            result = enrich_actions_lazy(dict_actions, mock_network)
+            content = result["disco_MYLINE"]["content"]
+
+            assert content["set_bus"]["lines_or_id"] == {"MYLINE": -1}
+            assert content["set_bus"]["lines_ex_id"] == {"MYLINE": -1}

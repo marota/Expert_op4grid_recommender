@@ -11,6 +11,7 @@
 
 import os
 import json
+import re
 import logging
 from expert_op4grid_recommender.utils.load_training_data import load_interesting_lines as exop_load_interesting_lines, DELETED_LINE_NAME as EXOP_DELETED_LINE_NAME
 
@@ -19,6 +20,42 @@ DELETED_LINE_NAME = EXOP_DELETED_LINE_NAME
 
 logger = logging.getLogger(__name__)
 
+# Regex to extract line name from disco action descriptions
+_DISCO_LINE_RE = re.compile(r"ligne\s+'([^']+)'")
+
+
+def _build_disco_content(action_id: str, action_data: dict) -> dict:
+    """Build content for a ``disco_*`` line disconnection action.
+
+    Extracts the line name from either the action ID (``disco_<LINE>``) or
+    from the ``description_unitaire`` field, and returns the trivial
+    disconnection content.
+    """
+    line_name = None
+
+    # Try extracting from action ID first (most reliable)
+    if action_id.startswith("disco_"):
+        line_name = action_id[len("disco_"):]
+
+    # Fallback: extract from description
+    if not line_name:
+        desc = action_data.get("description_unitaire", action_data.get("description", ""))
+        m = _DISCO_LINE_RE.search(desc)
+        if m:
+            line_name = m.group(1)
+
+    if not line_name:
+        return {"set_bus": {}}
+
+    return {
+        "set_bus": {
+            "lines_or_id": {line_name: -1},
+            "lines_ex_id": {line_name: -1},
+            "loads_id": {},
+            "generators_id": {},
+        }
+    }
+
 
 class LazyActionDict(dict):
     """A dict subclass that computes 'content' lazily from 'switches' on first access.
@@ -26,11 +63,15 @@ class LazyActionDict(dict):
     When action JSON files omit the pre-computed ``content`` field, this wrapper
     intercepts accesses to ``"content"`` and derives the ``set_bus`` payload on
     the fly using a shared :class:`NetworkTopologyCache`.
+
+    For ``disco_*`` line disconnection actions (no switches), content is built
+    from the action ID / description instead.
     """
 
-    def __init__(self, data: dict, topology_cache=None):
+    def __init__(self, data: dict, topology_cache=None, action_id: str = ""):
         super().__init__(data)
         self._topology_cache = topology_cache
+        self._action_id = action_id
         self._content_computed = "content" in data
 
     def _compute_content(self):
@@ -40,7 +81,14 @@ class LazyActionDict(dict):
         self._content_computed = True
 
         switches = super().get("switches")
-        if not switches or not self._topology_cache:
+
+        # disco_* actions: no switches, derive content from action ID / description
+        if not switches:
+            content = _build_disco_content(self._action_id, dict(self))
+            super().__setitem__("content", content)
+            return
+
+        if not self._topology_cache:
             super().__setitem__("content", {"set_bus": {}})
             return
 
@@ -101,7 +149,7 @@ def enrich_actions_lazy(dict_actions: dict, n_grid) -> dict:
 
     result = {}
     for action_id, action_data in dict_actions.items():
-        result[action_id] = LazyActionDict(action_data, topology_cache=cache)
+        result[action_id] = LazyActionDict(action_data, topology_cache=cache, action_id=action_id)
     return result
 
 
