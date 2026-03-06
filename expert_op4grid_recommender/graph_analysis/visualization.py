@@ -196,9 +196,14 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
         ind_assets_to_monitor = np.array([ind for ind in ind_assets_to_monitor if env.name_line[ind] in non_grey_line_names])
 
         ind_assets_to_monitor = np.append(ind_assets_to_monitor, overflow_sim.ltc).astype(int)
+        # Rescale rho percentages back to real thermal limits: the monitoring factor
+        # reduces thermal limits (e.g. 0.95 → limits set at 95% of real), so rho is
+        # inflated by 1/factor.  Multiplying by the factor converts back to the
+        # percentage of the real thermal limit that the user expects to see.
+        monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
         dict_significant_change = {
-            env.name_line[ind]: {"before": int(obs_simu.rho[ind] * 100),
-                                 "after": int(overflow_sim.obs_linecut.rho[ind] * 100)}
+            env.name_line[ind]: {"before": int(obs_simu.rho[ind] * 100 * monitoring_factor),
+                                 "after": int(overflow_sim.obs_linecut.rho[ind] * 100 * monitoring_factor)}
             for ind in ind_assets_to_monitor
         }
         g_overflow.highlight_significant_line_loading(dict_significant_change)
