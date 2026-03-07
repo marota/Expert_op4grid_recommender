@@ -315,7 +315,15 @@ def run_analysis_step1(analysis_date: Optional[datetime],
             dict_action = enrich_actions_lazy(dict_action, n_grid)
 
     # --- Instantiate Classifier ---
-    classifier = ActionClassifier(grid2op_action_space=env.action_space)
+    if backend == Backend.PYPOWSYBL:
+        # Build name sets once so identify_action_type can infer has_line/has_load
+        # from switch IDs without triggering lazy content computation.
+        _branch_names = set(n_grid.get_lines().index) | set(n_grid.get_2_windings_transformers().index)
+        _load_names = set(n_grid.get_loads(attributes=[]).index)
+        classifier = ActionClassifier(grid2op_action_space=env.action_space,
+                                      branch_names=_branch_names, load_names=_load_names)
+    else:
+        classifier = ActionClassifier(grid2op_action_space=env.action_space)
 
     if is_bare_env:
         act_reco_maintenance = env.action_space({})
