@@ -23,7 +23,8 @@ from expert_op4grid_recommender.utils.helpers import Timer
 from expert_op4grid_recommender.utils import repas
 from expert_op4grid_recommender.utils.conversion_actions_repas import (
     convert_repas_actions_to_grid2op_actions,
-    create_dict_disco_reco_lines_disco
+    create_dict_disco_reco_lines_disco,
+    get_all_switch_descriptions,
 )
 
 def make_description_unitaire(switches_by_voltage_level):
@@ -360,7 +361,7 @@ def build_action_dict_pypowsybl_format_from_scratch(n_grid, all_actions, add_rec
 
             result[action_key] = {
                 "description": action._description,
-                "description_unitaire": action._description,
+                "description_unitaire": get_all_switch_descriptions(action._switches_by_voltage_level),
                 "VoltageLevelId": voltage_level,
                 "switches": switches_flat,
             }

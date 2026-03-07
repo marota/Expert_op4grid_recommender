@@ -1547,7 +1547,8 @@ class TestBuildActionDictPypowsyblFormatFromScratch:
         assert "ACT1" in result
         entry = result["ACT1"]
         assert entry["description"] == "Open SW1"
-        assert entry["description_unitaire"] == "Open SW1"
+        # description_unitaire is the per-VL switch summary, not the full REPAS description
+        assert entry["description_unitaire"] == "Ouverture VLA_SW1 DJ_OC dans le poste VLA"
         assert entry["VoltageLevelId"] == "VLA"
         assert entry["switches"] == {"VLA_SW1 DJ_OC": True}
         assert "content" not in entry
