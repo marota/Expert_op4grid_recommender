@@ -799,6 +799,17 @@ def main():
         help="Voltage filter threshold for REPAS actions (default: 300)"
     )
     parser.add_argument(
+        "--pypowsybl-format",
+        action='store_true',
+        help=(
+            "When used with --rebuild-actions and an empty action file (from scratch), "
+            "outputs the action dictionary in pypowsybl format: switch-based entries with "
+            "description, description_unitaire, VoltageLevelId and switches fields "
+            "(no Grid2Op set_bus content). Duplicate actions sharing identical switch "
+            "states are deduplicated; removed duplicates are listed in 'other_action_ids'."
+        )
+    )
+    parser.add_argument(
         "--ignore-lines-monitoring",
         action='store_true',
         help="If set, ignores the lignes_a_monitorer.csv file and monitors all lines."
@@ -848,7 +859,8 @@ def main():
                 dict_action = run_rebuild_actions(n_grid, do_from_scratch, args.repas_file,
                                                    dict_action_to_filter_on=dict_action,
                                                    voltage_filter_threshold=args.voltage_threshold,
-                                                   output_file_base_name="reduced_model_actions")
+                                                   output_file_base_name="reduced_model_actions",
+                                                   pypowsybl_format=args.pypowsybl_format)
 
                 print("Action rebuilding process complete. Stopping analysis as requested.")
                 return  # EXIT EARLY
