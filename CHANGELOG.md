@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.5] - 2026-03-07
+
+### Added
+
+- **Dynamic Action Content Computation**: Implemented `LazyActionDict` to compute action `content` (bus assignments) on-demand from switch states, significantly reducing action JSON file sizes.
+- **Prioritization of Direct Overload Disconnections**: Added a +1.0 score boost for actions that disconnect currently overloaded lines in unconstrained regimes.
+- **Thermal Limit Monitoring Factor**: Added support for rescaling thermal limits in overflow graph visualizations via `monitoring_factor_thermal_limits`.
+- **Minimum Action Count Enforcement**: Introduced `MIN_*` configuration parameters to guarantee a minimum number of actions per type (reconnection, disconnection, coupling).
+- **Flexible Monitoring File Routing**: Improved configuration for `LINES_MONITORING_FILE`.
+
+### Changed
+
+- **Two-Step Analysis Refactor**: Split `run_analysis` into `run_analysis_step1` and `run_analysis_step2` for better decoupling.
+- **Improved Parameter Propagation**: Safely propagate `fast_mode` down to all simulation sub-components.
+
+### Fixed
+
+- **Monkey-patching Bug**: Fixed `AttributeError` in `main.py` where `_check_rho_reduction` was incorrectly accessed.
+
+---
+
 ## [0.1.4] - 2026-03-04
 
 ### Added
