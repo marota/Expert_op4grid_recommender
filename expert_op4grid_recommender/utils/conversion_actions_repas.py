@@ -378,13 +378,17 @@ class NetworkTopologyCache:
         self._vl_switch_states = {}  # switch_id -> is_open (initial state)
         self._vl_nodes = defaultdict(set)  # vl_id -> set of all nodes
         
+        self._switch_to_vl = {}  # switch_id -> voltage_level_id (reverse lookup)
+
         # Process switches
         for switch_id, row in self._switches_df.iterrows():
             vl_id = row['voltage_level_id']
             node1 = row['bus_breaker_bus1_id']
             node2 = row['bus_breaker_bus2_id']
             is_open = row['open']
-            
+
+            self._switch_to_vl[switch_id] = vl_id
+
             if pd.notna(node1) and pd.notna(node2):
                 self._vl_switches[vl_id].append((switch_id, node1, node2))
                 self._vl_switch_states[switch_id] = is_open
