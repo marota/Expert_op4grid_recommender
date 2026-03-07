@@ -307,8 +307,12 @@ def run_analysis_step1(analysis_date: Optional[datetime],
             env = set_thermal_limits(n_grid, env, thresold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS)
             obs = env.reset() if backend == Backend.GRID2OP else env.get_obs()
 
-        # Wrap action dicts for lazy content computation from switches
-        dict_action = enrich_actions_lazy(dict_action, n_grid)
+        # Wrap action dicts for lazy content computation from switches.
+        # Only needed for pypowsybl backend — Grid2Op environments may use
+        # node-breaker topologies where NetworkTopologyCache cannot reliably
+        # compute set_bus from switches, so actions must ship with pre-computed content.
+        if backend == Backend.PYPOWSYBL:
+            dict_action = enrich_actions_lazy(dict_action, n_grid)
 
     # --- Instantiate Classifier ---
     classifier = ActionClassifier(grid2op_action_space=env.action_space)
