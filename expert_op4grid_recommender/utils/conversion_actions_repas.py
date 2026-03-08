@@ -253,6 +253,51 @@ class UnionFind:
         return result
 
 
+class _IntUnionFind:
+    """
+    Integer-indexed Union-Find for internal use within NetworkTopologyCache.
+
+    Uses list indexing instead of dict lookups (~3x faster for small VLs).
+    Supports fast cloning via list.copy() to reuse a pre-computed initial state.
+    """
+    __slots__ = ['parent', 'rank']
+
+    def __init__(self, n: int):
+        """Initialize n singletons."""
+        self.parent: List[int] = list(range(n))
+        self.rank: List[int] = [0] * n
+
+    @classmethod
+    def from_state(cls, parent: List[int], rank: List[int]) -> '_IntUnionFind':
+        """Clone a pre-computed state (O(n) list copy, avoids re-running all unions)."""
+        uf: '_IntUnionFind' = cls.__new__(cls)
+        uf.parent = list(parent)
+        uf.rank = list(rank)
+        return uf
+
+    def find(self, x: int) -> int:
+        """Find root with iterative path-halving (no recursion overhead)."""
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]
+            x = self.parent[x]
+        return x
+
+    def union(self, x: int, y: int) -> None:
+        """Union by rank."""
+        rx, ry = self.find(x), self.find(y)
+        if rx == ry:
+            return
+        if self.rank[rx] < self.rank[ry]:
+            rx, ry = ry, rx
+        self.parent[ry] = rx
+        if self.rank[rx] == self.rank[ry]:
+            self.rank[rx] += 1
+
+    def roots(self) -> List[int]:
+        """Return the root of every element (applies final path compression)."""
+        return [self.find(i) for i in range(len(self.parent))]
+
+
 # =============================================================================
 # Bus number reindexing utility
 # =============================================================================
@@ -368,9 +413,13 @@ class NetworkTopologyCache:
         
         # Pre-compute per-voltage-level data structures
         self._build_vl_topology_data()
-        
+
         # Pre-compute which elements are disconnected from main network component
         self._build_disconnected_elements()
+
+        # Build fast per-VL lookup tables (must run after both methods above so
+        # that _vl_nodes is final and element groupings are consistent).
+        self._build_fast_lookup_tables()
     
     def _build_vl_topology_data(self):
         """Build per-voltage-level topology structures for fast lookup."""
@@ -444,6 +493,78 @@ class NetworkTopologyCache:
                 if vl1 and vl2 and node1 and node2:
                     self._transformers[branch_id] = (node1, vl1, node2, vl2)
     
+    def _build_fast_lookup_tables(self):
+        """
+        Build per-VL lookup tables that make per-action content computation fast.
+
+        Must be called AFTER both _build_vl_topology_data and _build_disconnected_elements
+        so that _vl_nodes contains the final, complete node sets.
+
+        Creates:
+        - _vl_branches_or / _vl_branches_ex: branch IDs grouped by the VL of each terminal
+        - _vl_loads / _vl_generators / _vl_shunts: element IDs grouped by VL
+        - _vl_node_to_idx / _vl_idx_to_node: stable int ↔ str mappings per VL
+        - _vl_switches_int: per-VL switch list with pre-resolved integer indices
+        - _vl_initial_parent / _vl_initial_rank: pre-computed UF state from base switch config
+        """
+        # --- Element groupings by VL (avoids iterrows over full DataFrames per action) ---
+        self._vl_branches_or: Dict[str, List[str]] = defaultdict(list)
+        self._vl_branches_ex: Dict[str, List[str]] = defaultdict(list)
+        self._vl_loads: Dict[str, List[str]] = defaultdict(list)
+        self._vl_generators: Dict[str, List[str]] = defaultdict(list)
+        self._vl_shunts: Dict[str, List[str]] = defaultdict(list)
+
+        for branch_id in self._branches_df.index:
+            vl1 = self._branch_or_to_vl.get(branch_id)
+            vl2 = self._branch_ex_to_vl.get(branch_id)
+            if vl1:
+                self._vl_branches_or[vl1].append(branch_id)
+            if vl2:
+                self._vl_branches_ex[vl2].append(branch_id)
+
+        for load_id, vl in self._load_to_vl.items():
+            if vl:
+                self._vl_loads[vl].append(load_id)
+
+        for gen_id, vl in self._gen_to_vl.items():
+            if vl:
+                self._vl_generators[vl].append(gen_id)
+
+        for shunt_id, vl in self._shunt_to_vl.items():
+            if vl:
+                self._vl_shunts[vl].append(shunt_id)
+
+        # --- Integer mappings + pre-computed initial UF state per VL ---
+        self._vl_node_to_idx: Dict[str, Dict[str, int]] = {}
+        self._vl_idx_to_node: Dict[str, List[str]] = {}
+        self._vl_switches_int: Dict[str, List[Tuple[str, int, int]]] = {}
+        self._vl_initial_parent: Dict[str, List[int]] = {}
+        self._vl_initial_rank: Dict[str, List[int]] = {}
+
+        for vl_id, nodes in self._vl_nodes.items():
+            node_list = sorted(nodes)  # stable ordering
+            node_to_idx = {n: i for i, n in enumerate(node_list)}
+            self._vl_node_to_idx[vl_id] = node_to_idx
+            self._vl_idx_to_node[vl_id] = node_list
+
+            # Resolve switch node strings to integer indices once
+            switches_int: List[Tuple[str, int, int]] = []
+            for switch_id, node1, node2 in self._vl_switches.get(vl_id, []):
+                idx1 = node_to_idx.get(node1)
+                idx2 = node_to_idx.get(node2)
+                if idx1 is not None and idx2 is not None:
+                    switches_int.append((switch_id, idx1, idx2))
+            self._vl_switches_int[vl_id] = switches_int
+
+            # Run UF once for the base switch configuration
+            n_nodes = len(node_list)
+            uf = _IntUnionFind(n_nodes)
+            for switch_id, idx1, idx2 in switches_int:
+                if not self._vl_switch_states.get(switch_id, True):  # False = closed
+                    uf.union(idx1, idx2)
+            self._vl_initial_parent[vl_id] = list(uf.parent)
+            self._vl_initial_rank[vl_id] = list(uf.rank)
+
     def _build_disconnected_elements(self):
         """
         Identify elements that are disconnected from the main network component.
@@ -524,29 +645,25 @@ class NetworkTopologyCache:
                     self._vl_nodes[vl].add(node)
     
     def compute_bus_assignments(
-        self, 
+        self,
         switch_changes: Dict[str, bool],
         impacted_vl_ids: Set[str]
     ) -> Dict[str, Dict[str, int]]:
         """
         Compute bus assignments after applying switch changes.
-        
-        Uses Union-Find to compute connected components (buses) within each VL.
-        
-        Logic:
-        1. Compute connected components within the VL using Union-Find
-        2. Identify which components have at least 2 nodes (connected to a busbar)
-           Components with only 1 node that isn't connected to anything else are isolated
-        3. Isolated nodes get bus = -1
-        4. Connected nodes get positive bus numbers
-        
+
+        Uses integer-indexed Union-Find with a pre-computed initial state to
+        avoid rebuilding from scratch when all changed switches are being closed
+        (the common reconnection case).  For opening operations the UF is rebuilt
+        from scratch using faster integer arrays.
+
         Parameters
         ----------
         switch_changes : Dict[str, bool]
             Mapping from switch_id to new open state (True=open, False=closed).
         impacted_vl_ids : Set[str]
             Set of voltage level IDs where topology needs to be recomputed.
-            
+
         Returns
         -------
         Dict[str, Dict[str, int]]
@@ -554,50 +671,58 @@ class NetworkTopologyCache:
             Bus number is -1 for isolated nodes.
         """
         result = {}
-        
+
         for vl_id in impacted_vl_ids:
-            nodes = self._vl_nodes.get(vl_id, set())
-            if not nodes:
+            node_to_idx = self._vl_node_to_idx.get(vl_id)
+            if not node_to_idx:
                 result[vl_id] = {}
                 continue
-            
-            # Initialize Union-Find with all nodes in this VL
-            uf = UnionFind(list(nodes))
-            
-            # Process all switches in this VL
-            for switch_id, node1, node2 in self._vl_switches.get(vl_id, []):
-                # Determine effective switch state
-                if switch_id in switch_changes:
-                    is_open = switch_changes[switch_id]
-                else:
-                    is_open = self._vl_switch_states.get(switch_id, True)
-                
-                # If switch is closed, unite the two nodes
-                if not is_open:
-                    uf.union(node1, node2)
-            
-            # Get component mapping
-            raw_component_mapping = uf.get_component_mapping()
-            
-            # Count nodes per component to identify isolated single-node components
-            component_node_count: Dict[int, int] = defaultdict(int)
-            for node, comp in raw_component_mapping.items():
-                component_node_count[comp] += 1
-            
-            # A component is "connected" (has a bus) if it has more than 1 node
-            # This means it's connected to at least one other node via a closed switch
-            # Single-node components are isolated
-            final_mapping = {}
-            for node, component in raw_component_mapping.items():
-                if component_node_count[component] > 1:
-                    # Connected component - assign bus number
-                    final_mapping[node] = component
-                else:
-                    # Single isolated node - mark as disconnected
-                    final_mapping[node] = -1
-            
-            result[vl_id] = final_mapping
-        
+
+            switches_int = self._vl_switches_int.get(vl_id, [])
+            initial_parent = self._vl_initial_parent.get(vl_id)
+            initial_rank = self._vl_initial_rank.get(vl_id)
+
+            # Can we reuse the cached initial state?
+            # Yes iff no changed switch is going from closed→open (UF has no undo).
+            can_use_cache = initial_parent is not None
+            if can_use_cache and switch_changes:
+                for switch_id, _, _ in switches_int:
+                    if switch_id in switch_changes:
+                        was_closed = not self._vl_switch_states.get(switch_id, True)
+                        now_open = switch_changes[switch_id]
+                        if was_closed and now_open:
+                            can_use_cache = False
+                            break
+
+            if can_use_cache:
+                # Start from cached base state; only apply newly closed switches.
+                uf = _IntUnionFind.from_state(initial_parent, initial_rank)
+                for switch_id, idx1, idx2 in switches_int:
+                    if switch_id in switch_changes and not switch_changes[switch_id]:
+                        uf.union(idx1, idx2)
+            else:
+                # Rebuild from scratch (opening a switch breaks the cached state).
+                uf = _IntUnionFind(len(node_to_idx))
+                for switch_id, idx1, idx2 in switches_int:
+                    is_open = switch_changes.get(switch_id,
+                                                 self._vl_switch_states.get(switch_id, True))
+                    if not is_open:
+                        uf.union(idx1, idx2)
+
+            # Determine which components are non-isolated (>1 node connected together).
+            root_list = uf.roots()
+            comp_count: Dict[int, int] = {}
+            for r in root_list:
+                comp_count[r] = comp_count.get(r, 0) + 1
+
+            idx_to_node = self._vl_idx_to_node[vl_id]
+            node_bus: Dict[str, int] = {}
+            for idx, node_id in enumerate(idx_to_node):
+                r = root_list[idx]
+                node_bus[node_id] = r if comp_count[r] > 1 else -1
+
+            result[vl_id] = node_bus
+
         return result
     
     def get_element_bus_assignments(
@@ -607,106 +732,89 @@ class NetworkTopologyCache:
     ) -> dict:
         """
         Convert node-to-bus mappings to element-to-bus mappings.
-        
-        The bus numbers are reindexed to sequential numbers starting at 1,
-        PER VOLTAGE LEVEL, so that if the raw bus numbers are [2, 4, 7], 
-        they become [1, 2, 3] within that voltage level.
-        
-        All element types are reindexed together to ensure consistent bus numbers.
-        
+
+        Bus numbers are reindexed to sequential integers starting at 1 per VL.
+        Uses pre-grouped per-VL element lists built in _build_fast_lookup_tables
+        so the iteration is O(elements_in_impacted_VLs) instead of O(all_elements).
+
         Parameters
         ----------
         node_to_bus : Dict[str, Dict[str, int]]
             Mapping from voltage_level_id to (node_id -> bus_number).
         impacted_vl_ids : Set[str]
             Set of impacted voltage level IDs.
-            
+
         Returns
         -------
         dict
             The set_bus dictionary for Grid2Op format.
         """
-        lines_or_id = {}
-        lines_ex_id = {}
-        loads_id = {}
-        generators_id = {}
-        shunts_id = {}
-        
-        # Build element-to-VL mapping for all elements we'll process
-        element_to_vl = {}
-        
-        # Process branches
-        for branch_id, row in self._branches_df.iterrows():
-            vl1 = row['voltage_level1_id']
-            vl2 = row['voltage_level2_id']
-            
-            if vl1 in impacted_vl_ids:
-                node = self._branch_or_to_node.get(branch_id)
-                # Use suffixed key for VL mapping to distinguish or/ex sides
-                element_to_vl[f"{branch_id}_or"] = vl1
-                if node and vl1 in node_to_bus and node in node_to_bus[vl1]:
-                    lines_or_id[branch_id] = node_to_bus[vl1][node]
-                elif node:
-                    lines_or_id[branch_id] = -1
-            
-            if vl2 in impacted_vl_ids:
-                node = self._branch_ex_to_node.get(branch_id)
-                element_to_vl[f"{branch_id}_ex"] = vl2
-                if node and vl2 in node_to_bus and node in node_to_bus[vl2]:
-                    lines_ex_id[branch_id] = node_to_bus[vl2][node]
-                elif node:
-                    lines_ex_id[branch_id] = -1
-        
-        # Process loads
-        for load_id, vl in self._load_to_vl.items():
-            if vl in impacted_vl_ids:
-                element_to_vl[load_id] = vl
-                node = self._load_to_node.get(load_id)
-                if node and vl in node_to_bus and node in node_to_bus[vl]:
-                    loads_id[load_id] = node_to_bus[vl][node]
-                elif node:
-                    loads_id[load_id] = -1
-        
-        # Process generators
-        for gen_id, vl in self._gen_to_vl.items():
-            if vl in impacted_vl_ids:
-                element_to_vl[gen_id] = vl
-                node = self._gen_to_node.get(gen_id)
-                if node and vl in node_to_bus and node in node_to_bus[vl]:
-                    generators_id[gen_id] = node_to_bus[vl][node]
-                elif node:
-                    generators_id[gen_id] = -1
-        
-        # Process shunts
-        for shunt_id, vl in self._shunt_to_vl.items():
-            if vl in impacted_vl_ids:
-                element_to_vl[shunt_id] = vl
-                node = self._shunt_to_node.get(shunt_id)
-                if node and vl in node_to_bus and node in node_to_bus[vl]:
-                    shunts_id[shunt_id] = node_to_bus[vl][node]
-                elif node:
-                    shunts_id[shunt_id] = -1
-        
-        # Build combined set_bus dict with suffixed keys for lines
-        # This ensures all elements are reindexed together consistently
-        combined_set_bus = {
-            'lines_or_id': {f"{bid}_or": bus for bid, bus in lines_or_id.items()},
-            'lines_ex_id': {f"{bid}_ex": bus for bid, bus in lines_ex_id.items()},
+        lines_or_id: Dict[str, int] = {}
+        lines_ex_id: Dict[str, int] = {}
+        loads_id: Dict[str, int] = {}
+        generators_id: Dict[str, int] = {}
+        shunts_id: Dict[str, int] = {}
+
+        for vl_id in impacted_vl_ids:
+            vl_map = node_to_bus.get(vl_id)
+            if not vl_map:
+                continue
+
+            # Collect all positive raw bus values to build a per-VL reindex map.
+            # All element types share the same reindexing so bus numbers are
+            # consistent across types within a VL.
+            raw_buses: set = set()
+            for branch_id in self._vl_branches_or.get(vl_id, []):
+                bus = vl_map.get(self._branch_or_to_node.get(branch_id))
+                if bus and bus > 0:
+                    raw_buses.add(bus)
+            for branch_id in self._vl_branches_ex.get(vl_id, []):
+                bus = vl_map.get(self._branch_ex_to_node.get(branch_id))
+                if bus and bus > 0:
+                    raw_buses.add(bus)
+            for load_id in self._vl_loads.get(vl_id, []):
+                bus = vl_map.get(self._load_to_node.get(load_id))
+                if bus and bus > 0:
+                    raw_buses.add(bus)
+            for gen_id in self._vl_generators.get(vl_id, []):
+                bus = vl_map.get(self._gen_to_node.get(gen_id))
+                if bus and bus > 0:
+                    raw_buses.add(bus)
+            for shunt_id in self._vl_shunts.get(vl_id, []):
+                bus = vl_map.get(self._shunt_to_node.get(shunt_id))
+                if bus and bus > 0:
+                    raw_buses.add(bus)
+
+            bus_remap: Dict[int, int] = {
+                old: new for new, old in enumerate(sorted(raw_buses), start=1)
+            }
+
+            def _assign(out: Dict[str, int], element_ids: List[str],
+                        node_map: Dict[str, str]) -> None:
+                for eid in element_ids:
+                    node = node_map.get(eid)
+                    if node:
+                        raw = vl_map.get(node)
+                        if raw is not None:
+                            out[eid] = bus_remap.get(raw, raw) if raw > 0 else raw
+                        else:
+                            out[eid] = -1
+
+            _assign(lines_or_id, self._vl_branches_or.get(vl_id, []),
+                    self._branch_or_to_node)
+            _assign(lines_ex_id, self._vl_branches_ex.get(vl_id, []),
+                    self._branch_ex_to_node)
+            _assign(loads_id, self._vl_loads.get(vl_id, []), self._load_to_node)
+            _assign(generators_id, self._vl_generators.get(vl_id, []),
+                    self._gen_to_node)
+            _assign(shunts_id, self._vl_shunts.get(vl_id, []), self._shunt_to_node)
+
+        return {
+            'lines_or_id': lines_or_id,
+            'lines_ex_id': lines_ex_id,
             'loads_id': loads_id,
             'generators_id': generators_id,
-            'shunts_id': shunts_id
-        }
-        
-        # Reindex ALL elements together per voltage level
-        reindexed = _reindex_bus_numbers_per_vl(combined_set_bus, element_to_vl)
-        
-        # Convert back: remove suffixes from line keys
-        return {
-            'lines_or_id': {bid.replace('_or', ''): bus for bid, bus in reindexed.get('lines_or_id', {}).items()},
-            'lines_ex_id': {bid.replace('_ex', ''): bus for bid, bus in reindexed.get('lines_ex_id', {}).items()},
-            'loads_id': reindexed.get('loads_id', {}),
-            'generators_id': reindexed.get('generators_id', {}),
-            'shunts_id': reindexed.get('shunts_id', {})
+            'shunts_id': shunts_id,
         }
 
 

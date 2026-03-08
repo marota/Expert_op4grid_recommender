@@ -17,12 +17,14 @@ from REPAS format to Grid2Op format based on network grid snapshots.
 import copy
 import json
 import os
+from collections import defaultdict
 from expert_op4grid_recommender.utils.helpers import Timer
 
 from expert_op4grid_recommender.utils import repas
 from expert_op4grid_recommender.utils.conversion_actions_repas import (
     convert_repas_actions_to_grid2op_actions,
-    create_dict_disco_reco_lines_disco
+    create_dict_disco_reco_lines_disco,
+    get_all_switch_descriptions,
 )
 
 def make_description_unitaire(switches_by_voltage_level):
@@ -219,8 +221,165 @@ def rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action):
     return new_dict_actions
 
 
+def _create_dict_disco_reco_pypowsybl_format(n_grid, filter_voltage_levels=None):
+    """
+    Create disconnection/reconnection entries for lines in pypowsybl format.
+
+    Unlike create_dict_disco_reco_lines_disco, these entries contain only
+    description and description_unitaire (no Grid2Op set_bus content).
+    Lines whose both extremity voltage levels are in filter_voltage_levels are excluded.
+
+    Parameters
+    ----------
+    n_grid : pypowsybl.network.Network
+        The network grid object.
+    filter_voltage_levels : list, optional
+        Voltage levels to exclude (default: [400, 24., 15., 20., 33., 10.]).
+
+    Returns
+    -------
+    dict
+        Disco/reco entries keyed by "disco_{line}" and "reco_{line}".
+    """
+    if filter_voltage_levels is None:
+        filter_voltage_levels = [400, 24., 15., 20., 33., 10.]
+
+    result = {}
+    branches_df = n_grid.get_branches()[["voltage_level1_id", "voltage_level2_id"]]
+    vl_df = n_grid.get_voltage_levels()
+
+    branches_df["voltage_level1"] = vl_df.loc[branches_df["voltage_level1_id"], "nominal_v"].values
+    branches_df["voltage_level2"] = vl_df.loc[branches_df["voltage_level2_id"], "nominal_v"].values
+
+    filter_set = set(filter_voltage_levels)
+    mask = (~branches_df["voltage_level1"].isin(filter_set)) & \
+           (~branches_df["voltage_level2"].isin(filter_set))
+
+    for line in branches_df[mask].index:
+        result[f"disco_{line}"] = {
+            "description": f"Disconnection of line/transformer '{line}'",
+            "description_unitaire": f"Ouverture de la ligne '{line}'"
+        }
+        result[f"reco_{line}"] = {
+            "description": f"Reconnection of line/transformer '{line}'",
+            "description_unitaire": f"Fermeture de la ligne '{line}'"
+        }
+
+    return result
+
+
+def deduplicate_actions_by_switches(dict_actions):
+    """
+    Deduplicate actions that have identical switch states.
+
+    Actions without a 'switches' field (e.g., disco/reco line actions) are kept
+    as-is. For each group of actions sharing the same switch fingerprint, the first
+    encountered action is kept as the reference. Its 'other_action_ids' field is
+    populated with the IDs of the removed duplicates.
+
+    Parameters
+    ----------
+    dict_actions : dict
+        Dictionary of actions keyed by action ID.
+
+    Returns
+    -------
+    dict
+        Deduplicated dictionary. Reference actions may have an 'other_action_ids'
+        field listing the IDs of removed duplicates.
+    """
+    # First pass: group action IDs by switch fingerprint (preserving insertion order)
+    fingerprint_to_ids = defaultdict(list)
+    for action_id, action in dict_actions.items():
+        if "switches" in action and action["switches"]:
+            fingerprint = frozenset(action["switches"].items())
+            fingerprint_to_ids[fingerprint].append(action_id)
+
+    # Determine reference vs duplicate IDs
+    reference_ids = set()
+    duplicates_for_reference = {}  # reference_id -> [duplicate_ids]
+    for fingerprint, ids in fingerprint_to_ids.items():
+        ref_id = ids[0]
+        reference_ids.add(ref_id)
+        if len(ids) > 1:
+            duplicates_for_reference[ref_id] = ids[1:]
+
+    # Second pass: build result, skipping duplicates
+    result = {}
+    for action_id, action in dict_actions.items():
+        if "switches" not in action or not action["switches"]:
+            result[action_id] = action
+        elif action_id in reference_ids:
+            new_action = dict(action)
+            if action_id in duplicates_for_reference:
+                new_action["other_action_ids"] = duplicates_for_reference[action_id]
+            result[action_id] = new_action
+        # else: duplicate — omitted, already listed in reference's other_action_ids
+
+    return result
+
+
+def build_action_dict_pypowsybl_format_from_scratch(n_grid, all_actions, add_reco_disco_actions=False,
+                                                     filter_voltage_levels=None):
+    """
+    Builds the action dictionary in pypowsybl format (switch-based) from scratch.
+
+    Unlike build_action_dict_for_snapshot_from_scratch, this function does NOT
+    compute Grid2Op topology. Each entry contains only:
+    description, description_unitaire, VoltageLevelId, switches.
+
+    Duplicate actions sharing the same switch states are deduplicated: the first
+    occurrence is kept as the reference and lists removed duplicates in
+    'other_action_ids'.
+
+    Parameters
+    ----------
+    n_grid : pypowsybl.network.Network
+        The network grid object (required when add_reco_disco_actions is True).
+    all_actions : list
+        List of REPAS action objects.
+    add_reco_disco_actions : bool, optional
+        Whether to add line disconnection/reconnection entries (default: False).
+    filter_voltage_levels : list, optional
+        Voltage levels to exclude from disco/reco generation.
+
+    Returns
+    -------
+    dict
+        Switch-based action dictionary with duplicates removed.
+    """
+    with Timer("Building Action Dictionary (pypowsybl format)"):
+        all_actions_dict = make_raw_all_actions_dict(all_actions)
+
+        result = {}
+        for action_key, action in all_actions_dict.items():
+            switches_flat = {}
+            for vl_id, switches in action._switches_by_voltage_level.items():
+                switches_flat.update(switches)
+
+            voltage_level = next(iter(action._switches_by_voltage_level))
+
+            result[action_key] = {
+                "description": action._description,
+                "description_unitaire": get_all_switch_descriptions(action._switches_by_voltage_level),
+                "VoltageLevelId": voltage_level,
+                "switches": switches_flat,
+            }
+
+        if add_reco_disco_actions and n_grid is not None:
+            dict_extra = _create_dict_disco_reco_pypowsybl_format(
+                n_grid, filter_voltage_levels=filter_voltage_levels
+            )
+            result |= dict_extra
+
+        result = deduplicate_actions_by_switches(result)
+
+    return result
+
+
 def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to_filter_on=None,
-                        voltage_filter_threshold=300, output_file_base_name="reduced_model_actions"):
+                        voltage_filter_threshold=300, output_file_base_name="reduced_model_actions",
+                        pypowsybl_format=False):
     """
     Orchestrates the action rebuilding process using the environment's grid.
 
@@ -238,6 +397,10 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
         Voltage threshold for filtering actions (default: 300).
     output_file_base_name : str, optional
         Base name for the output file (default: "reduced_model_actions").
+    pypowsybl_format : bool, optional
+        When True and do_from_scratch is True, builds in pypowsybl format
+        (switch-based, no Grid2Op set_bus content) with duplicate deduplication
+        (default: False).
 
     Returns
     -------
@@ -247,9 +410,10 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
     if dict_action_to_filter_on is None:
         dict_action_to_filter_on = {}
 
+    format_label = "pypowsybl" if pypowsybl_format else "grid2op"
     print(
-        f"Rebuilding action dictionary based on current grid snapshot using REPAS file: {repas_file_path} "
-        f"with voltage threshold < {voltage_filter_threshold}..."
+        f"Rebuilding action dictionary ({format_label} format) based on current grid snapshot "
+        f"using REPAS file: {repas_file_path} with voltage threshold < {voltage_filter_threshold}..."
     )
 
     output_file_path = os.path.join(
@@ -269,13 +433,20 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
 
             # Rebuild dictionary
             if do_from_scratch:
-                new_dict_actions = build_action_dict_for_snapshot_from_scratch(n_grid, all_actions,add_reco_disco_actions=True)
+                if pypowsybl_format:
+                    new_dict_actions = build_action_dict_pypowsybl_format_from_scratch(
+                        n_grid, all_actions, add_reco_disco_actions=True
+                    )
+                else:
+                    new_dict_actions = build_action_dict_for_snapshot_from_scratch(
+                        n_grid, all_actions, add_reco_disco_actions=True
+                    )
             else:
                 new_dict_actions = rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action_to_filter_on)
 
         # Save to file
-        with open(output_file_path, "w") as json_file:
-            json.dump(new_dict_actions, json_file, indent=4)
+        with open(output_file_path, "w", encoding="utf-8") as json_file:
+            json.dump(new_dict_actions, json_file, indent=4, ensure_ascii=False)
 
         print(f"Successfully rebuilt actions. Saved to: {output_file_path}")
         return new_dict_actions

@@ -24,7 +24,8 @@ class ActionClassifier:
     analyzing a Grid2Op Action object directly.
     """
 
-    def __init__(self, grid2op_action_space: Optional[Callable] = None):
+    def __init__(self, grid2op_action_space: Optional[Callable] = None,
+                 branch_names=None, load_names=None):
         """
         Initializes the ActionClassifier.
 
@@ -32,8 +33,54 @@ class ActionClassifier:
             grid2op_action_space (Optional[Callable]): A callable (like env.action_space)
                 needed if classifying actions directly from Grid2Op objects
                 (when using `identify_action_type` with `by_description=False`).
+            branch_names: Collection of branch (line/transformer) IDs in the network.
+                When provided alongside a pypowsybl action dict (with a ``switches``
+                field), asset names extracted from switch IDs are matched against this
+                set to infer ``has_line`` without triggering lazy content computation.
+            load_names: Collection of load IDs in the network, used analogously to
+                ``branch_names`` for inferring ``has_load``.
         """
         self._action_space = grid2op_action_space
+        self._branch_names: Optional[frozenset] = frozenset(branch_names) if branch_names is not None else None
+        self._load_names: Optional[frozenset] = frozenset(load_names) if load_names is not None else None
+
+    def _infer_has_line_load(self, actions_desc: Dict[str, Any]) -> Tuple[bool, bool]:
+        """Return (has_line, has_load) without triggering lazy content computation.
+
+        For pypowsybl-format actions (those with a ``switches`` field) and when
+        ``branch_names``/``load_names`` were supplied at construction time, asset
+        names are extracted from switch IDs using the naming convention
+        ``"{VoltageLevel}_{AssetName} {SuffixXX}_OC"`` and matched against the
+        pre-built frozensets.  This avoids lazy-loading ``content.set_bus`` for
+        every action in the dictionary.
+
+        Falls back to reading ``content.set_bus`` (the grid2op path, which may
+        trigger lazy computation) when switches or name sets are unavailable.
+        """
+        switches = actions_desc.get("switches")
+        if switches is not None and self._branch_names is not None:
+            has_line, has_load = False, False
+            for switch_id in switches:
+                # Switch ID format: "{VoltageLevel}_{AssetName} {SuffixXX}_OC"
+                try:
+                    asset_name = switch_id.split("_", 1)[1].rsplit(" ", 1)[0]
+                except IndexError:
+                    continue
+                if not has_line and asset_name in self._branch_names:
+                    has_line = True
+                if not has_load and self._load_names and asset_name in self._load_names:
+                    has_load = True
+                if has_line and has_load:
+                    break
+            return has_line, has_load
+
+        # grid2op path: use set_bus (may trigger lazy computation for LazyActionDict)
+        content = actions_desc.get("content", {})
+        dict_action = content.get("set_bus", {})
+        has_load = "loads_id" in dict_action and len(dict_action["loads_id"]) != 0
+        has_line = (("lines_or_id" in dict_action and len(dict_action["lines_or_id"]) != 0) or
+                    ("lines_ex_id" in dict_action and len(dict_action["lines_ex_id"]) != 0))
+        return has_line, has_load
 
     def _is_nodale_grid2op_action(self, act: Any) -> Tuple[bool, List[int], List[bool]]:
         """
@@ -199,16 +246,12 @@ class ActionClassifier:
 
         if by_description:
             try:
-                content = actions_desc.get("content", {})
-                dict_action = content.get("set_bus", {})
-                has_load = "loads_id" in dict_action and len(dict_action["loads_id"]) != 0
-                has_line = (("lines_or_id" in dict_action and len(dict_action["lines_or_id"]) != 0) or
-                            ("lines_ex_id" in dict_action and len(dict_action["lines_ex_id"]) != 0))
                 description = actions_desc.get("description_unitaire", actions_desc.get("description", ""))
 
-                if ("COUPL" in description or "TRO." in description):
+                if "COUPL" in description or "TRO." in description:
                     action_type = "open_coupling" if "Ouverture" in description else "close_coupling"
                 elif "Ouverture" in description or "deconnection" in description:
+                    has_line, has_load = self._infer_has_line_load(actions_desc)
                     if has_load and has_line:
                         action_type = "open_line_load"
                     elif has_line:
@@ -216,6 +259,7 @@ class ActionClassifier:
                     elif has_load:
                         action_type = "open_load"
                 elif "Fermeture" in description or "reconnection" in description:
+                    has_line, has_load = self._infer_has_line_load(actions_desc)
                     if has_load and has_line:
                         action_type = "close_line_load"
                     elif has_line:
@@ -223,13 +267,9 @@ class ActionClassifier:
                     elif has_load:
                         action_type = "close_load"
 
-            except KeyError as e:
+            except (KeyError, AttributeError) as e:
                 print(
-                    f"Warning: Missing expected key for description-based classification: {e}. Action: {actions_desc.get('description_unitaire', 'N/A')}")
-                action_type = "unknown"  # Fallback if structure is wrong
-            except AttributeError as e:  # Handle cases where content['set_bus'] might not be a dict
-                print(
-                    f"Warning: Invalid structure in action description content: {e}. Action: {actions_desc.get('description_unitaire', 'N/A')}")
+                    f"Warning: Could not classify action by description: {e}. Action: {actions_desc.get('description_unitaire', 'N/A')}")
                 action_type = "unknown"
 
         else:

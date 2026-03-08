@@ -315,7 +315,15 @@ def run_analysis_step1(analysis_date: Optional[datetime],
             dict_action = enrich_actions_lazy(dict_action, n_grid)
 
     # --- Instantiate Classifier ---
-    classifier = ActionClassifier(grid2op_action_space=env.action_space)
+    if backend == Backend.PYPOWSYBL:
+        # Build name sets once so identify_action_type can infer has_line/has_load
+        # from switch IDs without triggering lazy content computation.
+        _branch_names = set(n_grid.get_lines().index) | set(n_grid.get_2_windings_transformers().index)
+        _load_names = set(n_grid.get_loads(attributes=[]).index)
+        classifier = ActionClassifier(grid2op_action_space=env.action_space,
+                                      branch_names=_branch_names, load_names=_load_names)
+    else:
+        classifier = ActionClassifier(grid2op_action_space=env.action_space)
 
     if is_bare_env:
         act_reco_maintenance = env.action_space({})
@@ -799,6 +807,17 @@ def main():
         help="Voltage filter threshold for REPAS actions (default: 300)"
     )
     parser.add_argument(
+        "--pypowsybl-format",
+        action='store_true',
+        help=(
+            "When used with --rebuild-actions and an empty action file (from scratch), "
+            "outputs the action dictionary in pypowsybl format: switch-based entries with "
+            "description, description_unitaire, VoltageLevelId and switches fields "
+            "(no Grid2Op set_bus content). Duplicate actions sharing identical switch "
+            "states are deduplicated; removed duplicates are listed in 'other_action_ids'."
+        )
+    )
+    parser.add_argument(
         "--ignore-lines-monitoring",
         action='store_true',
         help="If set, ignores the lignes_a_monitorer.csv file and monitors all lines."
@@ -848,7 +867,8 @@ def main():
                 dict_action = run_rebuild_actions(n_grid, do_from_scratch, args.repas_file,
                                                    dict_action_to_filter_on=dict_action,
                                                    voltage_filter_threshold=args.voltage_threshold,
-                                                   output_file_base_name="reduced_model_actions")
+                                                   output_file_base_name="reduced_model_actions",
+                                                   pypowsybl_format=args.pypowsybl_format)
 
                 print("Action rebuilding process complete. Stopping analysis as requested.")
                 return  # EXIT EARLY

@@ -40,7 +40,10 @@ from expert_op4grid_recommender.utils.action_rebuilder import (
     make_raw_all_actions_dict,
     build_action_dict_for_snapshot_from_scratch,
     rebuild_action_dict_for_snapshot,
-    run_rebuild_actions
+    run_rebuild_actions,
+    deduplicate_actions_by_switches,
+    build_action_dict_pypowsybl_format_from_scratch,
+    _create_dict_disco_reco_pypowsybl_format,
 )
 
 from expert_op4grid_recommender.utils.conversion_actions_repas import (
@@ -1395,6 +1398,331 @@ class TestConversionIntegration:
             # Bus numbers should be sequential starting at 1
             expected = set(range(1, len(all_buses) + 1))
             assert all_buses == expected, f"Bus numbers {all_buses} are not sequential from 1"
+
+
+# =============================================================================
+# Tests for deduplicate_actions_by_switches
+# =============================================================================
+
+class TestDeduplicateActionsBySwitches:
+    """Tests for the deduplicate_actions_by_switches function."""
+
+    def test_no_duplicates_unchanged(self):
+        """All actions with distinct switch fingerprints are kept unchanged."""
+        actions = {
+            "A": {"description": "Action A", "switches": {"SW1": True}},
+            "B": {"description": "Action B", "switches": {"SW1": False}},
+            "C": {"description": "Action C", "switches": {"SW2": True}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert set(result.keys()) == {"A", "B", "C"}
+        assert "other_action_ids" not in result["A"]
+        assert "other_action_ids" not in result["B"]
+        assert "other_action_ids" not in result["C"]
+
+    def test_two_identical_actions_first_is_reference(self):
+        """When two actions share the same switches, the first is the reference."""
+        actions = {
+            "A": {"description": "Action A", "switches": {"SW1": True, "SW2": False}},
+            "B": {"description": "Action B", "switches": {"SW1": True, "SW2": False}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert "A" in result
+        assert "B" not in result
+        assert result["A"]["other_action_ids"] == ["B"]
+
+    def test_three_identical_actions(self):
+        """Three identical actions: first is reference with two in other_action_ids."""
+        actions = {
+            "A": {"switches": {"SW1": True}},
+            "B": {"switches": {"SW1": True}},
+            "C": {"switches": {"SW1": True}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert set(result.keys()) == {"A"}
+        assert sorted(result["A"]["other_action_ids"]) == ["B", "C"]
+
+    def test_actions_without_switches_kept_as_is(self):
+        """Actions without 'switches' field (e.g. disco/reco) are kept unchanged."""
+        actions = {
+            "disco_LINE1": {"description": "Disco", "description_unitaire": "Ouverture"},
+            "reco_LINE1": {"description": "Reco", "description_unitaire": "Fermeture"},
+            "A": {"switches": {"SW1": True}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert "disco_LINE1" in result
+        assert "reco_LINE1" in result
+        assert "A" in result
+
+    def test_empty_switches_dict_treated_as_no_switches(self):
+        """Actions with an empty 'switches' dict are treated as no-switch actions."""
+        actions = {
+            "A": {"switches": {}},
+            "B": {"switches": {}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        # Both kept as-is (no fingerprint matching for empty dicts)
+        assert "A" in result
+        assert "B" in result
+        assert "other_action_ids" not in result["A"]
+
+    def test_mixed_duplicate_and_unique(self):
+        """Mix of duplicate groups and unique actions handled correctly."""
+        actions = {
+            "A": {"switches": {"SW1": True}},
+            "B": {"switches": {"SW1": True}},   # duplicate of A
+            "C": {"switches": {"SW2": False}},
+            "D": {"switches": {"SW3": True}},
+            "E": {"switches": {"SW3": True}},   # duplicate of D
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert set(result.keys()) == {"A", "C", "D"}
+        assert result["A"]["other_action_ids"] == ["B"]
+        assert result["D"]["other_action_ids"] == ["E"]
+        assert "other_action_ids" not in result["C"]
+
+    def test_empty_dict(self):
+        """Empty input returns empty output."""
+        result = deduplicate_actions_by_switches({})
+        assert result == {}
+
+    def test_original_action_fields_preserved(self):
+        """Reference action preserves all original fields."""
+        actions = {
+            "A": {
+                "description": "My desc",
+                "description_unitaire": "My desc unitaire",
+                "VoltageLevelId": "VL1",
+                "switches": {"VL1_SW1": True},
+            },
+            "B": {
+                "description": "Other desc",
+                "switches": {"VL1_SW1": True},
+            },
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert result["A"]["description"] == "My desc"
+        assert result["A"]["description_unitaire"] == "My desc unitaire"
+        assert result["A"]["VoltageLevelId"] == "VL1"
+        assert result["A"]["switches"] == {"VL1_SW1": True}
+        assert result["A"]["other_action_ids"] == ["B"]
+
+    def test_switch_order_does_not_matter(self):
+        """Two actions with the same switches in different dict order are duplicates."""
+        actions = {
+            "A": {"switches": {"SW1": True, "SW2": False}},
+            "B": {"switches": {"SW2": False, "SW1": True}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert "A" in result
+        assert "B" not in result
+        assert result["A"]["other_action_ids"] == ["B"]
+
+
+# =============================================================================
+# Tests for build_action_dict_pypowsybl_format_from_scratch
+# =============================================================================
+
+class TestBuildActionDictPypowsyblFormatFromScratch:
+    """Tests for build_action_dict_pypowsybl_format_from_scratch."""
+
+    def _make_action(self, action_id, switches_by_vl, description="Test desc"):
+        return MockRepasAction(action_id, switches_by_vl, description)
+
+    def test_single_action_structure(self):
+        """Single action produces correct fields: description, description_unitaire, VoltageLevelId, switches."""
+        actions = [
+            self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}}, "Open SW1")
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        assert "ACT1" in result
+        entry = result["ACT1"]
+        assert entry["description"] == "Open SW1"
+        # description_unitaire is the per-VL switch summary, not the full REPAS description
+        assert entry["description_unitaire"] == "Ouverture VLA_SW1 DJ_OC dans le poste VLA"
+        assert entry["VoltageLevelId"] == "VLA"
+        assert entry["switches"] == {"VLA_SW1 DJ_OC": True}
+        assert "content" not in entry
+
+    def test_no_grid2op_content_field(self):
+        """Entries must NOT contain a 'content' / 'set_bus' field."""
+        actions = [
+            self._make_action("ACT1", {"VLA": {"VLA_COUPL DJ_OC": True}}, "Coupl action")
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        assert "content" not in result["ACT1"]
+
+    def test_multi_vl_action_is_split(self):
+        """Multi-VL action is split into one entry per voltage level."""
+        actions = [
+            self._make_action(
+                "MULTI",
+                {
+                    "VLA": {"VLA_COUPL DJ_OC": True},
+                    "VLB": {"VLB_COUPL DJ_OC": False},
+                },
+                "Multi VL action"
+            )
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        assert "MULTI_VLA" in result
+        assert "MULTI_VLB" in result
+        assert result["MULTI_VLA"]["VoltageLevelId"] == "VLA"
+        assert result["MULTI_VLB"]["VoltageLevelId"] == "VLB"
+
+    def test_switches_flattened_per_vl(self):
+        """Single-VL action with multiple switches: all included in switches dict."""
+        actions = [
+            self._make_action(
+                "ACT2",
+                {"VLA": {"VLA_SW1 DJ_OC": True, "VLA_SW2 DJ_OC": True}},
+                "Two switches"
+            )
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        assert result["ACT2"]["switches"] == {
+            "VLA_SW1 DJ_OC": True,
+            "VLA_SW2 DJ_OC": True,
+        }
+
+    def test_duplicates_deduplicated(self):
+        """Actions with identical switch states are deduplicated."""
+        actions = [
+            self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}}, "Action 1"),
+            self._make_action("ACT2", {"VLA": {"VLA_SW1 DJ_OC": True}}, "Action 2"),
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        assert "ACT1" in result
+        assert "ACT2" not in result
+        assert result["ACT1"]["other_action_ids"] == ["ACT2"]
+
+    def test_unique_actions_no_other_action_ids(self):
+        """Unique actions do not have an 'other_action_ids' field."""
+        actions = [
+            self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}}, "Action 1"),
+            self._make_action("ACT2", {"VLA": {"VLA_SW2 DJ_OC": False}}, "Action 2"),
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        assert "other_action_ids" not in result["ACT1"]
+        assert "other_action_ids" not in result["ACT2"]
+
+    def test_no_disco_reco_when_flag_false(self):
+        """No disco/reco entries added when add_reco_disco_actions=False."""
+        actions = [self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}})]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions, add_reco_disco_actions=False)
+
+        assert not any(k.startswith("disco_") or k.startswith("reco_") for k in result)
+
+    def test_disco_reco_added_when_flag_true(self):
+        """disco/reco entries are added when add_reco_disco_actions=True and n_grid provided."""
+        actions = [self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}})]
+
+        # Build a minimal mock network for disco/reco
+        mock_net = MagicMock()
+        branches_df = pd.DataFrame(
+            {"voltage_level1_id": ["VL63"], "voltage_level2_id": ["VL63"]},
+            index=["LINE_63kV"]
+        )
+        vl_df = pd.DataFrame({"nominal_v": [63.0]}, index=["VL63"])
+        mock_net.get_branches.return_value = branches_df
+        mock_net.get_voltage_levels.return_value = vl_df
+
+        result = build_action_dict_pypowsybl_format_from_scratch(
+            mock_net, actions, add_reco_disco_actions=True
+        )
+
+        assert "disco_LINE_63kV" in result
+        assert "reco_LINE_63kV" in result
+
+    def test_empty_actions_list(self):
+        """Empty action list produces empty result."""
+        result = build_action_dict_pypowsybl_format_from_scratch(None, [])
+        assert result == {}
+
+
+# =============================================================================
+# Tests for _create_dict_disco_reco_pypowsybl_format
+# =============================================================================
+
+class TestCreateDictDiscoRecoPypowsyblFormat:
+    """Tests for _create_dict_disco_reco_pypowsybl_format."""
+
+    def _make_mock_net(self, lines_vl):
+        """Create a minimal mock network with given line -> (vl1, vl2, nominal_v1, nominal_v2) tuples."""
+        mock_net = MagicMock()
+        idx = list(lines_vl.keys())
+        vl1_ids = [v[0] for v in lines_vl.values()]
+        vl2_ids = [v[1] for v in lines_vl.values()]
+        branches_df = pd.DataFrame(
+            {"voltage_level1_id": vl1_ids, "voltage_level2_id": vl2_ids},
+            index=idx
+        )
+
+        # Build voltage levels DataFrame
+        vl_ids = set(vl1_ids + vl2_ids)
+        vl_rows = {}
+        for key, (vl1, vl2, nv1, nv2) in lines_vl.items():
+            vl_rows[vl1] = nv1
+            vl_rows[vl2] = nv2
+        vl_df = pd.DataFrame({"nominal_v": list(vl_rows.values())}, index=list(vl_rows.keys()))
+
+        mock_net.get_branches.return_value = branches_df
+        mock_net.get_voltage_levels.return_value = vl_df
+        return mock_net
+
+    def test_eligible_line_creates_disco_and_reco(self):
+        """Lines not at filtered voltage levels get disco and reco entries."""
+        net = self._make_mock_net({"LINE_63": ("VL63A", "VL63B", 63., 63.)})
+        result = _create_dict_disco_reco_pypowsybl_format(net)
+
+        assert "disco_LINE_63" in result
+        assert "reco_LINE_63" in result
+
+    def test_filtered_line_excluded(self):
+        """Lines at a filtered voltage level (e.g. 400kV) are excluded."""
+        net = self._make_mock_net({"LINE_400": ("VL400A", "VL400B", 400., 400.)})
+        result = _create_dict_disco_reco_pypowsybl_format(net)
+
+        assert "disco_LINE_400" not in result
+        assert "reco_LINE_400" not in result
+
+    def test_disco_entry_structure(self):
+        """Disco entry has description and description_unitaire, no content."""
+        net = self._make_mock_net({"LINEX": ("VLA", "VLB", 63., 63.)})
+        result = _create_dict_disco_reco_pypowsybl_format(net)
+
+        entry = result["disco_LINEX"]
+        assert "description" in entry
+        assert "description_unitaire" in entry
+        assert "content" not in entry
+        assert "LINEX" in entry["description"]
+        assert "LINEX" in entry["description_unitaire"]
+
+    def test_custom_filter_voltage_levels(self):
+        """Custom filter_voltage_levels are respected."""
+        net = self._make_mock_net({
+            "LINE_63": ("VL63A", "VL63B", 63., 63.),
+            "LINE_90": ("VL90A", "VL90B", 90., 90.),
+        })
+        # Exclude 63kV as well
+        result = _create_dict_disco_reco_pypowsybl_format(net, filter_voltage_levels=[400, 63.])
+
+        assert "disco_LINE_63" not in result
+        assert "disco_LINE_90" in result
 
 
 if __name__ == "__main__":
