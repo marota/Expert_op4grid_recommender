@@ -452,12 +452,9 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     return None, context
 
 
-def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
+def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Second part of the expert system analysis after detection/selection of overloads.
-
-    Args:
-        context: Dictionary containing all state from Step 1.
+    First part of step 2: graph building and visualization (PDF generation).
     """
     # Unpack context
     backend = context["backend"]
@@ -467,19 +464,13 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
     analysis_date = context["analysis_date"]
     current_timestep = context["current_timestep"]
     current_lines_defaut = context["current_lines_defaut"]
-    lines_overloaded_ids = context["lines_overloaded_ids"]
     lines_overloaded_ids_kept = context["lines_overloaded_ids_kept"]
     maintenance_to_reco_at_t = context["maintenance_to_reco_at_t"]
-    act_reco_maintenance = context["act_reco_maintenance"]
     lines_non_reconnectable = context["lines_non_reconnectable"]
     lines_we_care_about = context["lines_we_care_about"]
-    classifier = context["classifier"]
     custom_layout = context["custom_layout"]
     chronic_name = context["chronic_name"]
-    pre_existing_rho = context["pre_existing_rho"]
-    lines_overloaded_names = context["lines_overloaded_names"]
     non_connected_reconnectable_lines = context["non_connected_reconnectable_lines"]
-    dict_action = context["dict_action"]
     
     is_pypowsybl = context["is_pypowsybl"]
     actual_fast_mode = context["actual_fast_mode"]
@@ -487,9 +478,6 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
     check_simu_overloads = context["check_simu_overloads"]
     switch_to_dc = context["switch_to_dc"]
     build_overflow_graph = context["build_overflow_graph"]
-    get_env_first_obs = context["get_env_first_obs"]
-    create_default_action = context["create_default_action"]
-    check_rho_reduction = context["check_rho_reduction"]
 
     # Build the overflow graph
     with Timer("Graph Building & DC Switch"):
@@ -536,6 +524,59 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
             )
     else:
         print("Skipping visualization (DO_VISUALIZATION=False)")
+
+    # Update context with potentially changed environment/observation and graph objects
+    context.update({
+        "env": env,
+        "obs": obs,
+        "obs_simu_defaut": obs_simu_defaut,
+        "df_of_g": df_of_g,
+        "overflow_sim": overflow_sim,
+        "g_overflow": g_overflow,
+        "hubs": hubs,
+        "g_distribution_graph": g_distribution_graph,
+        "node_name_mapping": node_name_mapping,
+        "use_dc": use_dc
+    })
+    return context
+
+
+def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Second part of step 2: path analysis, expert rules, and action discovery.
+    """
+    # Unpack context (including items added by part 1)
+    backend = context["backend"]
+    env = context["env"]
+    obs = context["obs"]
+    obs_simu_defaut = context["obs_simu_defaut"]
+    analysis_date = context["analysis_date"]
+    current_timestep = context["current_timestep"]
+    current_lines_defaut = context["current_lines_defaut"]
+    lines_overloaded_ids = context["lines_overloaded_ids"]
+    lines_overloaded_ids_kept = context["lines_overloaded_ids_kept"]
+    maintenance_to_reco_at_t = context["maintenance_to_reco_at_t"]
+    act_reco_maintenance = context["act_reco_maintenance"]
+    lines_non_reconnectable = context["lines_non_reconnectable"]
+    lines_we_care_about = context["lines_we_care_about"]
+    classifier = context["classifier"]
+    dict_action = context["dict_action"]
+    non_connected_reconnectable_lines = context["non_connected_reconnectable_lines"]
+    
+    is_pypowsybl = context["is_pypowsybl"]
+    actual_fast_mode = context["actual_fast_mode"]
+    
+    get_env_first_obs = context["get_env_first_obs"]
+    create_default_action = context["create_default_action"]
+    check_rho_reduction = context["check_rho_reduction"]
+    
+    df_of_g = context["df_of_g"]
+    overflow_sim = context["overflow_sim"]
+    g_overflow = context["g_overflow"]
+    hubs = context["hubs"]
+    g_distribution_graph = context["g_distribution_graph"]
+    node_name_mapping = context["node_name_mapping"]
+    use_dc = context["use_dc"]
 
     # Save data for tests
     if config.DO_SAVE_DATA_FOR_TEST:
@@ -630,6 +671,7 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
         num_lines = len(obs.name_line)
         pre_existing_baseline = np.zeros(num_lines)
         is_pre_existing = np.zeros(num_lines, dtype=bool)
+        pre_existing_rho = context["pre_existing_rho"]
         for idx, rho_val in pre_existing_rho.items():
             pre_existing_baseline[idx] = rho_val
             is_pre_existing[idx] = True
@@ -717,11 +759,20 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
     ]
 
     return {
-        "lines_overloaded_names": lines_overloaded_names,
+        "lines_overloaded_names": context["lines_overloaded_names"],
         "prioritized_actions": detailed_actions,
         "action_scores": action_scores,
         "pre_existing_overloads": pre_existing_info,
     }
+
+def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Second part of the expert system analysis after detection/selection of overloads.
+    (Refactored to call graph generation and action discovery sequentially)
+    """
+    context = run_analysis_step2_graph(context)
+    return run_analysis_step2_discovery(context)
+
 
 
 def run_analysis(analysis_date: Optional[datetime], 
