@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.5_post1] - 2026-03-08
+
+### Changed
+
+- **Action Builder CLI**: Added `--rebuild-actions` option to the main CLI for pypowsybl-format action dictionary generation.
+- **Topology Cache Optimization**: Optimized `NetworkTopologyCache` to eliminate per-action $O(N)$ computational cost, significantly speeding up large-scale action discovery.
+- **Improved Asset Inference**: Enhanced switch name parsing in the pypowsybl backend to more reliably infer connected lines and loads when explicit mapping is missing.
+
+### Fixed
+
+- **Action Serialization**: Ensured `ensure_ascii=False` when saving rebuilt action JSON files to preserve non-ASCII characters if present.
+
+---
+
 ## [0.1.5] - 2026-03-07
 
 ### Added

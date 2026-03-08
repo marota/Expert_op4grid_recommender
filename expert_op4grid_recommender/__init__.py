@@ -13,4 +13,4 @@ graphs, applies expert rules to filter potential actions, and identifies
 corrective measures to alleviate line overloads.
 """
 
-__version__ = "0.1.5"
+__version__ = "0.1.5_post1"
