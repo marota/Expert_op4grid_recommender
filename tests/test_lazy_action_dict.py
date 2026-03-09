@@ -40,8 +40,16 @@ class TestLazyActionDict:
 
         cache = MagicMock()
         cache._switch_to_vl = {"sw1": "VL1"}
-        cache.compute_bus_assignments.return_value = {"node_a": 1}
-        cache.get_element_bus_assignments.return_value = {"lines_or_id": {"L1": 1}}
+        # First call: initial state (empty switches); second call: after switch changes.
+        cache.compute_bus_assignments.side_effect = [
+            {"VL1": {"node_a": 1}},  # initial
+            {"VL1": {"node_a": 2}},  # final
+        ]
+        _empty = {"lines_or_id": {}, "lines_ex_id": {}, "loads_id": {}, "generators_id": {}, "shunts_id": {}}
+        cache.get_element_bus_assignments.side_effect = [
+            {**_empty, "lines_or_id": {"L1": 1}},  # initial assignments
+            {**_empty, "lines_or_id": {"L1": 2}},  # final assignments (L1 moved to bus 2)
+        ]
 
         lazy = LazyActionDict(
             {"switches": {"sw1": False}, "VoltageLevelId": "VL1"},
@@ -51,10 +59,11 @@ class TestLazyActionDict:
         content = lazy["content"]
 
         assert lazy._content_computed
-        cache.compute_bus_assignments.assert_called_once()
-        cache.get_element_bus_assignments.assert_called_once()
+        assert cache.compute_bus_assignments.call_count == 2
+        assert cache.get_element_bus_assignments.call_count == 2
         assert "set_bus" in content
-        assert content["set_bus"] == {"lines_or_id": {"L1": 1}}
+        # Only L1 changed (1 → 2), so only L1 is in the result.
+        assert content["set_bus"] == {"lines_or_id": {"L1": 2}, "lines_ex_id": {}, "loads_id": {}, "generators_id": {}, "shunts_id": {}}
         assert content["switches"] == {"sw1": False}
 
     def test_get_triggers_computation(self):
@@ -63,8 +72,8 @@ class TestLazyActionDict:
 
         cache = MagicMock()
         cache._switch_to_vl = {"sw1": "VL1"}
-        cache.compute_bus_assignments.return_value = {}
-        cache.get_element_bus_assignments.return_value = {}
+        cache.compute_bus_assignments.side_effect = [{}, {}]
+        cache.get_element_bus_assignments.side_effect = [{}, {}]
 
         lazy = LazyActionDict({"switches": {"sw1": False}}, topology_cache=cache)
 
@@ -74,13 +83,19 @@ class TestLazyActionDict:
         assert isinstance(content, dict)
 
     def test_computation_happens_only_once(self):
-        """Content computation should happen exactly once, even with multiple accesses."""
+        """Content computation should happen exactly once, even with multiple accesses.
+
+        Internally the computation makes 2 calls to compute_bus_assignments (one for
+        the initial baseline and one for the final state after switch changes), but
+        those 2 calls happen only on the first access.  Subsequent accesses return
+        the cached result without any additional cache calls.
+        """
         from expert_op4grid_recommender.data_loader import LazyActionDict
 
         cache = MagicMock()
         cache._switch_to_vl = {"sw1": "VL1"}
-        cache.compute_bus_assignments.return_value = {}
-        cache.get_element_bus_assignments.return_value = {}
+        cache.compute_bus_assignments.side_effect = [{}, {}]
+        cache.get_element_bus_assignments.side_effect = [{}, {}]
 
         lazy = LazyActionDict({"switches": {"sw1": False}}, topology_cache=cache)
 
@@ -88,7 +103,8 @@ class TestLazyActionDict:
         lazy["content"]
         lazy.get("content")
 
-        assert cache.compute_bus_assignments.call_count == 1
+        # 2 calls: one for initial state, one for final state (only on first access).
+        assert cache.compute_bus_assignments.call_count == 2
 
     def test_preexisting_content_not_recomputed(self):
         """If content is already in the data dict, it should not be recomputed."""
@@ -186,8 +202,8 @@ class TestLazyActionDict:
 
         cache = MagicMock()
         cache._switch_to_vl = {"sw1": "VL_A", "sw2": "VL_B"}
-        cache.compute_bus_assignments.return_value = {}
-        cache.get_element_bus_assignments.return_value = {}
+        cache.compute_bus_assignments.side_effect = [{}, {}]
+        cache.get_element_bus_assignments.side_effect = [{}, {}]
 
         lazy = LazyActionDict(
             {"switches": {"sw1": False, "sw2": True}},
@@ -196,10 +212,16 @@ class TestLazyActionDict:
 
         lazy["content"]
 
-        # Check that compute_bus_assignments was called with both VLs
-        call_args = cache.compute_bus_assignments.call_args
-        assert call_args[0][0] == {"sw1": False, "sw2": True}
-        assert call_args[0][1] == {"VL_A", "VL_B"}
+        # Two calls are made: first with empty switches (initial baseline), second
+        # with the actual switch changes.  Verify the second call uses the correct args.
+        all_calls = cache.compute_bus_assignments.call_args_list
+        assert len(all_calls) == 2
+        # First call: initial state, no switch changes
+        assert all_calls[0][0][0] == {}
+        assert all_calls[0][0][1] == {"VL_A", "VL_B"}
+        # Second call: actual switch changes
+        assert all_calls[1][0][0] == {"sw1": False, "sw2": True}
+        assert all_calls[1][0][1] == {"VL_A", "VL_B"}
 
     def test_unknown_switch_ids_produce_warning(self):
         """Switches not in _switch_to_vl should produce empty content with warning."""
@@ -224,6 +246,7 @@ class TestLazyActionDict:
 
         cache = MagicMock()
         cache._switch_to_vl = {"sw1": "VL1"}
+        # The first compute_bus_assignments call (initial state) raises.
         cache.compute_bus_assignments.side_effect = RuntimeError("computation failed")
 
         lazy = LazyActionDict(
@@ -234,6 +257,46 @@ class TestLazyActionDict:
         content = lazy["content"]
 
         assert content == {"set_bus": {}, "switches": {"sw1": False}}
+
+    def test_only_changed_elements_returned(self):
+        """set_bus should contain only elements whose bus assignment changed."""
+        from expert_op4grid_recommender.data_loader import LazyActionDict
+
+        cache = MagicMock()
+        cache._switch_to_vl = {"sw1": "VL1"}
+
+        _base = {"lines_or_id": {}, "lines_ex_id": {}, "loads_id": {}, "generators_id": {}, "shunts_id": {}}
+
+        # Initial state: CPVANY632 is on bus 1, other assets also on bus 1
+        initial_set_bus = {
+            **_base,
+            "lines_or_id": {"CPVANL31MESNA": 1, "CPVANL31RIBAU": 1},
+            "lines_ex_id": {"CPVANY632": 1, "CPVANY633": 1},
+            "loads_id": {"CPVAN3TR311": 1},
+        }
+        # After opening the breaker: only CPVANY632 becomes disconnected (bus -1)
+        final_set_bus = {
+            **_base,
+            "lines_or_id": {"CPVANL31MESNA": 1, "CPVANL31RIBAU": 1},
+            "lines_ex_id": {"CPVANY632": -1, "CPVANY633": 1},
+            "loads_id": {"CPVAN3TR311": 1},
+        }
+
+        cache.compute_bus_assignments.side_effect = [{"VL1": {}}, {"VL1": {}}]
+        cache.get_element_bus_assignments.side_effect = [initial_set_bus, final_set_bus]
+
+        lazy = LazyActionDict(
+            {"switches": {"sw1": True}},  # opening breaker (True = open)
+            topology_cache=cache
+        )
+
+        content = lazy["content"]
+        set_bus = content["set_bus"]
+
+        # Only CPVANY632 changed (1 → -1); all other assets are unchanged.
+        assert set_bus["lines_ex_id"] == {"CPVANY632": -1}
+        assert set_bus["lines_or_id"] == {}
+        assert set_bus["loads_id"] == {}
 
 
 class TestEnrichActionsLazy:
