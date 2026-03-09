@@ -744,6 +744,14 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     non_convergence = str(sim_exception)
 
+            # Print summary
+            print(f"{action_id}")
+            if description_unitaire:
+                print(f"  {description_unitaire}")
+            if rho_before is not None and rho_after is not None:
+                print(f"  Rho reduction from {np.round(rho_before, 2)} to {np.round(rho_after, 2)}")
+                print(f"  New max rho is {max_rho:.2f} on line {max_rho_line}")
+
             detailed_actions[action_id] = {
                 "action": action,
                 "description_unitaire": description_unitaire,
