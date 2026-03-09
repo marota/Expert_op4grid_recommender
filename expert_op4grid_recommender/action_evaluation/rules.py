@@ -81,6 +81,108 @@ class ActionRuleValidator:
         # Cache line_status map for line status checks
         self._line_status_map = {name: status for name, status in zip(obs.name_line, obs.line_status)}
 
+        # Cache current switch states for pypowsybl backend (switch open/close checks)
+        self._current_switch_states = self._build_switch_state_map(obs)
+
+        # Cache line name to index mapping for bus assignment checks
+        self._line_name_to_idx = {name: idx for idx, name in enumerate(obs.name_line)}
+
+    @staticmethod
+    def _build_switch_state_map(obs: Any) -> Optional[Dict[str, bool]]:
+        """
+        Extract current switch states from the observation's network manager (pypowsybl only).
+
+        Returns:
+            Dict mapping switch_id -> is_open (True=open, False=closed), or None if
+            the observation does not expose switch states (e.g., grid2op backend).
+        """
+        try:
+            nm = obs._network_manager
+            switches_df = nm.network.get_switches()
+            return switches_df["open"].to_dict()
+        except (AttributeError, KeyError):
+            return None
+
+    def _is_action_already_in_target_state(self, action_desc: Dict[str, Any], action_type: str) -> bool:
+        """
+        Check whether an action's target state already matches the current grid state.
+
+        For switch-based actions (pypowsybl backend): verifies that every switch in
+        the action is already in its target open/close state.
+
+        For set_bus actions (grid2op backend): verifies that every bus assignment in
+        the action already matches the current observation bus assignments.
+
+        Args:
+            action_desc: The action description dictionary.
+            action_type: The classified action type string.
+
+        Returns:
+            True if the action would be a no-op (already in target state).
+        """
+        # --- Check switch-based actions (pypowsybl) ---
+        switches = action_desc.get("switches")
+        if switches and self._current_switch_states is not None:
+            all_already = True
+            checked_any = False
+            for sid, target_open in switches.items():
+                current_open = self._current_switch_states.get(sid)
+                if current_open is None:
+                    # Try prefix-stripped variant (e.g., PYMONP3_PYMON3COUPL -> PYMON3COUPL)
+                    if '_' in sid:
+                        stripped = sid.split('_', 1)[1]
+                        current_open = self._current_switch_states.get(stripped)
+                if current_open is not None:
+                    checked_any = True
+                    if current_open != target_open:
+                        all_already = False
+                        break
+            if checked_any and all_already:
+                return True
+
+        # --- Check set_bus actions (grid2op / universal) ---
+        content = action_desc.get("content", {})
+        set_bus = content.get("set_bus", {})
+        if not set_bus:
+            return False
+
+        obs = self.obs
+        all_match = True
+        checked_any = False
+
+        # Check lines_or_id bus assignments
+        for line_name, target_bus in set_bus.get("lines_or_id", {}).items():
+            idx = self._line_name_to_idx.get(line_name)
+            if idx is not None:
+                checked_any = True
+                current_bus = int(obs.line_or_bus[idx])
+                if current_bus != target_bus:
+                    all_match = False
+                    break
+
+        # Check lines_ex_id bus assignments
+        if all_match:
+            for line_name, target_bus in set_bus.get("lines_ex_id", {}).items():
+                idx = self._line_name_to_idx.get(line_name)
+                if idx is not None:
+                    checked_any = True
+                    current_bus = int(obs.line_ex_bus[idx])
+                    if current_bus != target_bus:
+                        all_match = False
+                        break
+
+        # Check substations_id topology vectors
+        if all_match and "substations_id" in set_bus:
+            for sub_id, target_topo in set_bus["substations_id"]:
+                if sub_id < len(obs.name_sub):
+                    checked_any = True
+                    current_topo = obs.sub_topology(sub_id)
+                    if not np.array_equal(current_topo, np.array(target_topo)):
+                        all_match = False
+                        break
+
+        return checked_any and all_match
+
     def localize_line_action(self, lines: List[str]) -> str:
         """
         Determines the location category of a line action relative to critical graph paths.
@@ -194,6 +296,11 @@ class ActionRuleValidator:
             localization = self.localize_coupling_action(action_subs)
         else:
             localization = "unknown"
+
+        # Check if action is already in target state (switches or bus assignments)
+        if not do_filter_action:
+            if self._is_action_already_in_target_state(action_desc, action_type):
+                do_filter_action, broken_rule = True, "Action already in target state"
 
         if not do_filter_action:
             do_filter_action, broken_rule_expert = self.check_rules(action_type, localization, subs_topology)
