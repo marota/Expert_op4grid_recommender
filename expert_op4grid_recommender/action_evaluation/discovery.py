@@ -1040,25 +1040,31 @@ class ActionDiscoverer:
         weight_factor = 0
         repulsion = 0
 
-        if harmonized_node_type == "amont":
-            # Strategy: Separate negative outflow from all other flows.
-            # Repulsion: Contrast negative outflow against positive outflow (separation of paths).
-            repulsion = bus_negative_out_flow - bus_positive_out_flow
-            # Weight: Ratio of the desired flow vs everything else.
-            weight_factor = (bus_negative_out_flow - (
-                        bus_negative_inflow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
+        if TotalInOutDispatchFlow == 0:
+            score = -9999
+        else:
+            if harmonized_node_type == "amont":
+                # Strategy: Separate negative outflow from all other flows.
+                # Repulsion: Contrast negative outflow against positive outflow (separation of paths).
+                repulsion = bus_negative_out_flow - bus_positive_out_flow
+                # Weight: Ratio of the desired flow vs everything else.
+                weight_factor = (bus_negative_out_flow - (
+                            bus_negative_inflow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
 
-        elif harmonized_node_type == "aval":
-            # Strategy: Separate negative inflow from all other flows.
-            repulsion = bus_negative_inflow - bus_positive_inflow
-            weight_factor = (bus_negative_inflow - (
-                        bus_negative_out_flow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
+            elif harmonized_node_type == "aval":
+                # Strategy: Separate negative inflow from all other flows.
+                repulsion = bus_negative_inflow - bus_positive_inflow
+                if TotalInOutDispatchFlow==0:
+                    weight_factor=-9999
+                else:
+                    weight_factor = (bus_negative_inflow - (
+                            bus_negative_out_flow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
 
-        score = weight_factor * repulsion
+            score = weight_factor * repulsion
 
-        # Penalize configurations where the split results in opposing indicators (both negative)
-        if weight_factor < 0 and repulsion < 0:
-            score = -score
+            # Penalize configurations where the split results in opposing indicators (both negative)
+            if weight_factor < 0 and repulsion < 0:
+                score = -score
 
         return score
 
@@ -1788,7 +1794,7 @@ class ActionDiscoverer:
                     out[k] = v
             return out
 
-        self.action_scores = {
+        self.action_scores  = {
             "line_reconnection": {
                 "scores": _round_scores(dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_reconnections),

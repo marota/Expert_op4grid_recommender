@@ -58,29 +58,59 @@ class ActionClassifier:
         trigger lazy computation) when switches or name sets are unavailable.
         """
         switches = actions_desc.get("switches")
-        if switches is not None and self._branch_names is not None:
+        if switches is not None:
+            # If it has switches, it's definitely a network action (line or coupling).
+            # For pypowsybl backend, we try matching, but if it fails, we assume it's a line/transformer action
+            # since those are the most common in REPAS.
             has_line, has_load = False, False
-            for switch_id in switches:
-                # Switch ID format: "{VoltageLevel}_{AssetName} {SuffixXX}_OC"
-                try:
-                    asset_name = switch_id.split("_", 1)[1].rsplit(" ", 1)[0]
-                except IndexError:
-                    continue
-                if not has_line and asset_name in self._branch_names:
-                    has_line = True
-                if not has_load and self._load_names and asset_name in self._load_names:
+            if self._branch_names is not None:
+                for switch_id in switches:
+                    # Try patterns for AssetName
+                    parts = switch_id.split("_")
+                    if len(parts) >= 2:
+                        remainder = "_".join(parts[1:])
+                        # Candidates: with and without suffix space
+                        candidates = [remainder.replace("_OC", ""), remainder.replace("_OC", "").rsplit(" ", 1)[0]]
+                        for cand in candidates:
+                            if not has_line and self._branch_names and cand in self._branch_names:
+                                has_line = True
+                                break
+                            if not has_load and self._load_names and cand in self._load_names:
+                                has_load = True
+                                break
+                    if has_line and has_load: break
+            
+            # If extraction failed but it has switches, assume it's at least a line/transformer action
+            # unless we find "charge" or "load" in the description.
+            if not has_line and not has_load:
+                description = actions_desc.get("description_unitaire", actions_desc.get("description", "")).lower()
+                if "charge" in description or "load" in description:
                     has_load = True
-                if has_line and has_load:
-                    break
+                else:
+                    has_line = True # Default for REPAS actions with switches
+                    
             return has_line, has_load
 
-        # grid2op path: use set_bus (may trigger lazy computation for LazyActionDict)
-        content = actions_desc.get("content", {})
-        dict_action = content.get("set_bus", {})
-        has_load = "loads_id" in dict_action and len(dict_action["loads_id"]) != 0
-        has_line = (("lines_or_id" in dict_action and len(dict_action["lines_or_id"]) != 0) or
-                    ("lines_ex_id" in dict_action and len(dict_action["lines_ex_id"]) != 0))
-        return has_line, has_load
+        # Grid2Op path or fallback: use content.set_bus BUT check if it's already available
+        # to avoid triggering lazy loading for nothing during categorization.
+        if "content" in actions_desc:
+            # We check if it's a LazyActionDict and if it's already computed
+            if hasattr(actions_desc, "_content_computed") and not actions_desc._content_computed:
+                # IT IS LAZY AND NOT COMPUTED. Try to guess from description instead of triggering it.
+                description = actions_desc.get("description_unitaire", actions_desc.get("description", "")).lower()
+                has_line = ("ligne" in description or "line" in description or "branch" in description)
+                has_load = ("charge" in description or "load" in description)
+                return has_line, has_load
+            
+            # Already computed or not lazy:
+            content = actions_desc.get("content", {})
+            set_bus = content.get("set_bus", {})
+            has_load = "loads_id" in set_bus and len(set_bus["loads_id"]) != 0
+            has_line = (("lines_or_id" in set_bus and len(set_bus["lines_or_id"]) != 0) or
+                        ("lines_ex_id" in set_bus and len(set_bus["lines_ex_id"]) != 0))
+            return has_line, has_load
+        
+        return False, False
 
     def _is_nodale_grid2op_action(self, act: Any) -> Tuple[bool, List[int], List[bool]]:
         """
