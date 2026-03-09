@@ -1798,18 +1798,22 @@ class ActionDiscoverer:
             "line_reconnection": {
                 "scores": _round_scores(dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_reconnections),
+                "non_convergence": {},
             },
             "line_disconnection": {
                 "scores": _round_scores(dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_disconnections),
+                "non_convergence": {},
             },
             "open_coupling": {
                 "scores": _round_scores(dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_splits_dict),
+                "non_convergence": {},
             },
             "close_coupling": {
                 "scores": _round_scores(dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_merges),
+                "non_convergence": {},
             },
         }
 

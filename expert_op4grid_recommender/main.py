@@ -452,12 +452,9 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     return None, context
 
 
-def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
+def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Second part of the expert system analysis after detection/selection of overloads.
-
-    Args:
-        context: Dictionary containing all state from Step 1.
+    Second part of the expert system analysis, focusing on graph generation and visualization.
     """
     # Unpack context
     backend = context["backend"]
@@ -470,16 +467,11 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
     lines_overloaded_ids = context["lines_overloaded_ids"]
     lines_overloaded_ids_kept = context["lines_overloaded_ids_kept"]
     maintenance_to_reco_at_t = context["maintenance_to_reco_at_t"]
-    act_reco_maintenance = context["act_reco_maintenance"]
     lines_non_reconnectable = context["lines_non_reconnectable"]
     lines_we_care_about = context["lines_we_care_about"]
-    classifier = context["classifier"]
     custom_layout = context["custom_layout"]
     chronic_name = context["chronic_name"]
-    pre_existing_rho = context["pre_existing_rho"]
-    lines_overloaded_names = context["lines_overloaded_names"]
     non_connected_reconnectable_lines = context["non_connected_reconnectable_lines"]
-    dict_action = context["dict_action"]
     
     is_pypowsybl = context["is_pypowsybl"]
     actual_fast_mode = context["actual_fast_mode"]
@@ -487,9 +479,6 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
     check_simu_overloads = context["check_simu_overloads"]
     switch_to_dc = context["switch_to_dc"]
     build_overflow_graph = context["build_overflow_graph"]
-    get_env_first_obs = context["get_env_first_obs"]
-    create_default_action = context["create_default_action"]
-    check_rho_reduction = context["check_rho_reduction"]
 
     # Build the overflow graph
     with Timer("Graph Building & DC Switch"):
@@ -542,7 +531,61 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
         with Timer("Saving Test Data"):
             case_name = f"defaut_{'_'.join(current_lines_defaut)}_t{current_timestep}"
             save_data_for_test(config.ENV_PATH, case_name, df_of_g, overflow_sim, obs_simu_defaut,
-                               lines_non_reconnectable, non_connected_reconnectable_lines, lines_overloaded_ids_kept)
+                                lines_non_reconnectable, non_connected_reconnectable_lines, lines_overloaded_ids_kept)
+
+    # Update context with new objects for Step 2 Discovery
+    context.update({
+        "env": env,
+        "obs": obs,
+        "obs_simu_defaut": obs_simu_defaut,
+        "df_of_g": df_of_g,
+        "overflow_sim": overflow_sim,
+        "g_overflow": g_overflow,
+        "hubs": hubs,
+        "g_distribution_graph": g_distribution_graph,
+        "node_name_mapping": node_name_mapping,
+        "use_dc": use_dc
+    })
+    return context
+
+
+def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Third part of the expert system analysis focusing on path analysis and action discovery.
+    """
+    # Unpack context
+    backend = context["backend"]
+    env = context["env"]
+    obs = context["obs"]
+    obs_simu_defaut = context["obs_simu_defaut"]
+    analysis_date = context["analysis_date"]
+    current_timestep = context["current_timestep"]
+    current_lines_defaut = context["current_lines_defaut"]
+    lines_overloaded_ids = context["lines_overloaded_ids"]
+    lines_overloaded_ids_kept = context["lines_overloaded_ids_kept"]
+    maintenance_to_reco_at_t = context["maintenance_to_reco_at_t"]
+    act_reco_maintenance = context["act_reco_maintenance"]
+    lines_non_reconnectable = context["lines_non_reconnectable"]
+    lines_we_care_about = context["lines_we_care_about"]
+    classifier = context["classifier"]
+    pre_existing_rho = context["pre_existing_rho"]
+    lines_overloaded_names = context["lines_overloaded_names"]
+    non_connected_reconnectable_lines = context["non_connected_reconnectable_lines"]
+    dict_action = context["dict_action"]
+    
+    is_pypowsybl = context["is_pypowsybl"]
+    actual_fast_mode = context["actual_fast_mode"]
+    
+    get_env_first_obs = context["get_env_first_obs"]
+    create_default_action = context["create_default_action"]
+    check_rho_reduction = context["check_rho_reduction"]
+    
+    g_overflow = context["g_overflow"]
+    overflow_sim = context["overflow_sim"]
+    hubs = context["hubs"]
+    g_distribution_graph = context["g_distribution_graph"]
+    node_name_mapping = context["node_name_mapping"]
+    use_dc = context["use_dc"]
 
     # Get graph paths and apply expert rules
     with Timer("Path Analysis & Rule Validation"):
@@ -692,13 +735,15 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
                     max_rho = float(masked_rho[max_idx_in_masked])
                     max_rho_line = obs_simu_action.name_line[np.where(eligible_mask)[0][max_idx_in_masked]]
 
-            # Print summary
-            print(f"{action_id}")
-            if description_unitaire:
-                print(f"  {description_unitaire}")
-            if rho_before is not None and rho_after is not None:
-                print(f"  Rho reduction from {np.round(rho_before, 2)} to {np.round(rho_after, 2)}")
-                print(f"  New max rho is {max_rho:.2f} on line {max_rho_line}")
+            # Capture non-convergence reason
+            sim_exception = info_action.get("exception")
+            non_convergence = None
+            if sim_exception:
+                if isinstance(sim_exception, list):
+                    non_convergence = "; ".join([str(e) for e in sim_exception])
+                else:
+                    non_convergence = str(sim_exception)
+
             detailed_actions[action_id] = {
                 "action": action,
                 "description_unitaire": description_unitaire,
@@ -708,7 +753,18 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
                 "max_rho_line": max_rho_line,
                 "is_rho_reduction": is_rho_reduction,
                 "observation": obs_simu_action,
+                "non_convergence": non_convergence,
             }
+
+        # Propagate non-convergence info to the score map
+        for action_id, details in detailed_actions.items():
+            nc = details.get("non_convergence")
+            for category in action_scores:
+                if action_id in action_scores[category]["scores"]:
+                    # Ensure non_convergence dict exists (safety)
+                    if "non_convergence" not in action_scores[category]:
+                        action_scores[category]["non_convergence"] = {}
+                    action_scores[category]["non_convergence"][action_id] = nc
 
     # Build pre-existing overloads info for the frontend
     pre_existing_info = [
@@ -724,6 +780,15 @@ def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Second part of the expert system analysis after detection/selection of overloads.
+    (Compatibility wrapper for the previous monolithic Step 2)
+    """
+    context = run_analysis_step2_graph(context)
+    return run_analysis_step2_discovery(context)
+
+
 def run_analysis(analysis_date: Optional[datetime], 
                  current_timestep: int, 
                  current_lines_defaut: List[str],
@@ -733,7 +798,7 @@ def run_analysis(analysis_date: Optional[datetime],
                  fast_mode: Optional[bool] = None) -> Dict[str, Any]:
     """
     Runs the expert system analysis for a given date, timestep, and contingency.
-    (Now refactored to use run_analysis_step1 and run_analysis_step2)
+    (Now refactored to use run_analysis_step1, run_analysis_step2_graph and run_analysis_step2_discovery)
     """
     # Step 1: Detect overloads and selection of overloads to keep
     res_step1, context = run_analysis_step1(
@@ -750,7 +815,8 @@ def run_analysis(analysis_date: Optional[datetime],
         return res_step1
 
     # Step 2: Run the remaining analysis
-    return run_analysis_step2(context)
+    context = run_analysis_step2_graph(context)
+    return run_analysis_step2_discovery(context)
 
 
 def main():
