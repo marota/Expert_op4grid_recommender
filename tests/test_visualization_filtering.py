@@ -72,6 +72,7 @@ def test_make_overflow_graph_visualization_filtering():
         # 7. Verification
         # Get the dictionary passed to highlight_significant_line_loading
         assert g_overflow.highlight_significant_line_loading.called
+        assert g_overflow.collapse_red_loops.called, "collapse_red_loops should be called before plotting"
         dict_highlight = g_overflow.highlight_significant_line_loading.call_args[0][0]
         
         # Check that line1 and line2 are included
