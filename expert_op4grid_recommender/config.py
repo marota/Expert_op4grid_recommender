@@ -46,7 +46,7 @@ ENV_PATH = ENV_FOLDER / ENV_NAME # Use Path object joining
 # ACTION_SPACE_FOLDER = os.path.join(ENV_FOLDER,"action_space") # OLD
 ACTION_SPACE_FOLDER = ENV_FOLDER / "action_space" # NEW
 
-FILE_ACTION_SPACE_DESC = "AllFrance_coupling_reco_deco_actions_20240828T0100Z.json"#"AllFrance_coupling_reco_deco_actions_20240828T0100Z.json"#"AllFrance_coupling_reco_deco_actions_20241125T1400Z.json"#"reduced_model_actions_test.json"#"AllFrance_coupling_reco_deco_actions_20240828T0100Z.json" #"actions_repas_most_frequent_topologies_revised.json"
+FILE_ACTION_SPACE_DESC = "All_France_actions_from_REPAS.2024.12.10_new.json"#"AllFrance_coupling_reco_deco_actions_20240828T0100Z.json"#"AllFrance_coupling_reco_deco_actions_20241125T1400Z.json"#"reduced_model_actions_test.json"#"AllFrance_coupling_reco_deco_actions_20240828T0100Z.json" #"actions_repas_most_frequent_topologies_revised.json"
 # ACTION_FILE_PATH = os.path.join(ACTION_SPACE_FOLDER, FILE_ACTION_SPACE_DESC) # OLD
 ACTION_FILE_PATH = ACTION_SPACE_FOLDER / FILE_ACTION_SPACE_DESC # NEW
 
@@ -66,19 +66,19 @@ USE_GRID_LAYOUT = False
 DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART = False
 DO_SAVE_DATA_FOR_TEST = False
 CHECK_ACTION_SIMULATION = False#True
-N_PRIORITIZED_ACTIONS = 5
+N_PRIORITIZED_ACTIONS = 10
 IGNORE_RECONNECTIONS = False#False
-IGNORE_LINES_MONITORING = True
+IGNORE_LINES_MONITORING = False
 DO_VISUALIZATION = True
-MAX_RHO_BOTH_EXTREMITIES = False  # only possible for now with pypowsybl backend
+MAX_RHO_BOTH_EXTREMITIES = True  # only possible for now with pypowsybl backend
 MONITORING_FACTOR_THERMAL_LIMITS = 0.95  # factor applied to permanent thermal limits when loading from operational limits
 PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # 2% – pre-existing overloads excluded from analysis unless current increased by this fraction
 
 # Minimum number of prioritized actions per type
-MIN_LINE_RECONNECTIONS = 0
-MIN_CLOSE_COUPLING = 0
-MIN_OPEN_COUPLING = 0
-MIN_LINE_DISCONNECTIONS = 0
+MIN_LINE_RECONNECTIONS = 2
+MIN_CLOSE_COUPLING = 3
+MIN_OPEN_COUPLING = 2
+MIN_LINE_DISCONNECTIONS = 3
 
 
 # -------------------

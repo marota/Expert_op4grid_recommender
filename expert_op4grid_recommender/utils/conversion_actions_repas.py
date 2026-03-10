@@ -1223,7 +1223,13 @@ def convert_repas_actions_to_grid2op_actions(
         
         for action, g2o_action in zip(actions, converted_list):
             if g2o_action is not None:
-                action_key = action._id + "_" + next(iter(action._switches_by_voltage_level))
+                # Use action._id directly if it already contains the voltage level or atomization suffix
+                vl = next(iter(action._switches_by_voltage_level))
+                if vl in action._id:
+                    action_key = action._id
+                else:
+                    action_key = action._id + "_" + vl
+                
                 g2o_action["description_unitaire"] = get_all_switch_descriptions(
                     action._switches_by_voltage_level
                 )
@@ -1239,7 +1245,13 @@ def convert_repas_actions_to_grid2op_actions(
         for action in actions:
             g2o_action = convert_fn(n, action, verbose=verbose)
             if g2o_action is not None:
-                action_key = action._id + "_" + next(iter(action._switches_by_voltage_level))
+                # Use action._id directly if it already contains the voltage level or atomization suffix
+                vl = next(iter(action._switches_by_voltage_level))
+                if vl in action._id:
+                    action_key = action._id
+                else:
+                    action_key = action._id + "_" + vl
+
                 g2o_action["description_unitaire"] = get_all_switch_descriptions(
                     action._switches_by_voltage_level
                 )
