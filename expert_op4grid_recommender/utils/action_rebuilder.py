@@ -509,5 +509,7 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
         return new_dict_actions
 
     except Exception as e:
+        import traceback
         print(f"Error rebuilding actions: {e}")
+        traceback.print_exc()
         return dict_action_to_filter_on  # Return original on failure
