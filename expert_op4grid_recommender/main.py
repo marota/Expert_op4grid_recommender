@@ -657,6 +657,16 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
         act_defaut = create_default_action(env.action_space, current_lines_defaut)
 
         # Compute baseline rho once for all actions
+        # recompute obs_simu_defaut if DC mode was used for overflow graph
+        if is_pypowsybl and obs_simu_defaut._network_manager._default_dc:
+            obs_simu_defaut, has_converged = simulate_contingency_pypowsybl(
+                env, obs, current_lines_defaut, act_reco_maintenance, current_timestep, fast_mode=actual_fast_mode
+            )
+            obs_simu_defaut._network_manager._default_dc = False
+        elif not is_pypowsybl:
+            obs_simu_defaut, has_converged = simulate_contingency_grid2op(
+                env, obs, current_lines_defaut, act_reco_maintenance, current_timestep
+            )
         baseline_rho = obs_simu_defaut.rho[lines_overloaded_ids]
 
         # Performance optimization: Pre-calculate masks and baseline for large grids
