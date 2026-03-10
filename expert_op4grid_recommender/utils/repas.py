@@ -13,7 +13,8 @@ class Action:
                  description: str,
                  switches_by_voltage_level: Dict[str, Dict[str, bool]],
                  loads_by_id: Dict[str, Tuple[float, float]],
-                 generators_by_id: Dict[str, Tuple[float, bool]]):
+                 generators_by_id: Dict[str, Tuple[float, bool]],
+                 pst_by_id: Dict[str, int]):
         super().__init__()
         self._id = id
         self._horizon = horizon
@@ -21,22 +22,25 @@ class Action:
         self._switches_by_voltage_level = switches_by_voltage_level
         self._loads_by_id = loads_by_id
         self._generators_by_id = generators_by_id
+        self._pst_by_id = pst_by_id
 
     def __repr__(self):
-        return f"Action(id={self._id}, horizon={self._horizon} switches={self._switches_by_voltage_level}, loads={self._loads_by_id}, generators={self._generators_by_id})"
+        return f"Action(id={self._id}, horizon={self._horizon} switches={self._switches_by_voltage_level}, loads={self._loads_by_id}, generators={self._generators_by_id}, pst={self._pst_by_id})"
 
 
 def _parse_action(actions,
                   switches_by_voltage_level: Dict[str, Dict[str, bool]],
                   loads_by_id: Dict[str, Tuple[float, float]],
                   generators_by_id: Dict[str, Tuple[float, bool]],
+                  pst_by_id: Dict[str, int],
                   voltage_level_ids: Set[str],
                   switch_ids: Set[str],
                   load_ids: Set[str],
-                  generator_ids: Set[str]):
+                  generator_ids: Set[str],
+                  pst_ids: Set[str]):
     for action in actions:
         if action['actionType'] == "CompositeAction":
-            _parse_action(action['actions'], switches_by_voltage_level, loads_by_id, generators_by_id, voltage_level_ids, switch_ids, load_ids, generator_ids)
+            _parse_action(action['actions'], switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id, voltage_level_ids, switch_ids, load_ids, generator_ids, pst_ids)
         elif action['actionType'] == "SwitchOperation":
             voltage_level_id = action['assetId']
             switch_id = action['name']
@@ -73,21 +77,29 @@ def _parse_action(actions,
             # TODO
             pass
         elif action['actionType'] == "PSTRegulation":
-            # TODO
-            pass
+            pst_id = action['assetId']
+            if pst_id in pst_ids:
+                # TODO: handle mode and regulationValue if needed
+                pass
         elif action['actionType'] == "PSTShunt":
-            # TODO
-            pass
+            pst_id = action['assetId']
+            if pst_id in pst_ids:
+                tap_value = action['value']
+                # We currently only support absolute values or we could check "delta"
+                pst_by_id[pst_id] = int(tap_value)
 
 
-def _create_action(id: str, horizon: str, description: str, actions, parsed_actions: List[Action], generators_ids: Set[str], loads_ids: Set[str], switch_ids: Set[str], voltage_level_ids: Set[str]):
+def _create_action(id: str, horizon: str, description: str, actions, parsed_actions: List[Action], 
+                   generators_ids: Set[str], loads_ids: Set[str], switch_ids: Set[str], 
+                   voltage_level_ids: Set[str], pst_ids: Set[str]):
     switches_by_voltage_level = {}
     loads_by_id = {}
     generators_by_id = {}
-    _parse_action(actions, switches_by_voltage_level, loads_by_id, generators_by_id, voltage_level_ids,
-                        switch_ids, loads_ids, generators_ids)
-    if len(switches_by_voltage_level) > 0 or len(loads_by_id) > 0 or len(generators_by_id) > 0:
-        parsed_actions.append(Action(id, horizon, description, switches_by_voltage_level, loads_by_id, generators_by_id))
+    pst_by_id = {}
+    _parse_action(actions, switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id, voltage_level_ids,
+                        switch_ids, loads_ids, generators_ids, pst_ids)
+    if len(switches_by_voltage_level) > 0 or len(loads_by_id) > 0 or len(generators_by_id) > 0 or len(pst_by_id) > 0:
+        parsed_actions.append(Action(id, horizon, description, switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id))
 
 
 def parse_json(file: str, n: Network, voltage_level_filter: Optional[Callable[[(str, pd.Series)], bool]]) -> List[Action]:
@@ -99,6 +111,7 @@ def parse_json(file: str, n: Network, voltage_level_filter: Optional[Callable[[(
     switch_ids = set(n.get_switches(attributes=[]).index)
     load_ids = set(n.get_loads(attributes=[]).index)
     generator_ids = set(n.get_generators(attributes=[]).index)
+    pst_ids = set(n.get_phase_tap_changers(attributes=[]).index)
 
     repas_actions = []
 
@@ -113,9 +126,9 @@ def parse_json(file: str, n: Network, voltage_level_filter: Optional[Callable[[(
             for rules in rules_list:
                 preventive_action = rules['preventiveAction']
                 if preventive_action is not None:
-                    _create_action(id, "preventive", description, preventive_action['actions'], repas_actions, generator_ids, load_ids, switch_ids, voltage_level_ids)
+                    _create_action(id, "preventive", description, preventive_action['actions'], repas_actions, generator_ids, load_ids, switch_ids, voltage_level_ids, pst_ids)
                 curative_action = rules['curativeAction']
                 if curative_action is not None:
-                    _create_action(id, "curative", description, curative_action['actions'], repas_actions, generator_ids, load_ids, switch_ids, voltage_level_ids)
+                    _create_action(id, "curative", description, curative_action['actions'], repas_actions, generator_ids, load_ids, switch_ids, voltage_level_ids, pst_ids)
 
     return repas_actions
