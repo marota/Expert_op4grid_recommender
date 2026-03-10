@@ -138,12 +138,12 @@ def compute_baseline_simulation_grid2op(obs, timestep, act_defaut, act_reco_main
 
 def build_overflow_graph_grid2op(env, obs_simu_defaut, lines_overloaded_ids_kept, 
                                   non_connected_reconnectable_lines, lines_non_reconnectable,
-                                  timestep, do_consolidate_graph):
+                                  timestep, do_consolidate_graph,use_dc=False):
     """Build overflow graph using Grid2Op/alphaDeesp."""
     from expert_op4grid_recommender.graph_analysis.builder import build_overflow_graph
     return build_overflow_graph(env, obs_simu_defaut, lines_overloaded_ids_kept,
                                  non_connected_reconnectable_lines, lines_non_reconnectable,
-                                 timestep, do_consolidate_graph=do_consolidate_graph)
+                                 timestep, do_consolidate_graph=do_consolidate_graph,use_dc=use_dc)
 
 
 # =============================================================================
@@ -204,25 +204,15 @@ def compute_baseline_simulation_pypowsybl(obs, timestep, act_defaut, act_reco_ma
     return compute_baseline_simulation(obs, timestep, act_defaut, act_reco_maintenance, overload_ids, fast_mode=fast_mode)
 
 
-def build_overflow_graph_pypowsybl(env, obs_simu_defaut, lines_overloaded_ids_kept,
-                                    non_connected_reconnectable_lines, lines_non_reconnectable,
-                                    timestep, do_consolidate_graph, use_dc=False, fast_mode=True):
-    """Build overflow graph using pypowsybl."""
-    from expert_op4grid_recommender.pypowsybl_backend.overflow_analysis import build_overflow_graph_pypowsybl as _build
-    return _build(env, obs_simu_defaut, lines_overloaded_ids_kept,
-                  non_connected_reconnectable_lines, lines_non_reconnectable,
-                  timestep, do_consolidate_graph=do_consolidate_graph, use_dc=use_dc, param_options={"fast_mode": fast_mode})
-
-
 def build_overflow_graph_pypowsybl_wrapper(env, obs_simu_defaut, lines_overloaded_ids_kept,
                                            non_connected_reconnectable_lines, lines_non_reconnectable,
-                                           timestep, do_consolidate_graph, fast_mode=True):
+                                           timestep, do_consolidate_graph,use_dc=False, fast_mode=True):
     """Wrapper for pypowsybl overflow graph builder with correct signature."""
     from expert_op4grid_recommender.pypowsybl_backend.overflow_analysis import build_overflow_graph_pypowsybl as _build
     return _build(env, obs_simu_defaut, lines_overloaded_ids_kept,
                   non_connected_reconnectable_lines, lines_non_reconnectable,
                   timestep, do_consolidate_graph=do_consolidate_graph, 
-                  use_dc=config.USE_DC_LOAD_FLOW, param_options={"fast_mode": fast_mode})
+                  use_dc=use_dc, param_options={"fast_mode": fast_mode})
 
 
 # =============================================================================
@@ -504,12 +494,12 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
         if is_pypowsybl:
             df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
                 env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable,
-                current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH, fast_mode=actual_fast_mode
+                current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH,use_dc=use_dc, fast_mode=actual_fast_mode
             )
         else:
             df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
                 env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable,
-                current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH
+                current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH,use_dc=use_dc,
             )
 
     # Visualize graph (only if enabled in config)
