@@ -1099,6 +1099,9 @@ def create_dict_disco_reco_lines_disco(
     Dict[str, dict]
         Dictionary of disco/reco actions.
     """
+    if filter_voltage_levels is None:
+        filter_voltage_levels = [400, 24., 15., 20., 33., 10.]
+        
     dict_extra_disco_reco_actions = {}
     
     branches_df = net.get_branches()[["voltage_level1_id", "voltage_level2_id"]]
