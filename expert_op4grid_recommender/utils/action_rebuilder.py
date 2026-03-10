@@ -56,7 +56,8 @@ def make_description_unitaire(switches_by_voltage_level):
 
 def make_raw_all_actions_dict(all_actions):
     """
-    Creates a raw dictionary of all actions, splitting combined actions by voltage level.
+    Creates a raw dictionary of all actions, splitting combined actions by voltage level,
+    and then further splitting into coupling actions and atomized element actions.
 
     Parameters
     ----------
@@ -70,17 +71,42 @@ def make_raw_all_actions_dict(all_actions):
     """
     all_actions_dict = {}
     for action in all_actions:
-        if len(action._switches_by_voltage_level) == 1:
-            all_actions_dict[action._id] = action
-        elif len(action._switches_by_voltage_level) >= 2:
-            for voltage_level in action._switches_by_voltage_level.keys():
-                action_key = action._id + "_" + voltage_level
+        for voltage_level, switches in action._switches_by_voltage_level.items():
+            # Base action key always includes voltage level to avoid ambiguity
+            base_key = action._id + "_" + voltage_level
 
+            coupling_switches = {}
+            other_switches_list = []
+
+            for sw_id, sw_val in switches.items():
+                if "COUPL" in sw_id or "TRO." in sw_id or ".TRO" in sw_id:
+                   coupling_switches[sw_id] = sw_val
+                else:
+                   other_switches_list.append((sw_id, sw_val))
+
+            if coupling_switches:
                 new_action = copy.deepcopy(action)
-                filtered_switch_action = new_action._switches_by_voltage_level[voltage_level]
-                new_action._switches_by_voltage_level = {voltage_level: filtered_switch_action}
+                new_action._switches_by_voltage_level = {voltage_level: coupling_switches}
+                new_action._id = base_key + "_coupling"
+                all_actions_dict[new_action._id] = new_action
 
-                all_actions_dict[action_key] = new_action
+            for sw_id, sw_val in other_switches_list:
+                # Heuristic to extract element name
+                # sw_id example: GEN.PP6_GEN.P6VOUGL.1 SA.1_OC
+                element_name = sw_id
+                if voltage_level in sw_id:
+                    # Strip prefix like "GEN.PP6_GEN_"
+                    parts = sw_id.split(voltage_level + "_", 1)
+                    if len(parts) > 1:
+                        element_name = parts[1]
+                
+                # Take part before first space
+                element_name = element_name.split(" ")[0]
+                
+                new_action = copy.deepcopy(action)
+                new_action._switches_by_voltage_level = {voltage_level: {sw_id: sw_val}}
+                new_action._id = base_key + "_" + element_name
+                all_actions_dict[new_action._id] = new_action
 
     return all_actions_dict
 
@@ -113,10 +139,8 @@ def build_action_dict_for_snapshot_from_scratch(n_grid, all_actions, add_reco_di
         actions_to_convert = []
 
         for action_key, action in all_actions_dict.items():
-            switches = list(next(iter(action._switches_by_voltage_level.values())).keys())
-            switches_str = str(switches)
-            if "COUPL" in switches_str or "TRO." in switches_str:
-                actions_to_convert.append(all_actions_dict[action_key])
+            # Include all split actions for conversion
+            actions_to_convert.append(action)
 
         converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert,use_analytical=True)#use_analytical=True)
 
@@ -158,25 +182,36 @@ def rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action):
 
         # Recover pypowsybl actions from dict action
         for action_full_id, action in dict_action.items():
-            action_key = action_full_id.split('_')[0]
-
-            description = action["description"]
+            description = action.get("description", "")
             if "description_unitaire" in action:
                 description = action["description_unitaire"]
 
-            if "COUPL" in description or "TRO." in description:
-                #action_key = action_id_split[0]
-                if action_key not in all_actions_dict:
-                    if "VoltageLevelId" in action.keys():
-                        action_key += "_" + action["VoltageLevelId"]
-
-                if action_key in all_actions_dict:
-                    actions_to_convert.append(all_actions_dict[action_key])
-                else:
-                    print(f"Warning: Action {action_key} not found in REPAS actions. Skipping conversion.")
+            # Try to find a matching REPAS action (exact match or base ID match)
+            action_to_ref = None
+            if action_full_id in all_actions_dict:
+                action_to_ref = all_actions_dict[action_full_id]
             else:
+                action_key = action_full_id.split('_')[0]
                 if action_key in all_actions_dict:
+                    action_to_ref = all_actions_dict[action_key]
+                elif "VoltageLevelId" in action:
+                    action_key_vl = action_key + "_" + action["VoltageLevelId"]
+                    if action_key_vl in all_actions_dict:
+                        action_to_ref = all_actions_dict[action_key_vl]
+                
+                # Ultimate fallback: prefix match
+                if not action_to_ref:
+                    matches = [a for k, a in all_actions_dict.items() if k.startswith(action_key)]
+                    if matches:
+                        action_to_ref = matches[0]
+
+            if action_to_ref:
+                if "COUPL" in description or "TRO." in description:
+                    actions_to_convert.append(action_to_ref)
+                else:
                     actions_to_keep_as_is[action_full_id] = action
+            else:
+                print(f"Warning: Action {action_full_id} not found in REPAS actions. Skipping.")
 
         converted_actions = convert_repas_actions_to_grid2op_actions(n_grid, actions_to_convert,use_analytical=True)
 
@@ -205,13 +240,23 @@ def rebuild_action_dict_for_snapshot(n_grid, all_actions, dict_action):
         for action_full_id, action in new_dict_actions.items():
             # Create switches dict with full IDs (as expected by pypowsybl)
             # Flatten all switches from all voltage levels into a single dict
-            action_id = action_full_id.split('_')[0]
             if action_full_id in all_actions_dict:
                 action_repas = all_actions_dict[action_full_id]
             else:
-                action_repas=all_actions_dict[action_id]
-            switches_full = {}
+                # Try to find the action using the base ID or prefix
+                action_id = action_full_id.split('_')[0]
+                if action_id in all_actions_dict:
+                    action_repas = all_actions_dict[action_id]
+                else:
+                    matches = [a for k, a in all_actions_dict.items() if k.startswith(action_id)]
+                    if matches:
+                        action_repas = matches[0]
+                    else:
+                        print(f"Warning: Could not find original REPAS action for {action_full_id}. Skipping switch flattening.")
+                        action['switches'] = {}
+                        continue
 
+            switches_full = {}
             for vl_id, switches in action_repas._switches_by_voltage_level.items():
                 switches_full.update(switches)
 
