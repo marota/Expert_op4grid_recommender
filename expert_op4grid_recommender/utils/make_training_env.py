@@ -25,7 +25,16 @@ def make_grid2op_training_env(path_env: str,
     if not _HAS_GRID2OP:
         raise ImportError("grid2op and lightsim2grid are required for make_grid2op_training_env()")
     backend_kwargs_data = make_backend_kwargs_data(loader_kwargs=backend_loader_kwargs, **bk_kwargs)
-    backend = LightSimBackend(**backend_kwargs_data)
+    try:
+        backend = LightSimBackend(**backend_kwargs_data)
+    except RuntimeError as e:
+        if "gen_slack_id" in str(e) and "loader_kwargs" in str(e):
+            print(f"Warning: gen_slack_id is invalid for this backend. Retrying without it. Original error: {e}")
+            if "loader_kwargs" in backend_kwargs_data:
+                backend_kwargs_data["loader_kwargs"].pop("gen_slack_id", None)
+            backend = LightSimBackend(**backend_kwargs_data)
+        else:
+            raise e
     path = os.path.join(path_env, nm_env)
 
     if params is None:

@@ -345,9 +345,14 @@ def test_pst_prioritization(mock_obs, mock_nm):
 def test_pst_recommender_enrichment():
     import sys
     import os
-    # Add the current directory (where expert_backend resides) to sys.path
-    if os.getcwd() not in sys.path:
-        sys.path.insert(0, os.getcwd())
+    from pathlib import Path
+    
+    # Robustly find ExpertAssist directory
+    # If we are in /home/marotant/dev/Expert_op4grid_recommender/tests/test_pst_actions.py
+    # we want to add /home/marotant/dev/AntiGravity/ExpertAssist
+    expert_assist_path = "/home/marotant/dev/AntiGravity/ExpertAssist"
+    if expert_assist_path not in sys.path:
+        sys.path.insert(0, expert_assist_path)
         
     try:
         from expert_backend.services.recommender_service import RecommenderService
