@@ -230,8 +230,13 @@ def _is_non_reconnectable(network, element_id: str, vl1: str, vl2: str) -> bool:
     if not (breaker_open_s1 or breaker_open_s2):
         return False
 
-    # Non-reconnectable: breakers open at both sides AND all disconnectors open at both sides
-    return breaker_open_s1 and breaker_open_s2 and all_disc_open_s1 and all_disc_open_s2
+    # Non-reconnectable if EITHER side is fully isolated:
+    # breaker open AND all disconnectors open on that side.
+    # A single fully-isolated extremity means reconnection is impossible
+    # regardless of the other side's state.
+    side1_isolated = breaker_open_s1 and all_disc_open_s1
+    side2_isolated = breaker_open_s2 and all_disc_open_s2
+    return side1_isolated or side2_isolated
 
 
 def _build_connectable_to_node_map(nodes) -> Dict:
@@ -396,7 +401,11 @@ def detect_non_reconnectable_lines(network) -> List[str]:
             if not (breaker_open_s1 or breaker_open_s2):
                 continue
 
-            if breaker_open_s1 and breaker_open_s2 and all_disc_open_s1 and all_disc_open_s2:
+            # Non-reconnectable if EITHER side is fully isolated:
+            # breaker open AND all disconnectors open on that side.
+            side1_isolated = breaker_open_s1 and all_disc_open_s1
+            side2_isolated = breaker_open_s2 and all_disc_open_s2
+            if side1_isolated or side2_isolated:
                 non_reconnectable.append(eid)
 
     return non_reconnectable

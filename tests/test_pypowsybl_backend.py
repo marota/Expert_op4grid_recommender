@@ -614,6 +614,90 @@ class TestNonReconnectableLineDetection:
         # AISERL31MAGNY is a connected line - should never appear
         assert "AISERL31MAGNY" not in result
 
+    def test_one_side_isolated_is_non_reconnectable_synthetic(self):
+        """Regression test for OR-logic fix: a line with only ONE fully-isolated
+        extremity (breaker open + all disconnectors open on that side) must be
+        detected as non-reconnectable, even if the other side still has a closed
+        disconnector.  The previous AND logic incorrectly excluded such lines.
+        """
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import _is_non_reconnectable
+        import pandas as pd
+        import types
+
+        line_id = "TEST_LINE_OR"
+        vl1, vl2 = "VL1", "VL2"
+
+        # Side 1: line at node 10, breaker 10->20 (OPEN), disconnector 20->30 (OPEN)
+        nodes_vl1 = pd.DataFrame({"connectable_id": [line_id, None, None]}, index=[10, 20, 30])
+        switches_vl1 = pd.DataFrame({
+            "node1": [10, 20], "node2": [20, 30],
+            "kind": ["BREAKER", "DISCONNECTOR"], "open": [True, True],
+        })
+
+        # Side 2: line at node 100, breaker 100->200 (OPEN), disconnector 200->300 (CLOSED)
+        nodes_vl2 = pd.DataFrame({"connectable_id": [line_id, None, None]}, index=[100, 200, 300])
+        switches_vl2 = pd.DataFrame({
+            "node1": [100, 200], "node2": [200, 300],
+            "kind": ["BREAKER", "DISCONNECTOR"], "open": [True, False],
+        })
+
+        class FakeTopo:
+            def __init__(self, nodes, switches):
+                self.nodes = nodes
+                self.switches = switches
+
+        def get_node_breaker_topology(vl_id):
+            return FakeTopo(nodes_vl1, switches_vl1) if vl_id == vl1 else FakeTopo(nodes_vl2, switches_vl2)
+
+        network = types.SimpleNamespace(get_node_breaker_topology=get_node_breaker_topology)
+
+        result = _is_non_reconnectable(network, line_id, vl1, vl2)
+        assert result is True, (
+            "Line with one fully-isolated side (breaker + all disconnectors open) "
+            "must be considered non-reconnectable"
+        )
+
+    def test_neither_side_isolated_is_reconnectable_synthetic(self):
+        """When neither extremity is fully isolated the line must NOT be flagged."""
+        from expert_op4grid_recommender.utils.helpers_pypowsybl import _is_non_reconnectable
+        import pandas as pd
+        import types
+
+        line_id = "TEST_LINE_RECO"
+        vl1, vl2 = "VL_A", "VL_B"
+
+        def make_side_nodes_switches(node_line, node_inter, node_bus, disc_open):
+            nodes = pd.DataFrame(
+                {"connectable_id": [line_id, None, None]},
+                index=[node_line, node_inter, node_bus],
+            )
+            switches = pd.DataFrame({
+                "node1": [node_line, node_inter],
+                "node2": [node_inter, node_bus],
+                "kind": ["BREAKER", "DISCONNECTOR"],
+                "open": [True, disc_open],   # breaker open, disconnector as requested
+            })
+            return nodes, switches
+
+        nodes_vl1, sw_vl1 = make_side_nodes_switches(10, 20, 30, disc_open=False)
+        nodes_vl2, sw_vl2 = make_side_nodes_switches(100, 200, 300, disc_open=False)
+
+        class FakeTopo:
+            def __init__(self, nodes, switches):
+                self.nodes = nodes
+                self.switches = switches
+
+        def get_node_breaker_topology(vl_id):
+            return FakeTopo(nodes_vl1, sw_vl1) if vl_id == vl1 else FakeTopo(nodes_vl2, sw_vl2)
+
+        network = types.SimpleNamespace(get_node_breaker_topology=get_node_breaker_topology)
+
+        result = _is_non_reconnectable(network, line_id, vl1, vl2)
+        assert result is False, (
+            "Line where both sides still have a closed disconnector should NOT "
+            "be considered non-reconnectable"
+        )
+
     def test_check_line_side_switches_returns_none_when_no_breaker(self, real_network_manager):
         """Test that _check_line_side_switches returns None if no breaker exists.
 
