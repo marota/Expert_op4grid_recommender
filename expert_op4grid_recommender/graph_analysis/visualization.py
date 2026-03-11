@@ -45,8 +45,13 @@ def get_zone_voltage_levels(env_path):
         Exception: Potential exceptions from `pypowsybl.network.load` if the
                    network file is invalid or cannot be parsed.
     """
-    file_iidm = "grid.xiidm"
-    network_file_path = os.path.join(env_path, file_iidm)
+    from pathlib import Path
+    env_path_obj = Path(env_path)
+    if env_path_obj.is_file() and env_path_obj.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
+        network_file_path = str(env_path_obj)
+    else:
+        file_iidm = "grid.xiidm"
+        network_file_path = os.path.join(env_path, file_iidm)
     n_zone = pp.network.load(network_file_path)
     df_volt = n_zone.get_voltage_levels()
     return {sub: volt for sub, volt in zip(df_volt.index, df_volt.nominal_v)}

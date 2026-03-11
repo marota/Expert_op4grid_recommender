@@ -53,21 +53,26 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
     
     # Look for network file
     network_file = None
-    for ext in ['.xiidm', '.iidm', '.xml']:
-        candidates = list(env_path.glob(f"*{ext}"))
-        if candidates:
-            network_file = candidates[0]
-            break
-    
-    # Also check in grid/ subfolder
-    if network_file is None:
-        grid_folder = env_path / "grid"
-        if grid_folder.exists():
-            for ext in ['.xiidm', '.iidm', '.xml']:
-                candidates = list(grid_folder.glob(f"*{ext}"))
-                if candidates:
-                    network_file = candidates[0]
-                    break
+    if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
+        network_file = env_path
+        env_dir = env_path.parent
+    else:
+        env_dir = env_path
+        for ext in ['.xiidm', '.iidm', '.xml']:
+            candidates = list(env_path.glob(f"*{ext}"))
+            if candidates:
+                network_file = candidates[0]
+                break
+        
+        # Also check in grid/ subfolder
+        if network_file is None:
+            grid_folder = env_path / "grid"
+            if grid_folder.exists():
+                for ext in ['.xiidm', '.iidm', '.xml']:
+                    candidates = list(grid_folder.glob(f"*{ext}"))
+                    if candidates:
+                        network_file = candidates[0]
+                        break
     
     if network_file is None:
         raise FileNotFoundError(f"No network file found in {env_path}")
@@ -75,13 +80,13 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
     # Look for thermal limits
     thermal_limits_path = None
     if thermal_limits_file:
-        thermal_limits_path = env_path / thermal_limits_file
+        thermal_limits_path = env_dir / thermal_limits_file
         if not thermal_limits_path.exists():
             thermal_limits_path = None
     
     if thermal_limits_path is None:
         for name in ['thermal_limits.json', 'limits.json']:
-            candidate = env_path / name
+            candidate = env_dir / name
             if candidate.exists():
                 thermal_limits_path = candidate
                 break
@@ -102,7 +107,7 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
     # Get initial observation
     obs = env.get_obs()
     
-    return env, obs, str(env_path)
+    return env, obs, str(env_dir)
 
 
 def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetime] = None,
