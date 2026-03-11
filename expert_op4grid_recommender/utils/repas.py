@@ -37,10 +37,11 @@ def _parse_action(actions,
                   switch_ids: Set[str],
                   load_ids: Set[str],
                   generator_ids: Set[str],
-                  pst_ids: Set[str]):
+                  pst_ids: Set[str],
+                  n: Network):
     for action in actions:
         if action['actionType'] == "CompositeAction":
-            _parse_action(action['actions'], switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id, voltage_level_ids, switch_ids, load_ids, generator_ids, pst_ids)
+            _parse_action(action['actions'], switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id, voltage_level_ids, switch_ids, load_ids, generator_ids, pst_ids, n)
         elif action['actionType'] == "SwitchOperation":
             voltage_level_id = action['assetId']
             switch_id = action['name']
@@ -79,25 +80,34 @@ def _parse_action(actions,
         elif action['actionType'] == "PSTRegulation":
             pst_id = action['assetId']
             if pst_id in pst_ids:
-                # TODO: handle mode and regulationValue if needed
+                # print(f"DEBUG: Found PSTRegulation for {pst_id}")
                 pass
         elif action['actionType'] == "PSTShunt":
             pst_id = action['assetId']
             if pst_id in pst_ids:
                 tap_value = action['value']
-                # We currently only support absolute values or we could check "delta"
-                pst_by_id[pst_id] = int(tap_value)
+                is_delta = action.get('delta', False)
+                if is_delta:
+                    # Variation: resolve to absolute using current tap from network
+                    current_tap = n.get_phase_tap_changers().loc[pst_id, 'tap']
+                    pst_by_id[pst_id] = int(current_tap + tap_value)
+                else:
+                    # Target: use directly
+                    pst_by_id[pst_id] = int(tap_value)
+            else:
+                # print(f"DEBUG: PSTShunt assetId {pst_id} NOT found in pst_ids")
+                pass
 
 
 def _create_action(id: str, horizon: str, description: str, actions, parsed_actions: List[Action], 
                    generators_ids: Set[str], loads_ids: Set[str], switch_ids: Set[str], 
-                   voltage_level_ids: Set[str], pst_ids: Set[str]):
+                   voltage_level_ids: Set[str], pst_ids: Set[str], n: Network):
     switches_by_voltage_level = {}
     loads_by_id = {}
     generators_by_id = {}
     pst_by_id = {}
     _parse_action(actions, switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id, voltage_level_ids,
-                        switch_ids, loads_ids, generators_ids, pst_ids)
+                  switch_ids, loads_ids, generators_ids, pst_ids, n)
     if len(switches_by_voltage_level) > 0 or len(loads_by_id) > 0 or len(generators_by_id) > 0 or len(pst_by_id) > 0:
         parsed_actions.append(Action(id, horizon, description, switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id))
 
@@ -126,9 +136,9 @@ def parse_json(file: str, n: Network, voltage_level_filter: Optional[Callable[[(
             for rules in rules_list:
                 preventive_action = rules['preventiveAction']
                 if preventive_action is not None:
-                    _create_action(id, "preventive", description, preventive_action['actions'], repas_actions, generator_ids, load_ids, switch_ids, voltage_level_ids, pst_ids)
+                    _create_action(id, "preventive", description, preventive_action['actions'], repas_actions, generator_ids, load_ids, switch_ids, voltage_level_ids, pst_ids, n)
                 curative_action = rules['curativeAction']
                 if curative_action is not None:
-                    _create_action(id, "curative", description, curative_action['actions'], repas_actions, generator_ids, load_ids, switch_ids, voltage_level_ids, pst_ids)
+                    _create_action(id, "curative", description, curative_action['actions'], repas_actions, generator_ids, load_ids, switch_ids, voltage_level_ids, pst_ids, n)
 
     return repas_actions
