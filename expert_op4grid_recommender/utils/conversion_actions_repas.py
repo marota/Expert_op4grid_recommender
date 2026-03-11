@@ -1099,6 +1099,9 @@ def create_dict_disco_reco_lines_disco(
     Dict[str, dict]
         Dictionary of disco/reco actions.
     """
+    if filter_voltage_levels is None:
+        filter_voltage_levels = [400, 24., 15., 20., 33., 10.]
+        
     dict_extra_disco_reco_actions = {}
     
     branches_df = net.get_branches()[["voltage_level1_id", "voltage_level2_id"]]
@@ -1224,20 +1227,32 @@ def convert_repas_actions_to_grid2op_actions(
         for action, g2o_action in zip(actions, converted_list):
             if g2o_action is not None:
                 # Use action._id directly if it already contains the voltage level or atomization suffix
-                vl = next(iter(action._switches_by_voltage_level))
-                if vl in action._id:
-                    action_key = action._id
-                else:
-                    action_key = action._id + "_" + vl
-                
-                g2o_action["description_unitaire"] = get_all_switch_descriptions(
-                    action._switches_by_voltage_level
-                )
-                
-                voltage_levels = list(action._switches_by_voltage_level.keys())
-                if len(voltage_levels) == 1:
-                    g2o_action["VoltageLevelId"] = voltage_levels[0]
+                if action._switches_by_voltage_level:
+                    vl = next(iter(action._switches_by_voltage_level))
+                    if vl in action._id:
+                        action_key = action._id
+                    else:
+                        action_key = action._id + "_" + vl
                     
+                    g2o_action["description_unitaire"] = get_all_switch_descriptions(
+                        action._switches_by_voltage_level
+                    )
+                    
+                    voltage_levels = list(action._switches_by_voltage_level.keys())
+                    if len(voltage_levels) == 1:
+                        g2o_action["VoltageLevelId"] = voltage_levels[0]
+                else:
+                    # PST only action or other non-switch action
+                    action_key = action._id
+                    g2o_action["description_unitaire"] = action._description
+                    if hasattr(action, '_pst_by_id') and action._pst_by_id:
+                        pst_id = next(iter(action._pst_by_id))
+                        g2o_action["description_unitaire"] = f"Variation de slot pour le PST {pst_id}"
+                
+                # Preserve pst_tap info if present
+                if hasattr(action, '_pst_by_id') and action._pst_by_id:
+                    g2o_action["pst_tap"] = action._pst_by_id
+
                 result[action_key] = g2o_action
     else:
         convert_fn = convert_to_grid2op_action if use_analytical else convert_to_grid2op_action_with_variant
@@ -1246,20 +1261,32 @@ def convert_repas_actions_to_grid2op_actions(
             g2o_action = convert_fn(n, action, verbose=verbose)
             if g2o_action is not None:
                 # Use action._id directly if it already contains the voltage level or atomization suffix
-                vl = next(iter(action._switches_by_voltage_level))
-                if vl in action._id:
-                    action_key = action._id
-                else:
-                    action_key = action._id + "_" + vl
-
-                g2o_action["description_unitaire"] = get_all_switch_descriptions(
-                    action._switches_by_voltage_level
-                )
-                
-                voltage_levels = list(action._switches_by_voltage_level.keys())
-                if len(voltage_levels) == 1:
-                    g2o_action["VoltageLevelId"] = voltage_levels[0]
+                if action._switches_by_voltage_level:
+                    vl = next(iter(action._switches_by_voltage_level))
+                    if vl in action._id:
+                        action_key = action._id
+                    else:
+                        action_key = action._id + "_" + vl
+    
+                    g2o_action["description_unitaire"] = get_all_switch_descriptions(
+                        action._switches_by_voltage_level
+                    )
                     
+                    voltage_levels = list(action._switches_by_voltage_level.keys())
+                    if len(voltage_levels) == 1:
+                        g2o_action["VoltageLevelId"] = voltage_levels[0]
+                else:
+                    # PST only action or other non-switch action
+                    action_key = action._id
+                    g2o_action["description_unitaire"] = action._description
+                    if hasattr(action, '_pst_by_id') and action._pst_by_id:
+                        pst_id = next(iter(action._pst_by_id))
+                        g2o_action["description_unitaire"] = f"Variation de slot pour le PST {pst_id}"
+
+                # Preserve pst_tap info if present
+                if hasattr(action, '_pst_by_id') and action._pst_by_id:
+                    g2o_action["pst_tap"] = action._pst_by_id
+
                 result[action_key] = g2o_action
 
     return result

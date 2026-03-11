@@ -75,8 +75,7 @@ def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected
     overflow_sim = Grid2opSimulation(
         obs_overloaded, env.action_space, env.observation_space,
         param_options=param_options, debug=False,
-        ltc=overloaded_line_ids, plot=True, simu_step=timestep,
-        use_dc=use_dc
+        ltc=overloaded_line_ids, plot=True, simu_step=timestep
     )
     df_of_g = overflow_sim.get_dataframe()
     df_of_g["line_name"] = obs_overloaded.name_line

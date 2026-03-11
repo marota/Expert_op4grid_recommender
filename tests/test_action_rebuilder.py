@@ -74,6 +74,7 @@ class MockRepasAction:
         self._description = description
         self._loads_by_id = {}
         self._generators_by_id = {}
+        self._pst_by_id = {}
 
 
 class MockNetwork:

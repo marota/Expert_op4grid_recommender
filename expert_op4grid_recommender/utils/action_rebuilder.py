@@ -71,6 +71,7 @@ def make_raw_all_actions_dict(all_actions):
     """
     all_actions_dict = {}
     for action in all_actions:
+        # 1. Switch actions
         for voltage_level, switches in action._switches_by_voltage_level.items():
             # Base action key always includes voltage level to avoid ambiguity
             base_key = action._id + "_" + voltage_level
@@ -87,6 +88,7 @@ def make_raw_all_actions_dict(all_actions):
             if coupling_switches:
                 new_action = copy.deepcopy(action)
                 new_action._switches_by_voltage_level = {voltage_level: coupling_switches}
+                new_action._pst_by_id = {} # Clear PSTs for switch actions
                 new_action._id = base_key + "_coupling"
                 all_actions_dict[new_action._id] = new_action
 
@@ -105,8 +107,17 @@ def make_raw_all_actions_dict(all_actions):
                 
                 new_action = copy.deepcopy(action)
                 new_action._switches_by_voltage_level = {voltage_level: {sw_id: sw_val}}
+                new_action._pst_by_id = {} # Clear PSTs for switch actions
                 new_action._id = base_key + "_" + element_name
                 all_actions_dict[new_action._id] = new_action
+
+        # 2. PST actions
+        for pst_id, tap_value in action._pst_by_id.items():
+            new_action = copy.deepcopy(action)
+            new_action._switches_by_voltage_level = {} # Clear switches for PST actions
+            new_action._pst_by_id = {pst_id: tap_value}
+            new_action._id = action._id + "_" + pst_id
+            all_actions_dict[new_action._id] = new_action
 
     return all_actions_dict
 
@@ -402,13 +413,14 @@ def build_action_dict_pypowsybl_format_from_scratch(n_grid, all_actions, add_rec
             for vl_id, switches in action._switches_by_voltage_level.items():
                 switches_flat.update(switches)
 
-            voltage_level = next(iter(action._switches_by_voltage_level))
+            voltage_level = next(iter(action._switches_by_voltage_level)) if action._switches_by_voltage_level else ""
 
             result[action_key] = {
                 "description": action._description,
-                "description_unitaire": get_all_switch_descriptions(action._switches_by_voltage_level),
+                "description_unitaire": get_all_switch_descriptions(action._switches_by_voltage_level) if action._switches_by_voltage_level else f"Variation de slot pour le PST {next(iter(action._pst_by_id), 'unknown')}",
                 "VoltageLevelId": voltage_level,
                 "switches": switches_flat,
+                "pst_tap": action._pst_by_id,
             }
 
         if add_reco_disco_actions and n_grid is not None:
@@ -497,5 +509,7 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
         return new_dict_actions
 
     except Exception as e:
+        import traceback
         print(f"Error rebuilding actions: {e}")
+        traceback.print_exc()
         return dict_action_to_filter_on  # Return original on failure

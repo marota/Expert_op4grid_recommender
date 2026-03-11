@@ -68,17 +68,19 @@ DO_SAVE_DATA_FOR_TEST = False
 CHECK_ACTION_SIMULATION = False#True
 N_PRIORITIZED_ACTIONS = 10
 IGNORE_RECONNECTIONS = False#False
-IGNORE_LINES_MONITORING = False
+IGNORE_LINES_MONITORING = True
 DO_VISUALIZATION = True
 MAX_RHO_BOTH_EXTREMITIES = True  # only possible for now with pypowsybl backend
 MONITORING_FACTOR_THERMAL_LIMITS = 0.95  # factor applied to permanent thermal limits when loading from operational limits
 PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # 2% – pre-existing overloads excluded from analysis unless current increased by this fraction
+PYPOWSYBL_FAST_MODE=False
 
 # Minimum number of prioritized actions per type
 MIN_LINE_RECONNECTIONS = 2
 MIN_CLOSE_COUPLING = 3
 MIN_OPEN_COUPLING = 2
 MIN_LINE_DISCONNECTIONS = 3
+MIN_PST = 2
 
 
 # -------------------

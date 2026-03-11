@@ -183,6 +183,15 @@ class NetworkManager:
         # OPTIMIZATION: Pre-compute thermal limits for all lines
         self._cache_thermal_limits()
 
+        # PSTs - cache phase tap changers
+        self._cache_pst_info()
+
+    def _cache_pst_info(self):
+        """Identify transformers with phase tap changers."""
+        self._pst_df = self.network.get_phase_tap_changers()
+        self._pst_ids = list(self._pst_df.index)
+        self._pst_set = set(self._pst_ids)
+
     def _cache_elements_per_substation(self):
         """Cache which elements belong to each substation."""
         n_sub = self._n_sub
@@ -630,3 +639,44 @@ class NetworkManager:
         """
         from expert_op4grid_recommender.utils.helpers_pypowsybl import detect_non_reconnectable_lines
         return detect_non_reconnectable_lines(self.network)
+
+    def get_pst_ids(self) -> List[str]:
+        """Get IDs of transformers with phase tap changers."""
+        return self._pst_ids
+
+    def get_pst_tap_info(self, pst_id: str) -> Dict[str, Any]:
+        """
+        Get tap information for a PST.
+        
+        Args:
+            pst_id: The ID of the PST.
+            
+        Returns:
+            Dictionary with 'tap', 'low_tap', 'high_tap', 'step_count'.
+        """
+        if pst_id not in self._pst_set:
+            return {}
+        
+        # Get fresh data from network to account for variant changes
+        df = self.network.get_phase_tap_changers().loc[[pst_id]]
+        if df.empty:
+            return {}
+            
+        row = df.iloc[0]
+        return {
+            'tap': int(row['tap']),
+            'low_tap': int(row['low_tap']),
+            'high_tap': int(row['high_tap']),
+            'step_count': int(row['step_count']),
+        }
+
+    def update_pst_tap_step(self, pst_id: str, tap: int):
+        """
+        Update the tap position of a PST.
+        
+        Args:
+            pst_id: The ID of the PST.
+            tap: The new tap step number.
+        """
+        if pst_id in self._pst_set:
+            self.network.update_phase_tap_changers(id=pst_id, tap=tap)

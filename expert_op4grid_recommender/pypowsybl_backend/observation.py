@@ -909,6 +909,7 @@ class PypowsyblAction:
         self.lines_ex_bus = {}
         self.loads_bus = {}
         self.gens_bus = {}
+        self.pst_tap = {}
         self.substations = {}
 
     def apply(self, network_manager: 'NetworkManager'):
@@ -925,6 +926,7 @@ class PypowsyblAction:
         combined.lines_ex_bus = {**self.lines_ex_bus, **other.lines_ex_bus}
         combined.loads_bus = {**self.loads_bus, **other.loads_bus}
         combined.gens_bus = {**self.gens_bus, **other.gens_bus}
+        combined.pst_tap = {**self.pst_tap, **other.pst_tap}
         combined.substations = {**self.substations, **other.substations}
         return combined
 
