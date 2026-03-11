@@ -15,6 +15,24 @@ if TYPE_CHECKING:
     from .network_manager import NetworkManager
 
 
+class PhaseShifterAction(PypowsyblAction):
+    """Action to change PST tap position."""
+
+    def __init__(self, pst_tap: Dict[str, int]):
+        """
+        Args:
+            pst_tap: Dict mapping PST ID -> new tap step.
+        """
+        super().__init__()
+        self.pst_tap = pst_tap
+
+        def apply_pst_changes(nm: 'NetworkManager'):
+            for pst_id, tap in self.pst_tap.items():
+                nm.update_pst_tap_step(pst_id, tap)
+
+        self._modifications.append(apply_pst_changes)
+
+
 class LineStatusAction(PypowsyblAction):
     """Action to change line connection status."""
     
@@ -248,6 +266,12 @@ class ActionSpace:
         if "content" in action_dict and isinstance(action_dict["content"], dict):
             # Merge content with top-level for set_bus access
             working_dict = {**action_dict, **action_dict["content"]}
+        
+        # Handle pst_tap (PST ID -> tap step)
+        pst_tap = working_dict.get("pst_tap")
+        if pst_tap:
+            pst_action = PhaseShifterAction(pst_tap)
+            combined_action = combined_action + pst_action
         
         # Handle set_line_status
         if "set_line_status" in working_dict:
