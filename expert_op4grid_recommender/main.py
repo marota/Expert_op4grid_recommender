@@ -774,6 +774,26 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
                         action_scores[category]["non_convergence"] = {}
                     action_scores[category]["non_convergence"][action_id] = nc
 
+    # Combined Action Pairs using the Superposition Theorem
+    combined_actions = {}
+    with Timer("Combined Action Pairs (Superposition)"):
+        try:
+            from expert_op4grid_recommender.utils.superposition import compute_all_pairs_superposition
+            combined_actions = compute_all_pairs_superposition(
+                obs_start=obs_simu_defaut,
+                detailed_actions=detailed_actions,
+                classifier=classifier,
+                env=env,
+                lines_overloaded_ids=lines_overloaded_ids,
+                lines_we_care_about=lines_we_care_about,
+                pre_existing_rho=pre_existing_rho,
+                dict_action=dict_action,
+            )
+        except Exception as e:
+            print(f"Warning: Failed to compute combined action pairs: {e}")
+            import traceback
+            traceback.print_exc()
+
     # Build pre-existing overloads info for the frontend
     pre_existing_info = [
         {"name": str(obs.name_line[i]), "rho_N": pre_existing_rho[i]}
@@ -785,6 +805,7 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
         "prioritized_actions": detailed_actions,
         "action_scores": action_scores,
         "pre_existing_overloads": pre_existing_info,
+        "combined_actions": combined_actions,
     }
 
 
