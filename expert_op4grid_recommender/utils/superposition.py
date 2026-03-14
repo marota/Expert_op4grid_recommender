@@ -491,14 +491,18 @@ def compute_combined_pair_superposition(
 
     # ---- Islanding detection (if obs_combined is provided) ----
     is_islanded = False
+    disconnected_mw = 0.0
     if obs_combined is not None and hasattr(obs_combined, 'n_components'):
          if obs_combined.n_components > obs_start.n_components:
              is_islanded = True
+             if hasattr(obs_combined, 'main_component_load_mw') and hasattr(obs_start, 'main_component_load_mw'):
+                 disconnected_mw = float(max(0.0, obs_start.main_component_load_mw - obs_combined.main_component_load_mw))
 
     return {
         "betas": betas.tolist(),
         "p_or_combined": p_or_combined.tolist(),
         "is_islanded": is_islanded,
+        "disconnected_mw": disconnected_mw,
     }
 
 
@@ -640,22 +644,33 @@ def compute_all_pairs_superposition(
             max_idx = np.argmax(masked_rho)
             max_rho = float(masked_rho[max_idx])
             max_rho_line = name_line[np.where(eligible_mask)[0][max_idx]]
+        
+        # Islanding and disconnected MW
+        is_islanded = result.get("is_islanded", False)
+        disconnected_mw = result.get("disconnected_mw", 0.0)
 
         # Build descriptions
         desc1 = detailed_actions[aid1].get("description_unitaire", aid1)
         desc2 = detailed_actions[aid2].get("description_unitaire", aid2)
 
+        # Scaling factor for monitoring limits
+        monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
+
         result.update({
             "max_rho": max_rho,
             "max_rho_line": max_rho_line,
             "is_rho_reduction": is_rho_reduction,
+            "p_or_combined": result["p_or_combined"],
             "description": f"{desc1} + {desc2}",
             "action1_id": aid1,
             "action2_id": aid2,
+            "is_islanded": is_islanded,
+            "disconnected_mw": disconnected_mw,
+            "rho_after": (rho_combined[lines_overloaded_ids] * monitoring_factor).tolist(),
+            "rho_before": (obs_start.rho[lines_overloaded_ids] * monitoring_factor).tolist(),
         })
 
-        # Remove fields that are only used for internal calculation or full simulations
-        result.pop("p_or_combined", None)
+        # Note: p_or_combined is kept in result for frontend diagram/test consistency
 
         pair_key = f"{aid1}+{aid2}"
         results[pair_key] = result
