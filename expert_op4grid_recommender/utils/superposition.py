@@ -22,23 +22,11 @@ from typing import Dict, List, Tuple, Any, Optional
 # Low-level helper functions (adapted from superposition_theorem/core)
 # =============================================================================
 
-def get_delta_theta_line(obs, line_idx: int) -> float:
-    """Compute delta theta (theta_or - theta_ex) for a line.
-
-    Args:
-        obs: Observation with theta_or, theta_ex arrays
-        line_idx: Index of the line
-
-    Returns:
-        Delta theta value in radians
-    """
-    theta_or = obs.theta_or[line_idx]
-    theta_ex = obs.theta_ex[line_idx]
-    return theta_or - theta_ex
-
-
-def _get_theta_at_sub_bus(obs, sub_id: int, bus: int) -> float:
+def _get_theta_node(obs, sub_id: int, bus: int) -> float:
     """Get the median voltage angle at a specific bus of a substation.
+
+    Uses all connected elements at the bus (lines_or, lines_ex) to estimate
+    the bus voltage angle, even for disconnected lines.
 
     Args:
         obs: Observation with theta_or, theta_ex, line_or_bus, line_ex_bus
@@ -46,7 +34,7 @@ def _get_theta_at_sub_bus(obs, sub_id: int, bus: int) -> float:
         bus: Bus number (1 or 2)
 
     Returns:
-        Median theta at the bus (radians)
+        Median theta at the bus (radians), or 0.0 if no connected elements
     """
     obj = obs.get_obj_connect_to(substation_id=sub_id)
 
@@ -61,6 +49,36 @@ def _get_theta_at_sub_bus(obs, sub_id: int, bus: int) -> float:
     return float(np.median(thetas))
 
 
+def get_delta_theta_line(obs, line_idx: int) -> float:
+    """Compute delta theta (theta_or - theta_ex) for a line.
+
+    Uses endpoint substation angles via connected elements, so this works
+    correctly even when the line itself is disconnected (theta_or/theta_ex
+    would be 0, but the substation bus still has a non-zero angle).
+
+    Args:
+        obs: Observation with theta_or, theta_ex, line_or_bus, line_ex_bus
+        line_idx: Index of the line
+
+    Returns:
+        Delta theta value in radians
+    """
+    sub_or = obs.line_or_to_subid[line_idx]
+    sub_ex = obs.line_ex_to_subid[line_idx]
+    bus_or = int(obs.line_or_bus[line_idx])
+    bus_ex = int(obs.line_ex_bus[line_idx])
+
+    # For a disconnected line bus is -1, fall back to bus 1 (where it will reconnect)
+    if bus_or == -1:
+        bus_or = 1
+    if bus_ex == -1:
+        bus_ex = 1
+
+    theta_or = _get_theta_node(obs, sub_or, bus_or)
+    theta_ex = _get_theta_node(obs, sub_ex, bus_ex)
+    return theta_or - theta_ex
+
+
 def get_delta_theta_sub_2nodes(obs, sub_id: int) -> float:
     """Compute delta theta between bus 2 and bus 1 at a substation.
 
@@ -73,57 +91,64 @@ def get_delta_theta_sub_2nodes(obs, sub_id: int) -> float:
     Returns:
         Delta theta (bus2 - bus1) in radians
     """
-    theta_bus1 = _get_theta_at_sub_bus(obs, sub_id, bus=1)
-    theta_bus2 = _get_theta_at_sub_bus(obs, sub_id, bus=2)
+    theta_bus1 = _get_theta_node(obs, sub_id, bus=1)
+    theta_bus2 = _get_theta_node(obs, sub_id, bus=2)
     return theta_bus2 - theta_bus1
 
 
-def get_virtual_line_flow(obs, sub_id: int) -> float:
+def get_sub_node1_idsflow(obs, sub_id: int):
+    """Identify elements belonging to node 1 (global bus == sub_id) at a substation.
+
+    Adapted from the reference superposition_theorem implementation.
+    This uses the global bus id (which equals sub_id for the first bus of
+    a substation) to identify which elements belong to "node 1".
+    This must be called with an observation where the substation is already
+    split (the post-split observation), so the global bus assignments reflect
+    the future topology.
+
+    Args:
+        obs: Post-split observation where the substation has two buses
+        sub_id: Substation index
+
+    Returns:
+        Tuple (ind_load_node1, ind_prod_node1, ind_lor_node1, ind_lex_node1)
+    """
+    ind_prod, _ = obs._get_bus_id(obs.gen_pos_topo_vect, obs.gen_to_subid)
+    ind_load, _ = obs._get_bus_id(obs.load_pos_topo_vect, obs.load_to_subid)
+    ind_lor, _ = obs._get_bus_id(obs.line_or_pos_topo_vect, obs.line_or_to_subid)
+    ind_lex, _ = obs._get_bus_id(obs.line_ex_pos_topo_vect, obs.line_ex_to_subid)
+
+    ind_lor_node1 = [i for i in range(obs.n_line) if ind_lor[i] == sub_id]
+    ind_lex_node1 = [i for i in range(obs.n_line) if ind_lex[i] == sub_id]
+    ind_load_node1 = [i for i in range(obs.n_load) if ind_load[i] == sub_id]
+    ind_prod_node1 = [i for i in range(obs.n_gen) if ind_prod[i] == sub_id]
+
+    return (ind_load_node1, ind_prod_node1, ind_lor_node1, ind_lex_node1)
+
+
+def get_virtual_line_flow(obs, ind_load, ind_prod, ind_lor, ind_lex) -> float:
     """Compute the virtual line flow at a substation using KCL at node 1.
 
     The virtual line flow represents the power flowing between the two buses
-    of a split substation, computed from Kirchhoff's Current Law.
+    of a split substation, computed from Kirchhoff's Current Law applied
+    to node 1 elements.
 
     Args:
         obs: Observation with p_or, load_p, gen_p
-        sub_id: Substation index
+        ind_load: Indices of loads on node 1
+        ind_prod: Indices of generators on node 1
+        ind_lor: Indices of lines with origin at node 1
+        ind_lex: Indices of lines with extremity at node 1
 
     Returns:
         Virtual line active power flow (MW)
     """
-    obj = obs.get_obj_connect_to(substation_id=sub_id)
-
-    # Find elements on bus 1
-    ind_lor = [i for i in obj['lines_or_id'] if obs.line_or_bus[i] == 1]
-    ind_lex = [i for i in obj['lines_ex_id'] if obs.line_ex_bus[i] == 1]
-    ind_load = [i for i in obj['loads_id'] if _get_element_bus(obs, 'load', i) == 1]
-    ind_gen = [i for i in obj['generators_id'] if _get_element_bus(obs, 'gen', i) == 1]
-
-    # KCL: sum of injections at node 1
     flow = 0.0
     flow += sum(-obs.p_or[i] for i in ind_lor)
     flow += sum(obs.p_or[i] for i in ind_lex)  # p_ex flows in opposite direction
     flow += sum(-obs.load_p[i] for i in ind_load)
-    flow += sum(obs.gen_p[i] for i in ind_gen)
-
+    flow += sum(obs.gen_p[i] for i in ind_prod)
     return flow
-
-
-def _get_element_bus(obs, element_type: str, element_idx: int) -> int:
-    """Get bus number for a load or generator.
-
-    For loads/gens we need to check the observation's cached bus info.
-    """
-    if element_type == 'load':
-        if hasattr(obs, '_load_bus_cache'):
-            return int(obs._load_bus_cache[element_idx])
-        # Fallback: assume bus 1
-        return 1
-    elif element_type == 'gen':
-        if hasattr(obs, '_gen_bus_cache'):
-            return int(obs._gen_bus_cache[element_idx])
-        return 1
-    return 1
 
 
 def _is_sub_reference_topology(obs, sub_id: int) -> bool:
@@ -412,6 +437,25 @@ def compute_combined_pair_superposition(
     if n_sub_actions > 0:
         is_start_ref = [_is_sub_reference_topology(obs_start, sid) for sid in idls_subs]
 
+        # Pre-compute node1 element indices for each substation.
+        # For a sub in reference topology at start (node splitting action),
+        # node1 is determined from the post-split observation (obs where that
+        # sub's split is applied), which is the unit_act observation whose
+        # index = n_line_actions + i (same as in reference implementation).
+        # For a sub already split at start (node merging action), the same
+        # approach is used but from the start observation's global bus mapping.
+        ind_subs = []
+        for i, sid in enumerate(idls_subs):
+            if is_start_ref[i]:
+                # Splitting action: node1 ids come from the post-split obs
+                # That observation is at index n_line_actions + i
+                obs_post_split = unit_act_observations[n_line_actions + i]
+                ind_subs.append(get_sub_node1_idsflow(obs_post_split, sid))
+            else:
+                # Merging action: sub is already split at start; node1 ids
+                # are determined from obs_start global bus mapping
+                ind_subs.append(get_sub_node1_idsflow(obs_start, sid))
+
         # Virtual line flows and delta_thetas for each observation
         p_or_v_lines_per_obs = []
         dt_v_lines_per_obs = []
@@ -428,13 +472,15 @@ def compute_combined_pair_superposition(
                         p_or_v.append(0.0)
                         dt_v.append(get_delta_theta_sub_2nodes(obs, sid))
                     else:
-                        # Node merging applied → compute virtual flow
-                        p_or_v.append(get_virtual_line_flow(obs, sid))
+                        # Node merging applied → virtual flow computed
+                        (il, ip, ilor, ilex) = ind_subs[i]
+                        p_or_v.append(get_virtual_line_flow(obs, il, ip, ilor, ilex))
                         dt_v.append(0.0)
                 else:
                     if is_start_ref[i]:
                         # Sub still in reference topo → compute virtual flow
-                        p_or_v.append(get_virtual_line_flow(obs, sid))
+                        (il, ip, ilor, ilex) = ind_subs[i]
+                        p_or_v.append(get_virtual_line_flow(obs, il, ip, ilor, ilex))
                         dt_v.append(0.0)
                     else:
                         # Sub still split → virtual line flow = 0
@@ -459,7 +505,8 @@ def compute_combined_pair_superposition(
         dt_v_start = []
         for i, sid in enumerate(idls_subs):
             if is_start_ref[i]:
-                p_or_v_start.append(get_virtual_line_flow(obs_start, sid))
+                (il, ip, ilor, ilex) = ind_subs[i]
+                p_or_v_start.append(get_virtual_line_flow(obs_start, il, ip, ilor, ilex))
                 dt_v_start.append(0.0)
             else:
                 p_or_v_start.append(0.0)
