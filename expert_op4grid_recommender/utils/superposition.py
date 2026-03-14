@@ -167,15 +167,16 @@ def get_betas_coeff(delta_theta_unit_acts, delta_theta_start,
 
     # Build the A matrix
     a = np.zeros((n, n))
+    threshold = 1e-6
     for j in range(n):
         for i in range(n):
             if i == j:
                 a[j][i] = 1.0
             else:
                 # Use p_or if both are non-zero, otherwise use delta_theta
-                if p_or_unit_acts[i][j] != 0 and p_or_start[j] != 0:
+                if abs(p_or_start[j]) > threshold:
                     a[j][i] = 1.0 - p_or_unit_acts[i][j] / p_or_start[j]
-                elif delta_theta_start[j] != 0:
+                elif abs(delta_theta_start[j]) > threshold:
                     a[j][i] = 1.0 - delta_theta_unit_acts[i][j] / delta_theta_start[j]
                 else:
                     a[j][i] = 1.0  # No coupling info available
@@ -183,9 +184,11 @@ def get_betas_coeff(delta_theta_unit_acts, delta_theta_start,
     b = np.ones(n)
     try:
         betas = np.linalg.solve(a, b)
-    except np.linalg.LinAlgError:
-        # Singular matrix — can't solve
-        betas = np.full(n, np.nan)
+        
+    except (np.linalg.LinAlgError, ValueError):
+        # Singular matrix or other math error — can't solve
+        print("[Superposition] Warning: could not solve linear system for betas. Falling back to [1.0, 1.0].")
+        betas = np.ones(n)
 
     return betas
 
@@ -335,6 +338,7 @@ def compute_combined_pair_superposition(
         act1_sub_idxs: List[int],
         act2_line_idxs: List[int],
         act2_sub_idxs: List[int],
+        obs_combined: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Compute the superposition theorem for a pair of unitary actions.
 
@@ -485,9 +489,16 @@ def compute_combined_pair_superposition(
     for i in range(2):
         p_or_combined = p_or_combined + betas[i] * unit_act_observations[i].p_or
 
+    # ---- Islanding detection (if obs_combined is provided) ----
+    is_islanded = False
+    if obs_combined is not None and hasattr(obs_combined, 'n_components'):
+         if obs_combined.n_components > obs_start.n_components:
+             is_islanded = True
+
     return {
         "betas": betas.tolist(),
         "p_or_combined": p_or_combined.tolist(),
+        "is_islanded": is_islanded,
     }
 
 
