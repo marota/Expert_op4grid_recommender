@@ -634,6 +634,36 @@ def compute_combined_pair_superposition(
     if np.any(np.isnan(betas)):
         return {"error": "Singular system — cannot compute betas", "betas": betas.tolist()}
 
+    # ---- Sanity check on betas ----
+    # If any individual beta is outside a physically reasonable range, the
+    # superposition theorem has broken down for this pair.  This happens when
+    # the two actions are strongly electrically coupled — applying one action
+    # dramatically shifts the characteristic feature (p_or or delta_theta) of
+    # the other action's element, making the A-matrix off-diagonal entries
+    # blow up and the solved betas become extreme.
+    #
+    # Physical reasoning:
+    #   beta_i represents "how much of action i's effect survives in the combined
+    #   state".  Values in [0, 1] are normal; mildly outside this range can occur
+    #   for pairs with significant electrical coupling.  However, values outside
+    #   [-2, 3] indicate the A-matrix is ill-conditioned and the result is
+    #   numerically unreliable (e.g. betas like [0.89, -4.25]).
+    #
+    # NOTE: sum(betas) > 2 is NOT a reliable indicator — valid pairs with strong
+    # mutual coupling can legitimately produce sums above 2 (e.g. [1.06, 0.98])
+    # while still passing the accuracy test within tolerance.
+    BETA_MIN = -2.0
+    BETA_MAX = 3.0
+    if np.any(betas < BETA_MIN) or np.any(betas > BETA_MAX):
+        return {
+            "error": (
+                f"Unreliable superposition: betas {np.round(betas, 3).tolist()} are outside "
+                f"the physically meaningful range [{BETA_MIN}, {BETA_MAX}]. "
+                f"The two actions are too strongly coupled for the linear approximation."
+            ),
+            "betas": betas.tolist(),
+        }
+
     # ---- Compute combined p_or ----
     p_or_combined = (1.0 - np.sum(betas)) * obs_start.p_or
     for i in range(2):
