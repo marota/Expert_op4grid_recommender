@@ -379,10 +379,6 @@ def compute_combined_pair_superposition(
     Returns:
         Dict with betas, p_or_combined, rho_combined
     """
-    # Merge element lists, keeping per-action association
-    idls_lines = act1_line_idxs + act2_line_idxs
-    idls_subs = act1_sub_idxs + act2_sub_idxs
-
     # Total number of elements must equal 2 (one per action)
     n_elements_act1 = len(act1_line_idxs) + len(act1_sub_idxs)
     n_elements_act2 = len(act2_line_idxs) + len(act2_sub_idxs)
@@ -395,133 +391,144 @@ def compute_combined_pair_superposition(
     if n_elements_act1 > 1:
         act1_line_idxs = act1_line_idxs[:1] if act1_line_idxs else []
         act1_sub_idxs = act1_sub_idxs[:1] if act1_sub_idxs and not act1_line_idxs else []
-        idls_lines = act1_line_idxs + act2_line_idxs
-        idls_subs = act1_sub_idxs + act2_sub_idxs
 
     if n_elements_act2 > 1:
         act2_line_idxs = act2_line_idxs[:1] if act2_line_idxs else []
         act2_sub_idxs = act2_sub_idxs[:1] if act2_sub_idxs and not act2_line_idxs else []
-        idls_lines = act1_line_idxs + act2_line_idxs
-        idls_subs = act1_sub_idxs + act2_sub_idxs
 
-    n_actions = len(idls_lines) + len(idls_subs)
+    n_actions = len(act1_line_idxs) + len(act1_sub_idxs) + len(act2_line_idxs) + len(act2_sub_idxs)
     if n_actions != 2:
         return {"error": f"Expected 2 elements for pair, got {n_actions}"}
 
     unit_act_observations = [obs_act1, obs_act2]
 
-    # ---- Build p_or and delta_theta arrays for line elements ----
-    n_line_actions = len(idls_lines)
-    n_sub_actions = len(idls_subs)
+    # ---- Determine per-action element type and index ----
+    # act1_is_line: True if act1's characteristic element is a line, False if sub.
+    # Element ordering in all feature arrays must match action ordering in
+    # unit_act_observations (index 0 = act1, index 1 = act2) so that the
+    # diagonal A[i][i] = 1 in get_betas_coeff correctly marks element i as
+    # "owned by" action i.  We therefore place act1's element at position 0
+    # and act2's element at position 1, regardless of their types.
+    act1_is_line = len(act1_line_idxs) > 0
+    act2_is_line = len(act2_line_idxs) > 0
 
-    # delta_theta for lines involved
-    delta_theta_unit_act_lines = np.array([
-        [get_delta_theta_line(obs, lid) for lid in idls_lines]
-        for obs in unit_act_observations
-    ]) if n_line_actions > 0 else np.array([]).reshape(2, 0)
+    # ---- Build p_or and delta_theta arrays, one value per action ----
+    # For each action i (0 or 1) and each observation j (0 or 1), compute the
+    # feature value for action i's characteristic element observed in obs j.
 
-    p_or_unit_act_lines = np.array([
-        [obs.p_or[lid] for lid in idls_lines]
-        for obs in unit_act_observations
-    ]) if n_line_actions > 0 else np.array([]).reshape(2, 0)
+    def _line_features(obs, line_idx):
+        """Return (p_or, delta_theta) for a line element in a given obs."""
+        return obs.p_or[line_idx], get_delta_theta_line(obs, line_idx)
 
-    delta_theta_obs_start_lines = np.array(
-        [get_delta_theta_line(obs_start, lid) for lid in idls_lines]
-    ) if n_line_actions > 0 else np.array([])
+    def _sub_features(obs, sub_idx, ind_sub, is_ref, action_applied):
+        """Return (p_or_virtual, delta_theta_virtual) for a sub element.
 
-    p_or_obs_start_lines = np.array(
-        [obs_start.p_or[lid] for lid in idls_lines]
-    ) if n_line_actions > 0 else np.array([])
-
-    # ---- Expand with virtual line flows for substation elements ----
-    if n_sub_actions > 0:
-        is_start_ref = [_is_sub_reference_topology(obs_start, sid) for sid in idls_subs]
-
-        # Pre-compute node1 element indices for each substation.
-        # For a sub in reference topology at start (node splitting action),
-        # node1 is determined from the post-split observation (obs where that
-        # sub's split is applied), which is the unit_act observation whose
-        # index = n_line_actions + i (same as in reference implementation).
-        # For a sub already split at start (node merging action), the same
-        # approach is used but from the start observation's global bus mapping.
-        ind_subs = []
-        for i, sid in enumerate(idls_subs):
-            if is_start_ref[i]:
-                # Splitting action: node1 ids come from the post-split obs
-                # That observation is at index n_line_actions + i
-                obs_post_split = unit_act_observations[n_line_actions + i]
-                ind_subs.append(get_sub_node1_idsflow(obs_post_split, sid))
+        action_applied: True when the sub's own topology action is active in obs.
+        is_ref: True when the sub is in single-bus reference topology at start.
+        """
+        if action_applied:
+            if is_ref:
+                # Node splitting applied → virtual line was cut → p_or = 0
+                return 0.0, get_delta_theta_sub_2nodes(obs, sub_idx)
             else:
-                # Merging action: sub is already split at start; node1 ids
-                # are determined from obs_start global bus mapping
-                ind_subs.append(get_sub_node1_idsflow(obs_start, sid))
-
-        # Virtual line flows and delta_thetas for each observation
-        p_or_v_lines_per_obs = []
-        dt_v_lines_per_obs = []
-
-        for j, obs in enumerate(unit_act_observations):
-            p_or_v = []
-            dt_v = []
-            for i, sid in enumerate(idls_subs):
-                # Determine if this sub's action is the one applied in obs j
-                is_this_subs_action = (i + n_line_actions == j)
-                if is_this_subs_action:
-                    if is_start_ref[i]:
-                        # Node splitting applied → virtual line flow = 0
-                        p_or_v.append(0.0)
-                        dt_v.append(get_delta_theta_sub_2nodes(obs, sid))
-                    else:
-                        # Node merging applied → virtual flow computed
-                        (il, ip, ilor, ilex) = ind_subs[i]
-                        p_or_v.append(get_virtual_line_flow(obs, il, ip, ilor, ilex))
-                        dt_v.append(0.0)
-                else:
-                    if is_start_ref[i]:
-                        # Sub still in reference topo → compute virtual flow
-                        (il, ip, ilor, ilex) = ind_subs[i]
-                        p_or_v.append(get_virtual_line_flow(obs, il, ip, ilor, ilex))
-                        dt_v.append(0.0)
-                    else:
-                        # Sub still split → virtual line flow = 0
-                        p_or_v.append(0.0)
-                        dt_v.append(get_delta_theta_sub_2nodes(obs, sid))
-
-            p_or_v_lines_per_obs.append(p_or_v)
-            dt_v_lines_per_obs.append(dt_v)
-
-        # Combine line and sub arrays
-        p_or_unit_act = np.array([
-            np.append(p_or_unit_act_lines[j] if n_line_actions > 0 else [], p_or_v_lines_per_obs[j])
-            for j in range(2)
-        ])
-        delta_theta_unit_act = np.array([
-            np.append(delta_theta_unit_act_lines[j] if n_line_actions > 0 else [], dt_v_lines_per_obs[j])
-            for j in range(2)
-        ])
-
-        # Start observation virtual line values
-        p_or_v_start = []
-        dt_v_start = []
-        for i, sid in enumerate(idls_subs):
-            if is_start_ref[i]:
-                (il, ip, ilor, ilex) = ind_subs[i]
-                p_or_v_start.append(get_virtual_line_flow(obs_start, il, ip, ilor, ilex))
-                dt_v_start.append(0.0)
+                # Node merging applied → buses merged → delta_theta = 0
+                (il, ip, ilor, ilex) = ind_sub
+                return get_virtual_line_flow(obs, il, ip, ilor, ilex), 0.0
+        else:
+            if is_ref:
+                # Sub still in reference (single-bus) topology → delta_theta = 0
+                (il, ip, ilor, ilex) = ind_sub
+                return get_virtual_line_flow(obs, il, ip, ilor, ilex), 0.0
             else:
-                p_or_v_start.append(0.0)
-                dt_v_start.append(get_delta_theta_sub_2nodes(obs_start, sid))
+                # Sub still split → virtual line still cut → p_or = 0
+                return 0.0, get_delta_theta_sub_2nodes(obs, sub_idx)
 
-        p_or_start = np.append(p_or_obs_start_lines, p_or_v_start)
-        delta_theta_start = np.append(delta_theta_obs_start_lines, dt_v_start)
+    # Pre-compute node-1 element lists for sub actions (needed by _sub_features)
+    ind_sub_act1 = None
+    is_start_ref_act1 = None
+    if not act1_is_line:
+        sid1 = act1_sub_idxs[0]
+        is_start_ref_act1 = _is_sub_reference_topology(obs_start, sid1)
+        if is_start_ref_act1:
+            ind_sub_act1 = get_sub_node1_idsflow(obs_act1, sid1)
+        else:
+            ind_sub_act1 = get_sub_node1_idsflow(obs_start, sid1)
+
+    ind_sub_act2 = None
+    is_start_ref_act2 = None
+    if not act2_is_line:
+        sid2 = act2_sub_idxs[0]
+        is_start_ref_act2 = _is_sub_reference_topology(obs_start, sid2)
+        if is_start_ref_act2:
+            ind_sub_act2 = get_sub_node1_idsflow(obs_act2, sid2)
+        else:
+            ind_sub_act2 = get_sub_node1_idsflow(obs_start, sid2)
+
+    # p_or_unit_act[obs_j][element_i]:
+    #   outer index j iterates over observations (unit_act_observations),
+    #   inner index i iterates over elements in action order [act1_elem, act2_elem].
+    p_or_unit_act_list = []
+    delta_theta_unit_act_list = []
+    for j, obs in enumerate(unit_act_observations):
+        row_p = []
+        row_dt = []
+        # Element 0: act1's characteristic element
+        if act1_is_line:
+            p, dt = _line_features(obs, act1_line_idxs[0])
+        else:
+            p, dt = _sub_features(obs, act1_sub_idxs[0], ind_sub_act1,
+                                   is_start_ref_act1, action_applied=(j == 0))
+        row_p.append(p)
+        row_dt.append(dt)
+        # Element 1: act2's characteristic element
+        if act2_is_line:
+            p, dt = _line_features(obs, act2_line_idxs[0])
+        else:
+            p, dt = _sub_features(obs, act2_sub_idxs[0], ind_sub_act2,
+                                   is_start_ref_act2, action_applied=(j == 1))
+        row_p.append(p)
+        row_dt.append(dt)
+        p_or_unit_act_list.append(row_p)
+        delta_theta_unit_act_list.append(row_dt)
+
+    p_or_unit_act = np.array(p_or_unit_act_list)
+    delta_theta_unit_act = np.array(delta_theta_unit_act_list)
+
+    # Start-observation feature values for each element
+    p_or_start_list = []
+    delta_theta_start_list = []
+    for act_is_line, line_idxs, sub_idxs, ind_sub, is_ref in [
+        (act1_is_line, act1_line_idxs, act1_sub_idxs, ind_sub_act1, is_start_ref_act1),
+        (act2_is_line, act2_line_idxs, act2_sub_idxs, ind_sub_act2, is_start_ref_act2),
+    ]:
+        if act_is_line:
+            p, dt = _line_features(obs_start, line_idxs[0])
+        else:
+            if is_ref:
+                (il, ip, ilor, ilex) = ind_sub
+                p = get_virtual_line_flow(obs_start, il, ip, ilor, ilex)
+                dt = 0.0
+            else:
+                p = 0.0
+                dt = get_delta_theta_sub_2nodes(obs_start, sub_idxs[0])
+        p_or_start_list.append(p)
+        delta_theta_start_list.append(dt)
+
+    p_or_start = np.array(p_or_start_list)
+    delta_theta_start = np.array(delta_theta_start_list)
+
+    # idls is only used by get_betas_coeff to determine n; order matches
+    # action order: [act1_element, act2_element].
+    if act1_is_line:
+        idls = [act1_line_idxs[0]]
     else:
-        p_or_unit_act = p_or_unit_act_lines
-        delta_theta_unit_act = delta_theta_unit_act_lines
-        p_or_start = p_or_obs_start_lines
-        delta_theta_start = delta_theta_obs_start_lines
+        idls = [act1_sub_idxs[0]]
+    if act2_is_line:
+        idls.append(act2_line_idxs[0])
+    else:
+        idls.append(act2_sub_idxs[0])
 
     # ---- Compute betas ----
-    idls = idls_lines + idls_subs
     betas = get_betas_coeff(
         delta_theta_unit_act, delta_theta_start,
         p_or_unit_act, p_or_start,

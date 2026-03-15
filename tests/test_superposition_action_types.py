@@ -476,6 +476,141 @@ class TestDiverseActionTypeSuperposition(unittest.TestCase):
         self._assert_superposition_accuracy(obs_target, result)
 
     # =========================================================================
+    # Reversed ordering: sub action as act1, line action as act2
+    #
+    # These tests specifically cover the bug where is_this_subs_action used
+    # (i + n_line_actions == j), which assumed line actions always precede
+    # sub actions in unit_act_observations. When a sub action is act1 (j=0)
+    # and the line action is act2 (j=1), the old formula would incorrectly
+    # treat the line observation as the sub-action observation.
+    # =========================================================================
+
+    def test_node_merging_line_reconnection_combination_sup_theorem_reversed(self):
+        """Node merging (act1) + line reconnection (act2): ordering must not affect result.
+
+        This is the reversed order of test_line_reconnection_node_merging_combination_sup_theorem.
+        The sub action is act1 (obs_act1 is the merge obs) and the line action is act2.
+        Previously broken: betas were ~[0.49, -0.00] instead of correct values.
+        """
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_l1 = 3
+        id_sub = 5
+
+        opposite_action = (self.env.action_space({"set_line_status": [(id_l1, -1)]})
+                           + self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}}))
+        obs_start, *_ = self.env.step(opposite_action)
+
+        act_merge = self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 1, 1, 1, 1, 1))]}})
+        act_reco = self.env.action_space({"set_line_status": [(id_l1, +1)]})
+
+        # act1 = merge (sub), act2 = reco (line) — reversed from the "natural" order
+        obs_merge = obs_start.simulate(act_merge, time_step=0)[0]
+        obs_reco = obs_start.simulate(act_reco, time_step=0)[0]
+        obs_target = obs_start.simulate(act_merge + act_reco, time_step=0)[0]
+
+        result = compute_combined_pair_superposition(
+            obs_start,
+            obs_merge,   # obs_act1 = merge (sub action)
+            obs_reco,    # obs_act2 = reco (line action)
+            act1_line_idxs=[], act1_sub_idxs=[id_sub],    # sub is act1
+            act2_line_idxs=[id_l1], act2_sub_idxs=[],    # line is act2
+        )
+        self._assert_superposition_accuracy(obs_target, result)
+
+    def test_node_merging_line_disconnection_combination_sup_theorem_reversed(self):
+        """Node merging (act1) + line disconnection (act2): reversed ordering must work.
+
+        Sub action first, line action second — previously broken.
+        """
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_l1 = 3
+        id_sub = 5
+
+        opposite_action = (self.env.action_space({"set_line_status": [(id_l1, +1)]})
+                           + self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}}))
+        obs_start, *_ = self.env.step(opposite_action)
+
+        act_merge = self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 1, 1, 1, 1, 1))]}})
+        act_disco = self.env.action_space({"set_line_status": [(id_l1, -1)]})
+
+        obs_merge = obs_start.simulate(act_merge, time_step=0)[0]
+        obs_disco = obs_start.simulate(act_disco, time_step=0)[0]
+        obs_target = obs_start.simulate(act_merge + act_disco, time_step=0)[0]
+
+        result = compute_combined_pair_superposition(
+            obs_start,
+            obs_merge,   # obs_act1 = merge (sub action)
+            obs_disco,   # obs_act2 = disco (line action)
+            act1_line_idxs=[], act1_sub_idxs=[id_sub],
+            act2_line_idxs=[id_l1], act2_sub_idxs=[],
+        )
+        self._assert_superposition_accuracy(obs_target, result)
+
+    def test_node_splitting_line_reconnection_combination_sup_theorem_reversed(self):
+        """Node splitting (act1) + line reconnection (act2): reversed ordering must work.
+
+        Sub action first, line action second — previously broken.
+        """
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_l1 = 3
+        id_sub = 5
+
+        opposite_action = (self.env.action_space({"set_line_status": [(id_l1, -1)]})
+                           + self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 1, 1, 1, 1, 1))]}}))
+        obs_start, *_ = self.env.step(opposite_action)
+
+        act_split = self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}})
+        act_reco = self.env.action_space({"set_line_status": [(id_l1, +1)]})
+
+        obs_split = obs_start.simulate(act_split, time_step=0)[0]
+        obs_reco = obs_start.simulate(act_reco, time_step=0)[0]
+        obs_target = obs_start.simulate(act_split + act_reco, time_step=0)[0]
+
+        result = compute_combined_pair_superposition(
+            obs_start,
+            obs_split,   # obs_act1 = split (sub action)
+            obs_reco,    # obs_act2 = reco (line action)
+            act1_line_idxs=[], act1_sub_idxs=[id_sub],
+            act2_line_idxs=[id_l1], act2_sub_idxs=[],
+        )
+        self._assert_superposition_accuracy(obs_target, result)
+
+    def test_node_splitting_line_disconnection_combination_sup_theorem_reversed(self):
+        """Node splitting (act1) + line disconnection (act2): reversed ordering must work.
+
+        Sub action first, line action second — previously broken.
+        """
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_l1 = 3
+        id_sub = 5
+
+        obs_start, *_ = self.env.step(self.env.action_space())
+
+        act_split = self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}})
+        act_disco = self.env.action_space({"set_line_status": [(id_l1, -1)]})
+
+        obs_split = obs_start.simulate(act_split, time_step=0)[0]
+        obs_disco = obs_start.simulate(act_disco, time_step=0)[0]
+        obs_target = obs_start.simulate(act_split + act_disco, time_step=0)[0]
+
+        result = compute_combined_pair_superposition(
+            obs_start,
+            obs_split,   # obs_act1 = split (sub action)
+            obs_disco,   # obs_act2 = disco (line action)
+            act1_line_idxs=[], act1_sub_idxs=[id_sub],
+            act2_line_idxs=[id_l1], act2_sub_idxs=[],
+        )
+        self._assert_superposition_accuracy(obs_target, result)
+
+    # =========================================================================
     # Helper function tests
     # =========================================================================
 
