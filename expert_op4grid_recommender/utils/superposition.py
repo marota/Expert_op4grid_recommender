@@ -97,14 +97,16 @@ def get_delta_theta_sub_2nodes(obs, sub_id: int) -> float:
 
 
 def get_sub_node1_idsflow(obs, sub_id: int):
-    """Identify elements belonging to node 1 (global bus == sub_id) at a substation.
+    """Identify elements belonging to node 1 (local bus 1) at a substation.
 
     Adapted from the reference superposition_theorem implementation.
-    This uses the global bus id (which equals sub_id for the first bus of
-    a substation) to identify which elements belong to "node 1".
+    "Node 1" is the first bus (local bus number 1) within the substation.
     This must be called with an observation where the substation is already
-    split (the post-split observation), so the global bus assignments reflect
+    split (the post-split observation), so the bus assignments reflect
     the future topology.
+
+    Works with both Grid2Op observations (via _get_bus_id) and
+    PypowsyblObservation (via line_or_bus / get_obj_connect_to directly).
 
     Args:
         obs: Post-split observation where the substation has two buses
@@ -113,15 +115,44 @@ def get_sub_node1_idsflow(obs, sub_id: int):
     Returns:
         Tuple (ind_load_node1, ind_prod_node1, ind_lor_node1, ind_lex_node1)
     """
-    ind_prod, _ = obs._get_bus_id(obs.gen_pos_topo_vect, obs.gen_to_subid)
-    ind_load, _ = obs._get_bus_id(obs.load_pos_topo_vect, obs.load_to_subid)
-    ind_lor, _ = obs._get_bus_id(obs.line_or_pos_topo_vect, obs.line_or_to_subid)
-    ind_lex, _ = obs._get_bus_id(obs.line_ex_pos_topo_vect, obs.line_ex_to_subid)
+    if hasattr(obs, '_get_bus_id'):
+        # Grid2Op path: _get_bus_id returns global bus IDs.
+        # Global bus == sub_id means local bus 1.
+        ind_prod, _ = obs._get_bus_id(obs.gen_pos_topo_vect, obs.gen_to_subid)
+        ind_load, _ = obs._get_bus_id(obs.load_pos_topo_vect, obs.load_to_subid)
+        ind_lor, _ = obs._get_bus_id(obs.line_or_pos_topo_vect, obs.line_or_to_subid)
+        ind_lex, _ = obs._get_bus_id(obs.line_ex_pos_topo_vect, obs.line_ex_to_subid)
 
-    ind_lor_node1 = [i for i in range(obs.n_line) if ind_lor[i] == sub_id]
-    ind_lex_node1 = [i for i in range(obs.n_line) if ind_lex[i] == sub_id]
-    ind_load_node1 = [i for i in range(obs.n_load) if ind_load[i] == sub_id]
-    ind_prod_node1 = [i for i in range(obs.n_gen) if ind_prod[i] == sub_id]
+        ind_lor_node1 = [i for i in range(obs.n_line) if ind_lor[i] == sub_id]
+        ind_lex_node1 = [i for i in range(obs.n_line) if ind_lex[i] == sub_id]
+        ind_load_node1 = [i for i in range(obs.n_load) if ind_load[i] == sub_id]
+        ind_prod_node1 = [i for i in range(obs.n_gen) if ind_prod[i] == sub_id]
+    else:
+        # PypowsyblObservation path: use get_obj_connect_to to get element lists
+        # at this substation, then filter by local bus == 1.
+        obj = obs.get_obj_connect_to(substation_id=sub_id)
+
+        # line_or_bus / line_ex_bus give the local bus number (1 or 2) per line
+        line_or_bus = obs.line_or_bus
+        line_ex_bus = obs.line_ex_bus
+
+        ind_lor_node1 = [i for i in obj['lines_or_id'] if line_or_bus[i] == 1]
+        ind_lex_node1 = [i for i in obj['lines_ex_id'] if line_ex_bus[i] == 1]
+
+        # For loads and gens, use sub_topology which returns bus assignments
+        # in order: [loads..., gens..., lines_or..., lines_ex...]
+        topo = obs.sub_topology(sub_id)
+        n_loads_sub = len(obj['loads_id'])
+        n_gens_sub = len(obj['generators_id'])
+
+        ind_load_node1 = [
+            obj['loads_id'][k] for k in range(n_loads_sub)
+            if topo[k] == 1
+        ]
+        ind_prod_node1 = [
+            obj['generators_id'][k] for k in range(n_gens_sub)
+            if topo[n_loads_sub + k] == 1
+        ]
 
     return (ind_load_node1, ind_prod_node1, ind_lor_node1, ind_lex_node1)
 
