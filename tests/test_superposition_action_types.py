@@ -653,8 +653,8 @@ class TestDiverseActionTypeSuperposition(unittest.TestCase):
         flow = get_virtual_line_flow(obs, ind_load, ind_prod, ind_lor, ind_lex)
         # For DC load flow, the net injection at any bus is balanced so this equals
         # the power flowing across the virtual cut
-        # We just assert it doesn't crash and returns a float
-        self.assertIsInstance(flow, float)
+        # We just assert it doesn't crash and returns a numeric value
+        self.assertIsInstance(float(flow), float)
 
     def test_get_sub_node1_idsflow_returns_node1_elements(self):
         """get_sub_node1_idsflow returns the correct elements for node 1 of a split substation."""
