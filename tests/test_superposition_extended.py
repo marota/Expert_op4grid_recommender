@@ -35,12 +35,18 @@ def test_compute_pair_multiple_elements():
     # Verify that it uses the first element when multiple are provided
     obs_start = MagicMock()
     obs_start.p_or = np.array([100.0, 50.0])
-    
+    # Line 0 disconnected (status False), line 1 connected (status True)
+    obs_start.line_status = np.array([False, True])
+
     obs_act1 = MagicMock()
     obs_act1.p_or = np.array([90.0, 50.0])
-    
+    # act1 reconnects line 0: status flips to True
+    obs_act1.line_status = np.array([True, True])
+
     obs_act2 = MagicMock()
-    obs_act2.p_or = np.array([100.0, 40.0]) 
+    obs_act2.p_or = np.array([100.0, 40.0])
+    # act2 acts on line 1 (disconnects it): status flips to False
+    obs_act2.line_status = np.array([False, False])
     
     # We need to mock get_delta_theta_line and other helper functions 
     # if we want to test the full logic, but compute_combined_pair_superposition 

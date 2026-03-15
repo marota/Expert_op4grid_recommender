@@ -223,16 +223,22 @@ def get_betas_coeff(delta_theta_unit_acts, delta_theta_start,
 
     # Build the A matrix
     a = np.zeros((n, n))
-    threshold = 1e-6
+    # p_or threshold: must be physically meaningful (not numerical noise).
+    # Disconnected lines in pypowsybl have p_or ~ 1e-5 MW (noise). Using a
+    # threshold of 1.0 MW ensures we only use p_or when the line is actually
+    # carrying significant flow. Below this, delta_theta is more reliable.
+    p_or_threshold = 1.0
+    dt_threshold = 1e-6
     for j in range(n):
         for i in range(n):
             if i == j:
                 a[j][i] = 1.0
             else:
-                # Use p_or if both are non-zero, otherwise use delta_theta
-                if abs(p_or_start[j]) > threshold:
+                # Use p_or if the start flow is physically significant,
+                # otherwise fall back to delta_theta.
+                if abs(p_or_start[j]) > p_or_threshold:
                     a[j][i] = 1.0 - p_or_unit_acts[i][j] / p_or_start[j]
-                elif abs(delta_theta_start[j]) > threshold:
+                elif abs(delta_theta_start[j]) > dt_threshold:
                     a[j][i] = 1.0 - delta_theta_unit_acts[i][j] / delta_theta_start[j]
                 else:
                     a[j][i] = 1.0  # No coupling info available
@@ -558,6 +564,65 @@ def compute_combined_pair_superposition(
         idls.append(act2_line_idxs[0])
     else:
         idls.append(act2_sub_idxs[0])
+
+    # ---- No-op detection ----
+    # If an action has no effect on the grid topology/state, the off-diagonal
+    # column for that action in the A-matrix collapses to zero, forcing the
+    # other beta to 1 regardless of the pair partner.
+    #
+    # For line actions: use line_status (topology) directly — this is robust
+    # even for lines with near-zero flow (lightly loaded but connected lines).
+    #
+    # For sub actions: use delta_theta between the two buses as the indicator
+    # of whether the topology actually changed (split/merge happened).
+    noop_dt_threshold = 1e-6   # radians — below this, angles are indistinguishable
+    noop_rel_tol = 0.01        # 1% relative change required to be "not a no-op"
+
+    unit_act_obs = [obs_act1, obs_act2]
+    for act_idx, (act_is_line, line_idxs, sub_idxs, ind_sub, is_ref) in enumerate([
+        (act1_is_line, act1_line_idxs, act1_sub_idxs, ind_sub_act1, is_start_ref_act1),
+        (act2_is_line, act2_line_idxs, act2_sub_idxs, ind_sub_act2, is_start_ref_act2),
+    ]):
+        obs_act_n = unit_act_obs[act_idx]
+
+        if act_is_line:
+            # For a line action, check whether the connection status changed.
+            # This is topology-based and works regardless of the flow magnitude
+            # (handles lightly-loaded lines correctly, unlike a flow threshold).
+            line_idx = line_idxs[0]
+            status_start = bool(obs_start.line_status[line_idx])
+            status_after = bool(obs_act_n.line_status[line_idx])
+            changed = (status_start != status_after)
+        else:
+            # For a sub action, check whether the substation topology actually
+            # changed. Use delta_theta between the two buses as the indicator:
+            # - reference topology (single bus): delta_theta = 0 always
+            # - split topology (two buses): delta_theta ≠ 0
+            # If is_ref=True (start is single-bus), the action should have split it
+            # (making delta_theta non-zero in obs_act_n).
+            # If is_ref=False (start is already split), the action should merge it
+            # (making delta_theta ≈ 0 in obs_act_n).
+            sub_idx = sub_idxs[0]
+            dt_start = delta_theta_start_list[act_idx]
+            dt_own = delta_theta_unit_act_list[act_idx][act_idx]
+            if abs(dt_start) > noop_dt_threshold:
+                changed = abs(dt_own - dt_start) / abs(dt_start) > noop_rel_tol
+            elif abs(dt_own) > noop_dt_threshold:
+                # dt_start was zero (single-bus) but dt_own is non-zero: split happened
+                changed = True
+            else:
+                changed = False  # Both near-zero — no topology change
+
+        if not changed:
+            act_name = f"action{act_idx + 1}"
+            elem_desc = (f"line {line_idxs[0]}" if act_is_line else f"sub {sub_idxs[0]}")
+            return {
+                "error": (
+                    f"No-op action detected: {act_name}'s characteristic element "
+                    f"({elem_desc}) shows no topology change in obs_start. "
+                    f"Action has no effect."
+                )
+            }
 
     # ---- Compute betas ----
     betas = get_betas_coeff(

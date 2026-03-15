@@ -255,7 +255,7 @@ class TestDiverseActionTypeSuperposition(unittest.TestCase):
         self.assertLessEqual(max_diff, self.tol)
 
     def test_node_splitting_line_disconnection_combination_sup_theorem(self):
-        """Line action + node splitting: compute_combined_pair_superposition matches target."""
+        """Line disconnection + node splitting: compute_combined_pair_superposition matches target."""
         self.env.set_id(self.chronic_id)
         self.env.reset()
 
@@ -264,7 +264,7 @@ class TestDiverseActionTypeSuperposition(unittest.TestCase):
 
         obs_start, *_ = self.env.step(self.env.action_space())
 
-        act_line = self.env.action_space({"set_line_status": [(id_l1, +1)]})
+        act_line = self.env.action_space({"set_line_status": [(id_l1, -1)]})  # disconnect
         act_split = self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}})
 
         obs1 = obs_start.simulate(act_line, time_step=0)[0]
@@ -711,6 +711,61 @@ class TestDiverseActionTypeSuperposition(unittest.TestCase):
         from expert_op4grid_recommender.utils.superposition import _get_theta_node
         theta_bus2 = _get_theta_node(obs, id_sub, bus=2)
         self.assertEqual(theta_bus2, 0.0, "Bus 2 of a single-bus sub should have theta == 0")
+
+
+    def test_noop_line_action_returns_error(self):
+        """Reconnecting an already-connected line is a no-op; superposition must return an error.
+
+        No-op detection uses line_status (topology) directly, not flow magnitude.
+        This is robust for lightly-loaded lines that may have near-zero flow while
+        still being connected.
+        """
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_l1 = 3   # line 3 is connected in obs_start
+        id_sub = 5
+
+        obs_start, *_ = self.env.step(self.env.action_space())
+
+        # Verify line is connected in obs_start
+        self.assertTrue(obs_start.line_status[id_l1],
+                        "Line id_l1 should be connected in obs_start")
+
+        # Line 3 is already connected → set_line_status(+1) is a no-op
+        act_noop_reco = self.env.action_space({"set_line_status": [(id_l1, +1)]})
+        act_split = self.env.action_space({"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}})
+
+        obs_noop = obs_start.simulate(act_noop_reco, time_step=0)[0]
+        obs_split = obs_start.simulate(act_split, time_step=0)[0]
+
+        # Verify the no-op didn't change the line status
+        self.assertEqual(obs_start.line_status[id_l1], obs_noop.line_status[id_l1],
+                         "No-op reco should not change line_status")
+
+        # Pair: noop reco (act1=line) + node splitting (act2=sub)
+        result = compute_combined_pair_superposition(
+            obs_start,
+            obs_noop,    # obs_act1: reconnect already-connected line (no-op)
+            obs_split,   # obs_act2: node splitting
+            act1_line_idxs=[id_l1], act1_sub_idxs=[],
+            act2_line_idxs=[], act2_sub_idxs=[id_sub],
+        )
+        self.assertIn("error", result,
+                      "No-op line action should trigger error, not produce spurious betas")
+        self.assertIn("No-op", result["error"])
+
+        # Pair: node splitting (act1=sub) + noop reco (act2=line) — reversed
+        result_rev = compute_combined_pair_superposition(
+            obs_start,
+            obs_split,   # obs_act1: node splitting
+            obs_noop,    # obs_act2: reconnect already-connected line (no-op)
+            act1_line_idxs=[], act1_sub_idxs=[id_sub],
+            act2_line_idxs=[id_l1], act2_sub_idxs=[],
+        )
+        self.assertIn("error", result_rev,
+                      "No-op line action (as act2) should trigger error too")
+        self.assertIn("No-op", result_rev["error"])
 
 
 if __name__ == "__main__":
