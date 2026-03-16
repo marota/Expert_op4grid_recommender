@@ -66,7 +66,7 @@ def test_compute_all_pairs_superposition_simplified_dict():
     try:
         superposition._identify_action_elements = MagicMock(side_effect=mock_identify)
         # Mock compute_combined_pair_superposition to avoid real linear solving.
-        # Must include p_ex_combined so use_p_based_rho=True (default) can use it.
+        # Include p_ex_combined for completeness (needed when use_p_based_rho=True).
         superposition.compute_combined_pair_superposition = MagicMock(return_value={
             "betas": [0.5, 0.5],
             "p_or_combined": [80.0, 50.0, 50.0],

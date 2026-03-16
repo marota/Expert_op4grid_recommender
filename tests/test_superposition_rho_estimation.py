@@ -10,8 +10,11 @@
 Unit tests for the improved rho estimation in the superposition module.
 
 Covers:
-- _estimate_rho_from_p(): per-extremity power-factor ratio method
+- _estimate_rho_from_p(): per-extremity power-factor ratio method (with action-obs fallback)
+- _compute_delta_theta_all_lines(): delta_theta computation for all lines
+- _estimate_rho_from_delta_theta(): delta_theta-based rho estimation
 - use_p_based_rho parameter in compute_all_pairs_superposition()
+- Action-type-aware routing: delta_theta for reconnection/merging, P for disconnection/splitting
 - p_ex_combined key in compute_combined_pair_superposition() results
 """
 
@@ -21,6 +24,8 @@ from unittest.mock import MagicMock, patch
 
 from expert_op4grid_recommender.utils.superposition import (
     _estimate_rho_from_p,
+    _compute_delta_theta_all_lines,
+    _estimate_rho_from_delta_theta,
     compute_combined_pair_superposition,
     compute_all_pairs_superposition,
 )
@@ -275,6 +280,7 @@ class TestUsePBasedRho:
         obs_start._limit_or.values = np.array([100.0, 100.0, 100.0])
         obs_start._limit_ex = MagicMock()
         obs_start._limit_ex.values = np.array([100.0, 100.0, 100.0])
+        obs_start.line_status = np.array([True, True, True])  # all connected → P-based path
 
         obs_act1 = MagicMock()
         obs_act1.rho = np.array([1.0, 0.4, 0.6])
@@ -378,14 +384,301 @@ class TestUsePBasedRho:
         # max_rho is from eligible lines (no pre-existing overloads → all eligible)
         assert abs(res["max_rho"] - float(np.max(expected_rho))) < 0.01
 
-    def test_default_is_p_based_rho_true(self):
-        """Default value of use_p_based_rho must be True (accurate method)."""
+    def test_default_is_p_based_rho_false(self):
+        """Default value of use_p_based_rho must be False (direct rho method)."""
         import inspect
         sig = inspect.signature(compute_all_pairs_superposition)
         default = sig.parameters["use_p_based_rho"].default
-        assert default is True, (
-            f"use_p_based_rho default should be True, got {default!r}"
+        assert default is False, (
+            f"use_p_based_rho default should be False, got {default!r}"
         )
+
+
+# =============================================================================
+# Tests for _estimate_rho_from_p action-observation fallback
+# =============================================================================
+
+class TestEstimateRhoFromPFallback:
+
+    def test_fallback_to_action_obs_for_disconnected_lines(self):
+        """When |P_start| < threshold on a line, use action obs for the factor."""
+        # Line 0: disconnected in start (p=0), reconnected in act1 (p=80)
+        obs_start = _obs_no_limits(p_or=[0.0, 100.0], p_ex=[0.0, -100.0], rho=[0.0, 1.0])
+
+        obs_act1 = MagicMock(spec=["p_or", "p_ex", "rho"])
+        obs_act1.p_or = np.array([80.0, 100.0])
+        obs_act1.p_ex = np.array([-80.0, -100.0])
+        obs_act1.rho = np.array([0.8, 1.0])
+
+        p_or_combined = np.array([60.0, 50.0])
+        p_ex_combined = np.array([-60.0, -50.0])
+        result = _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start,
+                                       obs_act1=obs_act1)
+        # Line 0: fallback factor_or = obs_act1.rho/|obs_act1.p_or| = 0.8/80 = 0.01
+        #          rho_or_est = 60 * 0.01 = 0.6
+        assert result[0] == pytest.approx(0.6, rel=1e-6)
+        # Line 1: normal factor = 1.0/100 = 0.01 → 50 * 0.01 = 0.5
+        assert result[1] == pytest.approx(0.5, rel=1e-6)
+
+    def test_no_fallback_obs_provided_still_works(self):
+        """Without action obs, disconnected lines still get rho=0 (no crash)."""
+        obs_start = _obs_no_limits(p_or=[0.0, 100.0], p_ex=[0.0, -100.0], rho=[0.0, 1.0])
+        p_or_combined = np.array([60.0, 50.0])
+        p_ex_combined = np.array([-60.0, -50.0])
+        result = _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start)
+        assert result[0] == pytest.approx(0.0)
+        assert result[1] == pytest.approx(0.5, rel=1e-6)
+
+
+# =============================================================================
+# Tests for _compute_delta_theta_all_lines
+# =============================================================================
+
+class TestComputeDeltaThetaAllLines:
+
+    def test_connected_lines_use_theta_diff(self):
+        """Connected lines: dt = theta_or - theta_ex."""
+        obs = MagicMock()
+        obs.theta_or = np.array([0.1, 0.2, 0.3])
+        obs.theta_ex = np.array([0.05, 0.15, 0.28])
+        obs.line_status = np.array([True, True, True])
+        dt = _compute_delta_theta_all_lines(obs)
+        np.testing.assert_allclose(dt, [0.05, 0.05, 0.02], rtol=1e-6)
+
+    def test_disconnected_lines_use_get_delta_theta_line(self):
+        """Disconnected lines fall back to get_delta_theta_line."""
+        obs = MagicMock()
+        obs.theta_or = np.array([0.1, 0.0])  # line 1 disconnected → theta=0
+        obs.theta_ex = np.array([0.05, 0.0])
+        obs.line_status = np.array([True, False])
+
+        with patch("expert_op4grid_recommender.utils.superposition.get_delta_theta_line",
+                   return_value=0.07) as mock_dt:
+            dt = _compute_delta_theta_all_lines(obs)
+            mock_dt.assert_called_once_with(obs, 1)
+        np.testing.assert_allclose(dt, [0.05, 0.07], rtol=1e-6)
+
+
+# =============================================================================
+# Tests for _estimate_rho_from_delta_theta
+# =============================================================================
+
+class TestEstimateRhoFromDeltaTheta:
+
+    def test_basic_factor_computation(self):
+        """factor = rho_start / |dt_start|, then rho = |dt_combined| * factor."""
+        obs_start = MagicMock()
+        obs_start.rho = np.array([1.0, 0.5])
+        obs_start.theta_or = np.array([0.1, 0.2])
+        obs_start.theta_ex = np.array([0.0, 0.1])
+        obs_start.line_status = np.array([True, True])
+
+        obs_act1 = MagicMock()
+        obs_act1.rho = np.array([0.8, 0.4])
+        obs_act1.theta_or = np.array([0.08, 0.18])
+        obs_act1.theta_ex = np.array([0.0, 0.1])
+        obs_act1.line_status = np.array([True, True])
+
+        obs_act2 = MagicMock()
+        obs_act2.rho = np.array([0.9, 0.45])
+        obs_act2.theta_or = np.array([0.09, 0.19])
+        obs_act2.theta_ex = np.array([0.0, 0.1])
+        obs_act2.line_status = np.array([True, True])
+
+        # dt_start = [0.1, 0.1]; factor = [1.0/0.1, 0.5/0.1] = [10, 5]
+        dt_combined = np.array([0.08, 0.12])
+        result = _estimate_rho_from_delta_theta(dt_combined, obs_start, obs_act1, obs_act2)
+        # rho = |dt_combined| * factor = [0.08*10, 0.12*5] = [0.8, 0.6]
+        np.testing.assert_allclose(result, [0.8, 0.6], rtol=1e-6)
+
+    def test_fallback_for_disconnected_lines(self):
+        """Lines with |dt_start| < threshold use action obs for the factor."""
+        obs_start = MagicMock()
+        obs_start.rho = np.array([0.0, 0.5])  # line 0 disconnected → rho=0
+        obs_start.theta_or = np.array([0.0, 0.2])  # line 0 disconnected → theta=0
+        obs_start.theta_ex = np.array([0.0, 0.1])
+        obs_start.line_status = np.array([False, True])
+
+        obs_act1 = MagicMock()
+        obs_act1.rho = np.array([0.8, 0.4])
+        obs_act1.theta_or = np.array([0.1, 0.18])
+        obs_act1.theta_ex = np.array([0.02, 0.1])
+        obs_act1.line_status = np.array([True, True])
+
+        obs_act2 = MagicMock()
+        obs_act2.rho = np.array([0.0, 0.45])
+        obs_act2.theta_or = np.array([0.0, 0.19])
+        obs_act2.theta_ex = np.array([0.0, 0.1])
+        obs_act2.line_status = np.array([False, True])
+
+        with patch("expert_op4grid_recommender.utils.superposition.get_delta_theta_line") as mock_dt:
+            # For disconnected lines in obs_start and obs_act2, return small values
+            def side_effect(obs, idx):
+                if obs is obs_start and idx == 0:
+                    return 0.0  # disconnected in start → tiny dt
+                if obs is obs_act2 and idx == 0:
+                    return 0.0  # disconnected in act2 too
+                return 0.0
+            mock_dt.side_effect = side_effect
+
+            dt_combined = np.array([0.06, 0.08])
+            result = _estimate_rho_from_delta_theta(dt_combined, obs_start, obs_act1, obs_act2)
+
+        # Line 0: obs_start dt=0 (needs fallback).
+        #   obs_act1: dt = 0.1 - 0.02 = 0.08 (connected), factor = 0.8/0.08 = 10
+        #   rho = |0.06| * 10 = 0.6
+        # Line 1: obs_start dt = 0.2 - 0.1 = 0.1, factor = 0.5/0.1 = 5
+        #   rho = |0.08| * 5 = 0.4
+        np.testing.assert_allclose(result, [0.6, 0.4], rtol=1e-6)
+
+
+# =============================================================================
+# Tests for action-type detection in compute_all_pairs_superposition
+# =============================================================================
+
+class TestActionTypeDetection:
+    """Tests that the rho computation block correctly routes to delta_theta
+    or P-based estimation based on action types."""
+
+    def _make_env_and_obs(self, line_status=None):
+        env = MagicMock()
+        env.name_line = ["L0", "L1", "L2"]
+
+        obs_start = MagicMock()
+        obs_start.rho = np.array([1.2, 0.4, 0.6])
+        obs_start.p_or = np.array([120.0, 40.0, 60.0])
+        obs_start.p_ex = np.array([-120.0, -40.0, -60.0])
+        obs_start.a_or = np.array([120.0, 40.0, 60.0])
+        obs_start.a_ex = np.array([120.0, 40.0, 60.0])
+        obs_start._limit_or = MagicMock()
+        obs_start._limit_or.values = np.array([100.0, 100.0, 100.0])
+        obs_start._limit_ex = MagicMock()
+        obs_start._limit_ex.values = np.array([100.0, 100.0, 100.0])
+        obs_start.theta_or = np.array([0.1, 0.2, 0.3])
+        obs_start.theta_ex = np.array([0.05, 0.15, 0.25])
+        if line_status is not None:
+            obs_start.line_status = np.array(line_status)
+        else:
+            obs_start.line_status = np.array([True, True, True])
+
+        obs_act1 = MagicMock()
+        obs_act1.rho = np.array([1.0, 0.4, 0.6])
+        obs_act1.p_or = np.array([100.0, 40.0, 60.0])
+        obs_act1.p_ex = np.array([-100.0, -40.0, -60.0])
+        obs_act1.theta_or = np.array([0.08, 0.2, 0.3])
+        obs_act1.theta_ex = np.array([0.05, 0.15, 0.25])
+        obs_act1.line_status = np.array([True, True, True])
+
+        obs_act2 = MagicMock()
+        obs_act2.rho = np.array([1.0, 0.4, 0.6])
+        obs_act2.p_or = np.array([100.0, 40.0, 60.0])
+        obs_act2.p_ex = np.array([-100.0, -40.0, -60.0])
+        obs_act2.theta_or = np.array([0.1, 0.18, 0.3])
+        obs_act2.theta_ex = np.array([0.05, 0.15, 0.25])
+        obs_act2.line_status = np.array([True, True, True])
+
+        aid1, aid2 = "act1", "act2"
+        detailed_actions = {
+            aid1: {"action": MagicMock(), "observation": obs_act1, "description_unitaire": "A1"},
+            aid2: {"action": MagicMock(), "observation": obs_act2, "description_unitaire": "A2"},
+        }
+        return env, obs_start, obs_act1, obs_act2, detailed_actions, aid1, aid2
+
+    def _run_pairs_with_detection(self, env, obs_start, detailed_actions, aid1, aid2,
+                                   line_idxs1, sub_idxs1, line_idxs2, sub_idxs2):
+        from expert_op4grid_recommender.utils import superposition
+
+        classifier = MagicMock(spec=ActionClassifier)
+        classifier._action_space = MagicMock()
+
+        def mock_identify(action, action_id, *args):
+            if action_id == aid1: return (line_idxs1, sub_idxs1)
+            if action_id == aid2: return (line_idxs2, sub_idxs2)
+            return ([], [])
+
+        orig_identify = superposition._identify_action_elements
+        orig_compute = superposition.compute_combined_pair_superposition
+        try:
+            superposition._identify_action_elements = MagicMock(side_effect=mock_identify)
+            superposition.compute_combined_pair_superposition = MagicMock(return_value={
+                "betas": [0.5, 0.5],
+                "p_or_combined": [80.0, 40.0, 60.0],
+                "p_ex_combined": [-80.0, -40.0, -60.0],
+                "is_islanded": False,
+                "disconnected_mw": 0.0,
+            })
+
+            with patch("expert_op4grid_recommender.utils.superposition._estimate_rho_from_delta_theta",
+                       wraps=_estimate_rho_from_delta_theta) as mock_dt, \
+                 patch("expert_op4grid_recommender.utils.superposition._estimate_rho_from_p",
+                       wraps=_estimate_rho_from_p) as mock_p:
+                results = compute_all_pairs_superposition(
+                    obs_start=obs_start,
+                    detailed_actions=detailed_actions,
+                    classifier=classifier,
+                    env=env,
+                    lines_overloaded_ids=[0],
+                    lines_we_care_about=["L0", "L1", "L2"],
+                    pre_existing_rho={},
+                    dict_action={},
+                    use_p_based_rho=True,
+                )
+                return results, mock_dt, mock_p
+        finally:
+            superposition._identify_action_elements = orig_identify
+            superposition.compute_combined_pair_superposition = orig_compute
+
+    def test_reconnection_action_uses_delta_theta(self):
+        """Line reconnection (line disconnected in obs_start) routes to delta_theta."""
+        env, obs_start, obs_act1, obs_act2, detailed_actions, aid1, aid2 = \
+            self._make_env_and_obs(line_status=[True, False, True])
+        # aid1 is a line action on L1 (index 1) which is disconnected → reconnection
+        results, mock_dt, mock_p = self._run_pairs_with_detection(
+            env, obs_start, detailed_actions, aid1, aid2,
+            line_idxs1=[1], sub_idxs1=[], line_idxs2=[2], sub_idxs2=[],
+        )
+        mock_dt.assert_called_once()
+        mock_p.assert_not_called()
+
+    def test_disconnection_action_uses_p_based(self):
+        """Line disconnection (line connected in obs_start) routes to P-based."""
+        env, obs_start, obs_act1, obs_act2, detailed_actions, aid1, aid2 = \
+            self._make_env_and_obs(line_status=[True, True, True])
+        # Both actions are on connected lines → disconnection
+        results, mock_dt, mock_p = self._run_pairs_with_detection(
+            env, obs_start, detailed_actions, aid1, aid2,
+            line_idxs1=[1], sub_idxs1=[], line_idxs2=[2], sub_idxs2=[],
+        )
+        mock_dt.assert_not_called()
+        mock_p.assert_called_once()
+
+    def test_node_merging_uses_delta_theta(self):
+        """Node merging (sub not in reference topology) routes to delta_theta."""
+        env, obs_start, obs_act1, obs_act2, detailed_actions, aid1, aid2 = \
+            self._make_env_and_obs()
+        # aid1 is a sub action (merging: sub is split → not reference topology)
+        with patch("expert_op4grid_recommender.utils.superposition._is_sub_reference_topology",
+                   return_value=False):
+            results, mock_dt, mock_p = self._run_pairs_with_detection(
+                env, obs_start, detailed_actions, aid1, aid2,
+                line_idxs1=[], sub_idxs1=[0], line_idxs2=[1], sub_idxs2=[],
+            )
+        mock_dt.assert_called_once()
+        mock_p.assert_not_called()
+
+    def test_node_splitting_uses_p_based(self):
+        """Node splitting (sub in reference topology) routes to P-based."""
+        env, obs_start, obs_act1, obs_act2, detailed_actions, aid1, aid2 = \
+            self._make_env_and_obs()
+        # aid1 is a sub action (splitting: sub is merged → reference topology)
+        with patch("expert_op4grid_recommender.utils.superposition._is_sub_reference_topology",
+                   return_value=True):
+            results, mock_dt, mock_p = self._run_pairs_with_detection(
+                env, obs_start, detailed_actions, aid1, aid2,
+                line_idxs1=[], sub_idxs1=[0], line_idxs2=[1], sub_idxs2=[],
+            )
+        mock_dt.assert_not_called()
+        mock_p.assert_called_once()
 
 
 if __name__ == "__main__":

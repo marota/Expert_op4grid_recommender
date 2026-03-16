@@ -392,7 +392,8 @@ def _identify_action_elements(action, action_id: str, dict_action: dict,
 # Rho estimation from superposed active power
 # =============================================================================
 
-def _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start):
+def _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start,
+                         obs_act1=None, obs_act2=None):
     """Estimate rho (loading) from superposed active power flows.
 
     Instead of superposing rho directly (which introduces bias from the
@@ -405,10 +406,16 @@ def _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start):
     obs_start and the combined state, which is much weaker than assuming
     rho itself superposes linearly.
 
+    For lines where |P_start| < threshold (e.g. disconnected lines), the
+    function attempts a fallback using action observations (obs_act1, obs_act2)
+    to derive the conversion factor.
+
     Args:
         p_or_combined: Superposed active power at origin (MW), array
         p_ex_combined: Superposed active power at extremity (MW), array
         obs_start: Base observation (for rho and p_or/p_ex reference values)
+        obs_act1: Optional observation after action 1 (for fallback on disconnected lines)
+        obs_act2: Optional observation after action 2 (for fallback on disconnected lines)
 
     Returns:
         rho_combined: Estimated loading array per line
@@ -452,12 +459,38 @@ def _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start):
 
     # Origin extremity: rho_or = |P_or_combined| * (rho_or_start / |P_or_start|)
     safe_or = abs_p_or_start > p_threshold
-    factor_or = np.where(safe_or, rho_or_start / abs_p_or_start, 0.0)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        factor_or = np.where(safe_or, rho_or_start / abs_p_or_start, 0.0)
+
+    # Fallback for origin: use action observations for lines where |P_or_start| < threshold
+    needs_fallback_or = ~safe_or
+    for obs_act in [obs_act1, obs_act2]:
+        if obs_act is None or not np.any(needs_fallback_or):
+            break
+        abs_p_act = np.abs(obs_act.p_or)
+        act_usable = needs_fallback_or & (abs_p_act > p_threshold)
+        if np.any(act_usable):
+            factor_or = np.where(act_usable, obs_act.rho / abs_p_act, factor_or)
+            needs_fallback_or = needs_fallback_or & ~act_usable
+
     rho_or_est = np.abs(p_or_combined) * factor_or
 
     # Extremity side: rho_ex = |P_ex_combined| * (rho_ex_start / |P_ex_start|)
     safe_ex = abs_p_ex_start > p_threshold
-    factor_ex = np.where(safe_ex, rho_ex_start / abs_p_ex_start, 0.0)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        factor_ex = np.where(safe_ex, rho_ex_start / abs_p_ex_start, 0.0)
+
+    # Fallback for extremity: use action observations for lines where |P_ex_start| < threshold
+    needs_fallback_ex = ~safe_ex
+    for obs_act in [obs_act1, obs_act2]:
+        if obs_act is None or not np.any(needs_fallback_ex):
+            break
+        abs_p_act_ex = np.abs(obs_act.p_ex)
+        act_usable_ex = needs_fallback_ex & (abs_p_act_ex > p_threshold)
+        if np.any(act_usable_ex):
+            factor_ex = np.where(act_usable_ex, obs_act.rho / abs_p_act_ex, factor_ex)
+            needs_fallback_ex = needs_fallback_ex & ~act_usable_ex
+
     rho_ex_est = np.abs(p_ex_combined) * factor_ex
 
     if MAX_RHO_BOTH_EXTREMITIES:
@@ -465,16 +498,85 @@ def _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start):
     else:
         rho_combined = rho_or_est
 
-    # For lines where both factors were unreliable (both |P| < threshold),
-    # fall back to direct rho superposition as a last resort.
+    # For lines where both factors were unreliable (both |P| < threshold)
+    # AND the fallback also didn't resolve them, set rho to 0.
     # This only affects lines with negligible flow, which won't be the
     # max_rho line anyway.
-    both_unreliable = ~safe_or & ~safe_ex
+    both_unreliable = needs_fallback_or & needs_fallback_ex
     if np.any(both_unreliable):
         # These lines have near-zero flow — rho is essentially 0
         rho_combined[both_unreliable] = 0.0
 
     return rho_combined
+
+
+def _compute_delta_theta_all_lines(obs):
+    """Compute delta_theta for every line (works for both connected and disconnected).
+
+    For connected lines, uses obs.theta_or - obs.theta_ex directly.
+    For disconnected lines, falls back to get_delta_theta_line which reconstructs
+    the angle difference from bus angles of other connected elements.
+
+    Args:
+        obs: Observation with theta_or, theta_ex, line_status attributes
+
+    Returns:
+        numpy array of delta_theta per line (radians)
+    """
+    dt = obs.theta_or - obs.theta_ex  # vectorized, correct for connected lines
+    # For disconnected lines, theta_or/theta_ex are 0 → dt=0 (wrong)
+    # Fix using get_delta_theta_line which looks up bus angles
+    disconnected = ~obs.line_status.astype(bool)
+    for i in np.where(disconnected)[0]:
+        dt[i] = get_delta_theta_line(obs, int(i))
+    return dt
+
+
+def _estimate_rho_from_delta_theta(dt_combined, obs_start, obs_act1, obs_act2):
+    """Estimate rho from superposed delta_theta, using action obs as fallback.
+
+    For reconnection/merging actions, delta_theta is the natural base quantity
+    (as used in beta computation). This function converts superposed delta_theta
+    to rho using per-line conversion factors rho/|delta_theta|.
+
+    Primary factor comes from obs_start (for lines connected there).
+    For disconnected lines in obs_start, falls back to action observations.
+
+    Args:
+        dt_combined: Superposed delta_theta per line (radians), array
+        obs_start: Base observation
+        obs_act1: Observation after applying action 1
+        obs_act2: Observation after applying action 2
+
+    Returns:
+        rho_combined: Estimated loading array per line
+    """
+    from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
+
+    dt_threshold = 1e-4  # radians
+    rho_start = obs_start.rho
+
+    # Primary factor: from obs_start (for lines connected there)
+    dt_start = _compute_delta_theta_all_lines(obs_start)
+    abs_dt_start = np.abs(dt_start)
+    safe = abs_dt_start > dt_threshold
+    with np.errstate(divide='ignore', invalid='ignore'):
+        factor = np.where(safe & (rho_start > 0), rho_start / abs_dt_start, 0.0)
+
+    # Fallback: for disconnected lines in obs_start, use action observations
+    needs_fallback = ~safe | (rho_start == 0)
+    for obs_act in [obs_act1, obs_act2]:
+        if not np.any(needs_fallback):
+            break
+        dt_act = _compute_delta_theta_all_lines(obs_act)
+        abs_dt_act = np.abs(dt_act)
+        rho_act = obs_act.rho
+        act_usable = needs_fallback & (abs_dt_act > dt_threshold) & (rho_act > 0)
+        if np.any(act_usable):
+            factor = np.where(act_usable, rho_act / abs_dt_act, factor)
+            needs_fallback = needs_fallback & ~act_usable
+
+    return np.abs(dt_combined) * factor
 
 
 # =============================================================================
@@ -736,7 +838,7 @@ def compute_all_pairs_superposition(
         lines_we_care_about,
         pre_existing_rho: Dict[int, float],
         dict_action: Optional[Dict] = None,
-        use_p_based_rho: bool = True,
+        use_p_based_rho: bool = False,
 ) -> Dict[str, Dict]:
     """Compute superposition theorem for all pairs of converged prioritized actions.
 
@@ -749,10 +851,11 @@ def compute_all_pairs_superposition(
         lines_we_care_about: Set/list of line names we monitor
         pre_existing_rho: Dict of line_idx -> pre-existing rho values
         dict_action: Full action dictionary (for action type classification)
-        use_p_based_rho: If True (default), derive rho from superposed p_or/p_ex
-            using per-line power-factor ratios — eliminates the max() convexity
-            bias and reduces reactive power non-superposition bias. If False, use
-            the lighter but more approximate direct superposition of rho arrays.
+        use_p_based_rho: If True, derive rho from superposed p_or/p_ex
+            using per-line power-factor ratios. If False (default), use
+            direct superposition of rho arrays — empirically more accurate
+            because the P-based conversion factor breaks down when lines
+            change connection status or voltage/power-factor shift significantly.
 
     Returns:
         Dict of "action1_id+action2_id" -> result dict with betas, p_or_combined,
@@ -839,14 +942,39 @@ def compute_all_pairs_superposition(
 
         # ---- Compute combined rho ----
         if use_p_based_rho:
-            # Accurate method: derive rho from superposed p_or/p_ex using
-            # per-line power-factor ratios from obs_start. Eliminates the
-            # max() convexity bias (E1) and reduces reactive power bias (E2).
-            p_or_combined = np.array(result["p_or_combined"])
-            p_ex_combined = np.array(result["p_ex_combined"])
-            rho_combined = _estimate_rho_from_p(
-                p_or_combined, p_ex_combined, obs_start
-            )
+            # Detect if either action involves reconnection or node merging
+            # (where delta_theta is the natural base quantity for estimation)
+            use_delta_theta = False
+            for aid, (line_idxs, sub_idxs) in [(aid1, action_elements[aid1]),
+                                                 (aid2, action_elements[aid2])]:
+                if line_idxs:
+                    # Line action: reconnection if line was disconnected in obs_start
+                    if not obs_start.line_status[line_idxs[0]]:
+                        use_delta_theta = True
+                elif sub_idxs:
+                    # Sub action: node merging if sub was split in obs_start
+                    if not _is_sub_reference_topology(obs_start, sub_idxs[0]):
+                        use_delta_theta = True
+
+            if use_delta_theta:
+                # Delta-theta-based: for reconnection/merging pairs
+                dt_start_all = _compute_delta_theta_all_lines(obs_start)
+                dt_act1_all = _compute_delta_theta_all_lines(obs_act1)
+                dt_act2_all = _compute_delta_theta_all_lines(obs_act2)
+                betas = np.array(result["betas"])
+                dt_combined = ((1.0 - np.sum(betas)) * dt_start_all
+                               + betas[0] * dt_act1_all
+                               + betas[1] * dt_act2_all)
+                rho_combined = _estimate_rho_from_delta_theta(
+                    dt_combined, obs_start, obs_act1, obs_act2
+                )
+            else:
+                # P-based: for disconnection/splitting pairs (with action-obs fallback)
+                p_or_combined = np.array(result["p_or_combined"])
+                p_ex_combined = np.array(result["p_ex_combined"])
+                rho_combined = _estimate_rho_from_p(
+                    p_or_combined, p_ex_combined, obs_start, obs_act1, obs_act2
+                )
         else:
             # Approximate method: superpose rho arrays directly.
             # Lighter but biased: ignores per-extremity asymmetry and
