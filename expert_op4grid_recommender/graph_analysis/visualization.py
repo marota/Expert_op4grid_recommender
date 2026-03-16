@@ -23,31 +23,19 @@ from expert_op4grid_recommender.config import DRAW_ONLY_SIGNIFICANT_EDGES, USE_G
 def get_zone_voltage_levels(env_path):
     """
     Loads voltage level information for substations from a PowSyBl network file.
-
-    This function reads a network definition file (expected to be 'grid.xiidm')
-    located within the specified environment path using the `pypowsybl` library.
-    It extracts the nominal voltage for each voltage level defined in the file
-    and returns a mapping from the substation/voltage level identifier to its
-    nominal voltage value.
-
-    Args:
-        env_path (str): The file path to the directory containing the Grid2Op
-            environment definition, which must include the 'grid.xiidm' file.
-
-    Returns:
-        dict: A dictionary where keys are the substation or voltage level
-              identifiers (typically strings) and values are their corresponding
-              nominal voltage levels (usually floats or integers, e.g., 400.0, 225.0).
-
-    Raises:
-        FileNotFoundError: If the 'grid.xiidm' file cannot be found at the
-                           specified `env_path`.
-        Exception: Potential exceptions from `pypowsybl.network.load` if the
-                   network file is invalid or cannot be parsed.
     """
-    file_iidm = "grid.xiidm"
-    network_file_path = os.path.join(env_path, file_iidm)
-    n_zone = pp.network.load(network_file_path)
+    from pathlib import Path
+    env_path = Path(env_path)
+    
+    # If env_path is already a network file, use it directly
+    if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
+        network_file_path = env_path
+    else:
+        # Otherwise, look for grid.xiidm in the directory
+        file_iidm = "grid.xiidm"
+        network_file_path = env_path / file_iidm
+        
+    n_zone = pp.network.load(str(network_file_path))
     df_volt = n_zone.get_voltage_levels()
     return {sub: volt for sub, volt in zip(df_volt.index, df_volt.nominal_v)}
 

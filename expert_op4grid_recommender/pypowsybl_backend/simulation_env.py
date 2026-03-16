@@ -293,11 +293,19 @@ def make_simulation_env(env_folder: Union[str, Path],
     
     # Look for network file
     network_file = None
-    for ext in ['.xiidm', '.iidm', '.xml']:
-        candidates = list(env_path.glob(f"*{ext}"))
-        if candidates:
-            network_file = candidates[0]
-            break
+    
+    # Check if env_path is already a valid network file
+    if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
+        network_file = env_path
+        # If it's a file, we treat its parent as the environment folder for other files (e.g. thermal limits)
+        env_path = env_path.parent
+    
+    if network_file is None:
+        for ext in ['.xiidm', '.iidm', '.xml']:
+            candidates = list(env_path.glob(f"*{ext}"))
+            if candidates:
+                network_file = candidates[0]
+                break
     
     if network_file is None:
         # Try looking in grid/ subfolder
