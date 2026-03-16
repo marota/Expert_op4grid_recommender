@@ -11,8 +11,18 @@ def test_compute_all_pairs_superposition_simplified_dict():
     env.name_line = ["LINE1", "LINE2", "LINE3"]
 
     obs_start = MagicMock()
-    obs_start.rho = np.array([1.1, 0.5, 0.5]) # Overload on LINE1
+    obs_start.rho = np.array([1.1, 0.5, 0.5])  # Overload on LINE1
     obs_start.p_or = np.array([100.0, 50.0, 50.0])
+    obs_start.p_ex = np.array([-100.0, -50.0, -50.0])
+    # Per-extremity current and limit data for _estimate_rho_from_p
+    obs_start.a_or = np.array([110.0, 50.0, 50.0])
+    obs_start.a_ex = np.array([110.0, 50.0, 50.0])
+    limit_or_mock = MagicMock()
+    limit_or_mock.values = np.array([100.0, 100.0, 100.0])
+    limit_ex_mock = MagicMock()
+    limit_ex_mock.values = np.array([100.0, 100.0, 100.0])
+    obs_start._limit_or = limit_or_mock
+    obs_start._limit_ex = limit_ex_mock
 
     # Mock unitary actions
     aid1 = "reco_LINE2"
