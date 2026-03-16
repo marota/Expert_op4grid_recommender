@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.8] - 2026-03-16
+
+### Added
+
+- **Superposition Theorem Integration**: Implemented impact quantification for topological actions using the superposition theorem.
+- **Islanding Impact Quantization**: Enhanced islanding detection to report disconnected MW, providing better visibility into the severity of grid splits.
+- **Superposition Results in Analysis**: Integrated virtual flow and delta-theta computations into the analysis results dictionary.
+
+### Changed
+
+- **Improved Non-Reconnectable Detection**: Switched to OR logic for line isolation detection — a line is now considered non-reconnectable if at least one of its extremities is isolated (all breakers/disconnectors open).
+
+### Fixed
+
+- **Superposition Data Integrity**: Fixed missing data fields in superposition results and resolved `NameError` bugs in calculation modules.
+- **Virtual Flow Computations**: Corrected delta-theta and virtual flow logic for more accurate impact estimation.
+
+---
+
+## [0.1.7] - 2026-03-11
+
+### Added
+
+- **Phase Shifter Transformer (PST) Support**: Integrated PST tap variations and atomized PST actions from REPAS JSON.
+- **PST Support in Grid2Op conversion**: Added handling for atomized PST actions in Grid2Op format.
+
+### Fixed
+
+- **Analyzer Stability**: Resolved analyzer test failures and improved environment creation robustness.
+
+---
+
+## [0.1.6] - 2026-03-10
+
+### Added
+
+- **Pypowsybl Format for Rebuild Actions**: Added `--pypowsybl-format` option to `--rebuild-actions` for switch-based output.
+- **Asset Identification Enhancement**: Inferred `has_line`/`has_load` from switch names in the pypowsybl backend.
+
+### Changed
+
+- **Network Cache Optimization**: Optimized `NetworkTopologyCache` to eliminate O(all_elements) cost per action.
+
+### Fixed
+
+- **Switch Operation Diffing**: Corrected `set_bus` logic to only include assets changed by the switch operation.
+
+---
+
 ## [0.1.5] - 2026-03-07
 
 ### Added
