@@ -664,10 +664,12 @@ def compute_combined_pair_superposition(
             "betas": betas.tolist(),
         }
 
-    # ---- Compute combined p_or ----
+    # ---- Compute combined p_or and p_ex ----
     p_or_combined = (1.0 - np.sum(betas)) * obs_start.p_or
+    p_ex_combined = (1.0 - np.sum(betas)) * obs_start.p_ex
     for i in range(2):
         p_or_combined = p_or_combined + betas[i] * unit_act_observations[i].p_or
+        p_ex_combined = p_ex_combined + betas[i] * unit_act_observations[i].p_ex
 
     # ---- Islanding detection (if obs_combined is provided) ----
     is_islanded = False
@@ -681,9 +683,99 @@ def compute_combined_pair_superposition(
     return {
         "betas": betas.tolist(),
         "p_or_combined": p_or_combined.tolist(),
+        "p_ex_combined": p_ex_combined.tolist(),
         "is_islanded": is_islanded,
         "disconnected_mw": disconnected_mw,
     }
+
+
+# =============================================================================
+# Helper: estimate rho from superposed power
+# =============================================================================
+
+def _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start):
+    """Estimate rho (loading) from superposed active power flows.
+
+    Instead of superposing rho directly (which introduces bias from the
+    max() convexity and reactive power non-superposition), this function:
+    1. Computes rho/|P| conversion factors from obs_start for each extremity
+    2. Applies them to the superposed P to get rho at each extremity
+    3. Takes max(rho_or, rho_ex) per line
+
+    The assumption is that cos(phi) and V don't change drastically between
+    obs_start and the combined state, which is much weaker than assuming
+    rho itself superposes linearly.
+
+    Args:
+        p_or_combined: Superposed active power at origin (MW), array
+        p_ex_combined: Superposed active power at extremity (MW), array
+        obs_start: Base observation (for rho and p_or/p_ex reference values)
+
+    Returns:
+        rho_combined: Estimated loading array per line
+    """
+    from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
+
+    p_or_start = obs_start.p_or
+    p_ex_start = obs_start.p_ex
+    rho_start = obs_start.rho  # already max(rho_or, rho_ex) if configured
+
+    # We need per-extremity rho from obs_start. The observation stores
+    # rho = max(rho_or, rho_ex) when MAX_RHO_BOTH_EXTREMITIES=True, but
+    # we need the individual rho_or and rho_ex.
+    # Use current arrays if available, otherwise fall back to rho-based estimate.
+    has_current_data = hasattr(obs_start, 'a_or') and hasattr(obs_start, 'a_ex')
+    has_limit_data = hasattr(obs_start, '_limit_or') and hasattr(obs_start, '_limit_ex')
+
+    if has_current_data and has_limit_data:
+        # Best path: use actual current and limits to get per-extremity rho
+        i_or = np.abs(obs_start.a_or)
+        i_ex = np.abs(obs_start.a_ex)
+        limit_or = obs_start._limit_or.values
+        limit_ex = obs_start._limit_ex.values
+        limit_or = np.where(limit_or < 1e-6, 1e-6, limit_or)
+        limit_ex = np.where(limit_ex < 1e-6, 1e-6, limit_ex)
+        rho_or_start = i_or / limit_or
+        rho_ex_start = i_ex / limit_ex
+    else:
+        # Fallback: use rho for both extremities (same as before for origin-only)
+        rho_or_start = rho_start
+        rho_ex_start = rho_start
+
+    # Compute conversion factors: rho / |P| for each extremity.
+    # This factor encapsulates cos(phi), V, and I_max in one ratio.
+    # For lines with near-zero P (lightly loaded or disconnected), the factor
+    # is unreliable — fall back to direct rho superposition for those lines.
+    p_threshold = 0.1  # MW — below this, P is too small for a reliable ratio
+
+    abs_p_or_start = np.abs(p_or_start)
+    abs_p_ex_start = np.abs(p_ex_start)
+
+    # Origin extremity: rho_or = |P_or_combined| * (rho_or_start / |P_or_start|)
+    safe_or = abs_p_or_start > p_threshold
+    factor_or = np.where(safe_or, rho_or_start / abs_p_or_start, 0.0)
+    rho_or_est = np.abs(p_or_combined) * factor_or
+
+    # Extremity side: rho_ex = |P_ex_combined| * (rho_ex_start / |P_ex_start|)
+    safe_ex = abs_p_ex_start > p_threshold
+    factor_ex = np.where(safe_ex, rho_ex_start / abs_p_ex_start, 0.0)
+    rho_ex_est = np.abs(p_ex_combined) * factor_ex
+
+    if MAX_RHO_BOTH_EXTREMITIES:
+        rho_combined = np.maximum(rho_or_est, rho_ex_est)
+    else:
+        rho_combined = rho_or_est
+
+    # For lines where both factors were unreliable (both |P| < threshold),
+    # fall back to direct rho superposition as a last resort.
+    # This only affects lines with negligible flow, which won't be the
+    # max_rho line anyway.
+    both_unreliable = ~safe_or & ~safe_ex
+    if np.any(both_unreliable):
+        # These lines have near-zero flow — rho is essentially 0
+        rho_combined[both_unreliable] = 0.0
+
+    return rho_combined
 
 
 # =============================================================================
@@ -699,6 +791,7 @@ def compute_all_pairs_superposition(
         lines_we_care_about,
         pre_existing_rho: Dict[int, float],
         dict_action: Optional[Dict] = None,
+        use_p_based_rho: bool = True,
 ) -> Dict[str, Dict]:
     """Compute superposition theorem for all pairs of converged prioritized actions.
 
@@ -796,18 +889,21 @@ def compute_all_pairs_superposition(
             continue
 
         # Compute combined rho and max_rho
-        # p_or_combined = np.array(result["p_or_combined"])
+        p_or_combined = np.array(result["p_or_combined"])
+        p_ex_combined = np.array(result["p_ex_combined"])
 
-        # Approximate rho from p_or: rho ≈ |p_or| / (sqrt(3) * V * I_max)
-        # Since p_or = sqrt(3) * V * I * cos(φ) and I_max is what we stored,
-        # and rho = I / I_max, a more direct approach is:
-        # rho_combined ≈ |p_or_combined / p_or_start| * rho_start for each line
-        # But safer: we compute rho ratio from the linear combination of rho arrays
-        rho_combined = np.abs(
-            (1.0 - sum(result["betas"])) * obs_start.rho +
-            result["betas"][0] * obs_act1.rho +
-            result["betas"][1] * obs_act2.rho
-        )
+        # Choose rho estimation method based on use_p_based_rho flag
+        if use_p_based_rho:
+            # Accurate method: estimate rho from superposed power using per-extremity ratios
+            rho_combined = _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start)
+        else:
+            # Approximate method: direct linear superposition of rho arrays
+            # rho_combined = |w*rho_start + b1*rho_act1 + b2*rho_act2|
+            rho_combined = np.abs(
+                (1.0 - sum(result["betas"])) * obs_start.rho +
+                result["betas"][0] * obs_act1.rho +
+                result["betas"][1] * obs_act2.rho
+            )
 
         # Rho on overloaded lines
         rho_after = rho_combined[lines_overloaded_ids]
@@ -841,6 +937,7 @@ def compute_all_pairs_superposition(
             "max_rho_line": max_rho_line,
             "is_rho_reduction": is_rho_reduction,
             "p_or_combined": result["p_or_combined"],
+            "p_ex_combined": result["p_ex_combined"],
             "description": f"{desc1} + {desc2}",
             "action1_id": aid1,
             "action2_id": aid2,
