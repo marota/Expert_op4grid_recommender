@@ -24,6 +24,38 @@ logger = logging.getLogger(__name__)
 _DISCO_LINE_RE = re.compile(r"ligne\s+'([^']+)'")
 
 
+def _diff_set_bus(initial: dict, final: dict) -> dict:
+    """Return only elements whose bus assignment changed from initial to final state.
+
+    Compares element-to-bus mappings from before and after applying switch changes,
+    keeping only the entries that actually differ.  This ensures that non-coupling
+    actions (e.g. opening a single breaker) do not produce spurious bus assignments
+    for unrelated assets in the same voltage level.
+
+    Parameters
+    ----------
+    initial : dict
+        set_bus dict for the initial (unchanged) network state.
+    final : dict
+        set_bus dict after applying the switch changes.
+
+    Returns
+    -------
+    dict
+        set_bus dict containing only elements whose bus assignment changed.
+    """
+    result = {}
+    for key in final:
+        initial_key = initial.get(key, {})
+        changed = {
+            eid: bus
+            for eid, bus in final[key].items()
+            if bus != initial_key.get(eid)
+        }
+        result[key] = changed
+    return result
+
+
 def _build_disco_content(action_id: str, action_data: dict) -> dict:
     """Build content for a ``disco_*`` line disconnection action.
 
@@ -105,8 +137,18 @@ class LazyActionDict(dict):
             return
 
         try:
+            # Compute initial (baseline) bus assignments with no switch changes applied.
+            initial_node_to_bus = self._topology_cache.compute_bus_assignments({}, impacted_vl_ids)
+            initial_set_bus = self._topology_cache.get_element_bus_assignments(
+                initial_node_to_bus, impacted_vl_ids
+            )
+            # Compute final bus assignments after applying the switch changes.
             node_to_bus = self._topology_cache.compute_bus_assignments(switches, impacted_vl_ids)
-            set_bus = self._topology_cache.get_element_bus_assignments(node_to_bus, impacted_vl_ids)
+            final_set_bus = self._topology_cache.get_element_bus_assignments(
+                node_to_bus, impacted_vl_ids
+            )
+            # Only keep elements whose bus assignment actually changed.
+            set_bus = _diff_set_bus(initial_set_bus, final_set_bus)
         except Exception:
             logger.exception("Failed to compute bus assignments for switches %s", list(switches.keys()))
             set_bus = {}

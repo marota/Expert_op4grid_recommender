@@ -1218,7 +1218,7 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
     - Environment: bare_env_small_grid_test
     - Line defaut: P.SAOL31RONCI
     - Timestep: 0
-    - Action space file: reduced_model_actions_test.json
+    - Action space file: reduced_model_actions_test_pypowsybl.json (no pre-computed content)
     - Backend: PYPOWSYBL
     - Expected prioritized actions: Same as grid2op backend test
     
@@ -1249,12 +1249,12 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
         # These overrides modify the config that run_analysis will use
         config.PYPOWSYBL_FAST_MODE = True  # Enable fast mode to test fallback
         config.ENV_NAME = "bare_env_small_grid_test"  # Override environment
-        config.FILE_ACTION_SPACE_DESC = "reduced_model_actions_test.json"  # Override action file
+        config.FILE_ACTION_SPACE_DESC = "reduced_model_actions_test_pypowsybl.json"  # Action file without pre-computed content
         # CRITICAL: Must recompute ACTION_FILE_PATH since it depends on FILE_ACTION_SPACE_DESC
         config.ACTION_FILE_PATH = config.ACTION_SPACE_FOLDER / config.FILE_ACTION_SPACE_DESC
         config.TIMESTEP = timestep
         config.LINES_DEFAUT = lines_defaut
-        
+
         # Expected prioritized actions for this scenario
         # IMPORTANT: These should be the SAME as the grid2op backend test
         # Both backends should produce equivalent results
@@ -1262,7 +1262,7 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
             '466f2c03-90ce-401e-a458-fa177ad45abc_C.REGP6', 'f344b395-9908-43c2-bca0-75c5f298465e_COUCHP6',
              'node_merging_PYMONP3', 'reco_CHALOL31LOUHA', 'reco_GEN.PY762',#'reco_GEN.PL73VIELM', this one is detected as non-reconnectable now
         }
-        
+
         print(f"\n--- Running: {test_id} ---")
         print(f"Config file being used: {config.__file__}")
         print(f"Environment: {config.ENV_NAME}")
@@ -1274,9 +1274,9 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
         # Verify the config values are what we expect BEFORE calling run_analysis
         assert config.ENV_NAME == "bare_env_small_grid_test", \
             f"Config override failed! ENV_NAME is '{config.ENV_NAME}' instead of 'bare_env_small_grid_test'"
-        assert "reduced_model_actions_test.json" in str(config.ACTION_FILE_PATH), \
+        assert "reduced_model_actions_test_pypowsybl.json" in str(config.ACTION_FILE_PATH), \
             f"Config override failed! ACTION_FILE_PATH is '{config.ACTION_FILE_PATH}'"
-        
+
         # Run analysis with PYPOWSYBL backend - this is the key difference from grid2op test
         result = run_analysis(
             analysis_date=None,  # None means bare environment

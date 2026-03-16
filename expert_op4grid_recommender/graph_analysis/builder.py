@@ -25,7 +25,8 @@ def inhibit_swapped_flows(df_of_g):
 
 def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected_reconnectable_lines,
                          lines_non_reconnectable, timestep, do_consolidate_graph=True,
-                         inhibit_swapped_flow_reversion=True, node_renaming=True,param_options=PARAM_OPTIONS_EXPERT_OP):
+                         inhibit_swapped_flow_reversion=True, node_renaming=True,
+                         param_options=PARAM_OPTIONS_EXPERT_OP, use_dc=False):
     """
     Constructs and refines an overflow graph based on a Grid2Op simulation state.
 

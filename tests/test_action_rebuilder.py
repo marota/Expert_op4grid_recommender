@@ -40,7 +40,10 @@ from expert_op4grid_recommender.utils.action_rebuilder import (
     make_raw_all_actions_dict,
     build_action_dict_for_snapshot_from_scratch,
     rebuild_action_dict_for_snapshot,
-    run_rebuild_actions
+    run_rebuild_actions,
+    deduplicate_actions_by_switches,
+    build_action_dict_pypowsybl_format_from_scratch,
+    _create_dict_disco_reco_pypowsybl_format,
 )
 
 from expert_op4grid_recommender.utils.conversion_actions_repas import (
@@ -71,6 +74,7 @@ class MockRepasAction:
         self._description = description
         self._loads_by_id = {}
         self._generators_by_id = {}
+        self._pst_by_id = {}
 
 
 class MockNetwork:
@@ -177,7 +181,7 @@ def coupling_action():
     return MockRepasAction(
         action_id="ACTION-COUPL",
         switches_by_voltage_level={
-            "SUBSTATION-A": {"SUBSTATION_A_COUPL_DJ DJ_OC": True}
+            "SUBSTATION_A": {"SUBSTATION_A_COUPL_DJ DJ_OC": True}
         }
     )
 
@@ -188,7 +192,7 @@ def tro_action():
     return MockRepasAction(
         action_id="ACTION-TRO",
         switches_by_voltage_level={
-            "SUBSTATION-A": {"SUBSTATION_A_TRO.1 DJ_OC": False}
+            "SUBSTATION_A": {"SUBSTATION_A_TRO.1 DJ_OC": False}
         }
     )
 
@@ -199,7 +203,7 @@ def regular_action():
     return MockRepasAction(
         action_id="ACTION-REG",
         switches_by_voltage_level={
-            "SUBSTATION-A": {"SUBSTATION_A_LINE_1 DJ_OC": True}
+            "SUBSTATION_A": {"SUBSTATION_A_LINE_1 DJ_OC": True}
         }
     )
 
@@ -1024,33 +1028,35 @@ class TestMakeRawAllActionsDict:
     """Tests for the make_raw_all_actions_dict function."""
     
     def test_single_voltage_level_action(self, single_voltage_level_action):
-        """Test that single voltage level actions are added directly."""
+        """Test that single voltage level actions are split into atomized entries."""
         all_actions = [single_voltage_level_action]
         result = make_raw_all_actions_dict(all_actions)
         
-        assert "ACTION_001" in result
+        # ACTION_001 has one regular switch in SUBSTATION_A -> ACTION_001_SUBSTATION_A_SWITCH_1
+        assert "ACTION_001_SUBSTATION_A_SWITCH_1" in result
         assert len(result) == 1
-        assert result["ACTION_001"]._id == "ACTION_001"
+        assert result["ACTION_001_SUBSTATION_A_SWITCH_1"]._id == "ACTION_001_SUBSTATION_A_SWITCH_1"
     
     def test_multi_voltage_level_action_split(self, multi_voltage_level_action):
-        """Test that multi voltage level actions are split into separate entries."""
+        """Test that multi voltage level actions are split and atomized."""
         all_actions = [multi_voltage_level_action]
         result = make_raw_all_actions_dict(all_actions)
         
+        # ACTION_002 has coupling switches in SUBSTATION_A and SUBSTATION_B
         assert len(result) == 2
-        assert "ACTION_002_SUBSTATION_A" in result
-        assert "ACTION_002_SUBSTATION_B" in result
+        assert "ACTION_002_SUBSTATION_A_coupling" in result
+        assert "ACTION_002_SUBSTATION_B_coupling" in result
     
     def test_split_action_has_single_voltage_level(self, multi_voltage_level_action):
         """Test that split actions only contain their respective voltage level."""
         all_actions = [multi_voltage_level_action]
         result = make_raw_all_actions_dict(all_actions)
         
-        action_a = result["ACTION_002_SUBSTATION_A"]
+        action_a = result["ACTION_002_SUBSTATION_A_coupling"]
         assert len(action_a._switches_by_voltage_level) == 1
         assert "SUBSTATION_A" in action_a._switches_by_voltage_level
         
-        action_b = result["ACTION_002_SUBSTATION_B"]
+        action_b = result["ACTION_002_SUBSTATION_B_coupling"]
         assert len(action_b._switches_by_voltage_level) == 1
         assert "SUBSTATION_B" in action_b._switches_by_voltage_level
     
@@ -1060,9 +1066,9 @@ class TestMakeRawAllActionsDict:
         result = make_raw_all_actions_dict(all_actions)
         
         assert len(result) == 3
-        assert "ACTION_001" in result
-        assert "ACTION_002_SUBSTATION_A" in result
-        assert "ACTION_002_SUBSTATION_B" in result
+        assert "ACTION_001_SUBSTATION_A_SWITCH_1" in result
+        assert "ACTION_002_SUBSTATION_A_coupling" in result
+        assert "ACTION_002_SUBSTATION_B_coupling" in result
     
     def test_empty_actions_list(self):
         """Test with an empty list of actions."""
@@ -1080,6 +1086,44 @@ class TestMakeRawAllActionsDict:
         assert len(multi_voltage_level_action._switches_by_voltage_level) == 2
         assert multi_voltage_level_action._switches_by_voltage_level == original_switches
 
+    def test_multi_other_switches_atomization(self):
+        """Test that multiple 'other' switches in the same VL are split into separate actions with VL prefix."""
+        action = MockRepasAction(
+            action_id="MULTI_OTHER",
+            switches_by_voltage_level={
+                "VL1": {
+                    "VL1_SWITCH_1 DJ_OC": True,
+                    "VL1_SWITCH_2 DJ_OC": False
+                }
+            }
+        )
+        all_actions = [action]
+        result = make_raw_all_actions_dict(all_actions)
+        
+        # Now IDs are MULTI_OTHER_VL1_SWITCH_1 and MULTI_OTHER_VL1_SWITCH_2
+        assert len(result) == 2
+        assert "MULTI_OTHER_VL1_SWITCH_1" in result
+        assert "MULTI_OTHER_VL1_SWITCH_2" in result
+
+    def test_complex_element_names_splitting(self):
+        """Test that complex element names (with multiple underscores) are handled correctly."""
+        action = MockRepasAction(
+            action_id="COMPLEX",
+            switches_by_voltage_level={
+                "VL_400": {
+                    "VL_400_TR_1_A DJ_OC": True,
+                    "VL_400_TR_1_B DJ_OC": False
+                }
+            }
+        )
+        all_actions = [action]
+        result = make_raw_all_actions_dict(all_actions)
+        
+        # Heuristic should extract TR_1_A and TR_1_B
+        assert len(result) == 2
+        assert "COMPLEX_VL_400_TR_1_A" in result
+        assert "COMPLEX_VL_400_TR_1_B" in result
+
 
 # =============================================================================
 # Tests for build_action_dict_for_snapshot_from_scratch
@@ -1089,22 +1133,26 @@ class TestBuildActionDictForSnapshotFromScratch:
     """Tests for the build_action_dict_for_snapshot_from_scratch function."""
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
-    def test_filters_coupling_actions(self, mock_convert, mock_network, coupling_action, regular_action):
-        """Test that only COUPL actions are sent for conversion."""
+    def test_converts_all_atomized_actions(self, mock_convert, mock_network, coupling_action, regular_action):
+        """Test that all atomized actions are sent for conversion."""
         mock_convert.return_value = {"converted_action": {}}
         all_actions = [coupling_action, regular_action]
         
         build_action_dict_for_snapshot_from_scratch(mock_network, all_actions)
         
-        # Check that convert was called with only the coupling action
+        # Check that convert was called with both atomized actions
+        # coupling_action -> ACTION-COUPL_SUBSTATION_A_coupling
+        # regular_action -> ACTION-REG_SUBSTATION_A_LINE_1
         call_args = mock_convert.call_args[0]
         actions_to_convert = call_args[1]
-        assert len(actions_to_convert) == 1
-        assert actions_to_convert[0]._id == "ACTION-COUPL"
+        assert len(actions_to_convert) == 2
+        ids = [a._id for a in actions_to_convert]
+        assert "ACTION-COUPL_SUBSTATION_A_coupling" in ids
+        assert "ACTION-REG_SUBSTATION_A_LINE_1" in ids
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_filters_tro_actions(self, mock_convert, mock_network, tro_action, regular_action):
-        """Test that TRO actions are also sent for conversion."""
+        """Test that TRO actions are also sent for conversion (along with atomized regular actions)."""
         mock_convert.return_value = {"converted_action": {}}
         all_actions = [tro_action, regular_action]
         
@@ -1112,8 +1160,10 @@ class TestBuildActionDictForSnapshotFromScratch:
         
         call_args = mock_convert.call_args[0]
         actions_to_convert = call_args[1]
-        assert len(actions_to_convert) == 1
-        assert actions_to_convert[0]._id == "ACTION-TRO"
+        assert len(actions_to_convert) == 2
+        ids = [a._id for a in actions_to_convert]
+        assert "ACTION-TRO_SUBSTATION_A_coupling" in ids
+        assert "ACTION-REG_SUBSTATION_A_LINE_1" in ids
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_returns_converted_actions(self, mock_convert, mock_network, coupling_action):
@@ -1165,8 +1215,9 @@ class TestRebuildActionDictForSnapshot:
         """Test that non-COUPL/TRO actions are kept as-is."""
         mock_convert.return_value = {}
         
+        # regular_action has switch "SUBSTATION_A_LINE_1 DJ_OC" -> ID "ACTION-REG_SUBSTATION_A_LINE_1"
         dict_action = {
-            "ACTION-REG_SUBSTATION-A": {
+            "ACTION-REG_SUBSTATION_A_LINE_1": {
                 "description": "Regular action",
                 "description_unitaire": "Regular action description",
                 "content": {"set_bus": {}}
@@ -1175,35 +1226,36 @@ class TestRebuildActionDictForSnapshot:
         
         result = rebuild_action_dict_for_snapshot(mock_network, [regular_action], dict_action)
         
-        assert "ACTION-REG_SUBSTATION-A" in result
-        assert result["ACTION-REG_SUBSTATION-A"]["description"] == "Regular action"
+        assert "ACTION-REG_SUBSTATION_A_LINE_1" in result
+        assert result["ACTION-REG_SUBSTATION_A_LINE_1"]["description"] == "Regular action"
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_converts_coupling_actions(self, mock_convert, mock_network, coupling_action):
         """Test that COUPL actions are sent for conversion."""
-        mock_convert.return_value = {"ACTION-COUPL_SUBSTATION-A": {"converted": True}}
+        mock_convert.return_value = {"ACTION-COUPL_SUBSTATION_A_coupling": {"content": {}}}
         
+        # coupling_action -> ID "ACTION-COUPL_SUBSTATION_A_coupling"
         dict_action = {
-            "ACTION-COUPL_SUBSTATION-A": {
-                "description": "COUPL action",
+            "ACTION-COUPL_SUBSTATION_A_coupling": {
+                "description": "Coupling action",
                 "description_unitaire": "Ouverture COUPL dans SUBSTATION_A",
-                "VoltageLevelId": "SUBSTATION_A",
-                "content": {}
+                "content": {"set_bus": {}}
             }
         }
         
         result = rebuild_action_dict_for_snapshot(mock_network, [coupling_action], dict_action)
         
+        assert "ACTION-COUPL_SUBSTATION_A_coupling" in result
         assert mock_convert.called
-        assert "ACTION-COUPL_SUBSTATION-A" in result
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_converts_tro_actions(self, mock_convert, mock_network, tro_action):
         """Test that TRO actions are sent for conversion."""
-        mock_convert.return_value = {"ACTION-TRO_SUBSTATION-A": {"converted": True}}
+        mock_convert.return_value = {"ACTION-TRO_coupling": {"converted": True}}
         
+        # tro_action (with TRO.1) -> ID "ACTION-TRO_coupling"
         dict_action = {
-            "ACTION-TRO_SUBSTATION-A": {
+            "ACTION-TRO_coupling": {
                 "description": "TRO action",
                 "description_unitaire": "Ouverture TRO.1 dans SUBSTATION_A",
                 "VoltageLevelId": "SUBSTATION_A",
@@ -1214,16 +1266,17 @@ class TestRebuildActionDictForSnapshot:
         result = rebuild_action_dict_for_snapshot(mock_network, [tro_action], dict_action)
         
         assert mock_convert.called
+        assert "ACTION-TRO_coupling" in result
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_preserves_description_unitaire(self, mock_convert, mock_network, coupling_action):
         """Test that description_unitaire is preserved from original dict_action."""
         mock_convert.return_value = {
-            "ACTION-COUPL_SUBSTATION-A": {"converted": True}
+            "ACTION-COUPL_coupling": {"converted": True}
         }
         
         dict_action = {
-            "ACTION-COUPL_SUBSTATION-A": {
+            "ACTION-COUPL_coupling": {
                 "description": "COUPL action",
                 "description_unitaire": "Custom description unitaire",
                 "VoltageLevelId": "SUBSTATION_A",
@@ -1233,7 +1286,7 @@ class TestRebuildActionDictForSnapshot:
         
         result = rebuild_action_dict_for_snapshot(mock_network, [coupling_action], dict_action)
         
-        assert result["ACTION-COUPL_SUBSTATION-A"]["description_unitaire"] == "Custom description unitaire"
+        assert result["ACTION-COUPL_coupling"]["description_unitaire"] == "Custom description unitaire"
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
     def test_warning_for_missing_action(self, mock_convert, mock_network, capsys):
@@ -1254,6 +1307,28 @@ class TestRebuildActionDictForSnapshot:
         captured = capsys.readouterr()
         assert "Warning" in captured.out
         assert "not found" in captured.out
+
+    @patch('expert_op4grid_recommender.utils.action_rebuilder.convert_repas_actions_to_grid2op_actions')
+    def test_robust_fallback_matching_base_id(self, mock_convert, mock_network, regular_action):
+        """Test that matching falls back to base ID if exact match fails."""
+        mock_convert.return_value = {}
+        
+        # original ID is ACTION-REG
+        # we provide ACTION-REG_SUBSTATION_A_LINE_1 which is NOT in all_actions_dict
+        # as a direct key (if we only passed [regular_action] without atomizing it first)
+        dict_action = {
+            "ACTION-REG_MISMATCHED_SUFFIX": {
+                "description": "Regular action",
+                "content": {"set_bus": {}}
+            }
+        }
+        
+        # We pass regular_action which has ID "ACTION-REG"
+        result = rebuild_action_dict_for_snapshot(mock_network, [regular_action], dict_action)
+        
+        # It should have found "ACTION-REG" as base ID
+        assert "ACTION-REG_MISMATCHED_SUFFIX" in result
+        assert result["ACTION-REG_MISMATCHED_SUFFIX"]["switches"] == {"SUBSTATION_A_LINE_1 DJ_OC": True}
 
 
 # =============================================================================
@@ -1352,6 +1427,7 @@ class TestConversionIntegration:
         
         # Verify structure
         assert len(result) == 1
+        # Since 'INTEGRATION_TEST' does not contain 'VL1', it will be suffixed with '_VL1' by our heuristic
         action_key = 'INTEGRATION_TEST_VL1'
         assert action_key in result
         
@@ -1382,6 +1458,7 @@ class TestConversionIntegration:
             use_analytical=True
         )
         
+        # SEQ_TEST has no underscore, so it becomes SEQ_TEST_VL1
         set_bus = result['SEQ_TEST_VL1']['content']['set_bus']
         
         # Collect all bus numbers (excluding -1)
@@ -1395,6 +1472,337 @@ class TestConversionIntegration:
             # Bus numbers should be sequential starting at 1
             expected = set(range(1, len(all_buses) + 1))
             assert all_buses == expected, f"Bus numbers {all_buses} are not sequential from 1"
+
+
+# =============================================================================
+# Tests for deduplicate_actions_by_switches
+# =============================================================================
+
+class TestDeduplicateActionsBySwitches:
+    """Tests for the deduplicate_actions_by_switches function."""
+
+    def test_no_duplicates_unchanged(self):
+        """All actions with distinct switch fingerprints are kept unchanged."""
+        actions = {
+            "A": {"description": "Action A", "switches": {"SW1": True}},
+            "B": {"description": "Action B", "switches": {"SW1": False}},
+            "C": {"description": "Action C", "switches": {"SW2": True}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert set(result.keys()) == {"A", "B", "C"}
+        assert "other_action_ids" not in result["A"]
+        assert "other_action_ids" not in result["B"]
+        assert "other_action_ids" not in result["C"]
+
+    def test_two_identical_actions_first_is_reference(self):
+        """When two actions share the same switches, the first is the reference."""
+        actions = {
+            "A": {"description": "Action A", "switches": {"SW1": True, "SW2": False}},
+            "B": {"description": "Action B", "switches": {"SW1": True, "SW2": False}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert "A" in result
+        assert "B" not in result
+        assert result["A"]["other_action_ids"] == ["B"]
+
+    def test_three_identical_actions(self):
+        """Three identical actions: first is reference with two in other_action_ids."""
+        actions = {
+            "A": {"switches": {"SW1": True}},
+            "B": {"switches": {"SW1": True}},
+            "C": {"switches": {"SW1": True}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert set(result.keys()) == {"A"}
+        assert sorted(result["A"]["other_action_ids"]) == ["B", "C"]
+
+    def test_actions_without_switches_kept_as_is(self):
+        """Actions without 'switches' field (e.g. disco/reco) are kept unchanged."""
+        actions = {
+            "disco_LINE1": {"description": "Disco", "description_unitaire": "Ouverture"},
+            "reco_LINE1": {"description": "Reco", "description_unitaire": "Fermeture"},
+            "A": {"switches": {"SW1": True}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert "disco_LINE1" in result
+        assert "reco_LINE1" in result
+        assert "A" in result
+
+    def test_empty_switches_dict_treated_as_no_switches(self):
+        """Actions with an empty 'switches' dict are treated as no-switch actions."""
+        actions = {
+            "A": {"switches": {}},
+            "B": {"switches": {}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        # Both kept as-is (no fingerprint matching for empty dicts)
+        assert "A" in result
+        assert "B" in result
+        assert "other_action_ids" not in result["A"]
+
+    def test_mixed_duplicate_and_unique(self):
+        """Mix of duplicate groups and unique actions handled correctly."""
+        actions = {
+            "A": {"switches": {"SW1": True}},
+            "B": {"switches": {"SW1": True}},   # duplicate of A
+            "C": {"switches": {"SW2": False}},
+            "D": {"switches": {"SW3": True}},
+            "E": {"switches": {"SW3": True}},   # duplicate of D
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert set(result.keys()) == {"A", "C", "D"}
+        assert result["A"]["other_action_ids"] == ["B"]
+        assert result["D"]["other_action_ids"] == ["E"]
+        assert "other_action_ids" not in result["C"]
+
+    def test_empty_dict(self):
+        """Empty input returns empty output."""
+        result = deduplicate_actions_by_switches({})
+        assert result == {}
+
+    def test_original_action_fields_preserved(self):
+        """Reference action preserves all original fields."""
+        actions = {
+            "A": {
+                "description": "My desc",
+                "description_unitaire": "My desc unitaire",
+                "VoltageLevelId": "VL1",
+                "switches": {"VL1_SW1": True},
+            },
+            "B": {
+                "description": "Other desc",
+                "switches": {"VL1_SW1": True},
+            },
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert result["A"]["description"] == "My desc"
+        assert result["A"]["description_unitaire"] == "My desc unitaire"
+        assert result["A"]["VoltageLevelId"] == "VL1"
+        assert result["A"]["switches"] == {"VL1_SW1": True}
+        assert result["A"]["other_action_ids"] == ["B"]
+
+    def test_switch_order_does_not_matter(self):
+        """Two actions with the same switches in different dict order are duplicates."""
+        actions = {
+            "A": {"switches": {"SW1": True, "SW2": False}},
+            "B": {"switches": {"SW2": False, "SW1": True}},
+        }
+        result = deduplicate_actions_by_switches(actions)
+
+        assert "A" in result
+        assert "B" not in result
+        assert result["A"]["other_action_ids"] == ["B"]
+
+
+# =============================================================================
+# Tests for build_action_dict_pypowsybl_format_from_scratch
+# =============================================================================
+
+class TestBuildActionDictPypowsyblFormatFromScratch:
+    """Tests for build_action_dict_pypowsybl_format_from_scratch."""
+
+    def _make_action(self, action_id, switches_by_vl, description="Test desc"):
+        return MockRepasAction(action_id, switches_by_vl, description)
+
+    def test_single_action_structure(self):
+        """Single action produces correct fields: description, description_unitaire, VoltageLevelId, switches."""
+        actions = [
+            self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}}, "Open SW1")
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        # ACT1 with regular switch in VLA -> ACT1_VLA_SW1
+        assert "ACT1_VLA_SW1" in result
+        entry = result["ACT1_VLA_SW1"]
+        assert entry["description"] == "Open SW1"
+        # description_unitaire is the per-VL switch summary, not the full REPAS description
+        assert entry["description_unitaire"] == "Ouverture VLA_SW1 DJ_OC dans le poste VLA"
+        assert entry["VoltageLevelId"] == "VLA"
+        assert entry["switches"] == {"VLA_SW1 DJ_OC": True}
+        assert "content" not in entry
+
+    def test_no_grid2op_content_field(self):
+        """Entries must NOT contain a 'content' / 'set_bus' field."""
+        actions = [
+            self._make_action("ACT1", {"VLA": {"VLA_COUPL DJ_OC": True}}, "Coupl action")
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        # ACT1 with COUPL switch in VLA -> ACT1_VLA_coupling
+        assert "content" not in result["ACT1_VLA_coupling"]
+
+    def test_multi_vl_action_is_split(self):
+        """Multi-VL action is split into one entry per voltage level."""
+        actions = [
+            self._make_action(
+                "MULTI",
+                {
+                    "VLA": {"VLA_COUPL DJ_OC": True},
+                    "VLB": {"VLB_COUPL DJ_OC": False},
+                },
+                "Multi VL action"
+            )
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        # Multi VL with COUPL switches -> MULTI_VLA_coupling and MULTI_VLB_coupling
+        assert "MULTI_VLA_coupling" in result
+        assert "MULTI_VLB_coupling" in result
+        assert result["MULTI_VLA_coupling"]["VoltageLevelId"] == "VLA"
+        assert result["MULTI_VLB_coupling"]["VoltageLevelId"] == "VLB"
+
+    def test_switches_flattened_per_vl(self):
+        """Single-VL action with multiple switches: all included in switches dict."""
+        actions = [
+            self._make_action(
+                "ACT2",
+                {"VLA": {"VLA_SW1 DJ_OC": True, "VLA_SW2 DJ_OC": True}},
+                "Two switches"
+            )
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        # ACT2 with two switches -> ACT2_VLA_SW1 and ACT2_VLA_SW2
+        assert "ACT2_VLA_SW1" in result
+        assert "ACT2_VLA_SW2" in result
+        assert result["ACT2_VLA_SW1"]["switches"] == {"VLA_SW1 DJ_OC": True}
+        assert result["ACT2_VLA_SW2"]["switches"] == {"VLA_SW2 DJ_OC": True}
+
+    def test_duplicates_deduplicated(self):
+        """Actions with identical switch states are deduplicated."""
+        actions = [
+            self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}}, "Action 1"),
+            self._make_action("ACT2", {"VLA": {"VLA_SW1 DJ_OC": True}}, "Action 2"),
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        # ACT1 -> ACT1_VLA_SW1, ACT2 -> ACT2_VLA_SW1
+        # They have the same switches, so ACT1_VLA_SW1 is kept, ACT2_VLA_SW1 is deduplicated
+        assert "ACT1_VLA_SW1" in result
+        assert "ACT2_VLA_SW1" not in result
+        assert result["ACT1_VLA_SW1"]["other_action_ids"] == ["ACT2_VLA_SW1"]
+
+    def test_unique_actions_no_other_action_ids(self):
+        """Unique actions do not have an 'other_action_ids' field."""
+        actions = [
+            self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}}, "Action 1"),
+            self._make_action("ACT2", {"VLA": {"VLA_SW2 DJ_OC": False}}, "Action 2"),
+        ]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions)
+
+        assert "other_action_ids" not in result["ACT1_VLA_SW1"]
+        assert "other_action_ids" not in result["ACT2_VLA_SW2"]
+
+    def test_no_disco_reco_when_flag_false(self):
+        """No disco/reco entries added when add_reco_disco_actions=False."""
+        actions = [self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}})]
+        result = build_action_dict_pypowsybl_format_from_scratch(None, actions, add_reco_disco_actions=False)
+
+        assert not any(k.startswith("disco_") or k.startswith("reco_") for k in result)
+
+    def test_disco_reco_added_when_flag_true(self):
+        """disco/reco entries are added when add_reco_disco_actions=True and n_grid provided."""
+        actions = [self._make_action("ACT1", {"VLA": {"VLA_SW1 DJ_OC": True}})]
+
+        # Build a minimal mock network for disco/reco
+        mock_net = MagicMock()
+        branches_df = pd.DataFrame(
+            {"voltage_level1_id": ["VL63"], "voltage_level2_id": ["VL63"]},
+            index=["LINE_63kV"]
+        )
+        vl_df = pd.DataFrame({"nominal_v": [63.0]}, index=["VL63"])
+        mock_net.get_branches.return_value = branches_df
+        mock_net.get_voltage_levels.return_value = vl_df
+
+        result = build_action_dict_pypowsybl_format_from_scratch(
+            mock_net, actions, add_reco_disco_actions=True
+        )
+
+        assert "disco_LINE_63kV" in result
+        assert "reco_LINE_63kV" in result
+
+    def test_empty_actions_list(self):
+        """Empty action list produces empty result."""
+        result = build_action_dict_pypowsybl_format_from_scratch(None, [])
+        assert result == {}
+
+
+# =============================================================================
+# Tests for _create_dict_disco_reco_pypowsybl_format
+# =============================================================================
+
+class TestCreateDictDiscoRecoPypowsyblFormat:
+    """Tests for _create_dict_disco_reco_pypowsybl_format."""
+
+    def _make_mock_net(self, lines_vl):
+        """Create a minimal mock network with given line -> (vl1, vl2, nominal_v1, nominal_v2) tuples."""
+        mock_net = MagicMock()
+        idx = list(lines_vl.keys())
+        vl1_ids = [v[0] for v in lines_vl.values()]
+        vl2_ids = [v[1] for v in lines_vl.values()]
+        branches_df = pd.DataFrame(
+            {"voltage_level1_id": vl1_ids, "voltage_level2_id": vl2_ids},
+            index=idx
+        )
+
+        # Build voltage levels DataFrame
+        vl_ids = set(vl1_ids + vl2_ids)
+        vl_rows = {}
+        for key, (vl1, vl2, nv1, nv2) in lines_vl.items():
+            vl_rows[vl1] = nv1
+            vl_rows[vl2] = nv2
+        vl_df = pd.DataFrame({"nominal_v": list(vl_rows.values())}, index=list(vl_rows.keys()))
+
+        mock_net.get_branches.return_value = branches_df
+        mock_net.get_voltage_levels.return_value = vl_df
+        return mock_net
+
+    def test_eligible_line_creates_disco_and_reco(self):
+        """Lines not at filtered voltage levels get disco and reco entries."""
+        net = self._make_mock_net({"LINE_63": ("VL63A", "VL63B", 63., 63.)})
+        result = _create_dict_disco_reco_pypowsybl_format(net)
+
+        assert "disco_LINE_63" in result
+        assert "reco_LINE_63" in result
+
+    def test_filtered_line_excluded(self):
+        """Lines at a filtered voltage level (e.g. 400kV) are excluded."""
+        net = self._make_mock_net({"LINE_400": ("VL400A", "VL400B", 400., 400.)})
+        result = _create_dict_disco_reco_pypowsybl_format(net)
+
+        assert "disco_LINE_400" not in result
+        assert "reco_LINE_400" not in result
+
+    def test_disco_entry_structure(self):
+        """Disco entry has description and description_unitaire, no content."""
+        net = self._make_mock_net({"LINEX": ("VLA", "VLB", 63., 63.)})
+        result = _create_dict_disco_reco_pypowsybl_format(net)
+
+        entry = result["disco_LINEX"]
+        assert "description" in entry
+        assert "description_unitaire" in entry
+        assert "content" not in entry
+        assert "LINEX" in entry["description"]
+        assert "LINEX" in entry["description_unitaire"]
+
+    def test_custom_filter_voltage_levels(self):
+        """Custom filter_voltage_levels are respected."""
+        net = self._make_mock_net({
+            "LINE_63": ("VL63A", "VL63B", 63., 63.),
+            "LINE_90": ("VL90A", "VL90B", 90., 90.),
+        })
+        # Exclude 63kV as well
+        result = _create_dict_disco_reco_pypowsybl_format(net, filter_voltage_levels=[400, 63.])
+
+        assert "disco_LINE_63" not in result
+        assert "disco_LINE_90" in result
 
 
 if __name__ == "__main__":

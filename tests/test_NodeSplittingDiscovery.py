@@ -158,14 +158,13 @@ def test_compute_score_standard(action_discoverer, scenario_name, node_type, flo
 
 def test_compute_score_division_by_zero(action_discoverer):
     """Ensure code handles cases where total flow is zero (e.g., disconnected bus)."""
-    # Note: If your code doesn't handle this, this test expects a ZeroDivisionError.
-    # If you fix your code to return 0, change this to: assert score == 0
-    with pytest.raises(ZeroDivisionError):
-        action_discoverer.compute_node_splitting_action_bus_score(
-            node_type="amont", bus_of_interest=1, buses=[1],
-            buses_negative_inflow=[0], buses_negative_out_flow=[0],
-            buses_positive_inflow=[0], buses_positive_out_flow=[0]
-        )
+    # Note: Code now returns -9999 when total flow is zero to avoid ZeroDivisionError.
+    score = action_discoverer.compute_node_splitting_action_bus_score(
+        node_type="amont", bus_of_interest=1, buses=[1],
+        buses_negative_inflow=[0], buses_negative_out_flow=[0],
+        buses_positive_inflow=[0], buses_positive_out_flow=[0]
+    )
+    assert score == -9999
 
 
 @pytest.mark.parametrize("neg_in, neg_out, expected_behavior", [

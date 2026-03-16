@@ -1040,25 +1040,31 @@ class ActionDiscoverer:
         weight_factor = 0
         repulsion = 0
 
-        if harmonized_node_type == "amont":
-            # Strategy: Separate negative outflow from all other flows.
-            # Repulsion: Contrast negative outflow against positive outflow (separation of paths).
-            repulsion = bus_negative_out_flow - bus_positive_out_flow
-            # Weight: Ratio of the desired flow vs everything else.
-            weight_factor = (bus_negative_out_flow - (
-                        bus_negative_inflow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
+        if TotalInOutDispatchFlow == 0:
+            score = -9999
+        else:
+            if harmonized_node_type == "amont":
+                # Strategy: Separate negative outflow from all other flows.
+                # Repulsion: Contrast negative outflow against positive outflow (separation of paths).
+                repulsion = bus_negative_out_flow - bus_positive_out_flow
+                # Weight: Ratio of the desired flow vs everything else.
+                weight_factor = (bus_negative_out_flow - (
+                            bus_negative_inflow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
 
-        elif harmonized_node_type == "aval":
-            # Strategy: Separate negative inflow from all other flows.
-            repulsion = bus_negative_inflow - bus_positive_inflow
-            weight_factor = (bus_negative_inflow - (
-                        bus_negative_out_flow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
+            elif harmonized_node_type == "aval":
+                # Strategy: Separate negative inflow from all other flows.
+                repulsion = bus_negative_inflow - bus_positive_inflow
+                if TotalInOutDispatchFlow==0:
+                    weight_factor=-9999
+                else:
+                    weight_factor = (bus_negative_inflow - (
+                            bus_negative_out_flow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
 
-        score = weight_factor * repulsion
+            score = weight_factor * repulsion
 
-        # Penalize configurations where the split results in opposing indicators (both negative)
-        if weight_factor < 0 and repulsion < 0:
-            score = -score
+            # Penalize configurations where the split results in opposing indicators (both negative)
+            if weight_factor < 0 and repulsion < 0:
+                score = -score
 
         return score
 
@@ -1641,9 +1647,144 @@ class ActionDiscoverer:
         self.params_merges = details_map
 
 
+    def find_relevant_pst_actions(self, nodes_blue_path_names: List[str], red_loop_paths_names: List[List[str]]):
+        """
+        Identifies and proposes PST tap variations for overloads on blue paths and red loops.
+        
+        Args:
+            nodes_blue_path_names: List of substation names on the blue (constrained) path.
+            red_loop_paths_names: List of paths (list of substation names) forming red loops.
+        """
+        # 1. Identify all PSTs and their current tap info
+        try:
+            pst_ids = self.obs._network_manager.get_pst_ids()
+        except AttributeError:
+            # Fallback if nm doesn't support get_pst_ids (e.g. grid2op backend)
+            print("Warning: Network manager does not support get_pst_ids, skipping PST discovery.")
+            return
+
+        if not pst_ids:
+            return
+
+        identified, effective, ineffective = {}, [], []
+        scores_map = {}
+        details_map = {}
+        
+        # Flatten red loop nodes for faster O(1) lookup
+        red_loop_nodes_set = set()
+        for path in red_loop_paths_names:
+            red_loop_nodes_set.update(path)
+        blue_path_nodes_set = set(nodes_blue_path_names)
+
+        if not hasattr(self, '_disco_bounds'):
+            self._disco_bounds = self._compute_disconnection_flow_bounds()
+            self._disco_capacity_map = self._build_line_capacity_map()
+        max_overload_flow, _, _ = self._disco_bounds
+
+        nm = self.obs._network_manager
+        
+        print(f"Evaluating PST tap variations for {len(pst_ids)} PSTs...")
+        
+        for pst_id in pst_ids:
+            # Map PST to its substations
+            # From NetworkManager, we know transformers are in _line_ids
+            # and we have _line_or_sub / _line_ex_sub caches
+            sub1_name = nm._line_or_sub.get(pst_id)
+            sub2_name = nm._line_ex_sub.get(pst_id)
+            
+            if not sub1_name or not sub2_name:
+                continue
+            
+            # Decide if it's on a blue path or red loop
+            is_blue = sub1_name in blue_path_nodes_set or sub2_name in blue_path_nodes_set
+            is_red = sub1_name in red_loop_nodes_set or sub2_name in red_loop_nodes_set
+            
+            if not (is_blue or is_red):
+                continue
+            
+            tap_info = nm.get_pst_tap_info(pst_id)
+            if not tap_info:
+                continue
+                
+            tap = tap_info['tap']
+            low = tap_info['low_tap']
+            high = tap_info['high_tap']
+            
+            # Assume reference tap is in the middle
+            ref_tap = (low + high) // 2
+            
+            # Variation: 2 steps when possible
+            variation = 0
+            if is_blue:
+                # Rule: Increase Impedance (Move away from reference)
+                if tap >= ref_tap:
+                    target_tap = min(high, tap + 2)
+                    if target_tap > tap: variation = target_tap - tap
+                else: # tap < ref_tap
+                    target_tap = max(low, tap - 2)
+                    if target_tap < tap: variation = target_tap - tap
+            elif is_red:
+                # Rule: Decrease Impedance (Move towards reference)
+                if tap > ref_tap:
+                    target_tap = max(ref_tap, tap - 2)
+                    if target_tap < tap: variation = target_tap - tap
+                elif tap < ref_tap:
+                    target_tap = min(ref_tap, tap + 2)
+                    if target_tap > tap: variation = target_tap - tap
+            
+            if variation != 0:
+                new_tap = tap + variation
+                action_id = f"pst_tap_{pst_id}_{'inc' if variation > 0 else 'dec'}{abs(variation)}"
+                action_dict = {"pst_tap": {pst_id: new_tap}}
+                action_desc = {
+                    "description": f"Variation de slot de {variation} pour le PST {pst_id} (tap: {tap} -> {new_tap})",
+                    "description_unitaire": f"Variation de slot de {variation} pour le PST {pst_id}",
+                    "content": action_dict
+                }
+                
+                # In Step 2, prioritized_actions expects Action objects
+                action = self.action_space(action_dict)
+                identified[action_id] = action
+                
+                # User-requested score: ratio of dispatch flow on the pst branch over the maximum overload dispatch flow
+                dispatch_flow = getattr(self, '_disco_capacity_map', {}).get(pst_id, 0.0)
+                if max_overload_flow > 1e-6:
+                    score = abs(dispatch_flow / max_overload_flow)
+                else:
+                    score = 0.5 * abs(variation) # Fallback to original simple score
+                
+                scores_map[action_id] = score
+                details_map[action_id] = {
+                    "pst_id": pst_id,
+                    "previous_tap": tap,
+                    "target_tap": new_tap,
+                    "variation": variation,
+                    "is_blue": is_blue,
+                    "is_red": is_red,
+                    "max_reachable_tap": high,
+                    "min_reachable_tap": low,
+                    "dispatch_flow_on_pst": dispatch_flow
+                }
+                
+                if self.check_action_simulation:
+                    act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+                    is_rho_reduction, _ = self._check_rho_reduction(
+                        self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
+                        self.act_reco_maintenance, self.lines_we_care_about
+                    )
+                    (effective if is_rho_reduction else ineffective).append(action)
+                    print(f"  {'Effective' if is_rho_reduction else 'Ineffective'} PST tap: {action_id}")
+
+        self.identified_pst_actions = identified
+        self.effective_pst_actions = effective
+        self.ineffective_pst_actions = ineffective
+        self.scores_pst_actions = scores_map
+        self.params_pst_actions = details_map
+
+
     # --- Main Orchestration Method ---
 
-    def discover_and_prioritize(self, n_action_max: int = 5, n_reco_max: int = 2, n_split_max: int = 3) -> Dict[str, Any]:
+    def discover_and_prioritize(self, n_action_max: int = 5, n_reco_max: int = 2, n_split_max: int = 3, n_pst_max: int = 2) -> Dict[str, Any]:
         """
         Runs the full discovery and prioritization pipeline for all action types.
 
@@ -1662,6 +1803,7 @@ class ActionDiscoverer:
             n_action_max (int): Max total actions in the final prioritized list. Defaults to 5.
             n_reco_max (int): Max number of reconnection actions to prioritize. Defaults to 2.
             n_split_max (int): Max number of node splitting actions to prioritize. Defaults to 3.
+            n_pst_max (int): Max number of PST actions to prioritize. Defaults to 2.
 
         Returns:
             Tuple[Dict[str, Any], Dict[str, Dict]]:
@@ -1669,12 +1811,13 @@ class ActionDiscoverer:
                   The results for each category are also stored in instance attributes
                   (e.g., `self.effective_splits`).
                 - action_scores: A dictionary per action type with keys:
-                  ``"line_reconnection"``, ``"line_disconnection"``, ``"open_coupling"``, ``"close_coupling"``.
+                  ``"line_reconnection"``, ``"line_disconnection"``, ``"open_coupling"``, ``"close_coupling"``, ``"pst_tap"``.
                   Each value is a dict with two fields:
                     - ``"scores"``: {action_id: float, ...} sorted by descending score.
                     - ``"params"``: underlying hypotheses/parameters used for scoring.
         """
         self.prioritized_actions = {}
+        # Use n_pst_max as the per-type limit for PST actions in the remaining fill phase
 
         with Timer("Priorization Preparation"):
             name_sub_arr = np.array(self.obs.name_sub)
@@ -1740,6 +1883,11 @@ class ActionDiscoverer:
                 print("\n--- Verifying relevant line disconnections ---")
                 self.find_relevant_disconnections(lines_constrained_names)
 
+        if nodes_blue_path_names or red_loop_paths_names:
+            with Timer("Verifying relevant PST actions"):
+                print("\n--- Verifying relevant PST actions ---")
+                self.find_relevant_pst_actions(nodes_blue_path_names, red_loop_paths_names)
+
         with Timer("Finalizing   Priorization"):
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
             from expert_op4grid_recommender import config
@@ -1749,6 +1897,12 @@ class ActionDiscoverer:
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_merges, n_action_max, n_action_max_per_type=config.MIN_CLOSE_COUPLING
             )
+            # Step 1.3: Add minimum required PST actions
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, getattr(self, 'identified_pst_actions', {}), n_action_max, n_action_max_per_type=config.MIN_PST
+            )
+
+            # Step 1.4: Add minimum required node splitting and line disconnections
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=config.MIN_OPEN_COUPLING
             )
@@ -1769,6 +1923,9 @@ class ActionDiscoverer:
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_disconnections, n_action_max
             )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, getattr(self, 'identified_pst_actions', {}), n_action_max, n_action_max_per_type=n_pst_max
+            )
 
         # Build global action scores dictionary per action type, sorted by descending score
         # Each type contains "scores" (sorted dict) and "params" (underlying hypotheses)
@@ -1788,22 +1945,31 @@ class ActionDiscoverer:
                     out[k] = v
             return out
 
-        self.action_scores = {
+        self.action_scores  = {
             "line_reconnection": {
                 "scores": _round_scores(dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_reconnections),
+                "non_convergence": {},
             },
             "line_disconnection": {
                 "scores": _round_scores(dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_disconnections),
+                "non_convergence": {},
             },
             "open_coupling": {
                 "scores": _round_scores(dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_splits_dict),
+                "non_convergence": {},
             },
             "close_coupling": {
                 "scores": _round_scores(dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_merges),
+                "non_convergence": {},
+            },
+            "pst_tap": {
+                "scores": _round_scores(dict(sorted(getattr(self, 'scores_pst_actions', {}).items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(getattr(self, 'params_pst_actions', {})),
+                "non_convergence": {},
             },
         }
 

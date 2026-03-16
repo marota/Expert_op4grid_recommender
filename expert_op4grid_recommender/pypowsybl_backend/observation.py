@@ -121,6 +121,21 @@ class PypowsyblObservation:
         self._load_q = loads_df['q'].fillna(0.0).values
         self._gen_p = gens_df['p'].fillna(0.0).values
         self._gen_q = gens_df['q'].fillna(0.0).values
+
+        # Connected components and main component load
+        self._n_components = net.get_buses()['connected_component'].nunique()
+        
+        loads_p_bus = net.get_loads()[['p', 'bus_id']]
+        if loads_p_bus.empty:
+            self._main_component_load_mw = 0.0
+        else:
+            buses_comp = net.get_buses()[['connected_component']]
+            load_with_comp = loads_p_bus.merge(buses_comp, left_on='bus_id', right_index=True)
+            if load_with_comp.empty:
+                self._main_component_load_mw = 0.0
+            else:
+                comp_loads = load_with_comp.groupby('connected_component')['p'].sum()
+                self._main_component_load_mw = float(comp_loads.max()) if not comp_loads.empty else 0.0
     
     def _cache_line_arrays(self, reindexed_flows: pd.DataFrame):
         """Cache line current and power arrays for fast property access. OPTIMIZED with reindex."""
@@ -313,6 +328,16 @@ class PypowsyblObservation:
     def name_load(self) -> np.ndarray:
         """Array of load names."""
         return self._network_manager.name_load
+
+    @property
+    def n_components(self) -> int:
+        """Number of connected components (islands) in the network."""
+        return self._n_components
+
+    @property
+    def main_component_load_mw(self) -> float:
+        """Total active power of loads (MW) in the main (largest load) connected component."""
+        return self._main_component_load_mw
     
     @property
     def line_or_to_subid(self) -> np.ndarray:
@@ -842,6 +867,16 @@ class ObservationWithTopologyOverride(PypowsyblObservation):
         return self._base_obs.sub_info
 
     @property
+    def n_components(self) -> int:
+        """Number of connected components (islands) in the network."""
+        return self._n_components
+
+    @property
+    def main_component_load_mw(self) -> float:
+        """Total active power of loads (MW) in the main (largest load) connected component."""
+        return self._main_component_load_mw
+
+    @property
     def a_or(self) -> np.ndarray:
         return self._base_obs.a_or
 
@@ -909,6 +944,7 @@ class PypowsyblAction:
         self.lines_ex_bus = {}
         self.loads_bus = {}
         self.gens_bus = {}
+        self.pst_tap = {}
         self.substations = {}
 
     def apply(self, network_manager: 'NetworkManager'):
@@ -925,6 +961,7 @@ class PypowsyblAction:
         combined.lines_ex_bus = {**self.lines_ex_bus, **other.lines_ex_bus}
         combined.loads_bus = {**self.loads_bus, **other.loads_bus}
         combined.gens_bus = {**self.gens_bus, **other.gens_bus}
+        combined.pst_tap = {**self.pst_tap, **other.pst_tap}
         combined.substations = {**self.substations, **other.substations}
         return combined
 

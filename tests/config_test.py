@@ -80,6 +80,7 @@ MIN_LINE_RECONNECTIONS = 0
 MIN_CLOSE_COUPLING = 0
 MIN_OPEN_COUPLING = 0
 MIN_LINE_DISCONNECTIONS = 0
+MIN_PST = 0
 
 # -------------------
 #  Expert System Parameters

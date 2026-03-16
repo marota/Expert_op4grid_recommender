@@ -180,3 +180,186 @@ def test_validator_verify_action_rules_check(): # Removed fixture injection for 
     assert filter_rule is True, f"Expected filter_rule to be True, but got {filter_rule}"
     assert rule_name == "No line disconnection on dispatch path", f"Expected rule 'No line disconnection on dispatch path', but got {rule_name}"
 
+
+## Section 4: "Action already in target state" filter rule tests ##
+
+def test_validator_filter_set_bus_already_in_target_state():
+    """Test that an action whose set_bus matches current bus assignments is filtered."""
+    # All lines on bus 1, action also targets bus 1 → no-op
+    mock_obs = MockObservation(
+        name_sub=["S0", "S1", "S2"],
+        name_line=["L1", "L2", "L3"],
+        line_or_bus=np.array([1, 1, 1]),
+        line_ex_bus=np.array([1, 1, 1]),
+    )
+    mock_paths = ((["L1"], ["S0"]), (["L2"], ["S1"]))
+    validator = ActionRuleValidator(
+        obs=mock_obs,
+        action_space=MockActionSpace(),
+        classifier=ActionClassifier(MockActionSpace()),
+        hubs=["S0"],
+        paths=mock_paths,
+        by_description=True,
+    )
+
+    # Coupling action that targets bus 1 for L1 origin and extremity — already on bus 1
+    action_desc = {
+        "description_unitaire": "Ouverture COUPL S0",
+        "VoltageLevelId": "S0",
+        "content": {"set_bus": {"lines_or_id": {"L1": 1}, "lines_ex_id": {"L1": 1}}},
+    }
+    do_filter, rule = validator.verify_action(action_desc, [])
+    assert do_filter is True
+    assert rule == "Action already in target state"
+
+
+def test_validator_no_filter_set_bus_different_from_current():
+    """Test that an action whose set_bus differs from current state is NOT filtered by this rule."""
+    # L1 currently on bus 1, action targets bus 2 → real change
+    mock_obs = MockObservation(
+        name_sub=["S0", "S1", "S2"],
+        name_line=["L1", "L2", "L3"],
+        line_or_bus=np.array([1, 1, 1]),
+        line_ex_bus=np.array([1, 1, 1]),
+    )
+    mock_paths = ((["L1"], ["S0"]), (["L2"], ["S1"]))
+    validator = ActionRuleValidator(
+        obs=mock_obs,
+        action_space=MockActionSpace(),
+        classifier=ActionClassifier(MockActionSpace()),
+        hubs=["S0"],
+        paths=mock_paths,
+        by_description=True,
+    )
+
+    # Action targets bus 2 for L1 origin — differs from current bus 1
+    action_desc = {
+        "description_unitaire": "Ouverture COUPL S0",
+        "VoltageLevelId": "S0",
+        "content": {"set_bus": {"lines_or_id": {"L1": 2}, "lines_ex_id": {"L1": 1}}},
+    }
+    do_filter, rule = validator.verify_action(action_desc, [])
+    # Should NOT be filtered by the target-state rule (may be filtered by other rules)
+    assert rule != "Action already in target state"
+
+
+def test_validator_filter_switches_already_in_target_state():
+    """Test that a switch-based action is filtered when switches are already in target state."""
+    mock_obs = MockObservation(
+        name_sub=["S0", "S1", "S2"],
+        name_line=["L1", "L2", "L3"],
+    )
+    mock_paths = ((["L1"], ["S0"]), (["L2"], ["S1"]))
+    validator = ActionRuleValidator(
+        obs=mock_obs,
+        action_space=MockActionSpace(),
+        classifier=ActionClassifier(MockActionSpace()),
+        hubs=["S0"],
+        paths=mock_paths,
+        by_description=True,
+    )
+    # Simulate pypowsybl switch states: switch is already open
+    validator._current_switch_states = {
+        "S0_COUPL_OC": True,  # already open
+    }
+
+    action_desc = {
+        "description_unitaire": "Ouverture COUPL S0",
+        "VoltageLevelId": "S0",
+        "content": {"set_bus": {}},
+        "switches": {"S0_COUPL_OC": True},  # target: open (same as current)
+    }
+    do_filter, rule = validator.verify_action(action_desc, [])
+    assert do_filter is True
+    assert rule == "Action already in target state"
+
+
+def test_validator_no_filter_switches_different_from_current():
+    """Test that a switch-based action is NOT filtered when switch state differs."""
+    mock_obs = MockObservation(
+        name_sub=["S0", "S1", "S2"],
+        name_line=["L1", "L2", "L3"],
+    )
+    mock_paths = ((["L1"], ["S0"]), (["L2"], ["S1"]))
+    validator = ActionRuleValidator(
+        obs=mock_obs,
+        action_space=MockActionSpace(),
+        classifier=ActionClassifier(MockActionSpace()),
+        hubs=["S0"],
+        paths=mock_paths,
+        by_description=True,
+    )
+    # Switch is currently closed, action targets open → real change
+    validator._current_switch_states = {
+        "S0_COUPL_OC": False,  # currently closed
+    }
+
+    action_desc = {
+        "description_unitaire": "Ouverture COUPL S0",
+        "VoltageLevelId": "S0",
+        "content": {"set_bus": {}},
+        "switches": {"S0_COUPL_OC": True},  # target: open (differs from current)
+    }
+    do_filter, rule = validator.verify_action(action_desc, [])
+    # Should NOT be filtered by the target-state rule
+    assert rule != "Action already in target state"
+
+
+def test_validator_filter_switches_with_prefix_stripping():
+    """Test that switch ID prefix stripping works for matching."""
+    mock_obs = MockObservation(
+        name_sub=["S0", "S1", "S2"],
+        name_line=["L1", "L2", "L3"],
+    )
+    mock_paths = ((["L1"], ["S0"]), (["L2"], ["S1"]))
+    validator = ActionRuleValidator(
+        obs=mock_obs,
+        action_space=MockActionSpace(),
+        classifier=ActionClassifier(MockActionSpace()),
+        hubs=["S0"],
+        paths=mock_paths,
+        by_description=True,
+    )
+    # Network has switch without prefix; action references it with prefix
+    validator._current_switch_states = {
+        "COUPL_OC": True,  # already open (no prefix)
+    }
+
+    action_desc = {
+        "description_unitaire": "Ouverture COUPL S0",
+        "VoltageLevelId": "S0",
+        "content": {"set_bus": {}},
+        "switches": {"S0_COUPL_OC": True},  # prefix "S0_" stripped → matches "COUPL_OC"
+    }
+    do_filter, rule = validator.verify_action(action_desc, [])
+    assert do_filter is True
+    assert rule == "Action already in target state"
+
+
+def test_validator_filter_substations_id_already_in_target():
+    """Test that a substations_id topology action matching current topo is filtered."""
+    mock_obs = MockObservation(
+        name_sub=["S0", "S1"],
+        name_line=["L1", "L2"],
+        sub_topologies={0: np.array([1, 1, 1]), 1: np.array([1, 1])},
+    )
+    mock_paths = ((["L1"], ["S0"]), (["L2"], ["S1"]))
+    validator = ActionRuleValidator(
+        obs=mock_obs,
+        action_space=MockActionSpace(),
+        classifier=ActionClassifier(MockActionSpace()),
+        hubs=["S0"],
+        paths=mock_paths,
+        by_description=True,
+    )
+
+    # Action targets the same topology already present at S0
+    action_desc = {
+        "description_unitaire": "Fermeture COUPL S0",
+        "VoltageLevelId": "S0",
+        "content": {"set_bus": {"substations_id": [(0, [1, 1, 1])]}},
+    }
+    do_filter, rule = validator.verify_action(action_desc, [np.array([1, 1, 1])])
+    assert do_filter is True
+    assert rule == "Action already in target state"
+
