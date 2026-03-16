@@ -140,6 +140,23 @@ class TestLazyActionDict:
         assert content["set_bus"]["loads_id"] == {}
         assert content["set_bus"]["generators_id"] == {}
 
+    def test_reco_action_from_action_id(self):
+        """reco_* actions should derive content (status 1) from action ID."""
+        from expert_op4grid_recommender.data_loader import LazyActionDict
+
+        lazy = LazyActionDict(
+            {"description_unitaire": "Fermeture de la ligne 'BOISSL61GEN.P'"},
+            topology_cache=MagicMock(),
+            action_id="reco_BOISSL61GEN.P"
+        )
+
+        content = lazy["content"]
+
+        assert content["set_bus"]["lines_or_id"] == {"BOISSL61GEN.P": 1}
+        assert content["set_bus"]["lines_ex_id"] == {"BOISSL61GEN.P": 1}
+        assert content["set_bus"]["loads_id"] == {}
+        assert content["set_bus"]["generators_id"] == {}
+
     def test_disco_action_from_description(self):
         """disco actions should fall back to description if action_id has no disco_ prefix."""
         from expert_op4grid_recommender.data_loader import LazyActionDict

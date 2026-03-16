@@ -159,16 +159,19 @@ def test_compute_pair_in_range_betas_no_error():
     """When betas are within [-2, 3], the result should be valid (no error)."""
     obs_start = MagicMock()
     obs_start.p_or = np.array([100.0, 50.0])
+    obs_start.p_ex = np.array([-100.0, -50.0])
     obs_start.rho = np.array([0.8, 0.5])
     obs_start.line_status = np.array([True, False])
 
     obs_act1 = MagicMock()
     obs_act1.p_or = np.array([80.0, 50.0])
+    obs_act1.p_ex = np.array([-80.0, -50.0])
     obs_act1.rho = np.array([0.7, 0.5])
     obs_act1.line_status = np.array([False, False])
 
     obs_act2 = MagicMock()
     obs_act2.p_or = np.array([100.0, 60.0])
+    obs_act2.p_ex = np.array([-100.0, -60.0])
     obs_act2.rho = np.array([0.8, 0.6])
     obs_act2.line_status = np.array([True, True])
 

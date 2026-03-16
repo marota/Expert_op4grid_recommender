@@ -64,12 +64,22 @@ class TestDiverseActionTypeSuperposition(unittest.TestCase):
     def _assert_superposition_accuracy(self, obs_target, result):
         """Assert that the superposition result matches the target observation."""
         self.assertNotIn("error", result, f"Superposition returned error: {result.get('error')}")
+
         self.assertIn("p_or_combined", result)
         p_computed = np.array(result["p_or_combined"])
         max_diff = np.max(np.abs(obs_target.p_or - p_computed))
         self.assertLessEqual(
             max_diff, self.tol,
             f"max |p_or_target - p_or_computed| = {max_diff:.2e} > tol {self.tol:.2e}"
+        )
+
+        # p_ex is also linear in angles and must superpose with the same accuracy
+        self.assertIn("p_ex_combined", result)
+        p_ex_computed = np.array(result["p_ex_combined"])
+        max_diff_ex = np.max(np.abs(obs_target.p_ex - p_ex_computed))
+        self.assertLessEqual(
+            max_diff_ex, self.tol,
+            f"max |p_ex_target - p_ex_computed| = {max_diff_ex:.2e} > tol {self.tol:.2e}"
         )
 
     # =========================================================================

@@ -20,8 +20,9 @@ DELETED_LINE_NAME = EXOP_DELETED_LINE_NAME
 
 logger = logging.getLogger(__name__)
 
-# Regex to extract line name from disco action descriptions
+# Regex to extract line name from action descriptions
 _DISCO_LINE_RE = re.compile(r"ligne\s+'([^']+)'")
+_RECO_LINE_RE = re.compile(r"ligne\s+'([^']+)'")
 
 
 def _diff_set_bus(initial: dict, final: dict) -> dict:
@@ -56,23 +57,26 @@ def _diff_set_bus(initial: dict, final: dict) -> dict:
     return result
 
 
-def _build_disco_content(action_id: str, action_data: dict) -> dict:
-    """Build content for a ``disco_*`` line disconnection action.
+def _build_line_action_content(action_id: str, action_data: dict, status: int = -1) -> dict:
+    """Build content for a line disconnection or reconnection action.
 
-    Extracts the line name from either the action ID (``disco_<LINE>``) or
-    from the ``description_unitaire`` field, and returns the trivial
-    disconnection content.
+    Extracts the line name from either the action ID (``disco_<LINE>`` or ``reco_<LINE>``) 
+    or from the ``description_unitaire`` field, and returns the trivial
+    connection/disconnection content.
     """
     line_name = None
 
     # Try extracting from action ID first (most reliable)
     if action_id.startswith("disco_"):
         line_name = action_id[len("disco_"):]
+    elif action_id.startswith("reco_"):
+        line_name = action_id[len("reco_"):]
 
     # Fallback: extract from description
     if not line_name:
         desc = action_data.get("description_unitaire", action_data.get("description", ""))
-        m = _DISCO_LINE_RE.search(desc)
+        regex = _RECO_LINE_RE if status == 1 else _DISCO_LINE_RE
+        m = regex.search(desc)
         if m:
             line_name = m.group(1)
 
@@ -81,8 +85,8 @@ def _build_disco_content(action_id: str, action_data: dict) -> dict:
 
     return {
         "set_bus": {
-            "lines_or_id": {line_name: -1},
-            "lines_ex_id": {line_name: -1},
+            "lines_or_id": {line_name: status},
+            "lines_ex_id": {line_name: status},
             "loads_id": {},
             "generators_id": {},
         }
@@ -114,9 +118,10 @@ class LazyActionDict(dict):
 
         switches = super().get("switches")
 
-        # disco_* actions: no switches, derive content from action ID / description
+        # Line actions without switches (disco_* or reco_*)
         if not switches:
-            content = _build_disco_content(self._action_id, dict(self))
+            status = 1 if self._action_id.startswith("reco_") else -1
+            content = _build_line_action_content(self._action_id, dict(self), status=status)
             super().__setitem__("content", content)
             return
 
