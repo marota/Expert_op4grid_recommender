@@ -36,17 +36,6 @@ def test_compute_all_pairs_superposition_simplified_dict():
     obs_act2.rho = np.array([1.0, 0.5, 0.5])
     obs_act2.p_or = np.array([90.0, 50.0, 50.0])
 
-    obs_start.p_ex = np.array([-100.0, -50.0, -50.0])
-    # Per-extremity current and limit data for _estimate_rho_from_p
-    obs_start.a_or = np.array([110.0, 50.0, 50.0])
-    obs_start.a_ex = np.array([110.0, 50.0, 50.0])
-    limit_or_mock = MagicMock()
-    limit_or_mock.values = np.array([100.0, 100.0, 100.0])
-    limit_ex_mock = MagicMock()
-    limit_ex_mock.values = np.array([100.0, 100.0, 100.0])
-    obs_start._limit_or = limit_or_mock
-    obs_start._limit_ex = limit_ex_mock
-
     detailed_actions = {
         aid1: {
             "action": MagicMock(),
@@ -77,7 +66,7 @@ def test_compute_all_pairs_superposition_simplified_dict():
     try:
         superposition._identify_action_elements = MagicMock(side_effect=mock_identify)
         # Mock compute_combined_pair_superposition to avoid real linear solving.
-        # Must include p_ex_combined so use_p_based_rho=True (default) can use it.
+        # Include p_ex_combined for completeness (needed when use_p_based_rho=True).
         superposition.compute_combined_pair_superposition = MagicMock(return_value={
             "betas": [0.5, 0.5],
             "p_or_combined": [80.0, 50.0, 50.0],
