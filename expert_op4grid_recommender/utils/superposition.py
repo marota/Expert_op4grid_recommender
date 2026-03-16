@@ -246,7 +246,7 @@ def get_betas_coeff(delta_theta_unit_acts, delta_theta_start,
     b = np.ones(n)
     try:
         betas = np.linalg.solve(a, b)
-        
+
     except (np.linalg.LinAlgError, ValueError):
         # Singular matrix or other math error — can't solve
         print("[Superposition] Warning: could not solve linear system for betas. Falling back to [1.0, 1.0].")
@@ -303,7 +303,7 @@ def _identify_action_elements(action, action_id: str, dict_action: dict,
     if "line" in action_type:
         # Line action: find which line(s) are affected
         affected_lines = set()
-        
+
         # Check explicit attributes in action object
         for field in ('lines_or_bus', 'lines_ex_bus'):
             val = getattr(action, field, None)
@@ -315,7 +315,7 @@ def _identify_action_elements(action, action_id: str, dict_action: dict,
              for i, set_val in enumerate(action.line_set_status):
                  if set_val != 0:
                      affected_lines.add(name_line[i])
-        
+
         # Also check for prefixes if still empty
         if not affected_lines:
             if "reco_" in action_id:
@@ -341,7 +341,7 @@ def _identify_action_elements(action, action_id: str, dict_action: dict,
         pst_tap = action_desc.get("pst_tap", {})
         if pst_tap:
             affected_lines.update(pst_tap.keys())
-        
+
         # Fallback to ElementId if it's there
         resid = action_desc.get("ElementId")
         if resid:
@@ -353,7 +353,7 @@ def _identify_action_elements(action, action_id: str, dict_action: dict,
                 affected_lines.add(action_id[len("pst_tap_"):])
             elif "pst_" in action_id:
                 affected_lines.add(action_id[len("pst_"):])
-             
+
         for line_name in affected_lines:
             if line_name in name_line:
                 line_indices.append(name_line.index(line_name))
@@ -361,11 +361,11 @@ def _identify_action_elements(action, action_id: str, dict_action: dict,
     if "coupling" in action_type or "node_merging" in action_id or not line_indices:
         # Substation topology action: find which substation(s) are affected
         affected_subs = set()
-        
+
         vl_id = action_desc.get("VoltageLevelId")
         if vl_id:
             affected_subs.add(vl_id)
-        
+
         # Check action's substations field
         if hasattr(action, 'substations') and action.substations:
             affected_subs.update(action.substations.keys())
@@ -386,6 +386,95 @@ def _identify_action_elements(action, action_id: str, dict_action: dict,
                 sub_indices.append(name_sub.index(sub_name))
 
     return line_indices, sub_indices
+
+
+# =============================================================================
+# Rho estimation from superposed active power
+# =============================================================================
+
+def _estimate_rho_from_p(p_or_combined, p_ex_combined, obs_start):
+    """Estimate rho (loading) from superposed active power flows.
+
+    Instead of superposing rho directly (which introduces bias from the
+    max() convexity and reactive power non-superposition), this function:
+    1. Computes rho/|P| conversion factors from obs_start for each extremity
+    2. Applies them to the superposed P to get rho at each extremity
+    3. Takes max(rho_or, rho_ex) per line
+
+    The assumption is that cos(phi) and V don't change drastically between
+    obs_start and the combined state, which is much weaker than assuming
+    rho itself superposes linearly.
+
+    Args:
+        p_or_combined: Superposed active power at origin (MW), array
+        p_ex_combined: Superposed active power at extremity (MW), array
+        obs_start: Base observation (for rho and p_or/p_ex reference values)
+
+    Returns:
+        rho_combined: Estimated loading array per line
+    """
+    from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
+
+    p_or_start = obs_start.p_or
+    p_ex_start = obs_start.p_ex
+    rho_start = obs_start.rho  # already max(rho_or, rho_ex) if configured
+
+    # We need per-extremity rho from obs_start. The observation stores
+    # rho = max(rho_or, rho_ex) when MAX_RHO_BOTH_EXTREMITIES=True, but
+    # we need the individual rho_or and rho_ex.
+    # Use current arrays if available, otherwise fall back to rho-based estimate.
+    has_current_data = hasattr(obs_start, 'a_or') and hasattr(obs_start, 'a_ex')
+    has_limit_data = hasattr(obs_start, '_limit_or') and hasattr(obs_start, '_limit_ex')
+
+    if has_current_data and has_limit_data:
+        # Best path: use actual current and limits to get per-extremity rho
+        i_or = np.abs(obs_start.a_or)
+        i_ex = np.abs(obs_start.a_ex)
+        limit_or = obs_start._limit_or.values
+        limit_ex = obs_start._limit_ex.values
+        limit_or = np.where(limit_or < 1e-6, 1e-6, limit_or)
+        limit_ex = np.where(limit_ex < 1e-6, 1e-6, limit_ex)
+        rho_or_start = i_or / limit_or
+        rho_ex_start = i_ex / limit_ex
+    else:
+        # Fallback: use rho for both extremities (same as before for origin-only)
+        rho_or_start = rho_start
+        rho_ex_start = rho_start
+
+    # Compute conversion factors: rho / |P| for each extremity.
+    # This factor encapsulates cos(phi), V, and I_max in one ratio.
+    # For lines with near-zero P (lightly loaded or disconnected), the factor
+    # is unreliable — fall back to direct rho superposition for those lines.
+    p_threshold = 0.1  # MW — below this, P is too small for a reliable ratio
+
+    abs_p_or_start = np.abs(p_or_start)
+    abs_p_ex_start = np.abs(p_ex_start)
+
+    # Origin extremity: rho_or = |P_or_combined| * (rho_or_start / |P_or_start|)
+    safe_or = abs_p_or_start > p_threshold
+    factor_or = np.where(safe_or, rho_or_start / abs_p_or_start, 0.0)
+    rho_or_est = np.abs(p_or_combined) * factor_or
+
+    # Extremity side: rho_ex = |P_ex_combined| * (rho_ex_start / |P_ex_start|)
+    safe_ex = abs_p_ex_start > p_threshold
+    factor_ex = np.where(safe_ex, rho_ex_start / abs_p_ex_start, 0.0)
+    rho_ex_est = np.abs(p_ex_combined) * factor_ex
+
+    if MAX_RHO_BOTH_EXTREMITIES:
+        rho_combined = np.maximum(rho_or_est, rho_ex_est)
+    else:
+        rho_combined = rho_or_est
+
+    # For lines where both factors were unreliable (both |P| < threshold),
+    # fall back to direct rho superposition as a last resort.
+    # This only affects lines with negligible flow, which won't be the
+    # max_rho line anyway.
+    both_unreliable = ~safe_or & ~safe_ex
+    if np.any(both_unreliable):
+        # These lines have near-zero flow — rho is essentially 0
+        rho_combined[both_unreliable] = 0.0
+
+    return rho_combined
 
 
 # =============================================================================
@@ -414,7 +503,7 @@ def compute_combined_pair_superposition(
         act2_sub_idxs: Sub indices involved in action 2
 
     Returns:
-        Dict with betas, p_or_combined, rho_combined
+        Dict with betas, p_or_combined, p_ex_combined, rho_combined
     """
     # Total number of elements must equal 2 (one per action)
     n_elements_act1 = len(act1_line_idxs) + len(act1_sub_idxs)
@@ -440,47 +529,30 @@ def compute_combined_pair_superposition(
     unit_act_observations = [obs_act1, obs_act2]
 
     # ---- Determine per-action element type and index ----
-    # act1_is_line: True if act1's characteristic element is a line, False if sub.
-    # Element ordering in all feature arrays must match action ordering in
-    # unit_act_observations (index 0 = act1, index 1 = act2) so that the
-    # diagonal A[i][i] = 1 in get_betas_coeff correctly marks element i as
-    # "owned by" action i.  We therefore place act1's element at position 0
-    # and act2's element at position 1, regardless of their types.
     act1_is_line = len(act1_line_idxs) > 0
     act2_is_line = len(act2_line_idxs) > 0
 
     # ---- Build p_or and delta_theta arrays, one value per action ----
-    # For each action i (0 or 1) and each observation j (0 or 1), compute the
-    # feature value for action i's characteristic element observed in obs j.
-
     def _line_features(obs, line_idx):
         """Return (p_or, delta_theta) for a line element in a given obs."""
         return obs.p_or[line_idx], get_delta_theta_line(obs, line_idx)
 
     def _sub_features(obs, sub_idx, ind_sub, is_ref, action_applied):
-        """Return (p_or_virtual, delta_theta_virtual) for a sub element.
-
-        action_applied: True when the sub's own topology action is active in obs.
-        is_ref: True when the sub is in single-bus reference topology at start.
-        """
+        """Return (p_or_virtual, delta_theta_virtual) for a sub element."""
         if action_applied:
             if is_ref:
-                # Node splitting applied → virtual line was cut → p_or = 0
                 return 0.0, get_delta_theta_sub_2nodes(obs, sub_idx)
             else:
-                # Node merging applied → buses merged → delta_theta = 0
                 (il, ip, ilor, ilex) = ind_sub
                 return get_virtual_line_flow(obs, il, ip, ilor, ilex), 0.0
         else:
             if is_ref:
-                # Sub still in reference (single-bus) topology → delta_theta = 0
                 (il, ip, ilor, ilex) = ind_sub
                 return get_virtual_line_flow(obs, il, ip, ilor, ilex), 0.0
             else:
-                # Sub still split → virtual line still cut → p_or = 0
                 return 0.0, get_delta_theta_sub_2nodes(obs, sub_idx)
 
-    # Pre-compute node-1 element lists for sub actions (needed by _sub_features)
+    # Pre-compute node-1 element lists for sub actions
     ind_sub_act1 = None
     is_start_ref_act1 = None
     if not act1_is_line:
@@ -501,15 +573,11 @@ def compute_combined_pair_superposition(
         else:
             ind_sub_act2 = get_sub_node1_idsflow(obs_start, sid2)
 
-    # p_or_unit_act[obs_j][element_i]:
-    #   outer index j iterates over observations (unit_act_observations),
-    #   inner index i iterates over elements in action order [act1_elem, act2_elem].
     p_or_unit_act_list = []
     delta_theta_unit_act_list = []
     for j, obs in enumerate(unit_act_observations):
         row_p = []
         row_dt = []
-        # Element 0: act1's characteristic element
         if act1_is_line:
             p, dt = _line_features(obs, act1_line_idxs[0])
         else:
@@ -517,7 +585,6 @@ def compute_combined_pair_superposition(
                                    is_start_ref_act1, action_applied=(j == 0))
         row_p.append(p)
         row_dt.append(dt)
-        # Element 1: act2's characteristic element
         if act2_is_line:
             p, dt = _line_features(obs, act2_line_idxs[0])
         else:
@@ -554,8 +621,6 @@ def compute_combined_pair_superposition(
     p_or_start = np.array(p_or_start_list)
     delta_theta_start = np.array(delta_theta_start_list)
 
-    # idls is only used by get_betas_coeff to determine n; order matches
-    # action order: [act1_element, act2_element].
     if act1_is_line:
         idls = [act1_line_idxs[0]]
     else:
@@ -566,17 +631,8 @@ def compute_combined_pair_superposition(
         idls.append(act2_sub_idxs[0])
 
     # ---- No-op detection ----
-    # If an action has no effect on the grid topology/state, the off-diagonal
-    # column for that action in the A-matrix collapses to zero, forcing the
-    # other beta to 1 regardless of the pair partner.
-    #
-    # For line actions: use line_status (topology) directly — this is robust
-    # even for lines with near-zero flow (lightly loaded but connected lines).
-    #
-    # For sub actions: use delta_theta between the two buses as the indicator
-    # of whether the topology actually changed (split/merge happened).
-    noop_dt_threshold = 1e-6   # radians — below this, angles are indistinguishable
-    noop_rel_tol = 0.01        # 1% relative change required to be "not a no-op"
+    noop_dt_threshold = 1e-6
+    noop_rel_tol = 0.01
 
     unit_act_obs = [obs_act1, obs_act2]
     for act_idx, (act_is_line, line_idxs, sub_idxs, ind_sub, is_ref) in enumerate([
@@ -586,32 +642,20 @@ def compute_combined_pair_superposition(
         obs_act_n = unit_act_obs[act_idx]
 
         if act_is_line:
-            # For a line action, check whether the connection status changed.
-            # This is topology-based and works regardless of the flow magnitude
-            # (handles lightly-loaded lines correctly, unlike a flow threshold).
             line_idx = line_idxs[0]
             status_start = bool(obs_start.line_status[line_idx])
             status_after = bool(obs_act_n.line_status[line_idx])
             changed = (status_start != status_after)
         else:
-            # For a sub action, check whether the substation topology actually
-            # changed. Use delta_theta between the two buses as the indicator:
-            # - reference topology (single bus): delta_theta = 0 always
-            # - split topology (two buses): delta_theta ≠ 0
-            # If is_ref=True (start is single-bus), the action should have split it
-            # (making delta_theta non-zero in obs_act_n).
-            # If is_ref=False (start is already split), the action should merge it
-            # (making delta_theta ≈ 0 in obs_act_n).
             sub_idx = sub_idxs[0]
             dt_start = delta_theta_start_list[act_idx]
             dt_own = delta_theta_unit_act_list[act_idx][act_idx]
             if abs(dt_start) > noop_dt_threshold:
                 changed = abs(dt_own - dt_start) / abs(dt_start) > noop_rel_tol
             elif abs(dt_own) > noop_dt_threshold:
-                # dt_start was zero (single-bus) but dt_own is non-zero: split happened
                 changed = True
             else:
-                changed = False  # Both near-zero — no topology change
+                changed = False
 
         if not changed:
             act_name = f"action{act_idx + 1}"
@@ -635,23 +679,6 @@ def compute_combined_pair_superposition(
         return {"error": "Singular system — cannot compute betas", "betas": betas.tolist()}
 
     # ---- Sanity check on betas ----
-    # If any individual beta is outside a physically reasonable range, the
-    # superposition theorem has broken down for this pair.  This happens when
-    # the two actions are strongly electrically coupled — applying one action
-    # dramatically shifts the characteristic feature (p_or or delta_theta) of
-    # the other action's element, making the A-matrix off-diagonal entries
-    # blow up and the solved betas become extreme.
-    #
-    # Physical reasoning:
-    #   beta_i represents "how much of action i's effect survives in the combined
-    #   state".  Values in [0, 1] are normal; mildly outside this range can occur
-    #   for pairs with significant electrical coupling.  However, values outside
-    #   [-2, 3] indicate the A-matrix is ill-conditioned and the result is
-    #   numerically unreliable (e.g. betas like [0.89, -4.25]).
-    #
-    # NOTE: sum(betas) > 2 is NOT a reliable indicator — valid pairs with strong
-    # mutual coupling can legitimately produce sums above 2 (e.g. [1.06, 0.98])
-    # while still passing the accuracy test within tolerance.
     BETA_MIN = -2.0
     BETA_MAX = 3.0
     if np.any(betas < BETA_MIN) or np.any(betas > BETA_MAX):
@@ -664,10 +691,19 @@ def compute_combined_pair_superposition(
             "betas": betas.tolist(),
         }
 
-    # ---- Compute combined p_or ----
-    p_or_combined = (1.0 - np.sum(betas)) * obs_start.p_or
+    # ---- Compute combined p_or AND p_ex ----
+    # Both p_or and p_ex obey the superposition theorem (both are linear in
+    # voltage angles in the DC approximation). Computing them separately and
+    # then deriving rho from each avoids the max() convexity bias and the
+    # reactive power non-superposition bias.
+    beta_sum = np.sum(betas)
+    w_start = 1.0 - beta_sum
+
+    p_or_combined = w_start * obs_start.p_or
+    p_ex_combined = w_start * obs_start.p_ex
     for i in range(2):
         p_or_combined = p_or_combined + betas[i] * unit_act_observations[i].p_or
+        p_ex_combined = p_ex_combined + betas[i] * unit_act_observations[i].p_ex
 
     # ---- Islanding detection (if obs_combined is provided) ----
     is_islanded = False
@@ -681,6 +717,7 @@ def compute_combined_pair_superposition(
     return {
         "betas": betas.tolist(),
         "p_or_combined": p_or_combined.tolist(),
+        "p_ex_combined": p_ex_combined.tolist(),
         "is_islanded": is_islanded,
         "disconnected_mw": disconnected_mw,
     }
@@ -699,6 +736,7 @@ def compute_all_pairs_superposition(
         lines_we_care_about,
         pre_existing_rho: Dict[int, float],
         dict_action: Optional[Dict] = None,
+        use_p_based_rho: bool = True,
 ) -> Dict[str, Dict]:
     """Compute superposition theorem for all pairs of converged prioritized actions.
 
@@ -711,6 +749,10 @@ def compute_all_pairs_superposition(
         lines_we_care_about: Set/list of line names we monitor
         pre_existing_rho: Dict of line_idx -> pre-existing rho values
         dict_action: Full action dictionary (for action type classification)
+        use_p_based_rho: If True (default), derive rho from superposed p_or/p_ex
+            using per-line power-factor ratios — eliminates the max() convexity
+            bias and reduces reactive power non-superposition bias. If False, use
+            the lighter but more approximate direct superposition of rho arrays.
 
     Returns:
         Dict of "action1_id+action2_id" -> result dict with betas, p_or_combined,
@@ -795,19 +837,25 @@ def compute_all_pairs_superposition(
             results[f"{aid1}+{aid2}"] = result
             continue
 
-        # Compute combined rho and max_rho
-        # p_or_combined = np.array(result["p_or_combined"])
-
-        # Approximate rho from p_or: rho ≈ |p_or| / (sqrt(3) * V * I_max)
-        # Since p_or = sqrt(3) * V * I * cos(φ) and I_max is what we stored,
-        # and rho = I / I_max, a more direct approach is:
-        # rho_combined ≈ |p_or_combined / p_or_start| * rho_start for each line
-        # But safer: we compute rho ratio from the linear combination of rho arrays
-        rho_combined = np.abs(
-            (1.0 - sum(result["betas"])) * obs_start.rho +
-            result["betas"][0] * obs_act1.rho +
-            result["betas"][1] * obs_act2.rho
-        )
+        # ---- Compute combined rho ----
+        if use_p_based_rho:
+            # Accurate method: derive rho from superposed p_or/p_ex using
+            # per-line power-factor ratios from obs_start. Eliminates the
+            # max() convexity bias (E1) and reduces reactive power bias (E2).
+            p_or_combined = np.array(result["p_or_combined"])
+            p_ex_combined = np.array(result["p_ex_combined"])
+            rho_combined = _estimate_rho_from_p(
+                p_or_combined, p_ex_combined, obs_start
+            )
+        else:
+            # Approximate method: superpose rho arrays directly.
+            # Lighter but biased: ignores per-extremity asymmetry and
+            # the non-linearity introduced by the max() in rho computation.
+            rho_combined = np.abs(
+                (1.0 - sum(result["betas"])) * obs_start.rho +
+                result["betas"][0] * obs_act1.rho +
+                result["betas"][1] * obs_act2.rho
+            )
 
         # Rho on overloaded lines
         rho_after = rho_combined[lines_overloaded_ids]
@@ -824,7 +872,7 @@ def compute_all_pairs_superposition(
             max_idx = np.argmax(masked_rho)
             max_rho = float(masked_rho[max_idx])
             max_rho_line = name_line[np.where(eligible_mask)[0][max_idx]]
-        
+
         # Islanding and disconnected MW
         is_islanded = result.get("is_islanded", False)
         disconnected_mw = result.get("disconnected_mw", 0.0)
