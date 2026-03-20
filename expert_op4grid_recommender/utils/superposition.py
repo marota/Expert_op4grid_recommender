@@ -592,6 +592,8 @@ def compute_combined_pair_superposition(
         act2_line_idxs: List[int],
         act2_sub_idxs: List[int],
         obs_combined: Optional[Any] = None,
+        act1_is_pst: bool = False,
+        act2_is_pst: bool = False,
 ) -> Dict[str, Any]:
     """Compute the superposition theorem for a pair of unitary actions.
 
@@ -603,6 +605,9 @@ def compute_combined_pair_superposition(
         act1_sub_idxs: Sub indices involved in action 1
         act2_line_idxs: Line indices involved in action 2
         act2_sub_idxs: Sub indices involved in action 2
+        obs_combined: Optional actual combined observation (for islanding detection)
+        act1_is_pst: True if action 1 is a phase shifter tap change
+        act2_is_pst: True if action 2 is a phase shifter tap change
 
     Returns:
         Dict with betas, p_or_combined, p_ex_combined, rho_combined
@@ -735,7 +740,9 @@ def compute_combined_pair_superposition(
     # ---- No-op detection ----
     noop_dt_threshold = 1e-6
     noop_rel_tol = 0.01
+    noop_p_threshold = 0.1  # MW — for PST actions where status doesn't change
 
+    act_is_pst_flags = [act1_is_pst, act2_is_pst]
     unit_act_obs = [obs_act1, obs_act2]
     for act_idx, (act_is_line, line_idxs, sub_idxs, ind_sub, is_ref) in enumerate([
         (act1_is_line, act1_line_idxs, act1_sub_idxs, ind_sub_act1, is_start_ref_act1),
@@ -745,9 +752,15 @@ def compute_combined_pair_superposition(
 
         if act_is_line:
             line_idx = line_idxs[0]
-            status_start = bool(obs_start.line_status[line_idx])
-            status_after = bool(obs_act_n.line_status[line_idx])
-            changed = (status_start != status_after)
+            if act_is_pst_flags[act_idx]:
+                # PST tap change: line stays connected, check flow change instead
+                p_start = obs_start.p_or[line_idx]
+                p_after = obs_act_n.p_or[line_idx]
+                changed = abs(p_after - p_start) > noop_p_threshold
+            else:
+                status_start = bool(obs_start.line_status[line_idx])
+                status_after = bool(obs_act_n.line_status[line_idx])
+                changed = (status_start != status_after)
         else:
             sub_idx = sub_idxs[0]
             dt_start = delta_theta_start_list[act_idx]
@@ -879,14 +892,23 @@ def compute_all_pairs_superposition(
           f"{len(converged_ids) - 1} / 2 = "
           f"{len(converged_ids) * (len(converged_ids) - 1) // 2} pairs")
 
-    # Pre-compute element indices for each action
+    # Pre-compute element indices and PST flags for each action
     action_elements = {}
+    action_is_pst = {}
     for aid in converged_ids:
         action_obj = detailed_actions[aid]["action"]
         line_idxs, sub_idxs = _identify_action_elements(
             action_obj, aid, dict_action, classifier, env
         )
         action_elements[aid] = (line_idxs, sub_idxs)
+        # Detect PST actions by ID prefix or action description type
+        action_desc = dict_action.get(aid, {})
+        action_type = classifier.identify_action_type(action_desc, by_description=True)
+        action_is_pst[aid] = (
+            action_type == "pst"
+            or "pst_tap" in aid
+            or "pst_" in aid
+        )
 
     # Monitoring setup for max_rho computation
     from expert_op4grid_recommender import config
@@ -930,6 +952,8 @@ def compute_all_pairs_superposition(
                 act1_sub_idxs=sub_idxs1,
                 act2_line_idxs=line_idxs2,
                 act2_sub_idxs=sub_idxs2,
+                act1_is_pst=action_is_pst.get(aid1, False),
+                act2_is_pst=action_is_pst.get(aid2, False),
             )
         except Exception as e:
             print(f"[Superposition] Error computing pair {aid1}+{aid2}: {e}")

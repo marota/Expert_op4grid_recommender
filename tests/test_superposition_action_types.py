@@ -778,5 +778,265 @@ class TestDiverseActionTypeSuperposition(unittest.TestCase):
         self.assertIn("No-op", result_rev["error"])
 
 
+    # =========================================================================
+    # PST (Phase Shifter Transformer) action tests
+    #
+    # PST tap changes keep the line connected but change flow on it.
+    # The superposition module treats PSTs as line elements (using p_or).
+    # The key difference from line dis/reconnection: no-op detection must
+    # use flow change instead of status change.
+    #
+    # We simulate PST-like effects using topology actions that change flow
+    # on a target line without disconnecting it.
+    # =========================================================================
+
+    def _make_pst_like_obs(self, obs_start, target_line_idx):
+        """Create an observation that looks like a PST tap change on target_line_idx.
+
+        Uses a topology action at a substation connected to the target line
+        to change flow on it without disconnecting it (mimicking a tap change).
+        Returns (obs_pst_like, split_sub_id) where split_sub_id is the
+        substation that was split.
+        """
+        # Find a substation connected to the target line
+        sub_or = obs_start.line_or_to_subid[target_line_idx]
+        sub_ex = obs_start.line_ex_to_subid[target_line_idx]
+
+        # Use sub 5 topology split — it changes flows on line 3 without disconnecting it
+        act_split = self.env.action_space(
+            {"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}}
+        )
+        obs_split = obs_start.simulate(act_split, time_step=0)[0]
+
+        # Verify the target line is still connected
+        assert obs_split.line_status[target_line_idx], \
+            f"Line {target_line_idx} should remain connected after topology change"
+
+        return obs_split
+
+    def test_pst_line_disconnection_pipeline_runs(self):
+        """PST tap change (act1) + line disconnection (act2): pipeline runs without error.
+
+        We simulate PST-like effects using topology changes. Since topology
+        changes affect all elements at a substation (not just one branch like a
+        real PST tap), we cannot assert exact accuracy against obs_target.
+        Instead we verify the code path completes and produces valid output.
+        """
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_pst_line = 3  # line acting as PST branch
+        id_disco = 7     # line to disconnect
+
+        obs_start, *_ = self.env.step(self.env.action_space())
+
+        # Simulate PST effect: topology change that alters flow on line 3
+        act_split = self.env.action_space(
+            {"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}}
+        )
+        act_disco = self.env.action_space({"set_line_status": [(id_disco, -1)]})
+
+        obs_pst = obs_start.simulate(act_split, time_step=0)[0]
+        obs_disco = obs_start.simulate(act_disco, time_step=0)[0]
+
+        # Verify PST-like behavior: line stays connected, flow changed
+        self.assertTrue(obs_pst.line_status[id_pst_line])
+        self.assertNotAlmostEqual(
+            float(obs_pst.p_or[id_pst_line]),
+            float(obs_start.p_or[id_pst_line]),
+            places=0,
+            msg="PST-like action should change flow on the branch"
+        )
+
+        result = compute_combined_pair_superposition(
+            obs_start, obs_pst, obs_disco,
+            act1_line_idxs=[id_pst_line], act1_sub_idxs=[],
+            act2_line_idxs=[id_disco], act2_sub_idxs=[],
+            act1_is_pst=True,
+        )
+        # Pipeline should complete without error
+        self.assertNotIn("error", result, f"Pipeline should not error: {result.get('error')}")
+        self.assertIn("betas", result)
+        self.assertIn("p_or_combined", result)
+        self.assertEqual(len(result["betas"]), 2)
+        self.assertEqual(len(result["p_or_combined"]), self.env.n_line)
+
+    def test_pst_line_reconnection_pipeline_runs(self):
+        """PST tap change (act1) + line reconnection (act2): pipeline runs without error."""
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_pst_line = 3  # line acting as PST branch
+        id_reco = 7      # line to reconnect
+
+        # Start with line 7 disconnected
+        opposite_action = self.env.action_space({"set_line_status": [(id_reco, -1)]})
+        obs_start, *_ = self.env.step(opposite_action)
+
+        # Simulate PST effect
+        act_split = self.env.action_space(
+            {"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}}
+        )
+        act_reco = self.env.action_space({"set_line_status": [(id_reco, +1)]})
+
+        obs_pst = obs_start.simulate(act_split, time_step=0)[0]
+        obs_reco = obs_start.simulate(act_reco, time_step=0)[0]
+
+        result = compute_combined_pair_superposition(
+            obs_start, obs_pst, obs_reco,
+            act1_line_idxs=[id_pst_line], act1_sub_idxs=[],
+            act2_line_idxs=[id_reco], act2_sub_idxs=[],
+            act1_is_pst=True,
+        )
+        self.assertNotIn("error", result, f"Pipeline should not error: {result.get('error')}")
+        self.assertIn("betas", result)
+        self.assertIn("p_or_combined", result)
+
+    def test_pst_node_splitting_pipeline_runs(self):
+        """PST tap change (act1) + node splitting (act2): pipeline runs without error."""
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_pst_line = 7  # use line 7 as PST branch (not connected to sub 5)
+        id_sub = 5
+
+        obs_start, *_ = self.env.step(self.env.action_space())
+
+        # PST effect on line 7: use a topology change at sub 4
+        act_pst = self.env.action_space(
+            {"set_bus": {"substations_id": [(4, (2, 1, 2, 1, 2))]}}
+        )
+        act_split = self.env.action_space(
+            {"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}}
+        )
+
+        obs_pst = obs_start.simulate(act_pst, time_step=0)[0]
+        obs_split = obs_start.simulate(act_split, time_step=0)[0]
+
+        # Verify line 7 stays connected after PST-like action
+        self.assertTrue(obs_pst.line_status[id_pst_line])
+
+        result = compute_combined_pair_superposition(
+            obs_start, obs_pst, obs_split,
+            act1_line_idxs=[id_pst_line], act1_sub_idxs=[],
+            act2_line_idxs=[], act2_sub_idxs=[id_sub],
+            act1_is_pst=True,
+        )
+        self.assertNotIn("error", result, f"Pipeline should not error: {result.get('error')}")
+        self.assertIn("betas", result)
+        self.assertIn("p_or_combined", result)
+
+    def test_pst_pst_pipeline_runs(self):
+        """Two PST tap changes: pipeline runs without error.
+
+        Both actions change flow on their respective branches without disconnecting.
+        """
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_pst1 = 3  # PST branch 1 (connected to sub 5)
+        id_pst2 = 7  # PST branch 2 (connected to sub 4)
+
+        obs_start, *_ = self.env.step(self.env.action_space())
+
+        # PST 1: topology change at sub 5
+        act_pst1 = self.env.action_space(
+            {"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}}
+        )
+        # PST 2: topology change at sub 4
+        act_pst2 = self.env.action_space(
+            {"set_bus": {"substations_id": [(4, (2, 1, 2, 1, 2))]}}
+        )
+
+        obs_pst1 = obs_start.simulate(act_pst1, time_step=0)[0]
+        obs_pst2 = obs_start.simulate(act_pst2, time_step=0)[0]
+
+        # Verify both lines stay connected
+        self.assertTrue(obs_pst1.line_status[id_pst1])
+        self.assertTrue(obs_pst2.line_status[id_pst2])
+
+        result = compute_combined_pair_superposition(
+            obs_start, obs_pst1, obs_pst2,
+            act1_line_idxs=[id_pst1], act1_sub_idxs=[],
+            act2_line_idxs=[id_pst2], act2_sub_idxs=[],
+            act1_is_pst=True,
+            act2_is_pst=True,
+        )
+        self.assertNotIn("error", result, f"Pipeline should not error: {result.get('error')}")
+        self.assertIn("betas", result)
+        self.assertIn("p_or_combined", result)
+        self.assertEqual(len(result["betas"]), 2)
+
+    def test_pst_noop_detection_without_flag(self):
+        """Without act_is_pst=True, a PST-like action is wrongly detected as no-op.
+
+        This demonstrates why the flag is needed: line status doesn't change
+        for PST actions, so the old status-based check would reject them.
+        """
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_pst_line = 3
+        id_disco = 7
+
+        obs_start, *_ = self.env.step(self.env.action_space())
+
+        # PST-like: changes flow but not status
+        act_split = self.env.action_space(
+            {"set_bus": {"substations_id": [(5, (1, 1, 2, 2, 1, 2, 2))]}}
+        )
+        act_disco = self.env.action_space({"set_line_status": [(id_disco, -1)]})
+
+        obs_pst = obs_start.simulate(act_split, time_step=0)[0]
+        obs_disco = obs_start.simulate(act_disco, time_step=0)[0]
+
+        # Without PST flag: status-based check sees no change → no-op error
+        result_no_flag = compute_combined_pair_superposition(
+            obs_start, obs_pst, obs_disco,
+            act1_line_idxs=[id_pst_line], act1_sub_idxs=[],
+            act2_line_idxs=[id_disco], act2_sub_idxs=[],
+            act1_is_pst=False,  # deliberately not set
+        )
+        self.assertIn("error", result_no_flag,
+                       "Without PST flag, unchanged line status should trigger no-op")
+        self.assertIn("No-op", result_no_flag["error"])
+
+        # With PST flag: flow-based check sees the change → no error
+        result_with_flag = compute_combined_pair_superposition(
+            obs_start, obs_pst, obs_disco,
+            act1_line_idxs=[id_pst_line], act1_sub_idxs=[],
+            act2_line_idxs=[id_disco], act2_sub_idxs=[],
+            act1_is_pst=True,
+        )
+        self.assertNotIn("error", result_with_flag,
+                         "With PST flag, flow-based check should pass")
+
+    def test_pst_true_noop_detected(self):
+        """A PST action that produces no flow change should still be detected as no-op."""
+        self.env.set_id(self.chronic_id)
+        self.env.reset()
+
+        id_pst_line = 3
+        id_disco = 7
+
+        obs_start, *_ = self.env.step(self.env.action_space())
+
+        # "No-op PST": use the same obs_start as obs_act (no actual change)
+        act_disco = self.env.action_space({"set_line_status": [(id_disco, -1)]})
+        obs_disco = obs_start.simulate(act_disco, time_step=0)[0]
+
+        result = compute_combined_pair_superposition(
+            obs_start,
+            obs_start,   # obs_act1 = obs_start → no flow change
+            obs_disco,
+            act1_line_idxs=[id_pst_line], act1_sub_idxs=[],
+            act2_line_idxs=[id_disco], act2_sub_idxs=[],
+            act1_is_pst=True,
+        )
+        self.assertIn("error", result,
+                       "True no-op PST (zero flow change) should be detected")
+        self.assertIn("No-op", result["error"])
+
+
 if __name__ == "__main__":
     unittest.main()
