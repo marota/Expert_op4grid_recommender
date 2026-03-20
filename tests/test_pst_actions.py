@@ -90,6 +90,7 @@ def test_pst_discovery_blue_path(mock_obs, mock_nm):
     assert details["variation"] == 2
     assert details["max_reachable_tap"] == 20
     assert details["dispatch_flow_on_pst"] == 40.0
+    assert details["affected_line"] == "PST1"
     
     # Check score: abs(40/100) = 0.4
     assert discoverer.scores_pst_actions["pst_tap_PST1_inc2"] == 0.4

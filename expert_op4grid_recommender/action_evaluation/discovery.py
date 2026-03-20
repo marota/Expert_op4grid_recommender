@@ -1758,12 +1758,13 @@ class ActionDiscoverer:
                     "pst_id": pst_id,
                     "previous_tap": tap,
                     "target_tap": new_tap,
+                    "affected_line": pst_id,
                     "variation": variation,
                     "is_blue": is_blue,
                     "is_red": is_red,
                     "max_reachable_tap": high,
                     "min_reachable_tap": low,
-                    "dispatch_flow_on_pst": dispatch_flow
+                    "dispatch_flow_on_pst": dispatch_flow,
                 }
                 
                 if self.check_action_simulation:
