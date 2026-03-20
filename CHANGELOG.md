@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.8_post1] - 2026-03-20
+
+### Added
+
+- **PST Support in Superposition Theorem**: Added `act1_is_pst` and `act2_is_pst` flags to `compute_combined_pair_superposition` to correctly quantify impacts for phase-shifter actions.
+- **Direct XIIDM Loading**: Enhanced `main.py` entry point to allow loading a grid case directly from an `.xiidm` file path, rather than requiring it to reside within a specific directory structure.
+
+### Fixed
+
+- **Robust PST Asset Identification**: Improved ID-based identification logic to handle REPAS-style PST IDs (stripping leading dots and discovery-added suffixes like `_inc1`/`_dec2`).
+- **PST Affected Line Detection**: Correctly propagates the `affected_line` (PST branch ID) in PST action details, ensuring branch highlighting in the UI results.
+
+### Documentation
+
+- Added detailed technical documentation for the Superposition Theorem implementation and its application to topological and PST-based remedial actions.
+
+---
+
 ## [0.1.8] - 2026-03-16
 
 ### Added
