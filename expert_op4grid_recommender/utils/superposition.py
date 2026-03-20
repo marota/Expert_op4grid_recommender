@@ -338,25 +338,51 @@ def _identify_action_elements(action, action_id: str, dict_action: dict,
     if "pst" in action_type:
         # PST action: find which branch(es) are affected
         affected_lines = set()
-        pst_tap = action_desc.get("pst_tap", {})
+
+        # 1. Check action content first (preferred)
+        # Handle both flat action_desc and nested content structure
+        content = action_desc if "pst_tap" in action_desc else action_desc.get("content", {})
+        pst_tap = content.get("pst_tap", {})
         if pst_tap:
             affected_lines.update(pst_tap.keys())
 
-        # Fallback to ElementId if it's there
+        # 2. Fallback to ElementId if it's there
         resid = action_desc.get("ElementId")
         if resid:
             affected_lines.add(resid)
 
-        # Fallback to ID-based extraction if still empty
+        # 3. Fallback to ID-based extraction if still empty
         if not affected_lines:
+            raw_name = None
             if "pst_tap_" in action_id:
-                affected_lines.add(action_id[len("pst_tap_"):])
+                raw_name = action_id[len("pst_tap_"):]
             elif "pst_" in action_id:
-                affected_lines.add(action_id[len("pst_"):])
+                raw_name = action_id[len("pst_"):]
+            
+            if raw_name:
+                # Strip the suffix added by discovery logic (e.g., _inc1, _dec2)
+                import re
+                clean_name = re.sub(r'_(inc|dec)\d+$', '', raw_name)
+                affected_lines.add(clean_name)
 
         for line_name in affected_lines:
+            # Robust matching: Try exact, then strip leading dot, then try containment
             if line_name in name_line:
                 line_indices.append(name_line.index(line_name))
+            elif line_name.startswith(".") and line_name[1:] in name_line:
+                line_indices.append(name_line.index(line_name[1:]))
+            else:
+                # Last resort fuzzy match: find a line name that is a substring or vice versa
+                # (but avoid matching just a dot if the name is empty after stripping)
+                candidate_name = line_name.lstrip(".")
+                if not candidate_name:
+                    continue
+                found = False
+                for i, nl in enumerate(name_line):
+                    if candidate_name in nl or nl in candidate_name:
+                        line_indices.append(i)
+                        found = True
+                        break
 
     if "coupling" in action_type or "node_merging" in action_id or not line_indices:
         # Substation topology action: find which substation(s) are affected
