@@ -188,7 +188,10 @@ def test_compute_all_pairs_superposition_use_p_based_rho_false():
 
         # Approximate method: rho_combined = |w*rho_start + b1*rho_act1 + b2*rho_act2|
         # = |0 * 1.1 + 0.5 * 0.9 + 0.5 * 0.9| = |0.9| = 0.9 on LINE1
-        expected_rho_line1 = abs(0 * 1.1 + 0.5 * 0.9 + 0.5 * 0.9)
+        # max_rho is then scaled by monitoring_factor to convert to permanent-limit frame
+        from expert_op4grid_recommender import config
+        monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
+        expected_rho_line1 = abs(0 * 1.1 + 0.5 * 0.9 + 0.5 * 0.9) * monitoring_factor
         assert abs(res["max_rho"] - expected_rho_line1) < 0.01
 
     finally:

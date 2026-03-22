@@ -382,7 +382,10 @@ class TestUsePBasedRho:
             w * obs_start.rho + betas[0] * obs_act1.rho + betas[1] * obs_act2.rho
         )
         # max_rho is from eligible lines (no pre-existing overloads → all eligible)
-        assert abs(res["max_rho"] - float(np.max(expected_rho))) < 0.01
+        # max_rho is scaled by monitoring_factor to convert to permanent-limit frame
+        from expert_op4grid_recommender import config
+        monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
+        assert abs(res["max_rho"] - float(np.max(expected_rho)) * monitoring_factor) < 0.01
 
     def test_default_is_p_based_rho_false(self):
         """Default value of use_p_based_rho must be False (direct rho method)."""
