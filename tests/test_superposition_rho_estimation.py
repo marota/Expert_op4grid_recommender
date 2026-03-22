@@ -382,7 +382,10 @@ class TestUsePBasedRho:
             w * obs_start.rho + betas[0] * obs_act1.rho + betas[1] * obs_act2.rho
         )
         # max_rho is from eligible lines (no pre-existing overloads → all eligible)
-        assert abs(res["max_rho"] - float(np.max(expected_rho))) < 0.01
+        # max_rho is scaled by monitoring_factor to convert to permanent-limit frame
+        from expert_op4grid_recommender import config
+        monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
+        assert abs(res["max_rho"] - float(np.max(expected_rho)) * monitoring_factor) < 0.01
 
     def test_default_is_p_based_rho_false(self):
         """Default value of use_p_based_rho must be False (direct rho method)."""
@@ -679,6 +682,225 @@ class TestActionTypeDetection:
             )
         mock_dt.assert_not_called()
         mock_p.assert_called_once()
+
+
+# =============================================================================
+# Tests for monitoring_factor correction on max_rho
+# =============================================================================
+
+class TestMonitoringFactorMaxRho:
+    """
+    Verify that max_rho in compute_all_pairs_superposition is expressed in the
+    permanent-limit reference frame regardless of MONITORING_FACTOR_THERMAL_LIMITS.
+
+    Background
+    ----------
+    obs.rho is computed using monitored thermal limits
+    (permanent_limit * monitoring_factor), so rho_combined inherits that
+    scaling.  rho_after / rho_before were already divided back to the permanent
+    frame, but max_rho was not — causing ~5% overestimation when
+    MONITORING_FACTOR_THERMAL_LIMITS < 1.0 (the bug fixed in this PR).
+
+    All tests in this class use a fixed physical state (same currents / powers)
+    and vary only MONITORING_FACTOR_THERMAL_LIMITS to confirm that max_rho
+    stays constant while rho_combined_raw (in monitored frame) changes.
+    """
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _make_obs_with_monitoring_factor(self, monitoring_factor):
+        """
+        Build a mock observation whose rho reflects `monitoring_factor`.
+
+        The physical state is fixed:
+          - origin current  i_or  = 95 A
+          - permanent limit       = 100 A
+          => true rho (permanent frame) = 0.95
+
+        With monitored limit = permanent * monitoring_factor:
+          obs.rho = i_or / (permanent * monitoring_factor)
+                  = 0.95 / monitoring_factor
+        """
+        permanent_limit = 100.0
+        i_or = 95.0  # A  — fixed physical state
+        monitored_limit = permanent_limit * monitoring_factor
+        obs_rho = i_or / monitored_limit  # in monitored frame
+
+        obs = MagicMock()
+        obs.rho = np.array([obs_rho, 0.4, 0.5])
+        obs.p_or = np.array([95.0, 40.0, 50.0])
+        obs.p_ex = np.array([-95.0, -40.0, -50.0])
+        obs.a_or = np.array([i_or, 40.0, 50.0])
+        obs.a_ex = np.array([i_or, 40.0, 50.0])
+        obs._limit_or = MagicMock()
+        obs._limit_or.values = np.array([monitored_limit, monitored_limit, monitored_limit])
+        obs._limit_ex = MagicMock()
+        obs._limit_ex.values = np.array([monitored_limit, monitored_limit, monitored_limit])
+        obs.line_status = np.array([True, True, True])
+        return obs
+
+    def _run_pairs(self, obs_start, obs_act1, obs_act2, monitoring_factor,
+                   use_p_based_rho=False):
+        """
+        Run compute_all_pairs_superposition with a mocked pair computation
+        that returns the given observations' rho arrays (direct superposition).
+        """
+        from expert_op4grid_recommender.utils import superposition
+        from unittest.mock import patch
+
+        env = MagicMock()
+        env.name_line = ["L0", "L1", "L2"]
+
+        aid1, aid2 = "act1", "act2"
+        detailed_actions = {
+            aid1: {"action": MagicMock(), "observation": obs_act1, "description_unitaire": "A1"},
+            aid2: {"action": MagicMock(), "observation": obs_act2, "description_unitaire": "A2"},
+        }
+
+        classifier = MagicMock(spec=ActionClassifier)
+        classifier._action_space = MagicMock()
+
+        def mock_identify(action, action_id, *args):
+            if action_id == aid1: return ([0], [])
+            if action_id == aid2: return ([1], [])
+            return ([], [])
+
+        # betas = [0.5, 0.5] → weight on start = 0.0
+        betas = [0.5, 0.5]
+        # Superposed P is proportional to act rho * permanent_limit
+        # (we just want the rho path to give a known value)
+        p_or_combined = list(obs_act1.p_or)
+        p_ex_combined = list(obs_act1.p_ex)
+
+        orig_identify = superposition._identify_action_elements
+        orig_compute = superposition.compute_combined_pair_superposition
+        try:
+            superposition._identify_action_elements = MagicMock(side_effect=mock_identify)
+            superposition.compute_combined_pair_superposition = MagicMock(return_value={
+                "betas": betas,
+                "p_or_combined": p_or_combined,
+                "p_ex_combined": p_ex_combined,
+                "is_islanded": False,
+                "disconnected_mw": 0.0,
+            })
+            import expert_op4grid_recommender.config as cfg
+            original = getattr(cfg, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
+            cfg.MONITORING_FACTOR_THERMAL_LIMITS = monitoring_factor
+            try:
+                result = compute_all_pairs_superposition(
+                    obs_start=obs_start,
+                    detailed_actions=detailed_actions,
+                    classifier=classifier,
+                    env=env,
+                    lines_overloaded_ids=[0],
+                    lines_we_care_about=["L0", "L1", "L2"],
+                    pre_existing_rho={},
+                    dict_action={},
+                    use_p_based_rho=use_p_based_rho,
+                )
+            finally:
+                cfg.MONITORING_FACTOR_THERMAL_LIMITS = original
+        finally:
+            superposition._identify_action_elements = orig_identify
+            superposition.compute_combined_pair_superposition = orig_compute
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Tests
+    # ------------------------------------------------------------------
+
+    def test_max_rho_independent_of_monitoring_factor_direct_rho(self):
+        """
+        max_rho must be the same (permanent-frame value) regardless of
+        monitoring_factor when using the direct rho superposition path.
+
+        Physical state: true rho = 0.95 on L0 for all observations.
+        With betas=[0.5, 0.5] and weight_start=0, the superposed rho in the
+        monitored frame is obs_act.rho (all equal).
+        After correction: max_rho = rho_monitored * monitoring_factor
+                                   = (0.95 / mf) * mf = 0.95  (invariant).
+        """
+        for mf in [1.0, 0.95, 0.90]:
+            obs_start = self._make_obs_with_monitoring_factor(mf)
+            obs_act1 = self._make_obs_with_monitoring_factor(mf)
+            obs_act2 = self._make_obs_with_monitoring_factor(mf)
+
+            results = self._run_pairs(obs_start, obs_act1, obs_act2,
+                                      monitoring_factor=mf, use_p_based_rho=False)
+
+            pair_id = "act1+act2"
+            assert pair_id in results, f"Pair missing for mf={mf}"
+            max_rho = results[pair_id]["max_rho"]
+            assert abs(max_rho - 0.95) < 0.02, (
+                f"monitoring_factor={mf}: max_rho={max_rho:.4f}, expected ~0.95 "
+                f"(permanent-frame). The monitoring_factor must NOT affect max_rho."
+            )
+
+    def test_max_rho_lower_than_monitored_rho_when_factor_below_one(self):
+        """
+        When monitoring_factor < 1, rho_combined (monitored frame) > max_rho.
+        max_rho = rho_combined * monitoring_factor must be strictly lower.
+        """
+        mf = 0.95
+        obs_start = self._make_obs_with_monitoring_factor(mf)
+        obs_act1 = self._make_obs_with_monitoring_factor(mf)
+        obs_act2 = self._make_obs_with_monitoring_factor(mf)
+
+        results = self._run_pairs(obs_start, obs_act1, obs_act2,
+                                  monitoring_factor=mf, use_p_based_rho=False)
+
+        res = results["act1+act2"]
+        max_rho = res["max_rho"]
+
+        # In the monitored frame, obs.rho on L0 = 0.95 / 0.95 = 1.0
+        # After fix: max_rho = 1.0 * 0.95 = 0.95 (permanent frame)
+        # Without fix: max_rho would be 1.0 (monitored frame) — 5.26% higher
+        assert max_rho < 0.97, (
+            f"max_rho={max_rho:.4f} should be in the permanent-limit frame "
+            f"(~0.95), not the monitored frame (~1.0)."
+        )
+
+    def test_max_rho_equals_one_when_factor_is_one(self):
+        """
+        When monitoring_factor == 1.0, permanent and monitored frames coincide;
+        max_rho correction is a no-op (multiply by 1.0).
+        """
+        mf = 1.0
+        obs_start = self._make_obs_with_monitoring_factor(mf)
+        obs_act1 = self._make_obs_with_monitoring_factor(mf)
+        obs_act2 = self._make_obs_with_monitoring_factor(mf)
+
+        results = self._run_pairs(obs_start, obs_act1, obs_act2,
+                                  monitoring_factor=mf, use_p_based_rho=False)
+
+        max_rho = results["act1+act2"]["max_rho"]
+        # true rho = 0.95; with mf=1.0, monitored == permanent → max_rho = 0.95
+        assert abs(max_rho - 0.95) < 0.02, (
+            f"With monitoring_factor=1.0, max_rho={max_rho:.4f}, expected ~0.95."
+        )
+
+    def test_rho_after_consistent_with_max_rho(self):
+        """
+        rho_after (for overloaded lines) and max_rho should both be in the
+        permanent-limit frame, so they should be close for the overloaded line.
+        """
+        mf = 0.95
+        obs_start = self._make_obs_with_monitoring_factor(mf)
+        obs_act1 = self._make_obs_with_monitoring_factor(mf)
+        obs_act2 = self._make_obs_with_monitoring_factor(mf)
+
+        results = self._run_pairs(obs_start, obs_act1, obs_act2,
+                                  monitoring_factor=mf, use_p_based_rho=False)
+
+        res = results["act1+act2"]
+        # rho_after[0] is for L0 (the overloaded line) — same frame as max_rho
+        assert abs(res["rho_after"][0] - res["max_rho"]) < 0.02, (
+            f"rho_after[0]={res['rho_after'][0]:.4f} and max_rho={res['max_rho']:.4f} "
+            f"should both be in the permanent-limit frame."
+        )
 
 
 if __name__ == "__main__":

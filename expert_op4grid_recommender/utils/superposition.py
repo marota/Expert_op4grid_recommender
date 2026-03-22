@@ -1060,10 +1060,13 @@ def compute_all_pairs_superposition(
         desc2 = detailed_actions[aid2].get("description_unitaire", aid2)
 
         # Scaling factor for monitoring limits
+        # obs_start.rho is computed using monitored thermal limits (permanent * monitoring_factor),
+        # so rho_combined inherits that scaling.  Multiply by monitoring_factor to convert back
+        # to the permanent-limit reference frame (matching the simulation results).
         monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
 
         result.update({
-            "max_rho": max_rho,
+            "max_rho": max_rho * monitoring_factor,
             "max_rho_line": max_rho_line,
             "is_rho_reduction": is_rho_reduction,
             "p_or_combined": result["p_or_combined"],
