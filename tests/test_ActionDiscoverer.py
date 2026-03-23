@@ -1537,6 +1537,8 @@ def test_load_shedding_params_structure(load_shedding_discoverer):
     assert "P_overload_excess_MW" in params
     assert "available_load_MW" in params
     assert params["available_load_MW"] == 80.0  # 50 + 30
+    assert "in_negative_flows" in params
+    assert "out_negative_flows" in params
     assert "coverage_ratio" in params
     assert "loads_shed" in params
     assert isinstance(params["loads_shed"], list)
@@ -1584,3 +1586,16 @@ def test_load_shedding_overload_excess(load_shedding_discoverer):
     params = discoverer.params_load_shedding["load_shedding_Sub2"]
     # rho_max = 1.2, max_overload_flow = 100 -> excess = (1.2-1.0)*100 = 20 MW
     assert params["P_overload_excess_MW"] == 20.0
+
+
+def test_load_shedding_neg_flows_in_params(load_shedding_discoverer):
+    """Test that in/out_negative_flows are stored in params (consistent with node splitting)."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([2])
+
+    params = discoverer.params_load_shedding["load_shedding_Sub2"]
+    # Edge L2 (1->2) has label="-60" → negative in-edge for Sub2 → in_neg=60, out_neg=0
+    assert params["in_negative_flows"] == 60.0
+    assert params["out_negative_flows"] == 0.0
+    # influence_factor = max(60, 0) / 100 = 0.6
+    assert params["influence_factor"] == 0.6

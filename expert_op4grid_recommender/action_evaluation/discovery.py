@@ -1857,22 +1857,30 @@ class ActionDiscoverer:
             if available_load <= 0:
                 continue
 
-            # Find the maximum capacity on blue edges adjacent to this node
-            max_blue_capacity = 0.0
-            for edge, ename in edge_names.items():
-                if ename not in blue_edge_names_set:
-                    continue
-                u, v = edge[0], edge[1]
-                if u != node_idx and v != node_idx:
-                    continue
-                cap = abs(float(edge_capacities.get(edge, 0.0)))
-                if cap > max_blue_capacity:
-                    max_blue_capacity = cap
+            # Compute influence via sum of negative flows on blue edges at this node,
+            # consistent with the node splitting scoring approach:
+            # influence_flow = max(sum_neg_in_edges, sum_neg_out_edges)
+            all_edge_labels = nx.get_edge_attributes(g, "label")
+            total_neg_in = sum(
+                abs(float(all_edge_labels[edge]))
+                for edge in g.in_edges(node_idx, keys=True)
+                if edge in all_edge_labels
+                and edge_names.get(edge) in blue_edge_names_set
+                and float(all_edge_labels[edge]) < 0
+            )
+            total_neg_out = sum(
+                abs(float(all_edge_labels[edge]))
+                for edge in g.out_edges(node_idx, keys=True)
+                if edge in all_edge_labels
+                and edge_names.get(edge) in blue_edge_names_set
+                and float(all_edge_labels[edge]) < 0
+            )
+            influence_flow = max(total_neg_in, total_neg_out)
 
-            if max_blue_capacity <= 0:
+            if influence_flow <= 0:
                 continue
 
-            influence_factor = min(1.0, max_blue_capacity / max_overload_flow) if max_overload_flow > 0 else 0.0
+            influence_factor = min(1.0, influence_flow / max_overload_flow) if max_overload_flow > 0 else 0.0
             if influence_factor <= 0:
                 continue
 
@@ -1921,6 +1929,8 @@ class ActionDiscoverer:
                 "substation": sub_name,
                 "node_type": "aval",
                 "influence_factor": round(influence_factor, 2),
+                "in_negative_flows": round(total_neg_in, 2),
+                "out_negative_flows": round(total_neg_out, 2),
                 "P_shedding_MW": round(P_shedding, 2),
                 "P_overload_excess_MW": round(P_overload_excess, 2),
                 "available_load_MW": round(available_load, 2),
