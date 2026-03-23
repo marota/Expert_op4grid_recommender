@@ -81,7 +81,11 @@ MIN_CLOSE_COUPLING = 3
 MIN_OPEN_COUPLING = 2
 MIN_LINE_DISCONNECTIONS = 3
 MIN_PST = 2
+MIN_LOAD_SHEDDING = 0
 
+# Load shedding parameters
+LOAD_SHEDDING_MARGIN = 0.05   # 5% safety margin on top of minimum shedding volume
+LOAD_SHEDDING_MIN_MW = 1.0    # Minimum shedding volume in MW (ignore trivial shedding)
 
 PYPOWSYBL_FAST_MODE=False
 
