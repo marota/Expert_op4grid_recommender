@@ -1913,7 +1913,7 @@ class ActionDiscoverer:
             action_id = f"load_shedding_{sub_name}"
 
             try:
-                set_bus_dict = {"loads_id": {lid: -1 for lid in loads_to_shed}}
+                set_bus_dict = {"loads_id": {str(obs.name_load[lid]): -1 for lid in loads_to_shed if lid < len(obs.name_load)}}
                 action = self.action_space({"set_bus": set_bus_dict})
             except Exception as e:
                 print(f"Warning: Could not create load shedding action for {sub_name}: {e}")
