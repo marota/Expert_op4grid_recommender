@@ -1505,13 +1505,14 @@ def load_shedding_discoverer():
 
 
 def test_load_shedding_finds_candidates(load_shedding_discoverer):
-    """Test that load shedding identifies the downstream node with loads."""
+    """Test that load shedding creates one action per load on the downstream node."""
     discoverer = load_shedding_discoverer
-    discoverer.find_relevant_load_shedding([2])  # Sub2 is aval
+    discoverer.find_relevant_load_shedding([2])  # Sub2 is aval with 2 loads
 
-    assert len(discoverer.identified_load_shedding) == 1
-    action_id = list(discoverer.identified_load_shedding.keys())[0]
-    assert action_id == "load_shedding_Sub2"
+    # One action per load: Load_A (50MW) and Load_B (30MW)
+    assert len(discoverer.identified_load_shedding) == 2
+    assert "load_shedding_Load_A" in discoverer.identified_load_shedding
+    assert "load_shedding_Load_B" in discoverer.identified_load_shedding
 
 
 def test_load_shedding_score_computation(load_shedding_discoverer):
@@ -1519,30 +1520,29 @@ def test_load_shedding_score_computation(load_shedding_discoverer):
     discoverer = load_shedding_discoverer
     discoverer.find_relevant_load_shedding([2])
 
-    assert "load_shedding_Sub2" in discoverer.scores_load_shedding
-    score = discoverer.scores_load_shedding["load_shedding_Sub2"]
+    assert "load_shedding_Load_A" in discoverer.scores_load_shedding
+    score = discoverer.scores_load_shedding["load_shedding_Load_A"]
     assert 0 < score <= 1.0
 
 
 def test_load_shedding_params_structure(load_shedding_discoverer):
-    """Test that params contain expected fields."""
+    """Test that params contain expected fields including load_name."""
     discoverer = load_shedding_discoverer
     discoverer.find_relevant_load_shedding([2])
 
-    params = discoverer.params_load_shedding["load_shedding_Sub2"]
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
     assert params["substation"] == "Sub2"
     assert params["node_type"] == "aval"
+    assert params["load_name"] == "Load_A"
     assert "influence_factor" in params
     assert "P_shedding_MW" in params
     assert "P_overload_excess_MW" in params
     assert "available_load_MW" in params
-    assert params["available_load_MW"] == 80.0  # 50 + 30
+    assert params["available_load_MW"] == 50.0  # Load_A's power
     assert "in_negative_flows" in params
     assert "out_negative_flows" in params
     assert "coverage_ratio" in params
-    assert "loads_shed" in params
-    assert isinstance(params["loads_shed"], list)
-    assert len(params["loads_shed"]) > 0
+    assert params["loads_shed"] == ["Load_A"]
 
 
 def test_load_shedding_skips_node_without_loads(load_shedding_discoverer):
@@ -1569,12 +1569,12 @@ def test_load_shedding_skips_node_without_blue_edge(load_shedding_discoverer):
 
 
 def test_load_shedding_influence_factor(load_shedding_discoverer):
-    """Test that influence_factor is the ratio of blue edge capacity to max overload flow."""
+    """Test that influence_factor is the ratio of max negative flow to max overload flow."""
     discoverer = load_shedding_discoverer
     discoverer.find_relevant_load_shedding([2])
 
-    params = discoverer.params_load_shedding["load_shedding_Sub2"]
-    # Blue edge L2 has capacity 60, overloaded line L1 has capacity 100
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
+    # Blue edge L2 has label=-60 → neg_in=60, max_overload_flow=100
     assert params["influence_factor"] == round(60.0 / 100.0, 2)  # 0.6
 
 
@@ -1583,7 +1583,7 @@ def test_load_shedding_overload_excess(load_shedding_discoverer):
     discoverer = load_shedding_discoverer
     discoverer.find_relevant_load_shedding([2])
 
-    params = discoverer.params_load_shedding["load_shedding_Sub2"]
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
     # rho_max = 1.2, max_overload_flow = 100 -> excess = (1.2-1.0)*100 = 20 MW
     assert params["P_overload_excess_MW"] == 20.0
 
@@ -1593,7 +1593,7 @@ def test_load_shedding_neg_flows_in_params(load_shedding_discoverer):
     discoverer = load_shedding_discoverer
     discoverer.find_relevant_load_shedding([2])
 
-    params = discoverer.params_load_shedding["load_shedding_Sub2"]
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
     # Edge L2 (1->2) has label="-60" → negative in-edge for Sub2 → in_neg=60, out_neg=0
     assert params["in_negative_flows"] == 60.0
     assert params["out_negative_flows"] == 0.0
@@ -1620,11 +1620,16 @@ def test_load_shedding_action_uses_load_names_not_ids(load_shedding_discoverer):
 
     discoverer.find_relevant_load_shedding([2])
 
-    assert len(calls) == 1
-    set_bus = calls[0]["set_bus"]
-    loads_id_dict = set_bus["loads_id"]
-    # All keys must be strings (load names), not integers
-    for key in loads_id_dict:
+    # One call per load (2 loads at Sub2)
+    assert len(calls) == 2
+    for call in calls:
+        set_bus = call["set_bus"]
+        loads_id_dict = set_bus["loads_id"]
+        # Each action disconnects exactly one load
+        assert len(loads_id_dict) == 1
+        # Key must be a string (load name), not an integer
+        key = list(loads_id_dict.keys())[0]
         assert isinstance(key, str), f"Expected string key, got {type(key).__name__}: {key}"
-    # Verify the actual load names are used
-    assert "Load_A" in loads_id_dict or "Load_B" in loads_id_dict
+    # Verify both load names are used across the calls
+    all_keys = {list(c["set_bus"]["loads_id"].keys())[0] for c in calls}
+    assert all_keys == {"Load_A", "Load_B"}

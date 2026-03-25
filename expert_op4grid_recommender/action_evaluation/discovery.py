@@ -1892,70 +1892,67 @@ class ActionDiscoverer:
             coverage_ratio = min(1.0, available_load / P_shedding_min) if P_shedding_min > 0 else 1.0
             score = influence_factor * coverage_ratio
 
-            # Select loads to shed: sort by power descending, accumulate until P_shedding reached
+            # Build one action per load at the node, each as a standalone candidate
             load_entries = [(lid, float(obs.load_p[lid])) for lid in load_ids
                            if lid < len(obs.load_p) and float(obs.load_p[lid]) > 0]
             load_entries.sort(key=lambda x: x[1], reverse=True)
 
-            loads_to_shed = []
-            cumulative = 0.0
-            for lid, pwr in load_entries:
-                loads_to_shed.append(lid)
-                cumulative += pwr
-                if cumulative >= P_shedding:
-                    break
-
-            if not loads_to_shed:
+            if not load_entries:
                 continue
-
-            # Build action: disconnect selected loads
-            load_names_shed = [str(obs.name_load[lid]) for lid in loads_to_shed if lid < len(obs.name_load)]
-            action_id = f"load_shedding_{sub_name}"
-
-            try:
-                set_bus_dict = {"loads_id": {str(obs.name_load[lid]): -1 for lid in loads_to_shed if lid < len(obs.name_load)}}
-                action = self.action_space({"set_bus": set_bus_dict})
-            except Exception as e:
-                print(f"Warning: Could not create load shedding action for {sub_name}: {e}")
-                continue
-
-            identified[action_id] = action
-            scores_map[action_id] = round(score, 2)
 
             # Get full assets at the substation
             assets = self._get_assets_on_bus_for_sub(node_idx, 1)  # bus 1 (default)
 
-            details_map[action_id] = {
-                "substation": sub_name,
-                "node_type": "aval",
-                "influence_factor": round(influence_factor, 2),
-                "in_negative_flows": round(total_neg_in, 2),
-                "out_negative_flows": round(total_neg_out, 2),
-                "P_shedding_MW": round(P_shedding, 2),
-                "P_overload_excess_MW": round(P_overload_excess, 2),
-                "available_load_MW": round(available_load, 2),
-                "coverage_ratio": round(coverage_ratio, 2),
-                "loads_shed": load_names_shed,
-                "assets": assets,
-            }
+            for lid, load_power in load_entries:
+                load_name = str(obs.name_load[lid]) if lid < len(obs.name_load) else str(lid)
+                action_id = f"load_shedding_{load_name}"
 
-            # Optional simulation check
-            if self.check_action_simulation:
+                # Per-load coverage: how much of the shedding need this single load covers
+                load_coverage = min(1.0, load_power / P_shedding_min) if P_shedding_min > 0 else 1.0
+                load_score = influence_factor * load_coverage
+
                 try:
-                    act_defaut = self._create_default_action(
-                        self.env, self.obs, self.lines_defaut, self.timestep
-                    )
-                    is_reduction, obs_after = self._check_rho_reduction(
-                        self.env, self.obs, action + act_defaut + self.act_reco_maintenance,
-                        self.lines_overloaded_ids, self.lines_we_care_about
-                    )
-                    if is_reduction:
-                        effective.append(action_id)
-                    else:
-                        ineffective.append(action_id)
+                    set_bus_dict = {"loads_id": {load_name: -1}}
+                    action = self.action_space({"set_bus": set_bus_dict})
                 except Exception as e:
-                    print(f"Warning: Simulation check failed for {action_id}: {e}")
-                    ineffective.append(action_id)
+                    print(f"Warning: Could not create load shedding action for {load_name}: {e}")
+                    continue
+
+                identified[action_id] = action
+                scores_map[action_id] = round(load_score, 2)
+
+                details_map[action_id] = {
+                    "substation": sub_name,
+                    "node_type": "aval",
+                    "load_name": load_name,
+                    "influence_factor": round(influence_factor, 2),
+                    "in_negative_flows": round(total_neg_in, 2),
+                    "out_negative_flows": round(total_neg_out, 2),
+                    "P_shedding_MW": round(min(load_power, P_shedding), 2),
+                    "P_overload_excess_MW": round(P_overload_excess, 2),
+                    "available_load_MW": round(load_power, 2),
+                    "coverage_ratio": round(load_coverage, 2),
+                    "loads_shed": [load_name],
+                    "assets": assets,
+                }
+
+                # Optional simulation check
+                if self.check_action_simulation:
+                    try:
+                        act_defaut = self._create_default_action(
+                            self.env, self.obs, self.lines_defaut, self.timestep
+                        )
+                        is_reduction, obs_after = self._check_rho_reduction(
+                            self.env, self.obs, action + act_defaut + self.act_reco_maintenance,
+                            self.lines_overloaded_ids, self.lines_we_care_about
+                        )
+                        if is_reduction:
+                            effective.append(action_id)
+                        else:
+                            ineffective.append(action_id)
+                    except Exception as e:
+                        print(f"Warning: Simulation check failed for {action_id}: {e}")
+                        ineffective.append(action_id)
 
         self.identified_load_shedding = dict(sorted(identified.items(),
                                                      key=lambda x: scores_map.get(x[0], 0), reverse=True))
