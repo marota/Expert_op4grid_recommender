@@ -1599,3 +1599,32 @@ def test_load_shedding_neg_flows_in_params(load_shedding_discoverer):
     assert params["out_negative_flows"] == 0.0
     # influence_factor = max(60, 0) / 100 = 0.6
     assert params["influence_factor"] == 0.6
+
+
+def test_load_shedding_action_uses_load_names_not_ids(load_shedding_discoverer):
+    """Test that load shedding actions use load names (strings) as keys, not integer IDs.
+
+    The pypowsybl action_space expects string load names in set_bus.loads_id,
+    not integer indices. Using integers causes 'Data of column id has the wrong
+    type, expected string' errors.
+    """
+    discoverer = load_shedding_discoverer
+
+    # Track what the action_space receives
+    calls = []
+    original_action_space = discoverer.action_space
+    def capturing_action_space(action_dict):
+        calls.append(action_dict)
+        return original_action_space(action_dict)
+    discoverer.action_space = capturing_action_space
+
+    discoverer.find_relevant_load_shedding([2])
+
+    assert len(calls) == 1
+    set_bus = calls[0]["set_bus"]
+    loads_id_dict = set_bus["loads_id"]
+    # All keys must be strings (load names), not integers
+    for key in loads_id_dict:
+        assert isinstance(key, str), f"Expected string key, got {type(key).__name__}: {key}"
+    # Verify the actual load names are used
+    assert "Load_A" in loads_id_dict or "Load_B" in loads_id_dict
