@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.9] - 2026-03-25
+
+### Added
+
+- **Load Shedding Actions**: Automated discovery and scoring of load shedding candidates on downstream nodes of constrained paths to alleviate overloads when topological actions are insufficient.
+- **Improved Action Prioritization**: Introduced `MIN_LOAD_SHEDDING` and `MIN_PST` configuration parameters to guarantee a minimum number of prioritized actions for these types.
+- **Integrated Pipeline Support**: Load shedding is now fully integrated into the two-step analysis pipeline, with detailed scoring hypotheses included in `action_scores`.
+
+### Changed
+
+- **Path Management Refactor**: Switched to `pathlib.Path` for all base directories and file paths in `config.py`, improving reliability for relative execution and cross-platform compatibility.
+- **Enhanced Instrumentation**: Added comprehensive timing blocks for Load Shedding discovery and prioritization steps.
+
+---
+
 ## [0.1.8_post1] - 2026-03-20
 
 ### Added
