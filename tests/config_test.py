@@ -81,6 +81,11 @@ MIN_CLOSE_COUPLING = 0
 MIN_OPEN_COUPLING = 0
 MIN_LINE_DISCONNECTIONS = 0
 MIN_PST = 0
+MIN_LOAD_SHEDDING = 0
+
+# Load shedding parameters
+LOAD_SHEDDING_MARGIN = 0.05
+LOAD_SHEDDING_MIN_MW = 1.0
 
 # -------------------
 #  Expert System Parameters

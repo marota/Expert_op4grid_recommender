@@ -178,6 +178,11 @@ class ActionDiscoverer:
         self.params_splits_dict = {}
         self.params_disconnections = {}
         self.params_merges = {}
+        self.identified_load_shedding = {}
+        self.effective_load_shedding = []
+        self.ineffective_load_shedding = []
+        self.scores_load_shedding = {}
+        self.params_load_shedding = {}
         self.prioritized_actions = {}
 
     # --- Helper Methods (Internal logic, kept private) ---
@@ -1783,6 +1788,179 @@ class ActionDiscoverer:
         self.params_pst_actions = details_map
 
 
+    # --- Load Shedding ---
+
+    def find_relevant_load_shedding(self, nodes_aval_indices: List[int]):
+        """
+        Discovers load shedding candidates on downstream (aval) nodes of the constrained path.
+
+        For each downstream node that has loads, computes the influence factor from the
+        adjacent blue edge with the maximum negative report, then determines the MW volume
+        of load to shed (with a 5% safety margin) and builds the corresponding action.
+
+        Args:
+            nodes_aval_indices: Substation indices of downstream nodes on the constrained path.
+        """
+        self._build_lookup_caches()
+        obs = self.obs_defaut
+        g = self.g_overflow.g
+
+        margin = getattr(config, 'LOAD_SHEDDING_MARGIN', 0.05)
+        min_mw = getattr(config, 'LOAD_SHEDDING_MIN_MW', 1.0)
+
+        # Compute overload excess in MW
+        name_to_capacity = self._build_line_capacity_map()
+        if not name_to_capacity:
+            return
+
+        overloaded_line_names = {obs.name_line[i] for i in self.lines_overloaded_ids}
+        overloaded_caps = [name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity]
+        max_overload_flow = max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
+
+        rho_overloaded = obs.rho[self.lines_overloaded_ids]
+        if len(rho_overloaded) == 0:
+            return
+        rho_max = float(np.max(rho_overloaded))
+        if rho_max <= 1.0:
+            return
+        P_overload_excess = (rho_max - 1.0) * max_overload_flow
+
+        # Get edge attributes
+        edge_names = nx.get_edge_attributes(g, "name")
+        edge_capacities = nx.get_edge_attributes(g, "capacity")
+        edge_labels = nx.get_edge_attributes(g, "label")
+
+        # Get blue edges set (constrained path edges)
+        constrained_edges_names, _, other_blue_names, _ = self.g_distribution_graph.get_constrained_edges_nodes()
+        blue_edge_names_set = set(constrained_edges_names + other_blue_names)
+
+        identified = {}
+        scores_map = {}
+        details_map = {}
+        effective = []
+        ineffective = []
+
+        for node_idx in nodes_aval_indices:
+            sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
+            if sub_name is None:
+                continue
+
+            # Get loads at this substation
+            obj = obs.get_obj_connect_to(substation_id=node_idx)
+            load_ids = obj.get('loads_id', [])
+            if len(load_ids) == 0:
+                continue
+
+            # Compute available load (only positive consumption)
+            load_powers = [float(obs.load_p[lid]) for lid in load_ids if lid < len(obs.load_p)]
+            available_load = sum(p for p in load_powers if p > 0)
+            if available_load <= 0:
+                continue
+
+            # Compute influence via sum of negative flows on blue edges at this node,
+            # consistent with the node splitting scoring approach:
+            # influence_flow = max(sum_neg_in_edges, sum_neg_out_edges)
+            all_edge_labels = nx.get_edge_attributes(g, "label")
+            total_neg_in = sum(
+                abs(float(all_edge_labels[edge]))
+                for edge in g.in_edges(node_idx, keys=True)
+                if edge in all_edge_labels
+                and edge_names.get(edge) in blue_edge_names_set
+                and float(all_edge_labels[edge]) < 0
+            )
+            total_neg_out = sum(
+                abs(float(all_edge_labels[edge]))
+                for edge in g.out_edges(node_idx, keys=True)
+                if edge in all_edge_labels
+                and edge_names.get(edge) in blue_edge_names_set
+                and float(all_edge_labels[edge]) < 0
+            )
+            influence_flow = max(total_neg_in, total_neg_out)
+
+            if influence_flow <= 0:
+                continue
+
+            influence_factor = min(1.0, influence_flow / max_overload_flow) if max_overload_flow > 0 else 0.0
+            if influence_factor <= 0:
+                continue
+
+            # Compute shedding volume
+            P_shedding_min = P_overload_excess / influence_factor * (1.0 + margin) if influence_factor > 0 else P_overload_excess * (1.0 + margin)
+            P_shedding = max(P_shedding_min, min_mw)
+            P_shedding = min(P_shedding, available_load)
+
+            coverage_ratio = min(1.0, available_load / P_shedding_min) if P_shedding_min > 0 else 1.0
+            score = influence_factor * coverage_ratio
+
+            # Build one action per load at the node, each as a standalone candidate
+            load_entries = [(lid, float(obs.load_p[lid])) for lid in load_ids
+                           if lid < len(obs.load_p) and float(obs.load_p[lid]) > 0]
+            load_entries.sort(key=lambda x: x[1], reverse=True)
+
+            if not load_entries:
+                continue
+
+            # Get full assets at the substation
+            assets = self._get_assets_on_bus_for_sub(node_idx, 1)  # bus 1 (default)
+
+            for lid, load_power in load_entries:
+                load_name = str(obs.name_load[lid]) if lid < len(obs.name_load) else str(lid)
+                action_id = f"load_shedding_{load_name}"
+
+                # Per-load coverage: how much of the shedding need this single load covers
+                load_coverage = min(1.0, load_power / P_shedding_min) if P_shedding_min > 0 else 1.0
+                load_score = influence_factor * load_coverage
+
+                try:
+                    set_bus_dict = {"loads_id": {load_name: -1}}
+                    action = self.action_space({"set_bus": set_bus_dict})
+                except Exception as e:
+                    print(f"Warning: Could not create load shedding action for {load_name}: {e}")
+                    continue
+
+                identified[action_id] = action
+                scores_map[action_id] = round(load_score, 2)
+
+                details_map[action_id] = {
+                    "substation": sub_name,
+                    "node_type": "aval",
+                    "load_name": load_name,
+                    "influence_factor": round(influence_factor, 2),
+                    "in_negative_flows": round(total_neg_in, 2),
+                    "out_negative_flows": round(total_neg_out, 2),
+                    "P_shedding_MW": round(min(load_power, P_shedding), 2),
+                    "P_overload_excess_MW": round(P_overload_excess, 2),
+                    "available_load_MW": round(load_power, 2),
+                    "coverage_ratio": round(load_coverage, 2),
+                    "loads_shed": [load_name],
+                    "assets": assets,
+                }
+
+                # Optional simulation check
+                if self.check_action_simulation:
+                    try:
+                        act_defaut = self._create_default_action(
+                            self.env, self.obs, self.lines_defaut, self.timestep
+                        )
+                        is_reduction, obs_after = self._check_rho_reduction(
+                            self.env, self.obs, action + act_defaut + self.act_reco_maintenance,
+                            self.lines_overloaded_ids, self.lines_we_care_about
+                        )
+                        if is_reduction:
+                            effective.append(action_id)
+                        else:
+                            ineffective.append(action_id)
+                    except Exception as e:
+                        print(f"Warning: Simulation check failed for {action_id}: {e}")
+                        ineffective.append(action_id)
+
+        self.identified_load_shedding = dict(sorted(identified.items(),
+                                                     key=lambda x: scores_map.get(x[0], 0), reverse=True))
+        self.effective_load_shedding = effective
+        self.ineffective_load_shedding = ineffective
+        self.scores_load_shedding = scores_map
+        self.params_load_shedding = details_map
+
     # --- Main Orchestration Method ---
 
     def discover_and_prioritize(self, n_action_max: int = 5, n_reco_max: int = 2, n_split_max: int = 3, n_pst_max: int = 2) -> Dict[str, Any]:
@@ -1889,6 +2067,14 @@ class ActionDiscoverer:
                 print("\n--- Verifying relevant PST actions ---")
                 self.find_relevant_pst_actions(nodes_blue_path_names, red_loop_paths_names)
 
+        # Load shedding: target downstream (aval) nodes on the constrained path
+        constrained_path = self.g_distribution_graph.get_constrained_path()
+        nodes_aval_indices = list(constrained_path.n_aval()) if constrained_path is not None else []
+        if nodes_aval_indices:
+            with Timer("Verifying relevant load shedding"):
+                print("\n--- Verifying relevant load shedding ---")
+                self.find_relevant_load_shedding(nodes_aval_indices)
+
         with Timer("Finalizing   Priorization"):
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
             from expert_op4grid_recommender import config
@@ -1910,6 +2096,9 @@ class ActionDiscoverer:
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
             )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_load_shedding, n_action_max, n_action_max_per_type=config.MIN_LOAD_SHEDDING
+            )
 
             # 2. Fill the remaining slots sequentially using the original priority logic and limits
             self.prioritized_actions = add_prioritized_actions(
@@ -1926,6 +2115,9 @@ class ActionDiscoverer:
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, getattr(self, 'identified_pst_actions', {}), n_action_max, n_action_max_per_type=n_pst_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_load_shedding, n_action_max
             )
 
         # Build global action scores dictionary per action type, sorted by descending score
@@ -1970,6 +2162,11 @@ class ActionDiscoverer:
             "pst_tap": {
                 "scores": _round_scores(dict(sorted(getattr(self, 'scores_pst_actions', {}).items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(getattr(self, 'params_pst_actions', {})),
+                "non_convergence": {},
+            },
+            "load_shedding": {
+                "scores": _round_scores(dict(sorted(self.scores_load_shedding.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_load_shedding),
                 "non_convergence": {},
             },
         }

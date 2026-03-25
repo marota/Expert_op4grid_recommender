@@ -103,6 +103,8 @@ class MockObservation:
         class MockLoadP:
             def __init__(self, values): self._values = np.array(values if values is not None else [100.0])
             def sum(self): return self._values.sum()
+            def __getitem__(self, idx): return self._values[idx]
+            def __len__(self): return len(self._values)
         self.load_p = MockLoadP(kwargs.get('load_values'))
 
         self._simulate_return = kwargs.get('simulate_return')
@@ -1409,3 +1411,320 @@ class TestActionScoresStructureAndRounding:
                 "params": _round_params(discoverer.params_merges),
             },
         }
+
+
+## Section: Load Shedding Tests ##
+
+class MockConstrainedPath:
+    """Mocks the constrained path object for load shedding tests."""
+    def __init__(self, aval_nodes, amont_nodes=None):
+        self._aval = aval_nodes
+        self._amont = amont_nodes or []
+    def n_aval(self):
+        return self._aval
+    def n_amont(self):
+        return self._amont
+
+class MockDistributionGraphWithPath(MockDistributionGraph):
+    """Extended mock with constrained path support."""
+    def __init__(self, constrained_edges=None, aval_nodes=None, amont_nodes=None):
+        super().__init__()
+        self._constrained_edges = constrained_edges or []
+        self._aval_nodes = aval_nodes or []
+        self._amont_nodes = amont_nodes or []
+
+    def get_constrained_path(self):
+        return MockConstrainedPath(self._aval_nodes, self._amont_nodes)
+
+    def get_constrained_edges_nodes(self):
+        return self._constrained_edges, self._amont_nodes + self._aval_nodes, [], []
+
+
+@pytest.fixture
+def load_shedding_discoverer():
+    """Provides a discoverer configured for load shedding tests."""
+    # Network: Sub0 --L1-- Sub1 --L2-- Sub2
+    # Sub0: amont, Sub1: constraint, Sub2: aval with loads
+    mock_obs = MockObservation(
+        name_sub=np.array(["Sub0", "Sub1", "Sub2"]),
+        name_line=np.array(["L1", "L2"]),
+        name_load=np.array(["Load_A", "Load_B"]),
+        name_gen=np.array(["Gen_A"]),
+        line_or_to_subid=np.array([0, 1]),
+        line_ex_to_subid=np.array([1, 2]),
+        line_or_bus=np.array([1, 1]),
+        line_ex_bus=np.array([1, 1]),
+        rho=np.array([1.2, 0.5]),  # L1 overloaded at 120%
+        load_to_subid=np.array([2, 2]),  # Both loads at Sub2
+        gen_to_subid=np.array([0]),
+        load_values=[50.0, 30.0],  # 50 MW and 30 MW loads
+        sub_topologies={0: [1, 1], 1: [1, 1], 2: [1, 1, 1, 1]},
+        sub_info=np.array([2, 2, 4]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1, 1]),
+        obj_connect_to={
+            0: {'loads_id': [], 'generators_id': [0], 'lines_or_id': [0], 'lines_ex_id': []},
+            1: {'loads_id': [], 'generators_id': [], 'lines_or_id': [1], 'lines_ex_id': [0]},
+            2: {'loads_id': [0, 1], 'generators_id': [], 'lines_or_id': [], 'lines_ex_id': [1]},
+        },
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+
+    # Overflow graph: edges with capacity (blue path)
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "100"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+
+    # Distribution graph: Sub2 is aval, L1 and L2 are constrained edges
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2"],
+        aval_nodes=[2],   # Sub2 is downstream
+        amont_nodes=[0],  # Sub0 is upstream
+    )
+
+    discoverer = ActionDiscoverer(
+        env=mock_env,
+        obs=mock_obs,
+        obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0,
+        lines_defaut=["L1"],
+        lines_overloaded_ids=[0],  # L1 is overloaded
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[],
+        all_disconnected_lines=[],
+        dict_action={},
+        actions_unfiltered=set(),
+        hubs=[],
+        g_overflow=mock_g_overflow,
+        g_distribution_graph=mock_g_dist,
+        simulator_data={},
+        check_action_simulation=False,
+    )
+    return discoverer
+
+
+def test_load_shedding_finds_candidates(load_shedding_discoverer):
+    """Test that load shedding creates one action per load on the downstream node."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([2])  # Sub2 is aval with 2 loads
+
+    # One action per load: Load_A (50MW) and Load_B (30MW)
+    assert len(discoverer.identified_load_shedding) == 2
+    assert "load_shedding_Load_A" in discoverer.identified_load_shedding
+    assert "load_shedding_Load_B" in discoverer.identified_load_shedding
+
+
+def test_load_shedding_score_computation(load_shedding_discoverer):
+    """Test that scores are computed correctly based on influence and coverage."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([2])
+
+    assert "load_shedding_Load_A" in discoverer.scores_load_shedding
+    score = discoverer.scores_load_shedding["load_shedding_Load_A"]
+    assert 0 < score <= 1.0
+
+
+def test_load_shedding_params_structure(load_shedding_discoverer):
+    """Test that params contain expected fields including load_name."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([2])
+
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
+    assert params["substation"] == "Sub2"
+    assert params["node_type"] == "aval"
+    assert params["load_name"] == "Load_A"
+    assert "influence_factor" in params
+    assert "P_shedding_MW" in params
+    assert "P_overload_excess_MW" in params
+    assert "available_load_MW" in params
+    assert params["available_load_MW"] == 50.0  # Load_A's power
+    assert "in_negative_flows" in params
+    assert "out_negative_flows" in params
+    assert "coverage_ratio" in params
+    assert params["loads_shed"] == ["Load_A"]
+
+
+def test_load_shedding_skips_node_without_loads(load_shedding_discoverer):
+    """Test that nodes without loads are skipped."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([0])  # Sub0 has no loads
+
+    assert len(discoverer.identified_load_shedding) == 0
+
+
+def test_load_shedding_skips_node_without_blue_edge(load_shedding_discoverer):
+    """Test that nodes not connected to blue edges are skipped."""
+    discoverer = load_shedding_discoverer
+    # Override constrained edges to exclude L2 (the edge connecting to Sub2)
+    discoverer.g_distribution_graph = MockDistributionGraphWithPath(
+        constrained_edges=["L1"],  # Only L1, not L2
+        aval_nodes=[2],
+        amont_nodes=[0],
+    )
+    discoverer.find_relevant_load_shedding([2])
+
+    # Sub2 has loads but its adjacent edge L2 is not in the blue path
+    assert len(discoverer.identified_load_shedding) == 0
+
+
+def test_load_shedding_influence_factor(load_shedding_discoverer):
+    """Test that influence_factor is the ratio of max negative flow to max overload flow."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([2])
+
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
+    # Blue edge L2 has label=-60 → neg_in=60, max_overload_flow=100
+    assert params["influence_factor"] == round(60.0 / 100.0, 2)  # 0.6
+
+
+def test_load_shedding_overload_excess(load_shedding_discoverer):
+    """Test that P_overload_excess is computed from rho and max overload flow."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([2])
+
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
+    # rho_max = 1.2, max_overload_flow = 100 -> excess = (1.2-1.0)*100 = 20 MW
+    assert params["P_overload_excess_MW"] == 20.0
+
+
+def test_load_shedding_neg_flows_in_params(load_shedding_discoverer):
+    """Test that in/out_negative_flows are stored in params (consistent with node splitting)."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([2])
+
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
+    # Edge L2 (1->2) has label="-60" → negative in-edge for Sub2 → in_neg=60, out_neg=0
+    assert params["in_negative_flows"] == 60.0
+    assert params["out_negative_flows"] == 0.0
+    # influence_factor = max(60, 0) / 100 = 0.6
+    assert params["influence_factor"] == 0.6
+
+
+def test_load_shedding_action_uses_load_names_not_ids(load_shedding_discoverer):
+    """Test that load shedding actions use load names (strings) as keys, not integer IDs.
+
+    The pypowsybl action_space expects string load names in set_bus.loads_id,
+    not integer indices. Using integers causes 'Data of column id has the wrong
+    type, expected string' errors.
+    """
+    discoverer = load_shedding_discoverer
+
+    # Track what the action_space receives
+    calls = []
+    original_action_space = discoverer.action_space
+    def capturing_action_space(action_dict):
+        calls.append(action_dict)
+        return original_action_space(action_dict)
+    discoverer.action_space = capturing_action_space
+
+    discoverer.find_relevant_load_shedding([2])
+
+    # One call per load (2 loads at Sub2)
+    assert len(calls) == 2
+    for call in calls:
+        set_bus = call["set_bus"]
+        loads_id_dict = set_bus["loads_id"]
+        # Each action disconnects exactly one load
+        assert len(loads_id_dict) == 1
+        # Key must be a string (load name), not an integer
+        key = list(loads_id_dict.keys())[0]
+        assert isinstance(key, str), f"Expected string key, got {type(key).__name__}: {key}"
+    # Verify both load names are used across the calls
+    all_keys = {list(c["set_bus"]["loads_id"].keys())[0] for c in calls}
+    assert all_keys == {"Load_A", "Load_B"}
+
+
+def test_load_shedding_multiple_subs_multiple_loads():
+    """Test load shedding with multiple aval substations, each having multiple loads.
+
+    Network: Sub0 --L1-- Sub1 --L2-- Sub2 --L3-- Sub3
+    Sub0: amont (generator)
+    Sub1: constraint node
+    Sub2: aval, 3 loads (70MW, 40MW, 10MW)
+    Sub3: aval, 2 loads (25MW, 15MW)
+    """
+    mock_obs = MockObservation(
+        name_sub=np.array(["Sub0", "Sub1", "Sub2", "Sub3"]),
+        name_line=np.array(["L1", "L2", "L3"]),
+        name_load=np.array(["Load_X", "Load_Y", "Load_Z", "Load_P", "Load_Q"]),
+        name_gen=np.array(["Gen_1"]),
+        line_or_to_subid=np.array([0, 1, 2]),
+        line_ex_to_subid=np.array([1, 2, 3]),
+        line_or_bus=np.array([1, 1, 1]),
+        line_ex_bus=np.array([1, 1, 1]),
+        rho=np.array([1.3, 0.5, 0.4]),  # L1 overloaded at 130%
+        load_to_subid=np.array([2, 2, 2, 3, 3]),  # 3 loads at Sub2, 2 at Sub3
+        gen_to_subid=np.array([0]),
+        load_values=[70.0, 40.0, 10.0, 25.0, 15.0],
+        sub_topologies={0: [1, 1], 1: [1, 1], 2: [1, 1, 1, 1, 1], 3: [1, 1, 1]},
+        sub_info=np.array([2, 2, 5, 3]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+        obj_connect_to={
+            0: {'loads_id': [], 'generators_id': [0], 'lines_or_id': [0], 'lines_ex_id': []},
+            1: {'loads_id': [], 'generators_id': [], 'lines_or_id': [1], 'lines_ex_id': [0]},
+            2: {'loads_id': [0, 1, 2], 'generators_id': [], 'lines_or_id': [2], 'lines_ex_id': [1]},
+            3: {'loads_id': [3, 4], 'generators_id': [], 'lines_or_id': [], 'lines_ex_id': [2]},
+        },
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 200.0, "label": "200"}},
+        (1, 2): {0: {"name": "L2", "capacity": 120.0, "label": "-120"}},
+        (2, 3): {0: {"name": "L3", "capacity": 50.0, "label": "-50"}},
+    })
+
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2", "L3"],
+        aval_nodes=[2, 3],
+        amont_nodes=[0],
+    )
+
+    discoverer = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[0],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+        simulator_data={}, check_action_simulation=False,
+    )
+
+    discoverer.find_relevant_load_shedding([2, 3])
+
+    # Should create 5 actions total: 3 for Sub2 + 2 for Sub3
+    assert len(discoverer.identified_load_shedding) == 5
+
+    expected_actions = {
+        "load_shedding_Load_X", "load_shedding_Load_Y", "load_shedding_Load_Z",
+        "load_shedding_Load_P", "load_shedding_Load_Q",
+    }
+    assert set(discoverer.identified_load_shedding.keys()) == expected_actions
+
+    # Each action targets exactly one load
+    for action_id, params in discoverer.params_load_shedding.items():
+        assert len(params["loads_shed"]) == 1
+        assert params["loads_shed"][0] == params["load_name"]
+        assert params["available_load_MW"] == params["P_shedding_MW"] or params["P_shedding_MW"] <= params["available_load_MW"]
+
+    # Sub2 loads have higher influence (L2 capacity 120 vs L3 capacity 50 for Sub3)
+    # Sub2 influence = max(neg_in, neg_out) / max_overload = 120/200 = 0.6
+    # Sub3 influence: in-edge L3 label=-50 → neg_in=50, but also out-edge from Sub3 doesn't exist
+    #   So Sub3 influence = 50/200 = 0.25
+    assert discoverer.params_load_shedding["load_shedding_Load_X"]["influence_factor"] == 0.6
+    assert discoverer.params_load_shedding["load_shedding_Load_P"]["influence_factor"] == 0.25
+
+    # Higher-power loads at more influential substations should score higher
+    score_X = discoverer.scores_load_shedding["load_shedding_Load_X"]  # 70MW @ Sub2
+    score_Z = discoverer.scores_load_shedding["load_shedding_Load_Z"]  # 10MW @ Sub2
+    score_P = discoverer.scores_load_shedding["load_shedding_Load_P"]  # 25MW @ Sub3
+    assert score_X > score_Z, "Larger load at same sub should score higher"
+    assert score_X > score_P, "Load at more influential sub should score higher"
+
+    # Results should be sorted by score descending
+    scores_list = list(discoverer.scores_load_shedding.values())
+    action_ids_sorted = list(discoverer.identified_load_shedding.keys())
+    scores_sorted = [discoverer.scores_load_shedding[aid] for aid in action_ids_sorted]
+    assert scores_sorted == sorted(scores_sorted, reverse=True), "Actions should be sorted by score descending"
