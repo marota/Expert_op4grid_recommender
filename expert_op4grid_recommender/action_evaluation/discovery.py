@@ -2306,10 +2306,10 @@ class ActionDiscoverer:
                 self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_load_shedding, n_action_max, n_action_max_per_type=config.MIN_LOAD_SHEDDING
+                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max, n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max, n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT
+                self.prioritized_actions, self.identified_load_shedding, n_action_max, n_action_max_per_type=config.MIN_LOAD_SHEDDING
             )
 
             # 2. Fill the remaining slots sequentially using the original priority logic and limits
@@ -2329,10 +2329,10 @@ class ActionDiscoverer:
                 self.prioritized_actions, getattr(self, 'identified_pst_actions', {}), n_action_max, n_action_max_per_type=n_pst_max
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_load_shedding, n_action_max
+                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max
+                self.prioritized_actions, self.identified_load_shedding, n_action_max
             )
 
         # Build global action scores dictionary per action type, sorted by descending score

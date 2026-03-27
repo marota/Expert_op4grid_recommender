@@ -82,7 +82,7 @@ MIN_OPEN_COUPLING = 2
 MIN_LINE_DISCONNECTIONS = 3
 MIN_PST = 2
 MIN_LOAD_SHEDDING = 2
-MIN_RENEWABLE_CURTAILMENT = 0
+MIN_RENEWABLE_CURTAILMENT = 2
 
 # Load shedding parameters
 LOAD_SHEDDING_MARGIN = 0.05   # 5% safety margin on top of minimum shedding volume
