@@ -107,6 +107,19 @@ class MockObservation:
             def __len__(self): return len(self._values)
         self.load_p = MockLoadP(kwargs.get('load_values'))
 
+        class MockGenP:
+            def __init__(self, values): self._values = np.array(values if values is not None else [100.0])
+            def sum(self): return self._values.sum()
+            def __getitem__(self, idx): return self._values[idx]
+            def __len__(self): return len(self._values)
+        self.gen_p = MockGenP(kwargs.get('gen_values'))
+
+        # Generator energy source (for renewable curtailment)
+        gen_names = kwargs.get('name_gen', [])
+        n_gen = len(gen_names)
+        gen_es = kwargs.get('gen_energy_sources', ['OTHER'] * n_gen)
+        self.gen_energy_source = np.array(gen_es, dtype=object)
+
         self._simulate_return = kwargs.get('simulate_return')
 
     def sub_topology(self, sub_id): return np.array(self.sub_topologies.get(sub_id, []))
@@ -1728,3 +1741,344 @@ def test_load_shedding_multiple_subs_multiple_loads():
     action_ids_sorted = list(discoverer.identified_load_shedding.keys())
     scores_sorted = [discoverer.scores_load_shedding[aid] for aid in action_ids_sorted]
     assert scores_sorted == sorted(scores_sorted, reverse=True), "Actions should be sorted by score descending"
+
+# ===========================================================================
+# Section: Renewable Curtailment (find_relevant_renewable_curtailment) Tests
+# ===========================================================================
+# Network topology used in these tests:
+#   Sub0 (amont, wind+solar) --L1-- Sub1 (constraint) --L2-- Sub2 (aval, loads)
+#   L1 is overloaded at 120% (rho=1.2), capacity=100 MW.
+#   Edge L2 carries -60 MW (blue, negative).
+#   Sub0 has Wind_A (80 MW) and Solar_B (40 MW); Sub1 has no renewables.
+
+@pytest.fixture
+def renewable_discoverer():
+    """Provides a discoverer configured for renewable curtailment tests."""
+    mock_obs = MockObservation(
+        name_sub=np.array(["Sub0", "Sub1", "Sub2"]),
+        name_line=np.array(["L1", "L2"]),
+        name_load=np.array(["Load_A"]),
+        name_gen=np.array(["Wind_A", "Solar_B", "Thermal_C"]),
+        line_or_to_subid=np.array([0, 1]),
+        line_ex_to_subid=np.array([1, 2]),
+        line_or_bus=np.array([1, 1]),
+        line_ex_bus=np.array([1, 1]),
+        rho=np.array([1.2, 0.5]),       # L1 overloaded at 120%
+        load_to_subid=np.array([2]),    # Load at Sub2
+        gen_to_subid=np.array([0, 0, 1]),  # Wind_A, Solar_B at Sub0; Thermal_C at Sub1
+        load_values=[50.0],
+        gen_values=[80.0, 40.0, 200.0],  # Wind_A=80MW, Solar_B=40MW, Thermal_C=200MW
+        gen_energy_sources=["WIND", "SOLAR", "THERMAL"],
+        sub_topologies={0: [1, 1, 1, 1], 1: [1, 1, 1], 2: [1, 1]},
+        sub_info=np.array([4, 3, 2]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1, 1, 1]),
+        obj_connect_to={
+            0: {'loads_id': [], 'generators_id': [0, 1, 2], 'lines_or_id': [0], 'lines_ex_id': []},
+            1: {'loads_id': [], 'generators_id': [2], 'lines_or_id': [1], 'lines_ex_id': [0]},
+            2: {'loads_id': [0], 'generators_id': [], 'lines_or_id': [], 'lines_ex_id': [1]},
+        },
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+
+    # L1: negative label (-80 MW) — blue edge from amont Sub0 toward constraint Sub1.
+    #     A negative outgoing flow at Sub0 means reducing generation here alleviates L1.
+    # L2: negative label (-60 MW) — blue edge going downstream to aval Sub2.
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "-80"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+
+    # Sub0 is amont, Sub2 is aval; L1 and L2 are on the constrained path
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2"],
+        aval_nodes=[2],
+        amont_nodes=[0],
+    )
+
+    discoverer = ActionDiscoverer(
+        env=mock_env,
+        obs=mock_obs,
+        obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0,
+        lines_defaut=["L1"],
+        lines_overloaded_ids=[0],  # L1 is overloaded
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[],
+        all_disconnected_lines=[],
+        dict_action={},
+        actions_unfiltered=set(),
+        hubs=[],
+        g_overflow=mock_g_overflow,
+        g_distribution_graph=mock_g_dist,
+        simulator_data={},
+        check_action_simulation=False,
+    )
+    return discoverer
+
+
+def test_renewable_curtailment_finds_candidates(renewable_discoverer):
+    """Renewable curtailment creates one action per renewable generator on the upstream node."""
+    discoverer = renewable_discoverer
+    discoverer.find_relevant_renewable_curtailment([0])  # Sub0 is amont
+
+    # Wind_A and Solar_B are renewable; Thermal_C is not
+    assert len(discoverer.identified_renewable_curtailment) == 2
+    assert "renewable_curtailment_Wind_A" in discoverer.identified_renewable_curtailment
+    assert "renewable_curtailment_Solar_B" in discoverer.identified_renewable_curtailment
+    assert "renewable_curtailment_Thermal_C" not in discoverer.identified_renewable_curtailment
+
+
+def test_renewable_curtailment_skips_non_renewable(renewable_discoverer):
+    """Nodes with only non-renewable generators produce no curtailment actions."""
+    discoverer = renewable_discoverer
+    discoverer.find_relevant_renewable_curtailment([1])  # Sub1 has only Thermal_C
+
+    assert len(discoverer.identified_renewable_curtailment) == 0
+
+
+def test_renewable_curtailment_score_in_range(renewable_discoverer):
+    """Scores are in [0, 1]."""
+    discoverer = renewable_discoverer
+    discoverer.find_relevant_renewable_curtailment([0])
+
+    for action_id, score in discoverer.scores_renewable_curtailment.items():
+        assert 0 < score <= 1.0, f"Score for {action_id} out of range: {score}"
+
+
+def test_renewable_curtailment_params_structure(renewable_discoverer):
+    """Params contain all expected fields."""
+    discoverer = renewable_discoverer
+    discoverer.find_relevant_renewable_curtailment([0])
+
+    params = discoverer.params_renewable_curtailment["renewable_curtailment_Wind_A"]
+    assert params["substation"] == "Sub0"
+    assert params["node_type"] == "amont"
+    assert params["generator_name"] == "Wind_A"
+    assert params["energy_source"] == "WIND"
+    assert "influence_factor" in params
+    assert "P_curtailment_MW" in params
+    assert "P_overload_excess_MW" in params
+    assert "available_gen_MW" in params
+    assert params["available_gen_MW"] == 80.0
+    assert "in_negative_flows" in params
+    assert "out_negative_flows" in params
+    assert "coverage_ratio" in params
+    assert params["generators_curtailed"] == ["Wind_A"]
+
+
+def test_renewable_curtailment_overload_excess(renewable_discoverer):
+    """P_overload_excess = (rho_max - 1.0) * max_overload_flow."""
+    discoverer = renewable_discoverer
+    discoverer.find_relevant_renewable_curtailment([0])
+
+    params = discoverer.params_renewable_curtailment["renewable_curtailment_Wind_A"]
+    # rho_max=1.2, max_overload_flow=100 MW → excess=20 MW
+    assert params["P_overload_excess_MW"] == 20.0
+
+
+def test_renewable_curtailment_influence_factor(renewable_discoverer):
+    """influence_factor = max(neg_in, neg_out) / max_overload_flow.
+
+    In the base fixture, L1 is an out-edge from Sub0 with label=-80.
+    neg_out = 80, neg_in = 0 → influence_flow = 80, max_overload_flow = 100.
+    influence_factor = 80 / 100 = 0.8.
+    """
+    discoverer = renewable_discoverer
+    discoverer.find_relevant_renewable_curtailment([0])
+
+    # Wind_A (index 0) is at Sub0; only Wind_A and Solar_B are renewable
+    params_wind = discoverer.params_renewable_curtailment["renewable_curtailment_Wind_A"]
+    # L1 out-edge from Sub0 has label=-80 → neg_out=80, max_overload_flow=100
+    assert params_wind["influence_factor"] == round(80.0 / 100.0, 2)  # 0.8
+    assert params_wind["out_negative_flows"] == 80.0
+    assert params_wind["in_negative_flows"] == 0.0
+
+
+def test_renewable_curtailment_skips_node_without_blue_edge(renewable_discoverer):
+    """Nodes on the path but with only positive blue edge flows produce no actions."""
+    discoverer = renewable_discoverer
+    # Override with positive L1 label → no negative outgoing flow from Sub0 → influence=0
+    discoverer.g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "100"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+    discoverer.find_relevant_renewable_curtailment([0])
+
+    assert len(discoverer.identified_renewable_curtailment) == 0
+
+
+def test_renewable_curtailment_action_uses_gen_names_not_ids(renewable_discoverer):
+    """Curtailment actions use generator names (strings) as keys, not integer IDs."""
+    # Use modified fixture where Sub0 has negative outgoing flow so candidates exist
+    mock_obs = MockObservation(
+        name_sub=np.array(["Sub0", "Sub1", "Sub2"]),
+        name_line=np.array(["L1", "L2"]),
+        name_load=np.array(["Load_A"]),
+        name_gen=np.array(["Wind_A", "Solar_B"]),
+        line_or_to_subid=np.array([0, 1]),
+        line_ex_to_subid=np.array([1, 2]),
+        line_or_bus=np.array([1, 1]),
+        line_ex_bus=np.array([1, 1]),
+        rho=np.array([1.2, 0.5]),
+        load_to_subid=np.array([2]),
+        gen_to_subid=np.array([0, 0]),
+        load_values=[50.0],
+        gen_values=[80.0, 40.0],
+        gen_energy_sources=["WIND", "SOLAR"],
+        sub_topologies={0: [1, 1, 1], 1: [1, 1], 2: [1, 1]},
+        sub_info=np.array([3, 2, 2]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1]),
+        obj_connect_to={
+            0: {'loads_id': [], 'generators_id': [0, 1], 'lines_or_id': [0], 'lines_ex_id': []},
+            1: {'loads_id': [], 'generators_id': [], 'lines_or_id': [1], 'lines_ex_id': [0]},
+            2: {'loads_id': [0], 'generators_id': [], 'lines_or_id': [], 'lines_ex_id': [1]},
+        },
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "-80"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2"],
+        aval_nodes=[2],
+        amont_nodes=[0],
+    )
+    discoverer = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[0],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+        simulator_data={}, check_action_simulation=False,
+    )
+
+    calls = []
+    original = discoverer.action_space
+    def capturing(action_dict):
+        calls.append(action_dict)
+        return original(action_dict)
+    discoverer.action_space = capturing
+
+    discoverer.find_relevant_renewable_curtailment([0])
+
+    assert len(calls) == 2
+    for call in calls:
+        gen_id_dict = call["set_bus"]["generators_id"]
+        assert len(gen_id_dict) == 1
+        key = list(gen_id_dict.keys())[0]
+        assert isinstance(key, str), f"Expected string key, got {type(key).__name__}: {key}"
+    all_keys = {list(c["set_bus"]["generators_id"].keys())[0] for c in calls}
+    assert all_keys == {"Wind_A", "Solar_B"}
+
+
+def test_renewable_curtailment_higher_power_scores_higher():
+    """Within the same amont substation, higher-power generator scores higher."""
+    mock_obs = MockObservation(
+        name_sub=np.array(["Sub0", "Sub1", "Sub2"]),
+        name_line=np.array(["L1", "L2"]),
+        name_load=np.array(["Load_A"]),
+        name_gen=np.array(["Wind_Big", "Wind_Small"]),
+        line_or_to_subid=np.array([0, 1]),
+        line_ex_to_subid=np.array([1, 2]),
+        line_or_bus=np.array([1, 1]),
+        line_ex_bus=np.array([1, 1]),
+        rho=np.array([1.2, 0.5]),
+        load_to_subid=np.array([2]),
+        gen_to_subid=np.array([0, 0]),
+        load_values=[50.0],
+        gen_values=[90.0, 20.0],  # Wind_Big=90MW, Wind_Small=20MW
+        gen_energy_sources=["WIND", "WIND"],
+        sub_topologies={0: [1, 1, 1], 1: [1, 1], 2: [1, 1]},
+        sub_info=np.array([3, 2, 2]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1]),
+        obj_connect_to={
+            0: {'loads_id': [], 'generators_id': [0, 1], 'lines_or_id': [0], 'lines_ex_id': []},
+            1: {'loads_id': [], 'generators_id': [], 'lines_or_id': [1], 'lines_ex_id': [0]},
+            2: {'loads_id': [0], 'generators_id': [], 'lines_or_id': [], 'lines_ex_id': [1]},
+        },
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "-80"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2"],
+        aval_nodes=[2],
+        amont_nodes=[0],
+    )
+    discoverer = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[0],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+        simulator_data={}, check_action_simulation=False,
+    )
+    discoverer.find_relevant_renewable_curtailment([0])
+
+    assert len(discoverer.identified_renewable_curtailment) == 2
+    score_big = discoverer.scores_renewable_curtailment["renewable_curtailment_Wind_Big"]
+    score_small = discoverer.scores_renewable_curtailment["renewable_curtailment_Wind_Small"]
+    assert score_big > score_small, "Higher-power generator should score higher"
+
+    # Results sorted by score descending
+    action_ids = list(discoverer.identified_renewable_curtailment.keys())
+    scores = [discoverer.scores_renewable_curtailment[aid] for aid in action_ids]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_renewable_curtailment_in_action_scores():
+    """renewable_curtailment key is present in discover_and_prioritize action_scores."""
+    # Use the MockDistributionGraphWithPath fixture-style setup but inline
+    mock_obs = MockObservation(
+        name_sub=np.array(["Sub0", "Sub1"]),
+        name_line=np.array(["L1"]),
+        name_load=np.array([]),
+        name_gen=np.array(["Gen_A"]),
+        line_or_to_subid=np.array([0]),
+        line_ex_to_subid=np.array([1]),
+        rho=np.array([0.5]),
+        load_to_subid=np.array([], dtype=int),
+        gen_to_subid=np.array([0]),
+        load_values=[],
+        gen_values=[50.0],
+        gen_energy_sources=["WIND"],
+        sub_topologies={0: [1, 1], 1: [1, 1]},
+        sub_info=np.array([2, 2]),
+        topo_vect=np.array([1, 1, 1, 1]),
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "50"}},
+    })
+
+    class MinimalDistGraph:
+        def __init__(self):
+            self.red_loops = __import__('pandas').DataFrame(columns=["Path"])
+        def get_dispatch_edges_nodes(self, only_loop_paths=False): return [], []
+        def get_constrained_edges_nodes(self): return [], [], [], []
+        def get_constrained_path(self): return None
+
+    discoverer = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=MinimalDistGraph(),
+        simulator_data={}, check_action_simulation=False,
+    )
+
+    _, action_scores = discoverer.discover_and_prioritize(n_action_max=5)
+    assert "renewable_curtailment" in action_scores
+    assert "scores" in action_scores["renewable_curtailment"]
+    assert "params" in action_scores["renewable_curtailment"]
+    assert "non_convergence" in action_scores["renewable_curtailment"]
