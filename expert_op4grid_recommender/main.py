@@ -219,15 +219,21 @@ def build_overflow_graph_pypowsybl_wrapper(env, obs_simu_defaut, lines_overloade
 # UNIFIED ANALYSIS FUNCTION
 # =============================================================================
 
-def run_analysis_step1(analysis_date: Optional[datetime], 
-                       current_timestep: int, 
+def run_analysis_step1(analysis_date: Optional[datetime],
+                       current_timestep: int,
                        current_lines_defaut: List[str],
-                       env_path: Optional[str] = None, 
+                       env_path: Optional[str] = None,
                        env_name: Optional[str] = None,
                        backend: Backend = Backend.GRID2OP,
-                       fast_mode: Optional[bool] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+                       fast_mode: Optional[bool] = None,
+                       dict_action: Optional[Dict[str, Any]] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     """
     First part of the expert system analysis up to detection and selection of overloads.
+
+    Args:
+        dict_action: Pre-built enriched action dictionary (output of enrich_actions_lazy).
+            When provided for the pypowsybl backend, the enrich_actions_lazy step inside
+            Environment Setup is skipped, avoiding a redundant NetworkTopologyCache rebuild.
 
     Returns:
         (final_result, context):
@@ -283,7 +289,7 @@ def run_analysis_step1(analysis_date: Optional[datetime],
 
     # Load setup
     with Timer("Environment Setup"):
-        env, obs, path_chronic, chronic_name, custom_layout, dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment(
+        env, obs, path_chronic, chronic_name, custom_layout, raw_dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment(
             analysis_date)
 
         # Get pypowsybl network reference
@@ -301,8 +307,14 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         # Only needed for pypowsybl backend — Grid2Op environments may use
         # node-breaker topologies where NetworkTopologyCache cannot reliably
         # compute set_bus from switches, so actions must ship with pre-computed content.
+        # Skip if the caller already provided a pre-built enriched dict (avoids rebuilding
+        # the NetworkTopologyCache on every run_analysis_step1 call).
         if backend == Backend.PYPOWSYBL:
-            dict_action = enrich_actions_lazy(dict_action, n_grid)
+            if dict_action is None:
+                dict_action = enrich_actions_lazy(raw_dict_action, n_grid)
+            # else: use the caller-supplied pre-built dict as-is
+        else:
+            dict_action = raw_dict_action
 
     # --- Instantiate Classifier ---
     if backend == Backend.PYPOWSYBL:
