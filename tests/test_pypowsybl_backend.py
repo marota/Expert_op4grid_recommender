@@ -11,6 +11,9 @@ import numpy as np
 from pathlib import Path
 import tempfile
 import json
+import expert_op4grid_recommender.config as configuration_module
+import expert_op4grid_recommender
+expert_op4grid_recommender.config = configuration_module
 
 # Skip all tests if pypowsybl is not available
 pypowsybl = pytest.importorskip("pypowsybl")
@@ -794,12 +797,12 @@ class TestBuildConnectableToNodeMap:
         vl = lines_df.loc[first_line, 'voltage_level1_id']
 
         topo = network.get_node_breaker_topology(vl)
-        conn_map = _build_connectable_to_node_map(topo.nodes)
+        conn_map = _build_connectable_to_node_map(topo.nodes, vl)
 
         assert isinstance(conn_map, dict)
         assert len(conn_map) > 0
         # The known line should appear in its VL's connectable map
-        assert first_line in conn_map
+        assert (first_line, vl) in conn_map
 
     def test_with_empty_dataframe(self):
         """Test that an empty nodes DataFrame returns an empty dict."""
@@ -807,7 +810,7 @@ class TestBuildConnectableToNodeMap:
         from expert_op4grid_recommender.utils.helpers_pypowsybl import _build_connectable_to_node_map
 
         empty_df = pd.DataFrame(columns=['connectable_id'])
-        result = _build_connectable_to_node_map(empty_df)
+        result = _build_connectable_to_node_map(empty_df, "VL1")
         assert result == {}
 
     def test_with_all_nan_connectable_ids(self):
@@ -816,9 +819,9 @@ class TestBuildConnectableToNodeMap:
         from expert_op4grid_recommender.utils.helpers_pypowsybl import _build_connectable_to_node_map
 
         df = pd.DataFrame({'connectable_id': [float('nan'), float('nan')]}, index=[0, 1])
-        result = _build_connectable_to_node_map(df)
+        result = _build_connectable_to_node_map(df, "VL1")
         assert result == {}
-
+    
     def test_first_occurrence_wins(self):
         """Test that when a connectable_id appears at multiple nodes, the first is kept."""
         import pandas as pd
@@ -828,9 +831,9 @@ class TestBuildConnectableToNodeMap:
             {'connectable_id': ['LINE_A', 'LINE_B', 'LINE_A']},
             index=[10, 20, 30]
         )
-        result = _build_connectable_to_node_map(df)
-        assert result['LINE_A'] == 10
-        assert result['LINE_B'] == 20
+        result = _build_connectable_to_node_map(df, "VL1")
+        assert result[('LINE_A', 'VL1')] == (10, 'VL1')
+        assert result[('LINE_B', 'VL1')] == (20, 'VL1')
         assert len(result) == 2
 
 
@@ -851,14 +854,16 @@ class TestBuildSwitchAdjacency:
         vl = lines_df.iloc[0]['voltage_level1_id']
 
         topo = network.get_node_breaker_topology(vl)
-        sw_adj = _build_switch_adjacency(topo.switches)
+        sw_adj = _build_switch_adjacency(topo.switches, vl)
 
         assert isinstance(sw_adj, dict)
         assert len(sw_adj) > 0
         # Each entry should be a list of (other_node, kind, is_open) tuples
         for node, neighbors in sw_adj.items():
+            assert isinstance(node, tuple)
             assert isinstance(neighbors, list)
             for other, kind, is_open in neighbors:
+                assert isinstance(other, tuple)
                 assert kind in ('BREAKER', 'DISCONNECTOR', 'LOAD_BREAK_SWITCH')
                 assert isinstance(is_open, (bool, np.bool_))
 
@@ -873,16 +878,16 @@ class TestBuildSwitchAdjacency:
             'kind': ['BREAKER', 'DISCONNECTOR'],
             'open': [True, False],
         })
-        adj = _build_switch_adjacency(switches)
+        adj = _build_switch_adjacency(switches, "VL1")
 
         # node 1 -> node 2
-        assert any(other == 2 for other, _, _ in adj[1])
+        assert any(other == (2, "VL1") for other, _, _ in adj[(1, "VL1")])
         # node 2 -> node 1
-        assert any(other == 1 for other, _, _ in adj[2])
+        assert any(other == (1, "VL1") for other, _, _ in adj[(2, "VL1")])
         # node 3 -> node 4
-        assert any(other == 4 for other, _, _ in adj[3])
+        assert any(other == (4, "VL1") for other, _, _ in adj[(3, "VL1")])
         # node 4 -> node 3
-        assert any(other == 3 for other, _, _ in adj[4])
+        assert any(other == (3, "VL1") for other, _, _ in adj[(4, "VL1")])
 
     def test_with_empty_dataframe(self):
         """Test that an empty switches DataFrame returns an empty dict."""
@@ -890,7 +895,7 @@ class TestBuildSwitchAdjacency:
         from expert_op4grid_recommender.utils.helpers_pypowsybl import _build_switch_adjacency
 
         empty_df = pd.DataFrame(columns=['node1', 'node2', 'kind', 'open'])
-        result = _build_switch_adjacency(empty_df)
+        result = _build_switch_adjacency(empty_df, "VL1")
         assert len(result) == 0
 
     def test_preserves_kind_and_open_state(self):
@@ -904,12 +909,12 @@ class TestBuildSwitchAdjacency:
             'kind': ['BREAKER'],
             'open': [True],
         })
-        adj = _build_switch_adjacency(switches)
+        adj = _build_switch_adjacency(switches, "VL1")
 
-        neighbors_of_10 = adj[10]
+        neighbors_of_10 = adj[(10, "VL1")]
         assert len(neighbors_of_10) == 1
         other, kind, is_open = neighbors_of_10[0]
-        assert other == 20
+        assert other == (20, "VL1")
         assert kind == 'BREAKER'
         assert is_open == True
 
@@ -953,8 +958,8 @@ class TestCheckSwitchesFromLookups:
         for vl_id in vl_ids:
             topo = network.get_node_breaker_topology(vl_id)
             topo_cache[vl_id] = (
-                _build_connectable_to_node_map(topo.nodes),
-                _build_switch_adjacency(topo.switches),
+                _build_connectable_to_node_map(topo.nodes, vl_id),
+                _build_switch_adjacency(topo.switches, vl_id),
             )
 
         # Compare for every disconnected element and every side
@@ -965,7 +970,7 @@ class TestCheckSwitchesFromLookups:
                     vl = row[vl_col]
                     original = _check_line_side_switches(network, eid, vl)
                     conn_map, sw_adj = topo_cache[vl]
-                    optimized = _check_switches_from_lookups(conn_map, sw_adj, eid)
+                    optimized = _check_switches_from_lookups(conn_map, sw_adj, eid, vl)
                     if original != optimized:
                         mismatches.append((eid, vl, original, optimized))
 
@@ -975,18 +980,18 @@ class TestCheckSwitchesFromLookups:
         """Test that a line not in the connectable map returns None."""
         from expert_op4grid_recommender.utils.helpers_pypowsybl import _check_switches_from_lookups
 
-        result = _check_switches_from_lookups({}, {}, "NONEXISTENT_LINE")
+        result = _check_switches_from_lookups({}, {}, "NONEXISTENT_LINE", "VL1")
         assert result is None
 
     def test_returns_none_when_no_breakers(self):
         """Test that a line node with only disconnectors returns None."""
         from expert_op4grid_recommender.utils.helpers_pypowsybl import _check_switches_from_lookups
 
-        conn_map = {"LINE_A": 1}
+        conn_map = {("LINE_A", "VL1"): 1}
         # Node 1 only has DISCONNECTOR neighbors, no BREAKER
         sw_adj = {1: [(2, 'DISCONNECTOR', True)]}
 
-        result = _check_switches_from_lookups(conn_map, sw_adj, "LINE_A")
+        result = _check_switches_from_lookups(conn_map, sw_adj, "LINE_A", "VL1")
         assert result is None
 
     def test_open_breaker_and_open_disconnectors(self):
@@ -994,13 +999,13 @@ class TestCheckSwitchesFromLookups:
         from expert_op4grid_recommender.utils.helpers_pypowsybl import _check_switches_from_lookups
 
         # line node=1, breaker to intermediate node=2, disconnectors from node=2
-        conn_map = {"LINE_A": 1}
+        conn_map = {("LINE_A", "VL1"): 1}
         sw_adj = {
             1: [(2, 'BREAKER', True)],  # open breaker
             2: [(1, 'BREAKER', True), (3, 'DISCONNECTOR', True), (4, 'DISCONNECTOR', True)],
         }
 
-        result = _check_switches_from_lookups(conn_map, sw_adj, "LINE_A")
+        result = _check_switches_from_lookups(conn_map, sw_adj, "LINE_A", "VL1")
         assert result is not None
         breaker_open, all_disc_open = result
         assert breaker_open is True
@@ -1010,13 +1015,13 @@ class TestCheckSwitchesFromLookups:
         """Test a line with open breaker but a closed disconnector."""
         from expert_op4grid_recommender.utils.helpers_pypowsybl import _check_switches_from_lookups
 
-        conn_map = {"LINE_A": 1}
+        conn_map = {("LINE_A", "VL1"): 1}
         sw_adj = {
             1: [(2, 'BREAKER', True)],  # open breaker
             2: [(1, 'BREAKER', True), (3, 'DISCONNECTOR', False)],  # closed disconnector
         }
 
-        result = _check_switches_from_lookups(conn_map, sw_adj, "LINE_A")
+        result = _check_switches_from_lookups(conn_map, sw_adj, "LINE_A", "VL1")
         assert result is not None
         breaker_open, all_disc_open = result
         assert breaker_open is True
@@ -1026,13 +1031,13 @@ class TestCheckSwitchesFromLookups:
         """Test a line with closed breaker."""
         from expert_op4grid_recommender.utils.helpers_pypowsybl import _check_switches_from_lookups
 
-        conn_map = {"LINE_A": 1}
+        conn_map = {("LINE_A", "VL1"): 1}
         sw_adj = {
             1: [(2, 'BREAKER', False)],  # closed breaker
             2: [(1, 'BREAKER', False), (3, 'DISCONNECTOR', False)],
         }
 
-        result = _check_switches_from_lookups(conn_map, sw_adj, "LINE_A")
+        result = _check_switches_from_lookups(conn_map, sw_adj, "LINE_A", "VL1")
         assert result is not None
         breaker_open, all_disc_open = result
         assert breaker_open is False
@@ -1116,4 +1121,5 @@ class TestPypowsyblRobustnessAndFixes:
 
 
 if __name__ == "__main__":
+    import pytest
     pytest.main([__file__, "-v"])

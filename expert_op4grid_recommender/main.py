@@ -219,15 +219,29 @@ def build_overflow_graph_pypowsybl_wrapper(env, obs_simu_defaut, lines_overloade
 # UNIFIED ANALYSIS FUNCTION
 # =============================================================================
 
-def run_analysis_step1(analysis_date: Optional[datetime], 
-                       current_timestep: int, 
+def run_analysis_step1(analysis_date: Optional[datetime],
+                       current_timestep: int,
                        current_lines_defaut: List[str],
-                       env_path: Optional[str] = None, 
+                       env_path: Optional[str] = None,
                        env_name: Optional[str] = None,
                        backend: Backend = Backend.GRID2OP,
-                       fast_mode: Optional[bool] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+                       fast_mode: Optional[bool] = None,
+                       dict_action: Optional[Dict[str, Any]] = None,
+                       prebuilt_env_context: Optional[Dict[str, Any]] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     """
     First part of the expert system analysis up to detection and selection of overloads.
+
+    Args:
+        dict_action: Pre-built enriched action dictionary (output of enrich_actions_lazy).
+            When provided for the pypowsybl backend, the enrich_actions_lazy step inside
+            Environment Setup is skipped, avoiding a redundant NetworkTopologyCache rebuild.
+        prebuilt_env_context: Pre-built environment context dict with keys
+            ``env``, ``path_chronic``, ``chronic_name``, ``custom_layout``,
+            ``lines_non_reconnectable``, ``lines_we_care_about``.
+            When provided for the pypowsybl backend, ``setup_environment`` is skipped
+            entirely and ``env.get_obs()`` is used to read the current N-state.
+            The network is reset to the base variant before reading so that stale
+            variants from previous analyses do not pollute the observation.
 
     Returns:
         (final_result, context):
@@ -283,26 +297,46 @@ def run_analysis_step1(analysis_date: Optional[datetime],
 
     # Load setup
     with Timer("Environment Setup"):
-        env, obs, path_chronic, chronic_name, custom_layout, dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment(
-            analysis_date)
-
-        # Get pypowsybl network reference
-        if backend == Backend.GRID2OP:
-            n_grid = env.backend._grid.network
-        else:
+        if prebuilt_env_context is not None and backend == Backend.PYPOWSYBL:
+            # Fast path: reuse a cached SimulationEnvironment built during update_config.
+            # Reset the network to the base variant so any variants left by the previous
+            # analysis are not visible in the N-state observation.
+            env = prebuilt_env_context['env']
+            env.network_manager.reset_to_base()
+            obs = env.get_obs()
+            path_chronic = prebuilt_env_context['path_chronic']
+            chronic_name = prebuilt_env_context['chronic_name']
+            custom_layout = prebuilt_env_context.get('custom_layout')
+            lines_non_reconnectable = prebuilt_env_context['lines_non_reconnectable']
+            lines_we_care_about = prebuilt_env_context['lines_we_care_about']
             n_grid = env.network_manager.network
+        else:
+            env, obs, path_chronic, chronic_name, custom_layout, raw_dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment(
+                analysis_date)
 
-        # Temporary fix for thermal limits
-        if np.mean(env.get_thermal_limit()) >= 10 ** 4:
-            env = set_thermal_limits(n_grid, env, thresold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS)
-            obs = env.reset() if backend == Backend.GRID2OP else env.get_obs()
+            # Get pypowsybl network reference
+            if backend == Backend.GRID2OP:
+                n_grid = env.backend._grid.network
+            else:
+                n_grid = env.network_manager.network
+
+            # Temporary fix for thermal limits
+            if np.mean(env.get_thermal_limit()) >= 10 ** 4:
+                env = set_thermal_limits(n_grid, env, thresold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS)
+                obs = env.reset() if backend == Backend.GRID2OP else env.get_obs()
 
         # Wrap action dicts for lazy content computation from switches.
         # Only needed for pypowsybl backend — Grid2Op environments may use
         # node-breaker topologies where NetworkTopologyCache cannot reliably
         # compute set_bus from switches, so actions must ship with pre-computed content.
+        # Skip if the caller already provided a pre-built enriched dict (avoids rebuilding
+        # the NetworkTopologyCache on every run_analysis_step1 call).
         if backend == Backend.PYPOWSYBL:
-            dict_action = enrich_actions_lazy(dict_action, n_grid)
+            if dict_action is None:
+                dict_action = enrich_actions_lazy(raw_dict_action, n_grid)
+            # else: use the caller-supplied pre-built dict as-is
+        else:
+            dict_action = raw_dict_action
 
     # --- Instantiate Classifier ---
     if backend == Backend.PYPOWSYBL:
