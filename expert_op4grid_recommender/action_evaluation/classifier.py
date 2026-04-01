@@ -251,6 +251,8 @@ class ActionClassifier:
             return "close_line"
         if is_load_disco:
             return "open_load"
+        if hasattr(grid2op_action, "gen_set_bus") and any(bus == -1 for bus in grid2op_action.gen_set_bus):
+            return "open_gen"
         if hasattr(grid2op_action, "pst_tap") and grid2op_action.pst_tap:
             return "pst_tap"
         return "unknown"
@@ -285,7 +287,10 @@ class ActionClassifier:
                 elif "Variation de slot" in description or "tap" in description.lower():
                     action_type = "pst_tap"
                 elif "Ouverture" in description or "deconnection" in description:
-                    has_line, has_load = self._infer_has_line_load(actions_desc)
+                    if "generator" in description.lower() or "production" in description.lower() or "centrale" in description.lower():
+                         action_type = "open_gen"
+                    else:
+                        has_line, has_load = self._infer_has_line_load(actions_desc)
                     if has_load and has_line:
                         action_type = "open_line_load"
                     elif has_line:

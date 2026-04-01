@@ -126,11 +126,12 @@ class PypowsyblObservation:
 
         # Load and generation - ensure alignment with name_load/name_gen
         loads_df = net.get_loads()[['p', 'q']].reindex(nm.name_load)
-        gens_df = net.get_generators()[['p', 'q']].reindex(nm.name_gen)
+        gens_df = net.get_generators()[['p', 'q', 'energy_source']].reindex(nm.name_gen)
         self._load_p = loads_df['p'].fillna(0.0).values
         self._load_q = loads_df['q'].fillna(0.0).values
         self._gen_p = gens_df['p'].fillna(0.0).values
         self._gen_q = gens_df['q'].fillna(0.0).values
+        self._gen_type = gens_df['energy_source'].fillna("UNKNOWN").values
 
         # Connected components and main component load
         self._n_components = net.get_buses()['connected_component'].nunique()
@@ -408,6 +409,11 @@ class PypowsyblObservation:
     def gen_q(self) -> np.ndarray:
         """Reactive power generation (MVAr)."""
         return self._gen_q.copy()
+
+    @property
+    def gen_type(self) -> np.ndarray:
+        """Generator type (energy source)."""
+        return self._gen_type.copy()
     
     @property
     def name_line(self) -> np.ndarray:

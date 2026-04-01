@@ -66,7 +66,7 @@ USE_GRID_LAYOUT = False
 DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART = False
 DO_SAVE_DATA_FOR_TEST = False
 CHECK_ACTION_SIMULATION = False#True
-N_PRIORITIZED_ACTIONS = 10
+N_PRIORITIZED_ACTIONS = 20#10
 IGNORE_RECONNECTIONS = False#False
 IGNORE_LINES_MONITORING = True
 DO_VISUALIZATION = True
@@ -82,6 +82,8 @@ MIN_OPEN_COUPLING = 2
 MIN_LINE_DISCONNECTIONS = 3
 MIN_PST = 2
 MIN_LOAD_SHEDDING = 2
+MIN_RENEWABLE_CURTAILMENT = 2
+#MIN_RENEWABLE_CURTAILMENT_ACTIONS = 2
 
 # Load shedding parameters
 LOAD_SHEDDING_MARGIN = 0.05   # 5% safety margin on top of minimum shedding volume
@@ -108,3 +110,9 @@ PARAM_OPTIONS_EXPERT_OP = {
     # number of simulated topologies per node at the final simulation step
     "numberofsimulatedtopospernode": 10
 }
+
+RENEWABLE_ENERGY_SOURCES = ["WIND", "SOLAR"]
+
+# Renewable Curtailment
+RENEWABLE_CURTAILMENT_MARGIN = 0.05 # Safety margin (5%) added when computing required curtailment MW
+RENEWABLE_CURTAILMENT_MIN_MW = 1.0 # Generators below this MW threshold are excluded as candidates
