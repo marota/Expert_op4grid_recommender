@@ -942,11 +942,13 @@ def compute_all_pairs_superposition(
     num_lines = len(name_line)
     worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
 
+    monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
     pre_existing_baseline = np.zeros(num_lines)
     is_pre_existing = np.zeros(num_lines, dtype=bool)
     for idx, rho_val in pre_existing_rho.items():
-        pre_existing_baseline[idx] = rho_val
-        is_pre_existing[idx] = True
+        if rho_val >= monitoring_factor:
+            pre_existing_baseline[idx] = rho_val
+            is_pre_existing[idx] = True
 
     if lines_we_care_about is not None and len(lines_we_care_about) > 0:
         care_mask = np.isin(name_line, list(lines_we_care_about))
