@@ -1964,10 +1964,10 @@ class ActionDiscoverer:
         self.scores_load_shedding = scores_map
         self.params_load_shedding = details_map
 
-    def find_relevant_renewable_curtailment(self, nodes_aval_indices: List[int]):
+    def find_relevant_renewable_curtailment(self, nodes_indices: List[int]):
         """
-        Discovers renewable curtailment candidates on downstream (aval) nodes of the constrained path.
-        Mirroring load shedding logic but for generators (WIND/SOLAR).
+        Discovers renewable curtailment candidates on upstream (amont) nodes or loop nodes.
+        Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
         """
         self._build_lookup_caches()
         obs = self.obs_defaut
@@ -2000,7 +2000,7 @@ class ActionDiscoverer:
         all_edge_labels = nx.get_edge_attributes(g, "label")
         edge_names = nx.get_edge_attributes(g, "name")
 
-        for node_idx in nodes_aval_indices:
+        for node_idx in nodes_indices:
             sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
             if not sub_name: continue
 
@@ -2208,10 +2208,12 @@ class ActionDiscoverer:
             with Timer("Verifying relevant load shedding"):
                 print("\n--- Verifying relevant load shedding ---")
                 self.find_relevant_load_shedding(nodes_aval_indices)
-        with Timer("Verifying relevant renewable curtailment"):
-            print("\n--- Verifying relevant renewable curtailment ---")
-            all_nodes=[i for i in range(n_subs)]
-            self.find_relevant_renewable_curtailment(all_nodes)#(nodes_aval_indices)
+        # Renewable curtailment: target nodes in the constrained path (excluding aval) or red loop nodes
+        nodes_rc_indices = list((set(nodes_blue_path_indices) - set(nodes_aval_indices)) | set(nodes_dispatch_loop_indices))
+        if nodes_rc_indices:
+            with Timer("Verifying relevant renewable curtailment"):
+                print("\n--- Verifying relevant renewable curtailment ---")
+                self.find_relevant_renewable_curtailment(nodes_rc_indices)
 
         with Timer("Finalizing   Priorization"):
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
