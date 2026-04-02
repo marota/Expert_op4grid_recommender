@@ -1614,12 +1614,11 @@ def test_load_shedding_neg_flows_in_params(load_shedding_discoverer):
     assert params["influence_factor"] == 0.6
 
 
-def test_load_shedding_action_uses_load_names_not_ids(load_shedding_discoverer):
-    """Test that load shedding actions use load names (strings) as keys, not integer IDs.
+def test_load_shedding_action_uses_power_reduction(load_shedding_discoverer):
+    """Test that load shedding uses set_load_p (power reduction to 0 MW) not disconnection.
 
-    The pypowsybl action_space expects string load names in set_bus.loads_id,
-    not integer indices. Using integers causes 'Data of column id has the wrong
-    type, expected string' errors.
+    Load shedding actions should reduce active power to 0 MW via set_load_p,
+    keeping the load electrically connected rather than disconnecting it.
     """
     discoverer = load_shedding_discoverer
 
@@ -1636,16 +1635,31 @@ def test_load_shedding_action_uses_load_names_not_ids(load_shedding_discoverer):
     # One call per load (2 loads at Sub2)
     assert len(calls) == 2
     for call in calls:
-        set_bus = call["set_bus"]
-        loads_id_dict = set_bus["loads_id"]
-        # Each action disconnects exactly one load
-        assert len(loads_id_dict) == 1
-        # Key must be a string (load name), not an integer
-        key = list(loads_id_dict.keys())[0]
+        # Must use set_load_p, NOT set_bus
+        assert "set_load_p" in call, f"Expected set_load_p key, got: {list(call.keys())}"
+        assert "set_bus" not in call, "Should not use set_bus for power reduction"
+        loads_p_dict = call["set_load_p"]
+        # Each action targets exactly one load
+        assert len(loads_p_dict) == 1
+        # Key must be a string (load name)
+        key = list(loads_p_dict.keys())[0]
         assert isinstance(key, str), f"Expected string key, got {type(key).__name__}: {key}"
+        # Target power must be 0.0
+        assert loads_p_dict[key] == 0.0, f"Expected target_p=0.0, got {loads_p_dict[key]}"
     # Verify both load names are used across the calls
-    all_keys = {list(c["set_bus"]["loads_id"].keys())[0] for c in calls}
+    all_keys = {list(c["set_load_p"].keys())[0] for c in calls}
     assert all_keys == {"Load_A", "Load_B"}
+
+
+def test_load_shedding_params_contain_power_reduction_fields(load_shedding_discoverer):
+    """Test that load shedding params include action_mode, target_p_MW, and reduction_MW."""
+    discoverer = load_shedding_discoverer
+    discoverer.find_relevant_load_shedding([2])
+
+    params = discoverer.params_load_shedding["load_shedding_Load_A"]
+    assert params["action_mode"] == "power_reduction"
+    assert params["target_p_MW"] == 0.0
+    assert params["reduction_MW"] == 50.0  # Load_A's available power
 
 
 def test_load_shedding_multiple_subs_multiple_loads():
@@ -1908,8 +1922,8 @@ def test_renewable_curtailment_skips_node_without_blue_edge(renewable_discoverer
     assert len(discoverer.identified_renewable_curtailment) == 0
 
 
-def test_renewable_curtailment_action_uses_gen_names_not_ids(renewable_discoverer):
-    """Curtailment actions use generator names (strings) as keys, not integer IDs."""
+def test_renewable_curtailment_action_uses_power_reduction(renewable_discoverer):
+    """Curtailment actions use set_gen_p (power reduction to 0 MW) not disconnection."""
     # Use modified fixture where Sub0 has negative outgoing flow so candidates exist
     mock_obs = MockObservation(
         name_sub=np.array(["Sub0", "Sub1", "Sub2"]),
@@ -1967,12 +1981,27 @@ def test_renewable_curtailment_action_uses_gen_names_not_ids(renewable_discovere
 
     assert len(calls) == 2
     for call in calls:
-        gen_id_dict = call["set_bus"]["generators_id"]
-        assert len(gen_id_dict) == 1
-        key = list(gen_id_dict.keys())[0]
+        # Must use set_gen_p, NOT set_bus
+        assert "set_gen_p" in call, f"Expected set_gen_p key, got: {list(call.keys())}"
+        assert "set_bus" not in call, "Should not use set_bus for power reduction"
+        gen_p_dict = call["set_gen_p"]
+        assert len(gen_p_dict) == 1
+        key = list(gen_p_dict.keys())[0]
         assert isinstance(key, str), f"Expected string key, got {type(key).__name__}: {key}"
-    all_keys = {list(c["set_bus"]["generators_id"].keys())[0] for c in calls}
+        assert gen_p_dict[key] == 0.0, f"Expected target_p=0.0, got {gen_p_dict[key]}"
+    all_keys = {list(c["set_gen_p"].keys())[0] for c in calls}
     assert all_keys == {"Wind_A", "Solar_B"}
+
+
+def test_renewable_curtailment_params_contain_power_reduction_fields(renewable_discoverer):
+    """Curtailment params include action_mode, target_p_MW, and reduction_MW."""
+    discoverer = renewable_discoverer
+    discoverer.find_relevant_renewable_curtailment([0])
+
+    params = discoverer.params_renewable_curtailment["curtail_Wind_A"]
+    assert params["action_mode"] == "power_reduction"
+    assert params["target_p_MW"] == 0.0
+    assert params["reduction_MW"] == 80.0  # Wind_A's gen_p (absolute value)
 
 
 def test_renewable_curtailment_higher_power_scores_higher():
