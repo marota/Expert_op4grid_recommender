@@ -183,6 +183,11 @@ class ActionDiscoverer:
         self.ineffective_load_shedding = []
         self.scores_load_shedding = {}
         self.params_load_shedding = {}
+        self.identified_renewable_curtailment = {}
+        self.effective_renewable_curtailment = []
+        self.ineffective_renewable_curtailment = []
+        self.scores_renewable_curtailment = {}
+        self.params_renewable_curtailment = {}
         self.prioritized_actions = {}
 
     # --- Helper Methods (Internal logic, kept private) ---
@@ -1961,6 +1966,203 @@ class ActionDiscoverer:
         self.scores_load_shedding = scores_map
         self.params_load_shedding = details_map
 
+    def find_relevant_renewable_curtailment(self, nodes_amont_indices: List[int]):
+        """
+        Discovers renewable curtailment candidates on upstream (amont) nodes of the constrained path.
+
+        For each upstream node that has active renewable generators (WIND or SOLAR), computes
+        the influence factor from the adjacent blue edge with the maximum negative flow, then
+        determines the MW volume to curtail (with a safety margin) and builds the corresponding
+        disconnection action.
+
+        Args:
+            nodes_amont_indices: Substation indices of upstream nodes on the constrained path.
+        """
+        self._build_lookup_caches()
+        obs = self.obs_defaut
+        g = self.g_overflow.g
+
+        margin = getattr(config, 'RENEWABLE_CURTAILMENT_MARGIN', 0.05)
+        min_mw = getattr(config, 'RENEWABLE_CURTAILMENT_MIN_MW', 1.0)
+        renewable_sources = set(
+            s.upper() for s in getattr(config, 'RENEWABLE_ENERGY_SOURCES', ['WIND', 'SOLAR'])
+        )
+
+        # Compute overload excess in MW (same as load shedding)
+        name_to_capacity = self._build_line_capacity_map()
+        if not name_to_capacity:
+            return
+
+        overloaded_line_names = {obs.name_line[i] for i in self.lines_overloaded_ids}
+        overloaded_caps = [name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity]
+        max_overload_flow = max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
+
+        rho_overloaded = obs.rho[self.lines_overloaded_ids]
+        if len(rho_overloaded) == 0:
+            return
+        rho_max = float(np.max(rho_overloaded))
+        if rho_max <= 1.0:
+            return
+        P_overload_excess = (rho_max - 1.0) * max_overload_flow
+
+        # Get edge attributes
+        edge_names = nx.get_edge_attributes(g, "name")
+        all_edge_labels = nx.get_edge_attributes(g, "label")
+
+        # Get blue edges set (constrained path edges)
+        constrained_edges_names, _, other_blue_names, _ = self.g_distribution_graph.get_constrained_edges_nodes()
+        blue_edge_names_set = set(constrained_edges_names + other_blue_names)
+
+        # Determine which generators are renewable
+        has_energy_source = hasattr(obs, 'gen_energy_source')
+        if has_energy_source:
+            gen_energy_sources = obs.gen_energy_source
+        else:
+            # Fallback: no renewable identification possible
+            gen_energy_sources = np.array(["OTHER"] * len(obs.name_gen), dtype=object)
+
+        identified = {}
+        scores_map = {}
+        details_map = {}
+        effective = []
+        ineffective = []
+
+        for node_idx in nodes_amont_indices:
+            sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
+            if sub_name is None:
+                continue
+
+            # Get generators at this substation
+            obj = obs.get_obj_connect_to(substation_id=node_idx)
+            gen_ids = obj.get('generators_id', [])
+            if len(gen_ids) == 0:
+                continue
+
+            # Filter to renewable generators only
+            renewable_gen_ids = [
+                gid for gid in gen_ids
+                if gid < len(gen_energy_sources)
+                and str(gen_energy_sources[gid]).upper() in renewable_sources
+            ]
+            if not renewable_gen_ids:
+                continue
+
+            # Compute available renewable generation (positive output only)
+            gen_powers = [float(obs.gen_p[gid]) for gid in renewable_gen_ids if gid < len(obs.gen_p)]
+            available_gen = sum(p for p in gen_powers if p > 0)
+            if available_gen <= 0:
+                continue
+
+            # Compute influence via sum of negative flows on blue edges at this node
+            total_neg_in = sum(
+                abs(float(all_edge_labels[edge]))
+                for edge in g.in_edges(node_idx, keys=True)
+                if edge in all_edge_labels
+                and edge_names.get(edge) in blue_edge_names_set
+                and float(all_edge_labels[edge]) < 0
+            )
+            total_neg_out = sum(
+                abs(float(all_edge_labels[edge]))
+                for edge in g.out_edges(node_idx, keys=True)
+                if edge in all_edge_labels
+                and edge_names.get(edge) in blue_edge_names_set
+                and float(all_edge_labels[edge]) < 0
+            )
+            influence_flow = max(total_neg_in, total_neg_out)
+
+            if influence_flow <= 0:
+                continue
+
+            influence_factor = min(1.0, influence_flow / max_overload_flow) if max_overload_flow > 0 else 0.0
+            if influence_factor <= 0:
+                continue
+
+            # Compute curtailment volume
+            P_curtailment_min = (
+                P_overload_excess / influence_factor * (1.0 + margin)
+                if influence_factor > 0
+                else P_overload_excess * (1.0 + margin)
+            )
+            P_curtailment = max(P_curtailment_min, min_mw)
+            P_curtailment = min(P_curtailment, available_gen)
+
+            coverage_ratio = min(1.0, available_gen / P_curtailment_min) if P_curtailment_min > 0 else 1.0
+
+            # Build one action per renewable generator, sorted by power descending
+            gen_entries = [
+                (gid, float(obs.gen_p[gid]))
+                for gid in renewable_gen_ids
+                if gid < len(obs.gen_p) and float(obs.gen_p[gid]) > 0
+            ]
+            gen_entries.sort(key=lambda x: x[1], reverse=True)
+
+            if not gen_entries:
+                continue
+
+            # Get full assets at the substation
+            assets = self._get_assets_on_bus_for_sub(node_idx, 1)
+
+            for gid, gen_power in gen_entries:
+                gen_name = str(obs.name_gen[gid]) if gid < len(obs.name_gen) else str(gid)
+                energy_source = str(gen_energy_sources[gid]).upper() if gid < len(gen_energy_sources) else "UNKNOWN"
+                action_id = f"renewable_curtailment_{gen_name}"
+
+                # Per-generator coverage score
+                gen_coverage = min(1.0, gen_power / P_curtailment_min) if P_curtailment_min > 0 else 1.0
+                gen_score = influence_factor * gen_coverage
+
+                try:
+                    set_bus_dict = {"generators_id": {gen_name: -1}}
+                    action = self.action_space({"set_bus": set_bus_dict})
+                except Exception as e:
+                    print(f"Warning: Could not create renewable curtailment action for {gen_name}: {e}")
+                    continue
+
+                identified[action_id] = action
+                scores_map[action_id] = round(gen_score, 2)
+
+                details_map[action_id] = {
+                    "substation": sub_name,
+                    "node_type": "amont",
+                    "generator_name": gen_name,
+                    "energy_source": energy_source,
+                    "influence_factor": round(influence_factor, 2),
+                    "in_negative_flows": round(total_neg_in, 2),
+                    "out_negative_flows": round(total_neg_out, 2),
+                    "P_curtailment_MW": round(min(gen_power, P_curtailment), 2),
+                    "P_overload_excess_MW": round(P_overload_excess, 2),
+                    "available_gen_MW": round(gen_power, 2),
+                    "coverage_ratio": round(gen_coverage, 2),
+                    "generators_curtailed": [gen_name],
+                    "assets": assets,
+                }
+
+                # Optional simulation check
+                if self.check_action_simulation:
+                    try:
+                        act_defaut = self._create_default_action(
+                            self.env, self.obs, self.lines_defaut, self.timestep
+                        )
+                        is_reduction, obs_after = self._check_rho_reduction(
+                            self.env, self.obs, action + act_defaut + self.act_reco_maintenance,
+                            self.lines_overloaded_ids, self.lines_we_care_about
+                        )
+                        if is_reduction:
+                            effective.append(action_id)
+                        else:
+                            ineffective.append(action_id)
+                    except Exception as e:
+                        print(f"Warning: Simulation check failed for {action_id}: {e}")
+                        ineffective.append(action_id)
+
+        self.identified_renewable_curtailment = dict(sorted(
+            identified.items(), key=lambda x: scores_map.get(x[0], 0), reverse=True
+        ))
+        self.effective_renewable_curtailment = effective
+        self.ineffective_renewable_curtailment = ineffective
+        self.scores_renewable_curtailment = scores_map
+        self.params_renewable_curtailment = details_map
+
     # --- Main Orchestration Method ---
 
     def discover_and_prioritize(self, n_action_max: int = 5, n_reco_max: int = 2, n_split_max: int = 3, n_pst_max: int = 2) -> Dict[str, Any]:
@@ -2075,6 +2277,13 @@ class ActionDiscoverer:
                 print("\n--- Verifying relevant load shedding ---")
                 self.find_relevant_load_shedding(nodes_aval_indices)
 
+        # Renewable curtailment: target upstream (amont) nodes on the constrained path
+        nodes_amont_indices = list(constrained_path.n_amont()) if constrained_path is not None else []
+        if nodes_amont_indices:
+            with Timer("Verifying relevant renewable curtailment"):
+                print("\n--- Verifying relevant renewable curtailment ---")
+                self.find_relevant_renewable_curtailment(nodes_amont_indices)
+
         with Timer("Finalizing   Priorization"):
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
             from expert_op4grid_recommender import config
@@ -2097,6 +2306,9 @@ class ActionDiscoverer:
                 self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
             )
             self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max, n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT
+            )
+            self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_load_shedding, n_action_max, n_action_max_per_type=config.MIN_LOAD_SHEDDING
             )
 
@@ -2115,6 +2327,9 @@ class ActionDiscoverer:
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, getattr(self, 'identified_pst_actions', {}), n_action_max, n_action_max_per_type=n_pst_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_load_shedding, n_action_max
@@ -2167,6 +2382,11 @@ class ActionDiscoverer:
             "load_shedding": {
                 "scores": _round_scores(dict(sorted(self.scores_load_shedding.items(), key=lambda x: x[1], reverse=True))),
                 "params": _round_params(self.params_load_shedding),
+                "non_convergence": {},
+            },
+            "renewable_curtailment": {
+                "scores": _round_scores(dict(sorted(self.scores_renewable_curtailment.items(), key=lambda x: x[1], reverse=True))),
+                "params": _round_params(self.params_renewable_curtailment),
                 "non_convergence": {},
             },
         }
