@@ -1964,7 +1964,7 @@ class ActionDiscoverer:
         self.scores_load_shedding = scores_map
         self.params_load_shedding = details_map
 
-    def find_relevant_renewable_curtailment(self, nodes_indices: List[int]):
+    def find_relevant_renewable_curtailment(self, nodes_indices: List[int],nodes_dispatch_loop_names: List[str]):
         """
         Discovers renewable curtailment candidates on upstream (amont) nodes or loop nodes.
         Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
@@ -2023,7 +2023,22 @@ class ActionDiscoverer:
                 and edge_names.get(edge) in blue_edge_names_set
                 and float(all_edge_labels[edge]) < 0
             )
-            influence_flow = max(total_neg_in, total_neg_out)
+
+            total_pos_in = sum(
+                abs(float(all_edge_labels[edge]))
+                for edge in g.in_edges(node_idx, keys=True)
+                if edge in all_edge_labels
+                and edge_names.get(edge) in nodes_dispatch_loop_names
+                and float(all_edge_labels[edge]) > 0
+            )
+            total_pos_out = sum(
+                abs(float(all_edge_labels[edge]))
+                for edge in g.out_edges(node_idx, keys=True)
+                if edge in all_edge_labels
+                and edge_names.get(edge) in nodes_dispatch_loop_names
+                and float(all_edge_labels[edge]) > 0
+            )
+            influence_flow = max(total_neg_in, total_neg_out,total_pos_in,total_pos_out)
             #if influence_flow <= 0: continue
 
             influence_factor = min(1.0, influence_flow / max_overload_flow) if max_overload_flow > 0 else 0.0
@@ -2213,7 +2228,8 @@ class ActionDiscoverer:
         if nodes_rc_indices:
             with Timer("Verifying relevant renewable curtailment"):
                 print("\n--- Verifying relevant renewable curtailment ---")
-                self.find_relevant_renewable_curtailment(nodes_rc_indices)
+                #all_nodes=[i for i in range(n_subs)]
+                self.find_relevant_renewable_curtailment(nodes_rc_indices,nodes_dispatch_loop_names)#(nodes_rc_indices)
 
         with Timer("Finalizing   Priorization"):
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
