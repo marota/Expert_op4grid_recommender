@@ -280,14 +280,17 @@ class ActionClassifier:
             "gen_power_reduction" if it reduces generator power,
             "" if not a power reduction action.
         """
-        content = actions_desc
-        if "content" in actions_desc:
-            content = actions_desc["content"]
-
-        if "set_load_p" in content and content["set_load_p"]:
+        # Check top level first, then inside content
+        if "set_load_p" in actions_desc and actions_desc["set_load_p"]:
             return "load_power_reduction"
-        if "set_gen_p" in content and content["set_gen_p"]:
+        if "set_gen_p" in actions_desc and actions_desc["set_gen_p"]:
             return "gen_power_reduction"
+        content = actions_desc.get("content", {})
+        if isinstance(content, dict):
+            if "set_load_p" in content and content["set_load_p"]:
+                return "load_power_reduction"
+            if "set_gen_p" in content and content["set_gen_p"]:
+                return "gen_power_reduction"
         return ""
 
     def identify_action_type(self, actions_desc: Dict[str, Any], by_description: bool = True) -> str:

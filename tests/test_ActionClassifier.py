@@ -215,3 +215,83 @@ def test_grid2op_action_types_integration():
 
     action_close_coupling = env.action_space({'set_bus': {'lines_or_id': {'CPVANL31RIBAU': 1}, 'lines_ex_id': {'BEON L31CPVAN': 1, 'CPVANY631': 1, 'CPVANY632': 1, 'CPVANY633': 1}, 'loads_id': {'ARBOIL31CPVAN': 1, 'BREVAL31CPVAN': 1, 'CPDIVL32CPVAN': 1, 'CPVANL31MESNA': 1, 'CPVANL31ZBRE6': 1, 'CPVAN3TR312': 1, 'CPVAN3TR311': 1}}})
     assert classifier.identify_grid2op_action_type(action_close_coupling) == "close_coupling"
+
+
+# ===========================================================================
+# Section: Power Reduction Action Classification Tests
+# ===========================================================================
+
+def test_classify_load_power_reduction(classifier_instance):
+    """Test that set_load_p actions are classified as load_power_reduction."""
+    action_desc = {"set_load_p": {"LOAD_A": 0.0}}
+    assert classifier_instance.identify_action_type(action_desc) == "load_power_reduction"
+
+
+def test_classify_gen_power_reduction(classifier_instance):
+    """Test that set_gen_p actions are classified as gen_power_reduction."""
+    action_desc = {"set_gen_p": {"GEN_WIND": 0.0}}
+    assert classifier_instance.identify_action_type(action_desc) == "gen_power_reduction"
+
+
+def test_classify_load_power_reduction_nested_content():
+    """Power reduction detected even when nested inside a content key."""
+    classifier = ActionClassifier()
+    action_desc = {"content": {"set_load_p": {"LOAD_A": 0.0}}}
+    assert classifier.identify_action_type(action_desc) == "load_power_reduction"
+
+
+def test_classify_gen_power_reduction_nested_content():
+    """Power reduction detected even when nested inside a content key."""
+    classifier = ActionClassifier()
+    action_desc = {"content": {"set_gen_p": {"GEN_WIND": 0.0}}}
+    assert classifier.identify_action_type(action_desc) == "gen_power_reduction"
+
+
+def test_classify_empty_set_load_p_falls_through():
+    """An empty set_load_p dict should not be classified as power reduction."""
+    classifier = ActionClassifier()
+    action_desc = {"set_load_p": {}, "description_unitaire": "Ouverture ligne X",
+                   "content": {"set_bus": {"lines_or_id": {"X": -1}, "lines_ex_id": {"X": -1}}}}
+    # Should fall through to description-based classification
+    assert classifier.identify_action_type(action_desc) == "open_line"
+
+
+def test_classify_power_reduction_takes_precedence():
+    """Power reduction classification should take precedence over description-based."""
+    classifier = ActionClassifier()
+    action_desc = {
+        "set_load_p": {"LOAD_A": 0.0},
+        "description_unitaire": "Ouverture ligne X",
+        "content": {"set_bus": {"lines_or_id": {"X": -1}}}
+    }
+    assert classifier.identify_action_type(action_desc) == "load_power_reduction"
+
+
+def test_classify_multiple_loads_power_reduction():
+    """Power reduction with multiple loads."""
+    classifier = ActionClassifier()
+    action_desc = {"set_load_p": {"LOAD_A": 0.0, "LOAD_B": 0.0}}
+    assert classifier.identify_action_type(action_desc) == "load_power_reduction"
+
+
+def test_classify_multiple_gens_power_reduction():
+    """Power reduction with multiple generators."""
+    classifier = ActionClassifier()
+    action_desc = {"set_gen_p": {"WIND_A": 0.0, "SOLAR_B": 0.0}}
+    assert classifier.identify_action_type(action_desc) == "gen_power_reduction"
+
+
+def test_normal_actions_unaffected_by_power_reduction_classifier():
+    """Existing action types should still classify correctly."""
+    classifier = ActionClassifier()
+    cases = [
+        ({"description_unitaire": "Ouverture COUPL X"}, "open_coupling"),
+        ({"description_unitaire": "Fermeture COUPL Y"}, "close_coupling"),
+        ({"description_unitaire": "Ouverture ligne Z",
+          "content": {"set_bus": {"lines_or_id": {"Z": -1}, "lines_ex_id": {"Z": -1}}}}, "open_line"),
+        ({"description_unitaire": "Fermeture ligne Z",
+          "content": {"set_bus": {"lines_or_id": {"Z": 1}, "lines_ex_id": {"Z": 1}}}}, "close_line"),
+    ]
+    for action_desc, expected in cases:
+        assert classifier.identify_action_type(action_desc) == expected, \
+            f"Expected {expected} for {action_desc.get('description_unitaire')}"
