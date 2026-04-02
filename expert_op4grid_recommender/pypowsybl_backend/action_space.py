@@ -211,6 +211,40 @@ class BusAction(PypowsyblAction):
         self._modifications.append(apply_bus_changes)
 
 
+class PowerReductionAction(PypowsyblAction):
+    """Action to reduce active power of loads and/or generators (without disconnecting them).
+
+    Instead of toggling the ``connected`` flag, this action modifies the
+    ``target_p`` (for loads) or ``target_p`` (for generators) so the element
+    stays electrically connected but its active power injection is changed.
+    """
+
+    def __init__(self,
+                 loads_p: Optional[Dict[str, float]] = None,
+                 gens_p: Optional[Dict[str, float]] = None):
+        """
+        Args:
+            loads_p: Dict mapping load_name -> new target active power (MW).
+            gens_p: Dict mapping gen_name -> new target active power (MW).
+        """
+        super().__init__()
+        self.loads_p = loads_p or {}
+        self.gens_p = gens_p or {}
+
+        def apply_power_reduction(nm: 'NetworkManager'):
+            net = nm.network
+            if self.loads_p:
+                load_ids = list(self.loads_p.keys())
+                target_ps = list(self.loads_p.values())
+                net.update_loads(id=load_ids, target_p=target_ps)
+            if self.gens_p:
+                gen_ids = list(self.gens_p.keys())
+                target_ps = list(self.gens_p.values())
+                net.update_generators(id=gen_ids, target_p=target_ps)
+
+        self._modifications.append(apply_power_reduction)
+
+
 class ActionSpace:
     """
     Grid2op-compatible action space for pypowsybl networks.
@@ -293,6 +327,13 @@ class ActionSpace:
             switch_action = SwitchAction(switch_states)
             combined_action = combined_action + switch_action
         
+        # Handle power reduction (set_load_p / set_gen_p)
+        loads_p = working_dict.get("set_load_p")
+        gens_p = working_dict.get("set_gen_p")
+        if loads_p or gens_p:
+            power_action = PowerReductionAction(loads_p=loads_p, gens_p=gens_p)
+            combined_action = combined_action + power_action
+
         # Handle set_bus
         if "set_bus" in working_dict:
             bus_config = working_dict["set_bus"]

@@ -1917,8 +1917,8 @@ class ActionDiscoverer:
                 load_score = influence_factor * load_coverage
 
                 try:
-                    set_bus_dict = {"loads_id": {load_name: -1}}
-                    action = self.action_space({"set_bus": set_bus_dict})
+                    # Reduce active power to 0 MW instead of disconnecting
+                    action = self.action_space({"set_load_p": {load_name: 0.0}})
                 except Exception as e:
                     print(f"Warning: Could not create load shedding action for {load_name}: {e}")
                     continue
@@ -1930,6 +1930,9 @@ class ActionDiscoverer:
                     "substation": sub_name,
                     "node_type": "aval",
                     "load_name": load_name,
+                    "action_mode": "power_reduction",
+                    "target_p_MW": 0.0,
+                    "reduction_MW": round(load_power, 2),
                     "influence_factor": round(influence_factor, 2),
                     "in_negative_flows": round(total_neg_in, 2),
                     "out_negative_flows": round(total_neg_out, 2),
@@ -2100,12 +2103,16 @@ class ActionDiscoverer:
                 
                 #if score >= getattr(config, 'MIN_RENEWABLE_CURTAILMENT', 0.0):
                 action_id = f"curtail_{gen_name}"
-                identified[action_id] = self.action_space({"set_bus": {"generators_id": {gen_name: -1}}})
+                # Reduce active power to 0 MW instead of disconnecting
+                identified[action_id] = self.action_space({"set_gen_p": {gen_name: 0.0}})
                 scores_map[action_id] = round(score, 2)
                 params_map[action_id] = {
                     "substation": sub_name,
                     "node_type": "aval",
                     "gen_name": gen_name,
+                    "action_mode": "power_reduction",
+                    "target_p_MW": 0.0,
+                    "reduction_MW": round(gen_p, 2),
                     "influence_factor": round(influence_factor, 2),
                     "mw_required": round(mw_required, 2),
                     "gen_p": round(gen_p, 2),

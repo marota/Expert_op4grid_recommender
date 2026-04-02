@@ -272,6 +272,24 @@ class ActionClassifier:
             return "pst_tap"
         return "unknown"
 
+    def _is_power_reduction_action(self, actions_desc: Dict[str, Any]) -> str:
+        """Check if the action is a power reduction action (set_load_p / set_gen_p).
+
+        Returns:
+            "load_power_reduction" if it reduces load power,
+            "gen_power_reduction" if it reduces generator power,
+            "" if not a power reduction action.
+        """
+        content = actions_desc
+        if "content" in actions_desc:
+            content = actions_desc["content"]
+
+        if "set_load_p" in content and content["set_load_p"]:
+            return "load_power_reduction"
+        if "set_gen_p" in content and content["set_gen_p"]:
+            return "gen_power_reduction"
+        return ""
+
     def identify_action_type(self, actions_desc: Dict[str, Any], by_description: bool = True) -> str:
         """
         Identifies the type of a grid action based on its description or Grid2Op representation.
@@ -291,6 +309,13 @@ class ActionClassifier:
             KeyError: If `by_description` is True and `actions_desc` lacks the expected
                       `content` or `set_bus` structure.
         """
+        # Check for power reduction actions first (these bypass the description/grid2op path)
+        pr_type = self._is_power_reduction_action(actions_desc)
+        if pr_type == "load_power_reduction":
+            return "load_power_reduction"
+        if pr_type == "gen_power_reduction":
+            return "gen_power_reduction"
+
         action_type = "unknown"
 
         if by_description:
