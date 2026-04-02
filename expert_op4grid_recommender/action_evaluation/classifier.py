@@ -227,6 +227,21 @@ class ActionClassifier:
 
         return np.any(grid2op_action.load_set_bus == -1)
 
+    def _is_gen_disconnection(self, grid2op_action: Any) -> bool:
+        """
+        Checks if a Grid2Op action disconnects at least one generator.
+        (Internal helper method)
+
+        Args:
+            grid2op_action: The Grid2Op action object.
+
+        Returns:
+            True if a generator disconnection is detected, False otherwise.
+        """
+        if not all(hasattr(grid2op_action, attr) for attr in ['gen_change_bus', 'gen_set_bus']):
+            return False
+        return np.any(grid2op_action.gen_set_bus == -1)
+
     def identify_grid2op_action_type(self, grid2op_action: Any) -> str:
         """
         Identifies the primary type of a Grid2Op action object based on its effects.
@@ -251,7 +266,7 @@ class ActionClassifier:
             return "close_line"
         if is_load_disco:
             return "open_load"
-        if hasattr(grid2op_action, "gen_set_bus") and any(bus == -1 for bus in grid2op_action.gen_set_bus):
+        if self._is_gen_disconnection(grid2op_action):
             return "open_gen"
         if hasattr(grid2op_action, "pst_tap") and grid2op_action.pst_tap:
             return "pst_tap"

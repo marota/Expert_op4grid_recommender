@@ -244,7 +244,7 @@ class ActionRuleValidator:
         """
         do_filter_action = False
         broken_rule = None
-        if "load" not in action_type:
+        if "load" not in action_type and "gen" not in action_type:
             is_topo_subs_one_node = all(len(set(sub_topo) - {-1, 0}) == 1 for sub_topo in subs_topology)
             rules = {
                 "No action out of the overflow graph": (localization == "out_of_graph"),

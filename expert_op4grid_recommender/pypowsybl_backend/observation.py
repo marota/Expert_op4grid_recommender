@@ -429,7 +429,19 @@ class PypowsyblObservation:
     def name_gen(self) -> np.ndarray:
         """Array of generator names."""
         return self._network_manager.name_gen
-    
+
+    @property
+    def gen_energy_source(self) -> np.ndarray:
+        """Array of generator energy source strings (e.g. 'WIND', 'SOLAR', 'THERMAL', ...)."""
+        return self._network_manager.gen_energy_source
+
+    @property
+    def gen_renewable(self) -> np.ndarray:
+        """Boolean array: True if generator is renewable (WIND or SOLAR by default)."""
+        from expert_op4grid_recommender import config
+        renewable_sources = set(getattr(config, 'RENEWABLE_ENERGY_SOURCES', ['WIND', 'SOLAR']))
+        return np.array([str(src).upper() in renewable_sources for src in self.gen_energy_source])
+
     @property
     def name_load(self) -> np.ndarray:
         """Array of load names."""
