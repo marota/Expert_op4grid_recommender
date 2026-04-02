@@ -434,6 +434,7 @@ def run_analysis_step1(analysis_date: Optional[datetime],
                 "line_disconnection": {"scores": {}, "params": {}},
                 "open_coupling": {"scores": {}, "params": {}},
                 "close_coupling": {"scores": {}, "params": {}},
+                "renewable_curtailment": {"scores": {}, "params": {}},
             },
         }, None
 

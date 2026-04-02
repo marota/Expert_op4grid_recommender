@@ -903,15 +903,28 @@ def compute_all_pairs_superposition(
     if dict_action is None:
         dict_action = {}
 
-    # Filter to converged actions only
-    converged_ids = [
-        aid for aid, details in detailed_actions.items()
-        if details.get("non_convergence") is None
-    ]
+    # Filter to converged actions only, excluding load shedding and curtailment
+    converged_ids = []
+    for aid, details in detailed_actions.items():
+        if details.get("non_convergence") is not None:
+            continue
+        
+        # Identify action type to skip load shedding and curtailment
+        action_desc = dict_action.get(aid, {})
+        action_type = classifier.identify_action_type(action_desc, by_description=True)
+        
+        # Skip if it's load shedding or curtailment (open_load, open_gen, or prefix match)
+        if (action_type in ["open_load", "open_gen"] or 
+            aid.startswith("load_shedding_") or 
+            aid.startswith("curtail_")):
+            continue
+            
+        converged_ids.append(aid)
 
     if len(converged_ids) < 2:
-        print(f"[Superposition] Only {len(converged_ids)} converged action(s), "
-              f"need at least 2 for pair combination.")
+        if converged_ids: # Don't print if it was already empty
+            print(f"[Superposition] Only {len(converged_ids)} combinable converged action(s) (excluding LS/RC), "
+                  f"need at least 2 for pair combination.")
         return {}
 
     print(f"[Superposition] Computing {len(converged_ids)} * "
@@ -942,11 +955,13 @@ def compute_all_pairs_superposition(
     num_lines = len(name_line)
     worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
 
+    monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
     pre_existing_baseline = np.zeros(num_lines)
     is_pre_existing = np.zeros(num_lines, dtype=bool)
     for idx, rho_val in pre_existing_rho.items():
-        pre_existing_baseline[idx] = rho_val
-        is_pre_existing[idx] = True
+        if rho_val >= monitoring_factor:
+            pre_existing_baseline[idx] = rho_val
+            is_pre_existing[idx] = True
 
     if lines_we_care_about is not None and len(lines_we_care_about) > 0:
         care_mask = np.isin(name_line, list(lines_we_care_about))
