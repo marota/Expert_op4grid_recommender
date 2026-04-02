@@ -14,3 +14,26 @@ corrective measures to alleviate line overloads.
 """
 
 __version__ = "0.1.9"
+
+# --- GLOBAL MONKEY PATCH for grid2op 1.12+ compatibility ---
+# PyPowSyBlBackend 0.3.0 and other backends might not initialize self._sh_vnkv,
+# which is required by grid2op 1.12+ for grids with shunts.
+try:
+    import sys
+    import numpy as np
+    import grid2op.Backend.backend as g2op_bk
+    _orig_get_shunt_setpoint = g2op_bk.Backend.get_shunt_setpoint
+    def _patched_get_shunt_setpoint(self):
+        if (not hasattr(self, "_sh_vnkv") or self._sh_vnkv is None) and getattr(self, "n_shunt", 0) > 0:
+            print(f"DEBUG: Initializing _sh_vnkv for {type(self)}", file=sys.stderr)
+            self._sh_vnkv = np.ones(self.n_shunt, dtype=np.float32) * 225.0
+        return _orig_get_shunt_setpoint(self)
+    g2op_bk.Backend.get_shunt_setpoint = _patched_get_shunt_setpoint
+    print("DEBUG: grid2op.Backend.Backend.get_shunt_setpoint patched", file=sys.stderr)
+except (ImportError, Exception) as e:
+    try:
+        import sys
+        print(f"DEBUG: Failed to patch grid2op: {e}", file=sys.stderr)
+    except:
+        pass
+# -----------------------------------------------------------

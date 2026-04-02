@@ -268,7 +268,7 @@ class ActionClassifier:
             return "open_load"
         if self._is_gen_disconnection(grid2op_action):
             return "open_gen"
-        if hasattr(grid2op_action, "pst_tap") and grid2op_action.pst_tap:
+        if hasattr(grid2op_action, "pst_tap") and np.any(grid2op_action.pst_tap != 0):
             return "pst_tap"
         return "unknown"
 

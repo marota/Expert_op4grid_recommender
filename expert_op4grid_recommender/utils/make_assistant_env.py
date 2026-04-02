@@ -12,6 +12,7 @@ try:
     from grid2op.Backend import Backend
     from grid2op.Chronics import ChangeNothing
     from pypowsybl2grid import PyPowSyBlBackend
+    import numpy as np
     _HAS_GRID2OP = True
 except (ImportError, Exception):
     _HAS_GRID2OP = False
