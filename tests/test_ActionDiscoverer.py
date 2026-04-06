@@ -1905,8 +1905,8 @@ def test_renewable_curtailment_influence_factor(renewable_discoverer):
     assert params_wind["influence_factor"] == round(80.0 / 100.0, 2)  # 0.8
 
 
-def test_renewable_curtailment_skips_node_without_blue_edge(renewable_discoverer):
-    """Nodes on the path but with only positive blue edge flows produce no actions."""
+def test_renewable_curtailment_zero_influence_when_no_negative_blue_edge(renewable_discoverer):
+    """Nodes with only positive blue edge flows get influence_factor=0 and score=0."""
     discoverer = renewable_discoverer
     # Override with positive L1 label → no negative outgoing flow from Sub0 → influence=0
     discoverer.g_overflow = MockOverflowGraph(edge_data={
@@ -1915,7 +1915,10 @@ def test_renewable_curtailment_skips_node_without_blue_edge(renewable_discoverer
     })
     discoverer.find_relevant_renewable_curtailment([0])
 
-    assert len(discoverer.identified_renewable_curtailment) == 0
+    # Actions are still created but with zero influence and zero score
+    for action_id in discoverer.identified_renewable_curtailment:
+        assert discoverer.scores_renewable_curtailment[action_id] == 0.0
+        assert discoverer.params_renewable_curtailment[action_id]["influence_factor"] == 0.0
 
 
 def test_renewable_curtailment_action_uses_power_reduction(renewable_discoverer):
