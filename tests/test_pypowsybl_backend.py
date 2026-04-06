@@ -1212,14 +1212,15 @@ class TestPowerReductionAction:
         assert len(combined._modifications) == 2
 
     def test_power_reduction_apply_changes_load_target_p(self, env_with_action_space):
-        """Applying a power reduction action changes the load's target_p in the network."""
+        """Applying a power reduction action changes the load's active power in the network."""
         nm, action_space = env_with_action_space
         loads = nm.network.get_loads()
         if len(loads) == 0:
             pytest.skip("No loads in test network")
 
         first_load = loads.index[0]
-        original_p = float(loads.loc[first_load, "target_p"])
+        # pypowsybl uses 'p0' column for load active power setpoint
+        p_col = "p0" if "p0" in loads.columns else "target_p"
 
         # Create variant to avoid modifying base
         nm.create_variant("test_pr")
@@ -1229,8 +1230,8 @@ class TestPowerReductionAction:
             action.apply(nm)
 
             loads_after = nm.network.get_loads()
-            new_p = float(loads_after.loc[first_load, "target_p"])
-            assert new_p == 0.0, f"Expected target_p=0.0 after reduction, got {new_p}"
+            new_p = float(loads_after.loc[first_load, p_col])
+            assert new_p == 0.0, f"Expected active power=0.0 after reduction, got {new_p}"
         finally:
             nm.reset_to_base()
             nm.remove_variant("test_pr")
@@ -1263,6 +1264,10 @@ class TestPowerReductionAction:
         loads = nm.network.get_loads()
         if len(loads) == 0:
             pytest.skip("No loads in test network")
+
+        # Check whether 'connected' is a column in this pypowsybl version
+        if "connected" not in loads.columns:
+            pytest.skip("pypowsybl version does not expose 'connected' column for loads")
 
         first_load = loads.index[0]
 
@@ -1309,6 +1314,7 @@ class TestPowerReductionAction:
             pytest.skip("No loads in test network")
 
         first_load = loads.index[0]
+        p_col = "p0" if "p0" in loads.columns else "target_p"
 
         nm.create_variant("test_pr_partial")
         nm.set_working_variant("test_pr_partial")
@@ -1317,7 +1323,7 @@ class TestPowerReductionAction:
             action.apply(nm)
 
             loads_after = nm.network.get_loads()
-            new_p = float(loads_after.loc[first_load, "target_p"])
+            new_p = float(loads_after.loc[first_load, p_col])
             assert new_p == 50.0
         finally:
             nm.reset_to_base()

@@ -1967,7 +1967,7 @@ class ActionDiscoverer:
         self.scores_load_shedding = scores_map
         self.params_load_shedding = details_map
 
-    def find_relevant_renewable_curtailment(self, nodes_indices: List[int],nodes_dispatch_loop_names: List[str]):
+    def find_relevant_renewable_curtailment(self, nodes_indices: List[int], nodes_dispatch_loop_names: List[str] = []):
         """
         Discovers renewable curtailment candidates on upstream (amont) nodes or loop nodes.
         Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
@@ -2018,6 +2018,7 @@ class ActionDiscoverer:
                 continue
 
             # Filter to renewable generators only
+            gen_energy_sources = getattr(obs, 'gen_energy_source', getattr(obs, 'gen_type', []))
             renewable_gen_ids = [
                 gid for gid in gen_ids
                 if gid < len(gen_energy_sources)
