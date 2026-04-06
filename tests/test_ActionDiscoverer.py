@@ -1781,7 +1781,7 @@ def renewable_discoverer():
         load_to_subid=np.array([2]),    # Load at Sub2
         gen_to_subid=np.array([0, 0, 1]),  # Wind_A, Solar_B at Sub0; Thermal_C at Sub1
         load_values=[50.0],
-        gen_values=[80.0, 40.0, 200.0],  # Wind_A=80MW, Solar_B=40MW, Thermal_C=200MW
+        gen_values=[-80.0, -40.0, -200.0],  # Negative = producing (generator convention)
         gen_energy_sources=["WIND", "SOLAR", "THERMAL"],
         sub_topologies={0: [1, 1, 1, 1], 1: [1, 1, 1], 2: [1, 1]},
         sub_info=np.array([4, 3, 2]),
@@ -1838,9 +1838,9 @@ def test_renewable_curtailment_finds_candidates(renewable_discoverer):
 
     # Wind_A and Solar_B are renewable; Thermal_C is not
     assert len(discoverer.identified_renewable_curtailment) == 2
-    assert "renewable_curtailment_Wind_A" in discoverer.identified_renewable_curtailment
-    assert "renewable_curtailment_Solar_B" in discoverer.identified_renewable_curtailment
-    assert "renewable_curtailment_Thermal_C" not in discoverer.identified_renewable_curtailment
+    assert "curtail_Wind_A" in discoverer.identified_renewable_curtailment
+    assert "curtail_Solar_B" in discoverer.identified_renewable_curtailment
+    assert "curtail_Thermal_C" not in discoverer.identified_renewable_curtailment
 
 
 def test_renewable_curtailment_skips_non_renewable(renewable_discoverer):
@@ -1865,30 +1865,28 @@ def test_renewable_curtailment_params_structure(renewable_discoverer):
     discoverer = renewable_discoverer
     discoverer.find_relevant_renewable_curtailment([0])
 
-    params = discoverer.params_renewable_curtailment["renewable_curtailment_Wind_A"]
+    params = discoverer.params_renewable_curtailment["curtail_Wind_A"]
     assert params["substation"] == "Sub0"
-    assert params["node_type"] == "amont"
-    assert params["generator_name"] == "Wind_A"
-    assert params["energy_source"] == "WIND"
+    assert params["gen_name"] == "Wind_A"
+    assert params["action_mode"] == "power_reduction"
+    assert params["target_p_MW"] == 0.0
     assert "influence_factor" in params
-    assert "P_curtailment_MW" in params
-    assert "P_overload_excess_MW" in params
-    assert "available_gen_MW" in params
-    assert params["available_gen_MW"] == 80.0
-    assert "in_negative_flows" in params
-    assert "out_negative_flows" in params
+    assert "mw_required" in params
+    assert params["gen_p"] == 80.0  # absolute value of -80
+    assert params["reduction_MW"] == 80.0
     assert "coverage_ratio" in params
-    assert params["generators_curtailed"] == ["Wind_A"]
 
 
 def test_renewable_curtailment_overload_excess(renewable_discoverer):
-    """P_overload_excess = (rho_max - 1.0) * max_overload_flow."""
+    """mw_required reflects the overload excess scaled by influence factor."""
     discoverer = renewable_discoverer
     discoverer.find_relevant_renewable_curtailment([0])
 
-    params = discoverer.params_renewable_curtailment["renewable_curtailment_Wind_A"]
-    # rho_max=1.2, max_overload_flow=100 MW → excess=20 MW
-    assert params["P_overload_excess_MW"] == 20.0
+    params = discoverer.params_renewable_curtailment["curtail_Wind_A"]
+    # mw_required = P_overload_excess * (1+margin) / influence_factor
+    # P_overload_excess = (1.2-1.0)*100 = 20 MW, margin=0.05, influence=0.8
+    # mw_required = 20*1.05/0.8 = 26.25
+    assert params["mw_required"] == round(20.0 * 1.05 / 0.8, 2)
 
 
 def test_renewable_curtailment_influence_factor(renewable_discoverer):
@@ -1902,11 +1900,9 @@ def test_renewable_curtailment_influence_factor(renewable_discoverer):
     discoverer.find_relevant_renewable_curtailment([0])
 
     # Wind_A (index 0) is at Sub0; only Wind_A and Solar_B are renewable
-    params_wind = discoverer.params_renewable_curtailment["renewable_curtailment_Wind_A"]
+    params_wind = discoverer.params_renewable_curtailment["curtail_Wind_A"]
     # L1 out-edge from Sub0 has label=-80 → neg_out=80, max_overload_flow=100
     assert params_wind["influence_factor"] == round(80.0 / 100.0, 2)  # 0.8
-    assert params_wind["out_negative_flows"] == 80.0
-    assert params_wind["in_negative_flows"] == 0.0
 
 
 def test_renewable_curtailment_skips_node_without_blue_edge(renewable_discoverer):
@@ -1938,7 +1934,7 @@ def test_renewable_curtailment_action_uses_power_reduction(renewable_discoverer)
         load_to_subid=np.array([2]),
         gen_to_subid=np.array([0, 0]),
         load_values=[50.0],
-        gen_values=[80.0, 40.0],
+        gen_values=[-80.0, -40.0],  # Negative = producing (generator convention)
         gen_energy_sources=["WIND", "SOLAR"],
         sub_topologies={0: [1, 1, 1], 1: [1, 1], 2: [1, 1]},
         sub_info=np.array([3, 2, 2]),
@@ -2019,7 +2015,7 @@ def test_renewable_curtailment_higher_power_scores_higher():
         load_to_subid=np.array([2]),
         gen_to_subid=np.array([0, 0]),
         load_values=[50.0],
-        gen_values=[90.0, 20.0],  # Wind_Big=90MW, Wind_Small=20MW
+        gen_values=[-90.0, -20.0],  # Negative = producing (generator convention)
         gen_energy_sources=["WIND", "WIND"],
         sub_topologies={0: [1, 1, 1], 1: [1, 1], 2: [1, 1]},
         sub_info=np.array([3, 2, 2]),
@@ -2053,8 +2049,8 @@ def test_renewable_curtailment_higher_power_scores_higher():
     discoverer.find_relevant_renewable_curtailment([0])
 
     assert len(discoverer.identified_renewable_curtailment) == 2
-    score_big = discoverer.scores_renewable_curtailment["renewable_curtailment_Wind_Big"]
-    score_small = discoverer.scores_renewable_curtailment["renewable_curtailment_Wind_Small"]
+    score_big = discoverer.scores_renewable_curtailment["curtail_Wind_Big"]
+    score_small = discoverer.scores_renewable_curtailment["curtail_Wind_Small"]
     assert score_big > score_small, "Higher-power generator should score higher"
 
     # Results sorted by score descending

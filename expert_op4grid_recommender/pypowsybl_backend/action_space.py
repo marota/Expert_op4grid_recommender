@@ -236,7 +236,7 @@ class PowerReductionAction(PypowsyblAction):
             if self.loads_p:
                 load_ids = list(self.loads_p.keys())
                 target_ps = list(self.loads_p.values())
-                net.update_loads(id=load_ids, target_p=target_ps)
+                net.update_loads(id=load_ids, p0=target_ps)
             if self.gens_p:
                 gen_ids = list(self.gens_p.keys())
                 target_ps = list(self.gens_p.values())

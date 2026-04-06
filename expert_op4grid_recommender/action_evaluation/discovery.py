@@ -2018,7 +2018,11 @@ class ActionDiscoverer:
                 continue
 
             # Filter to renewable generators only
-            gen_energy_sources = getattr(obs, 'gen_energy_source', getattr(obs, 'gen_type', []))
+            gen_energy_sources = getattr(obs, 'gen_energy_source', None)
+            if gen_energy_sources is None:
+                gen_energy_sources = getattr(obs, 'gen_type', None)
+            if gen_energy_sources is None:
+                gen_energy_sources = []
             renewable_gen_ids = [
                 gid for gid in gen_ids
                 if gid < len(gen_energy_sources)
@@ -2027,9 +2031,9 @@ class ActionDiscoverer:
             if not renewable_gen_ids:
                 continue
 
-            # Compute available renewable generation (positive output only)
+            # Compute available renewable generation (absolute value of production)
             gen_powers = [float(obs.gen_p[gid]) for gid in renewable_gen_ids if gid < len(obs.gen_p)]
-            available_gen = sum(p for p in gen_powers if p > 0)
+            available_gen = sum(abs(p) for p in gen_powers if p != 0)
             if available_gen <= 0:
                 continue
 
