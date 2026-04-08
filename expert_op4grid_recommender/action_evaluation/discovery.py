@@ -2021,7 +2021,7 @@ class ActionDiscoverer:
             if gen_energy_sources is not None:
                 renewable_gen_ids = [
                     gid for gid in gen_ids
-                    if gid < len(gen_energy_sources)
+                    if gid < len(gen_energy_sources) and gen_energy_sources[gid] is not None  # FIX: Check for None before accessing
                     and str(gen_energy_sources[gid]).upper() in renewable_sources
                 ]
             else:
@@ -2041,6 +2041,7 @@ class ActionDiscoverer:
                 abs(float(self._edge_labels[edge]))
                 for edge in g.in_edges(node_idx, keys=True)
                 if edge in self._edge_labels
+                and self._edge_names.get(edge) is not None  # FIX: Check for None before using
                 and self._edge_names.get(edge) in blue_edge_names_set
                 and float(self._edge_labels[edge]) < 0
             )
@@ -2048,6 +2049,7 @@ class ActionDiscoverer:
                 abs(float(self._edge_labels[edge]))
                 for edge in g.out_edges(node_idx, keys=True)
                 if edge in self._edge_labels
+                and self._edge_names.get(edge) is not None  # FIX: Check for None before using
                 and self._edge_names.get(edge) in blue_edge_names_set
                 and float(self._edge_labels[edge]) < 0
             )
@@ -2056,6 +2058,7 @@ class ActionDiscoverer:
                 abs(float(self._edge_labels[edge]))
                 for edge in g.in_edges(node_idx, keys=True)
                 if edge in self._edge_labels
+                and self._edge_names.get(edge) is not None  # FIX: Check for None before using
                 and self._edge_names.get(edge) in nodes_dispatch_loop_names
                 and float(self._edge_labels[edge]) > 0
             )
@@ -2063,6 +2066,7 @@ class ActionDiscoverer:
                 abs(float(self._edge_labels[edge]))
                 for edge in g.out_edges(node_idx, keys=True)
                 if edge in self._edge_labels
+                and self._edge_names.get(edge) is not None  # FIX: Check for None before using
                 and self._edge_names.get(edge) in nodes_dispatch_loop_names
                 and float(self._edge_labels[edge]) > 0
             )
@@ -2073,12 +2077,14 @@ class ActionDiscoverer:
             #if influence_factor <= 0: continue
 
             for gen_id in gen_ids:
-                gen_name = obs.name_gen[gen_id]
+                gen_name = obs.name_gen[gen_id] if hasattr(obs, 'name_gen') and obs.name_gen is not None else None
+                if gen_name is None:
+                    continue
                 
                 # Filter for renewable generators only (WIND/SOLAR)
                 if hasattr(obs, 'gen_type'):
-                    gen_type = str(obs.gen_type[gen_id]).upper()
-                    if gen_type not in ["WIND", "SOLAR"]:
+                    gen_type = str(obs.gen_type[gen_id]).upper() if hasattr(obs, 'gen_type') and obs.gen_type is not None else None
+                    if gen_type is None or gen_type not in ["WIND", "SOLAR"]:
                         continue
                 else:
                     # Fallback to name-based filtering if gen_type is missing (e.g. older backends)
