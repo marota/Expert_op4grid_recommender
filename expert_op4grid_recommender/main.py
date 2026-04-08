@@ -680,6 +680,13 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
         if is_pypowsybl:
             original_check = discoverer._check_rho_reduction
             discoverer._check_rho_reduction = lambda *args, **kwargs: original_check(*args, fast_mode=actual_fast_mode, **kwargs)
+            # Also override baseline simulation functions for optimized batch checking
+            from expert_op4grid_recommender.utils.simulation_pypowsybl import (
+                compute_baseline_simulation as _pypowsybl_compute_baseline,
+                check_rho_reduction_with_baseline as _pypowsybl_check_with_baseline,
+            )
+            discoverer._compute_baseline = lambda *args, **kwargs: _pypowsybl_compute_baseline(*args, fast_mode=actual_fast_mode, **kwargs)
+            discoverer._check_rho_with_baseline = lambda *args, **kwargs: _pypowsybl_check_with_baseline(*args, fast_mode=actual_fast_mode, **kwargs)
 
         prioritized_actions, action_scores = discoverer.discover_and_prioritize(
             n_action_max=config.N_PRIORITIZED_ACTIONS
