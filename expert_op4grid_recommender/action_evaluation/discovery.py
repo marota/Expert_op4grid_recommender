@@ -1967,7 +1967,7 @@ class ActionDiscoverer:
         self.scores_load_shedding = scores_map
         self.params_load_shedding = details_map
 
-    def find_relevant_renewable_curtailment(self, nodes_indices: List[int],nodes_dispatch_loop_names: List[str]):
+    def find_relevant_renewable_curtailment(self, nodes_indices: List[int], nodes_dispatch_loop_names: Optional[List[str]] = None):
         """
         Discovers renewable curtailment candidates on upstream (amont) nodes or loop nodes.
         Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
@@ -2016,11 +2016,17 @@ class ActionDiscoverer:
                 continue
 
             # Filter to renewable generators only
-            renewable_gen_ids = [
-                gid for gid in gen_ids
-                if gid < len(gen_energy_sources)
-                and str(gen_energy_sources[gid]).upper() in renewable_sources
-            ]
+            # Use obs.gen_energy_source if available, otherwise use config default
+            gen_energy_sources = getattr(obs, 'gen_energy_source', None)
+            if gen_energy_sources is not None:
+                renewable_gen_ids = [
+                    gid for gid in gen_ids
+                    if gid < len(gen_energy_sources)
+                    and str(gen_energy_sources[gid]).upper() in renewable_sources
+                ]
+            else:
+                # Fallback: assume all generators are non-renewable if source info is missing
+                renewable_gen_ids = []
             if not renewable_gen_ids:
                 continue
 
@@ -2100,17 +2106,27 @@ class ActionDiscoverer:
                 score = influence_factor * coverage_ratio
                 
                 #if score >= getattr(config, 'MIN_RENEWABLE_CURTAILMENT', 0.0):
-                action_id = f"curtail_{gen_name}"
+                action_id = f"renewable_curtailment_{gen_name}"
                 identified[action_id] = self.action_space({"set_bus": {"generators_id": {gen_name: -1}}})
                 scores_map[action_id] = round(score, 2)
+                # Get energy source for this generator
+                gen_energy_source = "OTHER"
+                if gen_energy_sources is not None and gid < len(gen_energy_sources):
+                    gen_energy_source = str(gen_energy_sources[gid]).upper()
+                
                 params_map[action_id] = {
                     "substation": sub_name,
-                    "node_type": "aval",
-                    "gen_name": gen_name,
+                    "node_type": "amont",  # Renewable curtailment is for upstream nodes
+                    "generator_name": gen_name,
+                    "energy_source": gen_energy_source,
                     "influence_factor": round(influence_factor, 2),
-                    "mw_required": round(mw_required, 2),
-                    "gen_p": round(gen_p, 2),
+                    "P_curtailment_MW": round(gen_p, 2),
+                    "P_overload_excess_MW": round(P_overload_excess, 2),
+                    "available_gen_MW": round(available_gen, 2),
+                    "in_negative_flows": round(total_neg_in, 2),
+                    "out_negative_flows": round(total_neg_out, 2),
                     "coverage_ratio": round(coverage_ratio, 2),
+                    "generators_curtailed": [gen_name],
                 }
 
         if self.check_action_simulation and identified:
