@@ -1917,8 +1917,8 @@ class ActionDiscoverer:
                 load_score = influence_factor * load_coverage
 
                 try:
-                    set_bus_dict = {"loads_id": {load_name: -1}}
-                    action = self.action_space({"set_bus": set_bus_dict})
+                    # Reduce active power to 0 MW instead of disconnecting
+                    action = self.action_space({"set_load_p": {load_name: 0.0}})
                 except Exception as e:
                     print(f"Warning: Could not create load shedding action for {load_name}: {e}")
                     continue
@@ -1930,6 +1930,9 @@ class ActionDiscoverer:
                     "substation": sub_name,
                     "node_type": "aval",
                     "load_name": load_name,
+                    "action_mode": "power_reduction",
+                    "target_p_MW": 0.0,
+                    "reduction_MW": round(load_power, 2),
                     "influence_factor": round(influence_factor, 2),
                     "in_negative_flows": round(total_neg_in, 2),
                     "out_negative_flows": round(total_neg_out, 2),
@@ -1964,7 +1967,7 @@ class ActionDiscoverer:
         self.scores_load_shedding = scores_map
         self.params_load_shedding = details_map
 
-    def find_relevant_renewable_curtailment(self, nodes_indices: List[int],nodes_dispatch_loop_names: List[str]):
+    def find_relevant_renewable_curtailment(self, nodes_indices: List[int], nodes_dispatch_loop_names: List[str] = []):
         """
         Discovers renewable curtailment candidates on upstream (amont) nodes or loop nodes.
         Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
@@ -1993,12 +1996,11 @@ class ActionDiscoverer:
         if rho_max <= 1.0: return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
 
-        blue_edge_names_set = set(self.g_distribution_graph.get_constrained_edges_nodes()[0] + 
+        blue_edge_names_set = set(self.g_distribution_graph.get_constrained_edges_nodes()[0] +
                                   self.g_distribution_graph.get_constrained_edges_nodes()[2])
 
         identified, effective, ineffective = {}, [], []
         scores_map, params_map = {}, {}
-
 
         # Find influence using similar logic to load shedding
         all_edge_labels = nx.get_edge_attributes(g, "label")
@@ -2014,21 +2016,23 @@ class ActionDiscoverer:
             if len(gen_ids) == 0:
                 continue
 
-            # Filtering logic for renewable generators (WIND/SOLAR)
-            def is_renewable(gid):
-                if hasattr(obs, 'gen_type'):
-                    return str(obs.gen_type[gid]).upper() in renewable_sources
-                # Fallback to name-based filtering
-                gn_up = str(obs.name_gen[gid]).upper()
-                return any(kw in gn_up for kw in ["WIND", "SOLAR", "PV", "EOL"])
-
-            renewable_gen_ids = [gid for gid in gen_ids if is_renewable(gid)]
+            # Filter to renewable generators only
+            gen_energy_sources = getattr(obs, 'gen_energy_source', None)
+            if gen_energy_sources is None:
+                gen_energy_sources = getattr(obs, 'gen_type', None)
+            if gen_energy_sources is None:
+                gen_energy_sources = []
+            renewable_gen_ids = [
+                gid for gid in gen_ids
+                if gid < len(gen_energy_sources)
+                   and str(gen_energy_sources[gid]).upper() in renewable_sources
+            ]
             if not renewable_gen_ids:
                 continue
 
-            # Compute available renewable generation (positive output only)
+            # Compute available renewable generation (absolute value of production)
             gen_powers = [float(obs.gen_p[gid]) for gid in renewable_gen_ids if gid < len(obs.gen_p)]
-            available_gen = sum(p for p in gen_powers if p > 0)
+            available_gen = sum(abs(p) for p in gen_powers if p != 0)
             if available_gen <= 0:
                 continue
 
@@ -2063,40 +2067,58 @@ class ActionDiscoverer:
                 and float(all_edge_labels[edge]) > 0
             )
             influence_flow = max(total_neg_in, total_neg_out, total_pos_in, total_pos_out)
+            # if influence_flow <= 0: continue
 
             influence_factor = min(1.0, influence_flow / max_overload_flow) if max_overload_flow > 0 else 0.0
+            # if influence_factor <= 0: continue
 
-            for gen_id in renewable_gen_ids:
+            for gen_id in gen_ids:
                 gen_name = obs.name_gen[gen_id]
-                
+
+                # Filter for renewable generators only (WIND/SOLAR)
+                if hasattr(obs, 'gen_type'):
+                    gen_type = str(obs.gen_type[gen_id]).upper()
+                    if gen_type not in ["WIND", "SOLAR"]:
+                        continue
+                else:
+                    # Fallback to name-based filtering if gen_type is missing (e.g. older backends)
+                    gn_up = gen_name.upper()
+                    if not any(kw in gn_up for kw in ["WIND", "SOLAR", "PV", "EOL"]):
+                        continue
+
                 # Cross-backend compatibility: PyPowsybl uses gen_p, Grid2Op raw uses prod_p
+                # (Though our Grid2Op wrapper should also expose gen_p, this is safer)
                 gen_p_array = getattr(obs, 'gen_p', getattr(obs, 'prod_p', None))
                 if gen_p_array is None or gen_id >= len(gen_p_array):
                     continue
                 gen_p = float(gen_p_array[gen_id])
-                if gen_p > 0:  # this is equivalent to a load (p < 0 for gen in some conventions, grid2op uses p > 0 for gen)
-                    # wait, in find_relevant_load_shedding, load_p > 0 is consumption.
-                    # In grid2op, gen_p > 0 is production.
-                    # If we curtail, we decrease production.
-                    pass
-                
+                if gen_p > 0:  # this is equivalent to a load
+                    continue
+                # now take absolute value
                 gen_p = abs(gen_p)
                 if gen_p < min_mw: continue
-                
+
                 # Volume required = excess / influence_factor
-                mw_required = (P_overload_excess * (1 + margin)) / influence_factor if influence_factor > 0 else P_overload_excess * (1 + margin)
-                
+                mw_required = (P_overload_excess * (
+                            1 + margin)) / influence_factor if influence_factor > 0 else P_overload_excess * (
+                            1 + margin)
+
                 # Disconnecting the generator relieves gen_p * influence_factor
                 coverage_ratio = min(1.0, gen_p / mw_required) if mw_required > 0 else 1.0
                 score = influence_factor * coverage_ratio
-                
+
+                # if score >= getattr(config, 'MIN_RENEWABLE_CURTAILMENT', 0.0):
                 action_id = f"curtail_{gen_name}"
-                identified[action_id] = self.action_space({"set_bus": {"generators_id": {gen_name: -1}}})
+                # Reduce active power to 0 MW instead of disconnecting
+                identified[action_id] = self.action_space({"set_gen_p": {gen_name: 0.0}})
                 scores_map[action_id] = round(score, 2)
                 params_map[action_id] = {
                     "substation": sub_name,
-                    "node_type": "upstream",
+                    "node_type": "aval",
                     "gen_name": gen_name,
+                    "action_mode": "power_reduction",
+                    "target_p_MW": 0.0,
+                    "reduction_MW": round(gen_p, 2),
                     "influence_factor": round(influence_factor, 2),
                     "mw_required": round(mw_required, 2),
                     "gen_p": round(gen_p, 2),
@@ -2111,8 +2133,10 @@ class ActionDiscoverer:
                         self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
                         self.act_reco_maintenance, self.lines_we_care_about
                     )
-                    if is_reduced: effective.append(action_id)
-                    else: ineffective.append(action_id)
+                    if is_reduced:
+                        effective.append(action_id)
+                    else:
+                        ineffective.append(action_id)
             except Exception as e:
                 print(f"Warning: Simulation check failed for renewable curtailment: {e}")
 
@@ -2240,8 +2264,8 @@ class ActionDiscoverer:
         if nodes_rc_indices:
             with Timer("Verifying relevant renewable curtailment"):
                 print("\n--- Verifying relevant renewable curtailment ---")
-                #all_nodes=[i for i in range(n_subs)]
-                self.find_relevant_renewable_curtailment(nodes_rc_indices,nodes_dispatch_loop_names)#(nodes_rc_indices)
+                all_nodes=[i for i in range(n_subs)]
+                self.find_relevant_renewable_curtailment(all_nodes,nodes_dispatch_loop_names)#(nodes_rc_indices)
 
         with Timer("Finalizing   Priorization"):
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
@@ -2265,6 +2289,9 @@ class ActionDiscoverer:
                 self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
             )
             self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max, n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT
+            )
+            self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_load_shedding, n_action_max, n_action_max_per_type=config.MIN_LOAD_SHEDDING
             )
             self.prioritized_actions = add_prioritized_actions(
@@ -2286,6 +2313,9 @@ class ActionDiscoverer:
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, getattr(self, 'identified_pst_actions', {}), n_action_max, n_action_max_per_type=n_pst_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_load_shedding, n_action_max

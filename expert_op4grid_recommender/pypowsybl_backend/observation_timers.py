@@ -1021,6 +1021,9 @@ class PypowsyblAction:
         self.loads_bus = {}
         self.gens_bus = {}
         self.substations = {}
+        # Power reduction info (active power setpoint changes)
+        self.loads_p = {}   # load_name -> target_p (MW)
+        self.gens_p = {}    # gen_name -> target_p (MW)
 
     def apply(self, network_manager: 'NetworkManager'):
         """Apply this action to the network."""
@@ -1037,6 +1040,9 @@ class PypowsyblAction:
         combined.loads_bus = {**self.loads_bus, **other.loads_bus}
         combined.gens_bus = {**self.gens_bus, **other.gens_bus}
         combined.substations = {**self.substations, **other.substations}
+        # Merge power reduction info
+        combined.loads_p = {**self.loads_p, **other.loads_p}
+        combined.gens_p = {**self.gens_p, **other.gens_p}
         return combined
 
     def __radd__(self, other):

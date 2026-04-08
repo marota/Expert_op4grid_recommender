@@ -1120,6 +1120,247 @@ class TestPypowsyblRobustnessAndFixes:
         assert "simulate_kept" in obs_simu._variant_id
 
 
+class TestPowerReductionAction:
+    """Tests for PowerReductionAction and set_load_p/set_gen_p in ActionSpace."""
+
+    @pytest.fixture
+    def env_with_action_space(self):
+        """Create environment with action space."""
+        from expert_op4grid_recommender.pypowsybl_backend import NetworkManager, ActionSpace
+        network = pypowsybl.network.create_ieee9()
+        nm = NetworkManager(network=network)
+        action_space = ActionSpace(nm)
+        return nm, action_space
+
+    def test_power_reduction_action_class_creation(self):
+        """Test PowerReductionAction stores loads_p and gens_p."""
+        from expert_op4grid_recommender.pypowsybl_backend.action_space import PowerReductionAction
+
+        action = PowerReductionAction(loads_p={"LOAD_A": 0.0}, gens_p={"GEN_1": 0.0})
+        assert action.loads_p == {"LOAD_A": 0.0}
+        assert action.gens_p == {"GEN_1": 0.0}
+        assert len(action._modifications) == 1
+
+    def test_power_reduction_action_defaults_empty(self):
+        """PowerReductionAction with no args has empty dicts."""
+        from expert_op4grid_recommender.pypowsybl_backend.action_space import PowerReductionAction
+
+        action = PowerReductionAction()
+        assert action.loads_p == {}
+        assert action.gens_p == {}
+        assert len(action._modifications) == 1
+
+    def test_action_space_set_load_p(self, env_with_action_space):
+        """ActionSpace creates PowerReductionAction from set_load_p dict."""
+        nm, action_space = env_with_action_space
+        loads = nm.network.get_loads()
+        if len(loads) == 0:
+            pytest.skip("No loads in test network")
+
+        first_load = loads.index[0]
+        action = action_space({"set_load_p": {first_load: 0.0}})
+
+        assert action is not None
+        assert action.loads_p == {first_load: 0.0}
+
+    def test_action_space_set_gen_p(self, env_with_action_space):
+        """ActionSpace creates PowerReductionAction from set_gen_p dict."""
+        nm, action_space = env_with_action_space
+        gens = nm.network.get_generators()
+        if len(gens) == 0:
+            pytest.skip("No generators in test network")
+
+        first_gen = gens.index[0]
+        action = action_space({"set_gen_p": {first_gen: 0.0}})
+
+        assert action is not None
+        assert action.gens_p == {first_gen: 0.0}
+
+    def test_action_space_combined_load_and_gen_reduction(self, env_with_action_space):
+        """ActionSpace handles both set_load_p and set_gen_p in one call."""
+        nm, action_space = env_with_action_space
+        loads = nm.network.get_loads()
+        gens = nm.network.get_generators()
+        if len(loads) == 0 or len(gens) == 0:
+            pytest.skip("Need both loads and generators")
+
+        first_load = loads.index[0]
+        first_gen = gens.index[0]
+        action = action_space({
+            "set_load_p": {first_load: 0.0},
+            "set_gen_p": {first_gen: 0.0},
+        })
+
+        assert action.loads_p == {first_load: 0.0}
+        assert action.gens_p == {first_gen: 0.0}
+
+    def test_power_reduction_combined_with_topology(self, env_with_action_space):
+        """Power reduction can be combined with topology actions via +."""
+        nm, action_space = env_with_action_space
+        loads = nm.network.get_loads()
+        if len(loads) == 0 or nm.n_line == 0:
+            pytest.skip("Need loads and lines")
+
+        first_load = loads.index[0]
+        first_line = nm.name_line[0]
+
+        pr_action = action_space({"set_load_p": {first_load: 0.0}})
+        topo_action = action_space({"set_line_status": [(first_line, -1)]})
+
+        combined = pr_action + topo_action
+        assert combined.loads_p == {first_load: 0.0}
+        assert len(combined._modifications) == 2
+
+    def test_power_reduction_apply_changes_load_target_p(self, env_with_action_space):
+        """Applying a power reduction action changes the load's active power in the network."""
+        nm, action_space = env_with_action_space
+        loads = nm.network.get_loads()
+        if len(loads) == 0:
+            pytest.skip("No loads in test network")
+
+        first_load = loads.index[0]
+        # pypowsybl uses 'p0' column for load active power setpoint
+        p_col = "p0" if "p0" in loads.columns else "target_p"
+
+        # Create variant to avoid modifying base
+        nm.create_variant("test_pr")
+        nm.set_working_variant("test_pr")
+        try:
+            action = action_space({"set_load_p": {first_load: 0.0}})
+            action.apply(nm)
+
+            loads_after = nm.network.get_loads()
+            new_p = float(loads_after.loc[first_load, p_col])
+            assert new_p == 0.0, f"Expected active power=0.0 after reduction, got {new_p}"
+        finally:
+            nm.reset_to_base()
+            nm.remove_variant("test_pr")
+
+    def test_power_reduction_apply_changes_gen_target_p(self, env_with_action_space):
+        """Applying a power reduction action changes the generator's target_p in the network."""
+        nm, action_space = env_with_action_space
+        gens = nm.network.get_generators()
+        if len(gens) == 0:
+            pytest.skip("No generators in test network")
+
+        first_gen = gens.index[0]
+
+        nm.create_variant("test_pr_gen")
+        nm.set_working_variant("test_pr_gen")
+        try:
+            action = action_space({"set_gen_p": {first_gen: 0.0}})
+            action.apply(nm)
+
+            gens_after = nm.network.get_generators()
+            new_p = float(gens_after.loc[first_gen, "target_p"])
+            assert new_p == 0.0, f"Expected target_p=0.0 after reduction, got {new_p}"
+        finally:
+            nm.reset_to_base()
+            nm.remove_variant("test_pr_gen")
+
+    def test_power_reduction_load_stays_connected(self, env_with_action_space):
+        """After power reduction, the load remains electrically connected."""
+        nm, action_space = env_with_action_space
+        loads = nm.network.get_loads()
+        if len(loads) == 0:
+            pytest.skip("No loads in test network")
+
+        # Check whether 'connected' is a column in this pypowsybl version
+        if "connected" not in loads.columns:
+            pytest.skip("pypowsybl version does not expose 'connected' column for loads")
+
+        first_load = loads.index[0]
+
+        nm.create_variant("test_pr_connected")
+        nm.set_working_variant("test_pr_connected")
+        try:
+            action = action_space({"set_load_p": {first_load: 0.0}})
+            action.apply(nm)
+
+            loads_after = nm.network.get_loads()
+            is_connected = bool(loads_after.loc[first_load, "connected"])
+            assert is_connected, "Load should remain connected after power reduction"
+        finally:
+            nm.reset_to_base()
+            nm.remove_variant("test_pr_connected")
+
+    def test_power_reduction_gen_stays_connected(self, env_with_action_space):
+        """After power reduction, the generator remains electrically connected."""
+        nm, action_space = env_with_action_space
+        gens = nm.network.get_generators()
+        if len(gens) == 0:
+            pytest.skip("No generators in test network")
+
+        first_gen = gens.index[0]
+
+        nm.create_variant("test_pr_gen_connected")
+        nm.set_working_variant("test_pr_gen_connected")
+        try:
+            action = action_space({"set_gen_p": {first_gen: 0.0}})
+            action.apply(nm)
+
+            gens_after = nm.network.get_generators()
+            is_connected = bool(gens_after.loc[first_gen, "connected"])
+            assert is_connected, "Generator should remain connected after power reduction"
+        finally:
+            nm.reset_to_base()
+            nm.remove_variant("test_pr_gen_connected")
+
+    def test_power_reduction_partial_value(self, env_with_action_space):
+        """Power reduction to a non-zero target value."""
+        nm, action_space = env_with_action_space
+        loads = nm.network.get_loads()
+        if len(loads) == 0:
+            pytest.skip("No loads in test network")
+
+        first_load = loads.index[0]
+        p_col = "p0" if "p0" in loads.columns else "target_p"
+
+        nm.create_variant("test_pr_partial")
+        nm.set_working_variant("test_pr_partial")
+        try:
+            action = action_space({"set_load_p": {first_load: 50.0}})
+            action.apply(nm)
+
+            loads_after = nm.network.get_loads()
+            new_p = float(loads_after.loc[first_load, p_col])
+            assert new_p == 50.0
+        finally:
+            nm.reset_to_base()
+            nm.remove_variant("test_pr_partial")
+
+    def test_pypowsybl_action_has_power_reduction_attrs(self):
+        """PypowsyblAction base class has loads_p and gens_p attributes."""
+        from expert_op4grid_recommender.pypowsybl_backend.observation import PypowsyblAction
+
+        action = PypowsyblAction()
+        assert hasattr(action, "loads_p")
+        assert hasattr(action, "gens_p")
+        assert action.loads_p == {}
+        assert action.gens_p == {}
+
+    def test_pypowsybl_action_add_merges_power_reduction(self):
+        """PypowsyblAction.__add__ merges loads_p and gens_p."""
+        from expert_op4grid_recommender.pypowsybl_backend.observation import PypowsyblAction
+
+        a = PypowsyblAction()
+        a.loads_p = {"LOAD_A": 0.0}
+        b = PypowsyblAction()
+        b.gens_p = {"GEN_1": 0.0}
+        b.loads_p = {"LOAD_B": 10.0}
+
+        combined = a + b
+        assert combined.loads_p == {"LOAD_A": 0.0, "LOAD_B": 10.0}
+        assert combined.gens_p == {"GEN_1": 0.0}
+
+    def test_do_nothing_action_has_empty_power_reduction(self, env_with_action_space):
+        """A do-nothing action has empty power reduction dicts."""
+        _, action_space = env_with_action_space
+        action = action_space.get_do_nothing_action()
+        assert action.loads_p == {}
+        assert action.gens_p == {}
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
