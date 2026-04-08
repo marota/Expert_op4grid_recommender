@@ -12,15 +12,30 @@ __author__ = "marota"
 
 import numpy as np
 from alphaDeesp.core.alphadeesp import AlphaDeesp_warmStart
+
 # Default imports for grid2op backend - can be overridden via constructor
-from expert_op4grid_recommender.utils.simulation import check_rho_reduction as _default_check_rho_reduction
-from expert_op4grid_recommender.utils.simulation import create_default_action as _default_create_default_action
-from expert_op4grid_recommender.utils.helpers import get_delta_theta_line, get_theta_node, sort_actions_by_score, add_prioritized_actions, Timer
+from expert_op4grid_recommender.utils.simulation import (
+    check_rho_reduction as _default_check_rho_reduction,
+)
+from expert_op4grid_recommender.utils.simulation import (
+    create_default_action as _default_create_default_action,
+)
+from expert_op4grid_recommender.utils.helpers import (
+    get_delta_theta_line,
+    get_theta_node,
+    sort_actions_by_score,
+    add_prioritized_actions,
+    Timer,
+)
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from typing import Dict, Any, List, Tuple, Optional, Callable, Set
-from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph # For type hinting
+from alphaDeesp.core.graphsAndPaths import (
+    OverFlowGraph,
+    Structured_Overload_Distribution_Graph,
+)  # For type hinting
 import networkx as nx
 from expert_op4grid_recommender import config
+
 
 class ActionDiscoverer:
     """
@@ -76,28 +91,30 @@ class ActionDiscoverer:
         prioritized_actions (Dict): Final dictionary of prioritized actions.
     """
 
-    def __init__(self,
-                 env: Any,
-                 obs: Any,
-                 obs_defaut: Any,
-                 timestep: int,
-                 lines_defaut: List[str],
-                 lines_overloaded_ids: List[int],
-                 act_reco_maintenance: Any,
-                 classifier: ActionClassifier,  # Accept classifier instance
-                 non_connected_reconnectable_lines: List[str],
-                 all_disconnected_lines: List[str],
-                 dict_action: Dict,
-                 actions_unfiltered: Set[str],
-                 hubs: List[str],
-                 g_overflow: OverFlowGraph,
-                 g_distribution_graph: Structured_Overload_Distribution_Graph,
-                 simulator_data: Dict,
-                 check_action_simulation: bool = True,
-                 lines_we_care_about: Optional[List[str]] = None,
-                 check_rho_reduction_func: Optional[Callable] = None,
-                 create_default_action_func: Optional[Callable] = None,
-                 obs_linecut: Optional[Any] = None):
+    def __init__(
+        self,
+        env: Any,
+        obs: Any,
+        obs_defaut: Any,
+        timestep: int,
+        lines_defaut: List[str],
+        lines_overloaded_ids: List[int],
+        act_reco_maintenance: Any,
+        classifier: ActionClassifier,  # Accept classifier instance
+        non_connected_reconnectable_lines: List[str],
+        all_disconnected_lines: List[str],
+        dict_action: Dict,
+        actions_unfiltered: Set[str],
+        hubs: List[str],
+        g_overflow: OverFlowGraph,
+        g_distribution_graph: Structured_Overload_Distribution_Graph,
+        simulator_data: Dict,
+        check_action_simulation: bool = True,
+        lines_we_care_about: Optional[List[str]] = None,
+        check_rho_reduction_func: Optional[Callable] = None,
+        create_default_action_func: Optional[Callable] = None,
+        obs_linecut: Optional[Any] = None,
+    ):
         """
         Initializes the ActionDiscoverer with the necessary context and parameters.
 
@@ -151,8 +168,12 @@ class ActionDiscoverer:
         self.lines_we_care_about = lines_we_care_about
 
         # Store backend-specific simulation functions (use defaults for grid2op if not provided)
-        self._check_rho_reduction = check_rho_reduction_func or _default_check_rho_reduction
-        self._create_default_action = create_default_action_func or _default_create_default_action
+        self._check_rho_reduction = (
+            check_rho_reduction_func or _default_check_rho_reduction
+        )
+        self._create_default_action = (
+            create_default_action_func or _default_create_default_action
+        )
 
         # Initialize results holders (remain the same)
         self.identified_reconnections = {}
@@ -194,9 +215,13 @@ class ActionDiscoverer:
 
     def _build_lookup_caches(self):
         """Pre-computes name-to-index lookup dictionaries to avoid repeated np.where calls."""
-        if not hasattr(self, '_line_name_to_id'):
-            self._line_name_to_id = {name: idx for idx, name in enumerate(self.obs.name_line)}
-            self._sub_name_to_id = {name: idx for idx, name in enumerate(self.obs.name_sub)}
+        if not hasattr(self, "_line_name_to_id"):
+            self._line_name_to_id = {
+                name: idx for idx, name in enumerate(self.obs.name_line)
+            }
+            self._sub_name_to_id = {
+                name: idx for idx, name in enumerate(self.obs.name_sub)
+            }
             # Vectorized pre-computation of line -> (sub_or_name, sub_ex_name) mapping
             or_subs = self.obs.name_sub[self.obs.line_or_to_subid]
             ex_subs = self.obs.name_sub[self.obs.line_ex_to_subid]
@@ -204,9 +229,10 @@ class ActionDiscoverer:
 
     def _build_active_edges_cache(self):
         """Pre-computes which node pairs have active (non-dashed/dotted) edges."""
-        if hasattr(self, '_active_edges_cache'):
+        if hasattr(self, "_active_edges_cache"):
             return
         from collections import defaultdict
+
         self._active_edges_cache = defaultdict(list)
         graph = self.g_overflow.g
         for u, v, data in graph.edges(data=True):
@@ -216,7 +242,9 @@ class ActionDiscoverer:
                 pair = (u, v) if u < v else (v, u)
                 self._active_edges_cache[pair].append(data["name"])
 
-    def _get_active_edges_between_cached(self, sub_or_name: str, sub_ex_name: str) -> List[str]:
+    def _get_active_edges_between_cached(
+        self, sub_or_name: str, sub_ex_name: str
+    ) -> List[str]:
         """Fast lookup of active edges between two substations using pre-computed cache."""
         node_a = self._sub_name_to_id.get(sub_or_name)
         node_b = self._sub_name_to_id.get(sub_ex_name)
@@ -228,7 +256,7 @@ class ActionDiscoverer:
     def _is_sublist(self, small: List, large: List) -> bool:
         """Checks if 'small' is a contiguous sublist of 'large'."""
         n = len(small)
-        return any(small == large[i:i + n] for i in range(len(large) - n + 1))
+        return any(small == large[i : i + n] for i in range(len(large) - n + 1))
 
     def _get_line_substations(self, line_name: str) -> Tuple[str, str]:
         """Gets substation names for a given line name."""
@@ -237,50 +265,69 @@ class ActionDiscoverer:
             raise ValueError(f"Line name '{line_name}' not found in observation.")
         return self._line_to_subs[line_name]
 
-    def _find_paths_for_line(self, line_subs: Tuple[str, str], red_loop_paths: List[List[str]]) -> List[List[str]]:
+    def _find_paths_for_line(
+        self, line_subs: Tuple[str, str], red_loop_paths: List[List[str]]
+    ) -> List[List[str]]:
         """Finds paths containing the given line's substations."""
         sub_or, sub_ex = line_subs
-        return [path for path in red_loop_paths if
-                self._is_sublist([sub_or, sub_ex], path) or self._is_sublist([sub_ex, sub_or], path)]
+        return [
+            path
+            for path in red_loop_paths
+            if self._is_sublist([sub_or, sub_ex], path)
+            or self._is_sublist([sub_ex, sub_or], path)
+        ]
 
     def _get_active_edges_between(self, node_a: str, node_b: str) -> List[str]:
         """Retrieves active edges between two nodes (names) in the graph."""
         active_edges = []
-        graph_to_check = self.g_overflow.g # Use the processed graph (integer nodes)
+        graph_to_check = self.g_overflow.g  # Use the processed graph (integer nodes)
 
         try:
             # Map names back to indices for graph lookup
             node_a_idx = np.where(self.obs.name_sub == node_a)[0][0]
             node_b_idx = np.where(self.obs.name_sub == node_b)[0][0]
         except IndexError:
-             print(f"Warning: Could not find index for substations {node_a} or {node_b}.")
-             return [] # Cannot check edges if nodes not found
+            print(
+                f"Warning: Could not find index for substations {node_a} or {node_b}."
+            )
+            return []  # Cannot check edges if nodes not found
 
         for u, v in [(node_a_idx, node_b_idx), (node_b_idx, node_a_idx)]:
-             if graph_to_check.has_edge(u, v):
-                  edge_data_dict = graph_to_check.get_edge_data(u, v)
-                  if edge_data_dict:
-                      for e_dict in edge_data_dict.values():
-                          if "style" not in e_dict or e_dict["style"] not in ["dashed", "dotted"]:
-                               if "name" in e_dict:
-                                    active_edges.append(e_dict["name"])
+            if graph_to_check.has_edge(u, v):
+                edge_data_dict = graph_to_check.get_edge_data(u, v)
+                if edge_data_dict:
+                    for e_dict in edge_data_dict.values():
+                        if "style" not in e_dict or e_dict["style"] not in [
+                            "dashed",
+                            "dotted",
+                        ]:
+                            if "name" in e_dict:
+                                active_edges.append(e_dict["name"])
         return active_edges
 
-    def _has_blocking_disconnected_line(self, found_path: List[str], line_reco: str) -> Tuple[bool, Optional[str]]:
+    def _has_blocking_disconnected_line(
+        self, found_path: List[str], line_reco: str
+    ) -> Tuple[bool, Optional[str]]:
         """Checks if a path is blocked by other disconnected lines."""
         for line in self.all_disconnected_lines:
-            if line == line_reco: continue
+            if line == line_reco:
+                continue
             try:
                 sub_or, sub_ex = self._get_line_substations(line)
             except ValueError:
-                 continue # Skip if line not found
-            if not (self._is_sublist([sub_or, sub_ex], found_path) or self._is_sublist([sub_ex, sub_or], found_path)):
+                continue  # Skip if line not found
+            if not (
+                self._is_sublist([sub_or, sub_ex], found_path)
+                or self._is_sublist([sub_ex, sub_or], found_path)
+            ):
                 continue
-            if not self._get_active_edges_between(sub_or, sub_ex): # Pass names
+            if not self._get_active_edges_between(sub_or, sub_ex):  # Pass names
                 return True, line
         return False, None
 
-    def _build_path_consecutive_pairs(self, paths: List[List[str]]) -> List[Set[Tuple[str, str]]]:
+    def _build_path_consecutive_pairs(
+        self, paths: List[List[str]]
+    ) -> List[Set[Tuple[str, str]]]:
         """Pre-computes set of consecutive substation pairs for each path for fast membership checks."""
         path_pairs = []
         for path in paths:
@@ -290,7 +337,9 @@ class ActionDiscoverer:
             path_pairs.append(pairs)
         return path_pairs
 
-    def _check_other_reconnectable_line_on_path(self, line_reco: str, red_loop_paths: List[List[str]]) -> Tuple[bool, Optional[str]]:
+    def _check_other_reconnectable_line_on_path(
+        self, line_reco: str, red_loop_paths: List[List[str]]
+    ) -> Tuple[bool, Optional[str]]:
         """Checks path blockage for a specific reconnection candidate.
 
         Uses pre-computed caches when available (set by verify_relevant_reconnections):
@@ -298,15 +347,18 @@ class ActionDiscoverer:
         - _reco_path_blockers: pre-computed blocking disconnected lines per path (O(1) check)
         """
         # Fast path: use pre-computed caches if available
-        if hasattr(self, '_reco_pair_to_paths') and hasattr(self, '_reco_path_blockers'):
+        if hasattr(self, "_reco_pair_to_paths") and hasattr(
+            self, "_reco_path_blockers"
+        ):
             line_subs = self._line_to_subs.get(line_reco)
             if line_subs is None:
                 return False, None, None
 
             sub_or, sub_ex = line_subs
             # O(1) lookup: which paths contain this line?
-            found_path_indices = self._reco_pair_to_paths.get((sub_or, sub_ex), set()) | \
-                                 self._reco_pair_to_paths.get((sub_ex, sub_or), set())
+            found_path_indices = self._reco_pair_to_paths.get(
+                (sub_or, sub_ex), set()
+            ) | self._reco_pair_to_paths.get((sub_ex, sub_or), set())
 
             if not found_path_indices:
                 return False, None, None
@@ -338,19 +390,26 @@ class ActionDiscoverer:
 
         blocker = None
         for path in found_paths:
-            is_blocked, current_blocker = self._has_blocking_disconnected_line(path, line_reco)
+            is_blocked, current_blocker = self._has_blocking_disconnected_line(
+                path, line_reco
+            )
             if not is_blocked:
                 return True, path, None
             if blocker is None:
-                 blocker = current_blocker
+                blocker = current_blocker
         return False, None, blocker
 
     # --- Line Disconnection Scoring ---
 
     @staticmethod
-    def _asymmetric_bell_score(observed_flow: float, min_flow: float, max_flow: float,
-                               alpha: float = 3.0, beta: float = 1.5,
-                               tail_scale: float = 2.0) -> float:
+    def _asymmetric_bell_score(
+        observed_flow: float,
+        min_flow: float,
+        max_flow: float,
+        alpha: float = 3.0,
+        beta: float = 1.5,
+        tail_scale: float = 2.0,
+    ) -> float:
         """
         Computes an asymmetric bell-curve score for a line disconnection action.
 
@@ -386,7 +445,7 @@ class ActionDiscoverer:
         else:
             # Negative quadratic tails
             if x < 0.0:
-                score = -tail_scale * (x ** 2)
+                score = -tail_scale * (x**2)
             else:
                 score = -tail_scale * ((x - 1.0) ** 2)
 
@@ -447,9 +506,15 @@ class ActionDiscoverer:
         # max_overload_flow: capacity of the overloaded line(s) in the overflow graph.
         # The overloaded line's capacity equals the flow it was carrying before being cut.
         # Disconnecting it relieves exactly this flow → score = 1.0 for that action.
-        overloaded_line_names = {self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids}
-        overloaded_caps = [name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity]
-        max_overload_flow = max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
+        overloaded_line_names = {
+            self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids
+        }
+        overloaded_caps = [
+            name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
+        ]
+        max_overload_flow = (
+            max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
+        )
 
         # --- min_redispatch: excess loading on worst overloaded line (in N-1 state) ---
         rho_overloaded = self.obs_defaut.rho[self.lines_overloaded_ids]
@@ -468,13 +533,16 @@ class ActionDiscoverer:
         # and does NOT constrain. Lines that stay below 100% also do NOT constrain.
         # If obs_linecut is unavailable, leave max_redispatch at inf (unconstrained).
         self._build_lookup_caches()
-        max_redispatch = float('inf')
+        max_redispatch = float("inf")
         if self.obs_linecut is not None:
             for line_name, capacity_l in name_to_capacity.items():
-                if self.lines_we_care_about is not None and len(self.lines_we_care_about) > 0:
+                if (
+                    self.lines_we_care_about is not None
+                    and len(self.lines_we_care_about) > 0
+                ):
                     if line_name not in self.lines_we_care_about:
                         continue
-                        
+
                 line_id = self._line_name_to_id.get(line_name)
                 if line_id is None or capacity_l < 1e-6:
                     continue
@@ -483,8 +551,10 @@ class ActionDiscoverer:
                 if rho_after > rho_before:
                     # Skip pre-existing overloads unless they worsen beyond threshold
                     n_state_rho = float(self.obs.rho[line_id])
-                    worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
-                    
+                    worsening_threshold = getattr(
+                        config, "PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD", 0.02
+                    )
+
                     if n_state_rho >= 1.0:
                         if rho_after > n_state_rho * (1 + worsening_threshold):
                             # Worsened pre-existing: consider with ratio = capacity_l (per user request)
@@ -498,7 +568,11 @@ class ActionDiscoverer:
                         else:
                             # Newly overloaded line: compute binding flow margin using user-revised formula
                             # ratio = capacity_l * (rho_after - 1) / (rho_after - rho_before)
-                            ratio = capacity_l * (rho_after - 1.0) / (rho_after - rho_before)
+                            ratio = (
+                                capacity_l
+                                * (rho_after - 1.0)
+                                / (rho_after - rho_before)
+                            )
                             if ratio > 0:
                                 max_redispatch = min(max_redispatch, ratio)
 
@@ -539,7 +613,7 @@ class ActionDiscoverer:
             float: The heuristic score for this disconnection action.
         """
         # Lazy-compute and cache the bounds and capacity map
-        if not hasattr(self, '_disco_bounds'):
+        if not hasattr(self, "_disco_bounds"):
             self._disco_bounds = self._compute_disconnection_flow_bounds()
             self._disco_capacity_map = self._build_line_capacity_map()
 
@@ -553,7 +627,7 @@ class ActionDiscoverer:
             self._disco_capacity_map.get(line, 0.0) for line in lines_in_action
         )
 
-        if max_redispatch == float('inf'):
+        if max_redispatch == float("inf"):
             # Unconstrained regime: simple ratio of observed flow to overloaded
             # line's flow.  All disconnections are safe (no new overloads), so
             # we don't penalise partial relief — score is just how much of the
@@ -565,17 +639,22 @@ class ActionDiscoverer:
             # straightforward corrective action and should rank above all other
             # disconnections.  Boost the score by 1.0 so these actions occupy the
             # [1.0, 2.0] range while others stay in [0.0, 1.0].
-            overloaded_line_names = {self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids}
+            overloaded_line_names = {
+                self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids
+            }
             if lines_in_action.intersection(overloaded_line_names):
                 score += 1.0
             return score
         else:
             # Constrained regime: bell curve between min and max
-            return self._asymmetric_bell_score(observed_flow, min_redispatch, max_redispatch)
+            return self._asymmetric_bell_score(
+                observed_flow, min_redispatch, max_redispatch
+            )
 
     @staticmethod
-    def _unconstrained_linear_score(observed_flow: float, min_flow: float,
-                                    max_flow: float, tail_scale: float = 2.0) -> float:
+    def _unconstrained_linear_score(
+        observed_flow: float, min_flow: float, max_flow: float, tail_scale: float = 2.0
+    ) -> float:
         """
         Linear score for the unconstrained disconnection regime.
 
@@ -602,11 +681,16 @@ class ActionDiscoverer:
             return min(x, 1.0)
         else:
             # Negative quadratic tail below min_flow (same convention as bell)
-            return -tail_scale * (x ** 2)
+            return -tail_scale * (x**2)
 
     # --- Action Discovery Methods (Public) ---
 
-    def verify_relevant_reconnections(self, lines_to_reconnect: Set[str], red_loop_paths: List[List[str]], percentage_threshold_min_dispatch_flow=0.1):
+    def verify_relevant_reconnections(
+        self,
+        lines_to_reconnect: Set[str],
+        red_loop_paths: List[List[str]],
+        percentage_threshold_min_dispatch_flow=0.1,
+    ):
         """
         Finds and evaluates relevant line reconnections based on path checks and scoring.
 
@@ -623,7 +707,9 @@ class ActionDiscoverer:
         map_action_score = {}
         red_loop_paths_sorted = sorted(red_loop_paths, key=len)
         capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
-        max_dispatch_flow = max(abs(val) for val in capacity_dict.values()) if capacity_dict else 0.0
+        max_dispatch_flow = (
+            max(abs(val) for val in capacity_dict.values()) if capacity_dict else 0.0
+        )
 
         # --- Pre-compute data structures for O(1) lookups ---
         self._build_lookup_caches()
@@ -675,12 +761,16 @@ class ActionDiscoverer:
             if abs_cap > max_dispatch_flow_per_node.get(v, 0.0):
                 max_dispatch_flow_per_node[v] = abs_cap
 
-        dispatch_flow_threshold = max_dispatch_flow * percentage_threshold_min_dispatch_flow
+        dispatch_flow_threshold = (
+            max_dispatch_flow * percentage_threshold_min_dispatch_flow
+        )
 
         print(f"Evaluating {len(lines_to_reconnect)} potential reconnections...")
         for line_reco in lines_to_reconnect:
-            has_found_effective_path, path, other_line = self._check_other_reconnectable_line_on_path(
-                line_reco, red_loop_paths_sorted
+            has_found_effective_path, path, other_line = (
+                self._check_other_reconnectable_line_on_path(
+                    line_reco, red_loop_paths_sorted
+                )
             )
 
             if has_found_effective_path:
@@ -690,50 +780,77 @@ class ActionDiscoverer:
                 end_path_sub_id = self._sub_name_to_id[path[-1]]
                 max_dispatch_flow_line_nodes = max(
                     max_dispatch_flow_per_node.get(start_path_sub_id, 0.0),
-                    max_dispatch_flow_per_node.get(end_path_sub_id, 0.0)
+                    max_dispatch_flow_per_node.get(end_path_sub_id, 0.0),
                 )
 
                 if max_dispatch_flow_line_nodes <= dispatch_flow_threshold:
-                    print(f"  Skipping {line_reco}: Path not significant enough with max redispatch flow of only blocked by {max_dispatch_flow_line_nodes} MW.")
+                    print(
+                        f"  Skipping {line_reco}: Path not significant enough with max redispatch flow of only blocked by {max_dispatch_flow_line_nodes} MW."
+                    )
                 else:
                     try:
-
-                        #TODO: could make this stronger by considering the direction of delta theta, not only the absolute value, as it would give and indidation if flow will make it in or out
-                        #Example on contingency P.SAOLRONCI 20240828T0100Z, reco_line 'CREYSL71G.ILE', Theta CRESEY:-0.012, Theta G.ILE: -0.10.
-                        #Reconnection will create a flow from CRESEY to G.ILE whie the other direction would have brought more flow on CRESEY loop path
-                        #which would have been benefitial. So this action should have been filtered out.
-                        #Also most influential reconnections are the ones connecting constrained path and loop path, directly in parallel to the constrained path
-                        #TODO: actually rather than looking at phases, see if both extreities of path containing the line to reconnect have some influential dispatch flows.
-                        #If yes this is a very good sign that it could be influential
-                        delta_theta = abs(get_delta_theta_line(self.obs_defaut, line_id))
+                        # TODO: could make this stronger by considering the direction of delta theta, not only the absolute value, as it would give and indidation if flow will make it in or out
+                        # Example on contingency P.SAOLRONCI 20240828T0100Z, reco_line 'CREYSL71G.ILE', Theta CRESEY:-0.012, Theta G.ILE: -0.10.
+                        # Reconnection will create a flow from CRESEY to G.ILE whie the other direction would have brought more flow on CRESEY loop path
+                        # which would have been benefitial. So this action should have been filtered out.
+                        # Also most influential reconnections are the ones connecting constrained path and loop path, directly in parallel to the constrained path
+                        # TODO: actually rather than looking at phases, see if both extreities of path containing the line to reconnect have some influential dispatch flows.
+                        # If yes this is a very good sign that it could be influential
+                        delta_theta = abs(
+                            get_delta_theta_line(self.obs_defaut, line_id)
+                        )
                         map_action_score["reco_" + line_reco] = {
-                            "action": self.action_space({"set_bus":{"lines_or_id": {line_reco: 1},"lines_ex_id": {line_reco: 1}}}),#self.action_space({"set_line_status": [(line_reco, 1)]}),
+                            "action": self.action_space(
+                                {
+                                    "set_bus": {
+                                        "lines_or_id": {line_reco: 1},
+                                        "lines_ex_id": {line_reco: 1},
+                                    }
+                                }
+                            ),  # self.action_space({"set_line_status": [(line_reco, 1)]}),
                             "score": delta_theta,
-                            "line_impacted": line_reco
+                            "line_impacted": line_reco,
                         }
                     except (IndexError, ValueError) as e:
-                         print(f"Warning: Could not process line {line_reco}: {e}")
+                        print(f"Warning: Could not process line {line_reco}: {e}")
             else:
-                print(f"  Skipping {line_reco}: Path potentially blocked by {other_line}.")
+                print(
+                    f"  Skipping {line_reco}: Path potentially blocked by {other_line}."
+                )
 
         # Sort by score (lower delta-theta is better for reconnections, so ascending sort)
-        actions, lines_impacted, scores = sort_actions_by_score(map_action_score) # Note: sort_actions_by_score sorts DESCENDING! Need to adjust or reverse.
+        actions, lines_impacted, scores = sort_actions_by_score(
+            map_action_score
+        )  # Note: sort_actions_by_score sorts DESCENDING! Need to adjust or reverse.
         # Let's assume sort_actions_by_score is fixed to sort descending, reverse lists if needed
         # actions_rev = dict(reversed(list(actions.items())))
         # lines_impacted_rev = list(reversed(lines_impacted))
         # scores_rev = list(reversed(scores))
 
-        effective, ineffective, identified = [], [], actions # identified holds all passing path filter
+        effective, ineffective, identified = (
+            [],
+            [],
+            actions,
+        )  # identified holds all passing path filter
 
         if self.check_action_simulation:
             print("  Simulating effectiveness...")
-            act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+            act_defaut = self._create_default_action(
+                self.action_space, self.lines_defaut
+            )
             # Iterate using original descending score order from sort_actions_by_score
-            for action_id, line_reco, score in zip(actions.keys(), lines_impacted, scores):
+            for action_id, line_reco, score in zip(
+                actions.keys(), lines_impacted, scores
+            ):
                 action = actions[action_id]
                 is_rho_reduction, obs_simu_action = self._check_rho_reduction(
-                    self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                    self.act_reco_maintenance, self.lines_we_care_about
+                    self.obs,
+                    self.timestep,
+                    act_defaut,
+                    action,
+                    self.lines_overloaded_ids,
+                    self.act_reco_maintenance,
+                    self.lines_we_care_about,
                 )
                 if is_rho_reduction:
                     print(f"    Effective: {line_reco} (Score: {score:.2f})")
@@ -745,19 +862,20 @@ class ActionDiscoverer:
         self.identified_reconnections = identified
         self.effective_reconnections = effective
         self.ineffective_reconnections = ineffective
-        self.scores_reconnections = {action_id: map_action_score[action_id]["score"]
-                                     for action_id in map_action_score}
+        self.scores_reconnections = {
+            action_id: map_action_score[action_id]["score"]
+            for action_id in map_action_score
+        }
         self.params_reconnections = {
             "percentage_threshold_min_dispatch_flow": percentage_threshold_min_dispatch_flow,
             "max_dispatch_flow": max_dispatch_flow,
         }
 
         # Clean up temporary caches specific to this call
-        if hasattr(self, '_reco_pair_to_paths'):
+        if hasattr(self, "_reco_pair_to_paths"):
             del self._reco_pair_to_paths
-        if hasattr(self, '_reco_path_blockers'):
+        if hasattr(self, "_reco_path_blockers"):
             del self._reco_path_blockers
-
 
     def find_relevant_disconnections(self, lines_constrained_path_names: List[str]):
         """
@@ -778,26 +896,38 @@ class ActionDiscoverer:
         act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
 
         # Invalidate cached disconnection bounds so they are recomputed for this call
-        if hasattr(self, '_disco_bounds'):
+        if hasattr(self, "_disco_bounds"):
             del self._disco_bounds
             del self._disco_capacity_map
 
-        overloaded_line_names = {self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids}
+        overloaded_line_names = {
+            self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids
+        }
         print(f"Evaluating {len(self.actions_unfiltered)} potential disconnections...")
-        for action_id in sorted(list(self.actions_unfiltered)):#as order in a set is no fixed, and since the order will matter in the subset of actions selected, fix the order for full reproducibility
+        for action_id in sorted(
+            list(self.actions_unfiltered)
+        ):  # as order in a set is no fixed, and since the order will matter in the subset of actions selected, fix the order for full reproducibility
             action_desc = self.dict_action[action_id]
-            action_type = self.classifier.identify_action_type(action_desc, by_description=True)
+            action_type = self.classifier.identify_action_type(
+                action_desc, by_description=True
+            )
 
             if "open_line" in action_type:
                 content = action_desc.get("content", {}).get("set_bus", {})
-                lines_in_action = set(list(content.get('lines_ex_id', {}).keys()) +
-                                      list(content.get('lines_or_id', {}).keys()))
+                lines_in_action = set(
+                    list(content.get("lines_ex_id", {}).keys())
+                    + list(content.get("lines_or_id", {}).keys())
+                )
 
                 # Include actions on the constrained path OR that directly disconnect an overloaded
                 # line (the most straightforward corrective action deserves consideration even if
                 # not strictly on the alphaDeesp-computed constrained path).
-                is_on_constrained_path = bool(lines_in_action.intersection(set(lines_constrained_path_names)))
-                is_overload_disconnection = bool(lines_in_action.intersection(overloaded_line_names))
+                is_on_constrained_path = bool(
+                    lines_in_action.intersection(set(lines_constrained_path_names))
+                )
+                is_overload_disconnection = bool(
+                    lines_in_action.intersection(overloaded_line_names)
+                )
                 if is_on_constrained_path or is_overload_disconnection:
                     action = self.action_space(action_desc["content"])
                     identified[action_id] = action
@@ -808,8 +938,13 @@ class ActionDiscoverer:
 
                     if self.check_action_simulation:
                         is_rho_reduction, _ = self._check_rho_reduction(
-                            self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                            self.act_reco_maintenance, self.lines_we_care_about
+                            self.obs,
+                            self.timestep,
+                            act_defaut,
+                            action,
+                            self.lines_overloaded_ids,
+                            self.act_reco_maintenance,
+                            self.lines_we_care_about,
                         )
                         if is_rho_reduction:
                             print(f"{action_id} reduces overloads (score: {score:.3f})")
@@ -824,7 +959,9 @@ class ActionDiscoverer:
             else:
                 ignored.append(action_id)
 
-        print(f"  Found {len(effective)} effective, {len(ineffective)} ineffective disconnections.")
+        print(
+            f"  Found {len(effective)} effective, {len(ineffective)} ineffective disconnections."
+        )
 
         # Sort identified disconnections by score descending (higher score = better candidate)
         map_action_score_disco = {
@@ -839,9 +976,9 @@ class ActionDiscoverer:
         self.scores_disconnections = scores_map
 
         # Capture computed bounds before cleanup
-        if hasattr(self, '_disco_bounds'):
+        if hasattr(self, "_disco_bounds"):
             max_overload_flow, min_redispatch, max_redispatch = self._disco_bounds
-            if max_redispatch == float('inf'):
+            if max_redispatch == float("inf"):
                 # Unconstrained regime: linear ramp, peak at max_overload_flow
                 self.params_disconnections = {
                     "regime": "unconstrained",
@@ -851,7 +988,9 @@ class ActionDiscoverer:
             else:
                 # Constrained regime: bell curve
                 # Peak redispatch: x_peak = (alpha-1)/(alpha+beta-2) = 2/2.5 = 0.8
-                peak_redispatch = min_redispatch + 0.8 * (max_redispatch - min_redispatch)
+                peak_redispatch = min_redispatch + 0.8 * (
+                    max_redispatch - min_redispatch
+                )
                 self.params_disconnections = {
                     "regime": "constrained",
                     "min_redispatch": min_redispatch,
@@ -862,13 +1001,13 @@ class ActionDiscoverer:
             self.params_disconnections = {}
 
         # Clean up cached bounds
-        if hasattr(self, '_disco_bounds'):
+        if hasattr(self, "_disco_bounds"):
             del self._disco_bounds
             del self._disco_capacity_map
 
-
-    def identify_bus_of_interest_in_node_splitting_(self, node_type, buses, buses_negative_inflow,
-                                                    buses_negative_out_flow):
+    def identify_bus_of_interest_in_node_splitting_(
+        self, node_type, buses, buses_negative_inflow, buses_negative_out_flow
+    ):
         """
         Identifies the specific bus within a split node that is most critical for relieving the constraint.
 
@@ -894,14 +1033,20 @@ class ActionDiscoverer:
             if node_type == "amont":
                 # a) is_Amont: At least one out_edge belongs to the constrained path.
                 # Strategy: Identify the bus with the most negative dispatch outflow.
-                bus_of_interest = buses[np.argmax(buses_negative_out_flow - buses_negative_inflow)]
+                bus_of_interest = buses[
+                    np.argmax(buses_negative_out_flow - buses_negative_inflow)
+                ]
             elif node_type == "aval":
                 # b) is_Aval: At least one in_edge belongs to the constrained path.
                 # Strategy: Identify the bus with the most negative dispatch inflow.
-                bus_of_interest = buses[np.argmax(buses_negative_inflow - buses_negative_out_flow)]
+                bus_of_interest = buses[
+                    np.argmax(buses_negative_inflow - buses_negative_out_flow)
+                ]
             else:
                 # Fallback for loop nodes or unclassified nodes: find max absolute difference
-                id_of_interest = np.argmax(abs(buses_negative_inflow - buses_negative_out_flow))
+                id_of_interest = np.argmax(
+                    abs(buses_negative_inflow - buses_negative_out_flow)
+                )
                 bus_of_interest = buses[id_of_interest]
         else:
             print("Warning: no negative flow detected")
@@ -928,7 +1073,9 @@ class ActionDiscoverer:
                 - buses_positive_inflow (list): Sum of positive inflows per bus.
                 - buses_positive_out_flow (list): Sum of positive outflows per bus.
         """
-        all_edges_value_attributes = nx.get_edge_attributes(graph, "label")  # dict[edge_tuple] -> flow value
+        all_edges_value_attributes = nx.get_edge_attributes(
+            graph, "label"
+        )  # dict[edge_tuple] -> flow value
         all_edges_names = nx.get_edge_attributes(graph, "name")
 
         # Filter for valid buses (Grid2Op buses usually start at 1; 0/-1 are disconnected)
@@ -937,38 +1084,60 @@ class ActionDiscoverer:
         # Helper function to sum flows based on direction and sign
         # Note: 'keys=True' is used because this is likely a MultiGraph
         buses_negative_inflow = [
-            np.sum([abs(float(all_edges_value_attributes[edge]))
+            np.sum(
+                [
+                    abs(float(all_edges_value_attributes[edge]))
                     for edge in graph.in_edges(node, keys=True)
                     if dict_edge_names_buses[all_edges_names[edge]] == bus
-                    and float(all_edges_value_attributes[edge]) < 0])
+                    and float(all_edges_value_attributes[edge]) < 0
+                ]
+            )
             for bus in buses
         ]
 
         buses_negative_out_flow = [
-            np.sum([abs(float(all_edges_value_attributes[edge]))
+            np.sum(
+                [
+                    abs(float(all_edges_value_attributes[edge]))
                     for edge in graph.out_edges(node, keys=True)
                     if dict_edge_names_buses[all_edges_names[edge]] == bus
-                    and float(all_edges_value_attributes[edge]) < 0])
+                    and float(all_edges_value_attributes[edge]) < 0
+                ]
+            )
             for bus in buses
         ]
 
         buses_positive_inflow = [
-            np.sum([abs(float(all_edges_value_attributes[edge]))
+            np.sum(
+                [
+                    abs(float(all_edges_value_attributes[edge]))
                     for edge in graph.in_edges(node, keys=True)
                     if dict_edge_names_buses[all_edges_names[edge]] == bus
-                    and float(all_edges_value_attributes[edge]) >= 0])
+                    and float(all_edges_value_attributes[edge]) >= 0
+                ]
+            )
             for bus in buses
         ]
 
         buses_positive_out_flow = [
-            np.sum([abs(float(all_edges_value_attributes[edge]))
+            np.sum(
+                [
+                    abs(float(all_edges_value_attributes[edge]))
                     for edge in graph.out_edges(node, keys=True)
                     if dict_edge_names_buses[all_edges_names[edge]] == bus
-                    and float(all_edges_value_attributes[edge]) >= 0])
+                    and float(all_edges_value_attributes[edge]) >= 0
+                ]
+            )
             for bus in buses
         ]
 
-        return buses, buses_negative_inflow, buses_negative_out_flow, buses_positive_inflow, buses_positive_out_flow
+        return (
+            buses,
+            buses_negative_inflow,
+            buses_negative_out_flow,
+            buses_positive_inflow,
+            buses_positive_out_flow,
+        )
 
     def identify_node_splitting_type(self, node, g_distribution_graph):
         """
@@ -983,7 +1152,9 @@ class ActionDiscoverer:
         """
         constrained_path = g_distribution_graph.get_constrained_path()
         red_loops = g_distribution_graph.get_loops()
-        red_loops_nodes = set([x for loop in range(len(red_loops.Path)) for x in red_loops.Path[loop]])
+        red_loops_nodes = set(
+            [x for loop in range(len(red_loops.Path)) for x in red_loops.Path[loop]]
+        )
 
         node_type = None
         if node in constrained_path.n_amont():
@@ -995,9 +1166,16 @@ class ActionDiscoverer:
 
         return node_type
 
-    def compute_node_splitting_action_bus_score(self, node_type, bus_of_interest, buses,
-                                                buses_negative_inflow, buses_negative_out_flow,
-                                                buses_positive_inflow, buses_positive_out_flow):
+    def compute_node_splitting_action_bus_score(
+        self,
+        node_type,
+        bus_of_interest,
+        buses,
+        buses_negative_inflow,
+        buses_negative_out_flow,
+        buses_positive_inflow,
+        buses_positive_out_flow,
+    ):
         """
         Calculates a heuristic score for a splitting action on a specific bus.
 
@@ -1023,7 +1201,9 @@ class ActionDiscoverer:
         Returns:
             float: The calculated score. Higher is better.
         """
-        idx_bus_of_interest = [i for i, bus in enumerate(buses) if bus == bus_of_interest][0]
+        idx_bus_of_interest = [
+            i for i, bus in enumerate(buses) if bus == bus_of_interest
+        ][0]
 
         # Extract flows for the specific bus
         bus_negative_inflow = buses_negative_inflow[idx_bus_of_interest]
@@ -1031,7 +1211,12 @@ class ActionDiscoverer:
         bus_positive_inflow = buses_positive_inflow[idx_bus_of_interest]
         bus_positive_out_flow = buses_positive_out_flow[idx_bus_of_interest]
 
-        TotalInOutDispatchFlow = bus_negative_inflow + bus_negative_out_flow + bus_positive_inflow + bus_positive_out_flow
+        TotalInOutDispatchFlow = (
+            bus_negative_inflow
+            + bus_negative_out_flow
+            + bus_positive_inflow
+            + bus_positive_out_flow
+        )
 
         harmonized_node_type = node_type
 
@@ -1043,7 +1228,9 @@ class ActionDiscoverer:
             # 3) P.SAOL31RONCI_chronic_20240828_0000_timestep_1 and sub MAGNYP6
             # 4) a case where VOUGLP6 is in the middle of loop paths but with negative dispatch flows. But which case was this ? There is P.SAOL31RONCI so should probably be BEON L31CPVAN contingency
             if bus_negative_out_flow >= bus_negative_inflow:
-                harmonized_node_type = "amont"  # Treat as upstream (negative out edge is dominant)
+                harmonized_node_type = (
+                    "amont"  # Treat as upstream (negative out edge is dominant)
+                )
             else:
                 harmonized_node_type = "aval"
 
@@ -1058,17 +1245,29 @@ class ActionDiscoverer:
                 # Repulsion: Contrast negative outflow against positive outflow (separation of paths).
                 repulsion = bus_negative_out_flow - bus_positive_out_flow
                 # Weight: Ratio of the desired flow vs everything else.
-                weight_factor = (bus_negative_out_flow - (
-                            bus_negative_inflow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
+                weight_factor = (
+                    bus_negative_out_flow
+                    - (
+                        bus_negative_inflow
+                        + bus_positive_inflow
+                        + bus_positive_out_flow
+                    )
+                ) / TotalInOutDispatchFlow
 
             elif harmonized_node_type == "aval":
                 # Strategy: Separate negative inflow from all other flows.
                 repulsion = bus_negative_inflow - bus_positive_inflow
-                if TotalInOutDispatchFlow==0:
-                    weight_factor=-9999
+                if TotalInOutDispatchFlow == 0:
+                    weight_factor = -9999
                 else:
-                    weight_factor = (bus_negative_inflow - (
-                            bus_negative_out_flow + bus_positive_inflow + bus_positive_out_flow)) / TotalInOutDispatchFlow
+                    weight_factor = (
+                        bus_negative_inflow
+                        - (
+                            bus_negative_out_flow
+                            + bus_positive_inflow
+                            + bus_positive_out_flow
+                        )
+                    ) / TotalInOutDispatchFlow
 
             score = weight_factor * repulsion
 
@@ -1078,8 +1277,13 @@ class ActionDiscoverer:
 
         return score
 
-    def compute_node_splitting_action_score_value(self, overflow_graph, g_distribution_graph, node: int,
-                                                  dict_edge_names_buses=None):
+    def compute_node_splitting_action_score_value(
+        self,
+        overflow_graph,
+        g_distribution_graph,
+        node: int,
+        dict_edge_names_buses=None,
+    ):
         """
         Main orchestration function to score a specific node splitting topology.
 
@@ -1106,8 +1310,15 @@ class ActionDiscoverer:
         node_type = self.identify_node_splitting_type(node, g_distribution_graph)
 
         # 2) Compute buses values of interest (aggregate flows)
-        buses, buses_negative_inflow, buses_negative_out_flow, buses_positive_inflow, buses_positive_out_flow = \
-            self.computing_buses_values_of_interest(overflow_graph, node, dict_edge_names_buses)
+        (
+            buses,
+            buses_negative_inflow,
+            buses_negative_out_flow,
+            buses_positive_inflow,
+            buses_positive_out_flow,
+        ) = self.computing_buses_values_of_interest(
+            overflow_graph, node, dict_edge_names_buses
+        )
 
         # Handle edge case: no valid buses found (all disconnected or empty)
         if not buses:
@@ -1125,13 +1336,19 @@ class ActionDiscoverer:
         if bus_of_interest not in buses:
             # Fall back to the first available bus
             bus_of_interest = buses[0]
-            print(f"Warning: Default bus_of_interest not in buses list, using {bus_of_interest}")
+            print(
+                f"Warning: Default bus_of_interest not in buses list, using {bus_of_interest}"
+            )
 
         # 4) Compute score
         bus_of_interest_score = self.compute_node_splitting_action_bus_score(
-            node_type, bus_of_interest, buses,
-            buses_negative_inflow, buses_negative_out_flow,
-            buses_positive_inflow, buses_positive_out_flow
+            node_type,
+            bus_of_interest,
+            buses,
+            buses_negative_inflow,
+            buses_negative_out_flow,
+            buses_positive_inflow,
+            buses_positive_out_flow,
         )
 
         # 5) Build per-action details for the bus of interest
@@ -1173,7 +1390,7 @@ class ActionDiscoverer:
         start = int(np.sum(sub_info[:sub_impacted_id]))
         length = int(sub_info[sub_impacted_id])
 
-        action_topo_vect = impact_obs.topo_vect[start:start + length]
+        action_topo_vect = impact_obs.topo_vect[start : start + length]
 
         # Preserve disconnected status from initial state if applicable
         action_topo_vect[topo_vect_init <= 0] = topo_vect_init[topo_vect_init <= 0]
@@ -1204,23 +1421,23 @@ class ActionDiscoverer:
             bus_assignments = obs.sub_topology(sub_id=sub_id)
 
         # sub_topology order: loads, gens, lines_or, lines_ex
-        load_ids = obj.get('loads_id', [])
-        gen_ids = obj.get('generators_id', [])
-        line_or_ids = obj.get('lines_or_id', [])
-        line_ex_ids = obj.get('lines_ex_id', [])
+        load_ids = obj.get("loads_id", [])
+        gen_ids = obj.get("generators_id", [])
+        line_or_ids = obj.get("lines_or_id", [])
+        line_ex_ids = obj.get("lines_ex_id", [])
 
         assets = {"lines": [], "loads": [], "generators": []}
         pos = 0
 
         for load_idx in load_ids:
             if pos < len(bus_assignments) and int(bus_assignments[pos]) == bus:
-                if hasattr(obs, 'name_load') and load_idx < len(obs.name_load):
+                if hasattr(obs, "name_load") and load_idx < len(obs.name_load):
                     assets["loads"].append(str(obs.name_load[load_idx]))
             pos += 1
 
         for gen_idx in gen_ids:
             if pos < len(bus_assignments) and int(bus_assignments[pos]) == bus:
-                if hasattr(obs, 'name_gen') and gen_idx < len(obs.name_gen):
+                if hasattr(obs, "name_gen") and gen_idx < len(obs.name_gen):
                     assets["generators"].append(str(obs.name_gen[gen_idx]))
             pos += 1
 
@@ -1263,11 +1480,11 @@ class ActionDiscoverer:
             element = obs.topo_vect_element(topo_vect_pos)
 
             # Check if the element corresponds to a line (not a load or gen)
-            if 'line_id' in element:
-                if 'line_or_id' in element:
-                    line_id = element['line_or_id']  # Origin
+            if "line_id" in element:
+                if "line_or_id" in element:
+                    line_id = element["line_or_id"]  # Origin
                 else:
-                    line_id = element['line_ex_id']  # Extremity
+                    line_id = element["line_ex_id"]  # Extremity
 
                 line_name = obs.name_line[line_id]
                 dict_edge_names_buses[line_name] = action_topo_vect[i]
@@ -1287,32 +1504,35 @@ class ActionDiscoverer:
             dict: Keys are line names, Values are bus IDs (e.g., {'Line_A': 1, 'Line_B': 2}).
         """
         dict_edge_names_buses = {}
-        dict_edge_names_buses.update(action_dict["set_bus"]['lines_or_id'])
-        dict_edge_names_buses.update(action_dict["set_bus"]['lines_ex_id'])
+        dict_edge_names_buses.update(action_dict["set_bus"]["lines_or_id"])
+        dict_edge_names_buses.update(action_dict["set_bus"]["lines_ex_id"])
 
         return dict_edge_names_buses
 
-        #length = len(action_topo_vect)
-        #sub_info = obs.sub_info
-        #start = int(np.sum(sub_info[:sub_impacted_id]))
-#
-        #for i in range(length):
-        #    topo_vect_pos = start + i
-        #    element = obs.topo_vect_element(topo_vect_pos)
-#
-        #    # Check if the element corresponds to a line (not a load or gen)
-        #    if 'line_id' in element:
-        #        if 'line_or_id' in element:
-        #            line_id = element['line_or_id']  # Origin
-        #        else:
-        #            line_id = element['line_ex_id']  # Extremity
-#
-        #        line_name = obs.name_line[line_id]
-        #        dict_edge_names_buses[line_name] = action_topo_vect[i]
-#
-        #return dict_edge_names_buses
+        # length = len(action_topo_vect)
+        # sub_info = obs.sub_info
+        # start = int(np.sum(sub_info[:sub_impacted_id]))
 
-    def compute_node_splitting_action_score(self, action_dict: Any, sub_impacted_id: int, alphaDeesp_ranker: Any) -> Tuple[float, Dict]:
+    #
+    # for i in range(length):
+    #    topo_vect_pos = start + i
+    #    element = obs.topo_vect_element(topo_vect_pos)
+    #
+    #    # Check if the element corresponds to a line (not a load or gen)
+    #    if 'line_id' in element:
+    #        if 'line_or_id' in element:
+    #            line_id = element['line_or_id']  # Origin
+    #        else:
+    #            line_id = element['line_ex_id']  # Extremity
+    #
+    #        line_name = obs.name_line[line_id]
+    #        dict_edge_names_buses[line_name] = action_topo_vect[i]
+    #
+    # return dict_edge_names_buses
+
+    def compute_node_splitting_action_score(
+        self, action_dict: Any, sub_impacted_id: int, alphaDeesp_ranker: Any
+    ) -> Tuple[float, Dict]:
         """
         Computes the heuristic score for a single node splitting action.
 
@@ -1329,17 +1549,22 @@ class ActionDiscoverer:
         # in all backends (e.g., pypowsybl)
 
         action = self.action_space(action_dict)
-        action_topo_vect,is_single_node=self._get_action_topo_vect(sub_impacted_id,action)
-        action_topo_vect_alphadeesp=action_topo_vect-1
+        action_topo_vect, is_single_node = self._get_action_topo_vect(
+            sub_impacted_id, action
+        )
+        action_topo_vect_alphadeesp = action_topo_vect - 1
 
         #########"
-        dict_edge_names_buses=self._edge_names_buses_dict(self.obs_defaut, action_topo_vect, sub_impacted_id)
-        #dict_edge_names_buses=self._edge_names_buses_dict_new(action_dict)#self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
+        dict_edge_names_buses = self._edge_names_buses_dict(
+            self.obs_defaut, action_topo_vect, sub_impacted_id
+        )
+        # dict_edge_names_buses=self._edge_names_buses_dict_new(action_dict)#self._edge_names_buses_dict(self.obs_defaut,action_topo_vect,sub_impacted_id)
 
         result = self.compute_node_splitting_action_score_value(
-            self.g_overflow.g, self.g_distribution_graph,
+            self.g_overflow.g,
+            self.g_distribution_graph,
             node=sub_impacted_id,
-            dict_edge_names_buses=dict_edge_names_buses
+            dict_edge_names_buses=dict_edge_names_buses,
         )
 
         # Handle both old (float) and new (tuple) return formats for backward compatibility
@@ -1351,36 +1576,36 @@ class ActionDiscoverer:
         # Replace the raw bus number with the named assets on the targeted node
         if details and "targeted_node_bus" in details:
             details["targeted_node_assets"] = self._get_assets_on_bus_for_sub(
-                sub_impacted_id, details["targeted_node_bus"],
-                bus_assignments=action_topo_vect
+                sub_impacted_id,
+                details["targeted_node_bus"],
+                bus_assignments=action_topo_vect,
             )
             del details["targeted_node_bus"]
 
         return score, details
 
-
     def _get_subs_impacted_from_action_desc(self, action_desc: Dict) -> List[int]:
         """
         Extract impacted substation IDs from an action description.
-        
+
         This is a backend-agnostic way to find which substations are affected
         by a topology action, without relying on grid2op's impact_on_objects().
-        
+
         Args:
             action_desc: Action description dictionary with 'content' key
-            
+
         Returns:
             List of substation IDs that are impacted by this action
         """
         subs_impacted = set()
         content = action_desc.get("content", {})
         set_bus = content.get("set_bus", {})
-        
+
         # Check for substations_id (direct substation topology changes)
         if "substations_id" in set_bus:
             for sub_id, _ in set_bus["substations_id"]:
                 subs_impacted.add(sub_id)
-        
+
         # Check for lines_or_id (line origin bus changes)
         if "lines_or_id" in set_bus:
             for line_name, bus in set_bus["lines_or_id"].items():
@@ -1390,7 +1615,7 @@ class ActionDiscoverer:
                     line_id = line_id_array[0]
                     sub_id = self.obs_defaut.line_or_to_subid[line_id]
                     subs_impacted.add(sub_id)
-        
+
         # Check for lines_ex_id (line extremity bus changes)
         if "lines_ex_id" in set_bus:
             for line_name, bus in set_bus["lines_ex_id"].items():
@@ -1400,30 +1625,35 @@ class ActionDiscoverer:
                     line_id = line_id_array[0]
                     sub_id = self.obs_defaut.line_ex_to_subid[line_id]
                     subs_impacted.add(sub_id)
-        
+
         # Check for loads_id (load bus changes)
         if "loads_id" in set_bus:
             for load_name, bus in set_bus["loads_id"].items():
                 # Find substation for this load
                 load_id_array = np.where(self.obs_defaut.name_load == load_name)[0]
-                if load_id_array.size > 0 and hasattr(self.obs_defaut, 'load_to_subid'):
+                if load_id_array.size > 0 and hasattr(self.obs_defaut, "load_to_subid"):
                     load_id = load_id_array[0]
                     sub_id = self.obs_defaut.load_to_subid[load_id]
                     subs_impacted.add(sub_id)
-        
+
         # Check for generators_id (generator bus changes)
         if "generators_id" in set_bus:
             for gen_name, bus in set_bus["generators_id"].items():
                 # Find substation for this generator
                 gen_id_array = np.where(self.obs_defaut.name_gen == gen_name)[0]
-                if gen_id_array.size > 0 and hasattr(self.obs_defaut, 'gen_to_subid'):
+                if gen_id_array.size > 0 and hasattr(self.obs_defaut, "gen_to_subid"):
                     gen_id = gen_id_array[0]
                     sub_id = self.obs_defaut.gen_to_subid[gen_id]
                     subs_impacted.add(sub_id)
-        
+
         return list(subs_impacted)
 
-    def identify_and_score_node_splitting_actions(self, hubs_names: List[str], nodes_blue_path_names: List[str], alphaDeesp_ranker: Any) -> Tuple[Dict, List]:
+    def identify_and_score_node_splitting_actions(
+        self,
+        hubs_names: List[str],
+        nodes_blue_path_names: List[str],
+        alphaDeesp_ranker: Any,
+    ) -> Tuple[Dict, List]:
         """
         Identifies relevant node splitting actions and calculates their scores.
 
@@ -1438,39 +1668,52 @@ class ActionDiscoverer:
         map_action_score, ignored_actions = {}, []
         for action_id, action_desc in self.dict_action.items():
             if action_id not in self.actions_unfiltered:
-                 ignored_actions.append(action_desc)
-                 continue
+                ignored_actions.append(action_desc)
+                continue
 
-            action_type = self.classifier.identify_action_type(action_desc, by_description=True)
+            action_type = self.classifier.identify_action_type(
+                action_desc, by_description=True
+            )
 
             if "open_coupling" in action_type:
                 action = self.action_space(action_desc["content"])
-                
+
                 # Get impacted substations from action description (backend-agnostic)
-                #topology_impact = action.impact_on_objects()["topology"] if grid2op
-                #subs_impacted = list(set([assignment['substation'] for assignment in topology_impact["assigned_bus"]]))
-                #sub_impacted_id = subs_impacted[0]
+                # topology_impact = action.impact_on_objects()["topology"] if grid2op
+                # subs_impacted = list(set([assignment['substation'] for assignment in topology_impact["assigned_bus"]]))
+                # sub_impacted_id = subs_impacted[0]
                 subs_impacted = self._get_subs_impacted_from_action_desc(action_desc)
                 if not subs_impacted:
                     ignored_actions.append(action_desc)
                     continue
-                
+
                 sub_impacted_id = subs_impacted[0]
                 sub_impacted_name = self.obs_defaut.name_sub[sub_impacted_id]
 
-                if sub_impacted_name in hubs_names or sub_impacted_name in nodes_blue_path_names:
-                    score, details = self.compute_node_splitting_action_score(action_desc["content"], sub_impacted_id, alphaDeesp_ranker)
-                    map_action_score[action_id] = {"action": action, "score": score, "sub_impacted": sub_impacted_name, "details": details}
-                    #print(action_desc["content"]["set_bus"])
-                    #print(action_id+": "+str(score))
+                if (
+                    sub_impacted_name in hubs_names
+                    or sub_impacted_name in nodes_blue_path_names
+                ):
+                    score, details = self.compute_node_splitting_action_score(
+                        action_desc["content"], sub_impacted_id, alphaDeesp_ranker
+                    )
+                    map_action_score[action_id] = {
+                        "action": action,
+                        "score": score,
+                        "sub_impacted": sub_impacted_name,
+                        "details": details,
+                    }
+                    # print(action_desc["content"]["set_bus"])
+                    # print(action_id+": "+str(score))
                 else:
                     ignored_actions.append(action_desc)
             else:
-                 ignored_actions.append(action_desc)
+                ignored_actions.append(action_desc)
         return map_action_score, ignored_actions
 
-
-    def find_relevant_node_splitting(self, hubs_names: List[str], nodes_blue_path_names: List[str]):
+    def find_relevant_node_splitting(
+        self, hubs_names: List[str], nodes_blue_path_names: List[str]
+    ):
         """
         Finds, scores, sorts, and evaluates node splitting actions.
 
@@ -1481,43 +1724,63 @@ class ActionDiscoverer:
             hubs_names: List of hub substation names.
             nodes_blue_path_names: List of substation names on the blue path.
         """
-        alphaDeesp_ranker = AlphaDeesp_warmStart(self.g_overflow.g, self.g_distribution_graph, self.simulator_data)
+        alphaDeesp_ranker = AlphaDeesp_warmStart(
+            self.g_overflow.g, self.g_distribution_graph, self.simulator_data
+        )
 
         map_action_score, ignored = self.identify_and_score_node_splitting_actions(
             hubs_names, nodes_blue_path_names, alphaDeesp_ranker
         )
-        actions, subs_impacted, scores = sort_actions_by_score(map_action_score) # Higher score first
+        actions, subs_impacted, scores = sort_actions_by_score(
+            map_action_score
+        )  # Higher score first
 
         effective, ineffective = [], []
         if self.check_action_simulation and actions:
             print("  Simulating effectiveness...")
-            act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+            act_defaut = self._create_default_action(
+                self.action_space, self.lines_defaut
+            )
             for action_id, sub_impacted in zip(actions.keys(), subs_impacted):
                 action = actions[action_id]
                 is_rho_reduction, _ = self._check_rho_reduction(
-                    self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                    self.act_reco_maintenance, self.lines_we_care_about
+                    self.obs,
+                    self.timestep,
+                    act_defaut,
+                    action,
+                    self.lines_overloaded_ids,
+                    self.act_reco_maintenance,
+                    self.lines_we_care_about,
                 )
-                is_hub = (sub_impacted in hubs_names)
+                is_hub = sub_impacted in hubs_names
                 if is_rho_reduction:
                     effective.append(action)
-                    print(f"    Effective node split: {action_id} at {sub_impacted} (hub: {is_hub})")
+                    print(
+                        f"    Effective node split: {action_id} at {sub_impacted} (hub: {is_hub})"
+                    )
                 else:
                     ineffective.append(action)
-                    print(f"    Ineffective node split: {action_id} at {sub_impacted} (hub: {is_hub})")
+                    print(
+                        f"    Ineffective node split: {action_id} at {sub_impacted} (hub: {is_hub})"
+                    )
 
         self.identified_splits = actions
         self.effective_splits = effective
         self.ineffective_splits = ineffective
         self.ignored_splits = ignored
         self.scores_splits = scores
-        self.scores_splits_dict = {action_id: map_action_score[action_id]["score"]
-                                   for action_id in map_action_score}
-        self.params_splits_dict = {action_id: map_action_score[action_id].get("details", {})
-                                   for action_id in map_action_score}
+        self.scores_splits_dict = {
+            action_id: map_action_score[action_id]["score"]
+            for action_id in map_action_score
+        }
+        self.params_splits_dict = {
+            action_id: map_action_score[action_id].get("details", {})
+            for action_id in map_action_score
+        }
 
-
-    def compute_node_merging_score(self, sub_id: int, connected_buses: list) -> Tuple[float, Dict]:
+    def compute_node_merging_score(
+        self, sub_id: int, connected_buses: list
+    ) -> Tuple[float, Dict]:
         """
         Computes a heuristic score for a node merging action based on the voltage angle
         difference (delta phase) between the two buses being merged.
@@ -1560,8 +1823,9 @@ class ActionDiscoverer:
 
         # Sum positive capacity per bus from overflow graph edges
         positive_flow_per_bus = {bus: 0.0 for bus in buses}
-        all_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + \
-                    list(self.g_overflow.g.in_edges(sub_id, keys=True))
+        all_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + list(
+            self.g_overflow.g.in_edges(sub_id, keys=True)
+        )
 
         for edge in all_edges:
             cap = capacity_dict.get(edge, 0.0)
@@ -1589,7 +1853,11 @@ class ActionDiscoverer:
 
         return score, details
 
-    def find_relevant_node_merging(self, nodes_dispatch_path_names: List[str], percentage_threshold_min_dispatch_flow=0.1):
+    def find_relevant_node_merging(
+        self,
+        nodes_dispatch_path_names: List[str],
+        percentage_threshold_min_dispatch_flow=0.1,
+    ):
         """
         Finds and evaluates relevant node merging actions on dispatch paths.
 
@@ -1608,47 +1876,74 @@ class ActionDiscoverer:
         scores_map = {}
         details_map = {}
         capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
-        max_dispatch_flow=max([abs(val) for val in capacity_dict.values()])
+        max_dispatch_flow = max([abs(val) for val in capacity_dict.values()])
 
-        print(f"Evaluating node merging for {len(nodes_dispatch_path_names)} substations...")
+        print(
+            f"Evaluating node merging for {len(nodes_dispatch_path_names)} substations..."
+        )
         for sub_name in nodes_dispatch_path_names:
             sub_id_array = np.where(sub_name == self.obs.name_sub)[0]
-            if sub_id_array.size == 0: continue
+            if sub_id_array.size == 0:
+                continue
             sub_id = sub_id_array[0]
             current_sub_topo = self.obs.sub_topology(sub_id=sub_id)
             connected_buses = set(current_sub_topo) - {-1, 0}
 
             if len(connected_buses) >= 2:
-                #check if significant enough, that is with some minimal redispatch flow
-                sub_edges=list(self.g_overflow.g.out_edges(sub_id, keys=True))+list(self.g_overflow.g.in_edges(sub_id, keys=True))
+                # check if significant enough, that is with some minimal redispatch flow
+                sub_edges = list(self.g_overflow.g.out_edges(sub_id, keys=True)) + list(
+                    self.g_overflow.g.in_edges(sub_id, keys=True)
+                )
 
-                max_dispatch_flow_node=max([abs(capacity_dict[edge]) for edge in sub_edges])
+                max_dispatch_flow_node = max(
+                    [abs(capacity_dict[edge]) for edge in sub_edges]
+                )
 
-                if max_dispatch_flow_node>=max_dispatch_flow*percentage_threshold_min_dispatch_flow:
-                    topo_target = [1 if bus_id >= 2 else bus_id for bus_id in current_sub_topo]
-                    action = self.action_space({"set_bus": {"substations_id": [(sub_id, topo_target)]}})
+                if (
+                    max_dispatch_flow_node
+                    >= max_dispatch_flow * percentage_threshold_min_dispatch_flow
+                ):
+                    topo_target = [
+                        1 if bus_id >= 2 else bus_id for bus_id in current_sub_topo
+                    ]
+                    action = self.action_space(
+                        {"set_bus": {"substations_id": [(sub_id, topo_target)]}}
+                    )
                     action_id = f"node_merging_{sub_name}"
                     identified[action_id] = action
 
                     # Compute delta phase score and per-action details (including assets)
                     try:
-                        score, details = self.compute_node_merging_score(sub_id, list(connected_buses))
+                        score, details = self.compute_node_merging_score(
+                            sub_id, list(connected_buses)
+                        )
                         scores_map[action_id] = score
                         details_map[action_id] = details
-                        print(f"  Scored node merge {action_id}: delta_phase={score:.4f}")
+                        print(
+                            f"  Scored node merge {action_id}: delta_phase={score:.4f}"
+                        )
                     except Exception as e:
                         print(f"  Warning: Could not score {action_id}: {e}")
                         scores_map[action_id] = 0.0
                         details_map[action_id] = {}
 
                     if self.check_action_simulation:
-                        act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+                        act_defaut = self._create_default_action(
+                            self.action_space, self.lines_defaut
+                        )
                         is_rho_reduction, _ = self._check_rho_reduction(
-                            self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                            self.act_reco_maintenance, self.lines_we_care_about
+                            self.obs,
+                            self.timestep,
+                            act_defaut,
+                            action,
+                            self.lines_overloaded_ids,
+                            self.act_reco_maintenance,
+                            self.lines_we_care_about,
                         )
                         (effective if is_rho_reduction else ineffective).append(action)
-                        print(f"  {'Effective' if is_rho_reduction else 'Ineffective'} node merge: {action_id}")
+                        print(
+                            f"  {'Effective' if is_rho_reduction else 'Ineffective'} node merge: {action_id}"
+                        )
 
         self.identified_merges = identified
         self.effective_merges = effective
@@ -1656,11 +1951,12 @@ class ActionDiscoverer:
         self.scores_merges = scores_map
         self.params_merges = details_map
 
-
-    def find_relevant_pst_actions(self, nodes_blue_path_names: List[str], red_loop_paths_names: List[List[str]]):
+    def find_relevant_pst_actions(
+        self, nodes_blue_path_names: List[str], red_loop_paths_names: List[List[str]]
+    ):
         """
         Identifies and proposes PST tap variations for overloads on blue paths and red loops.
-        
+
         Args:
             nodes_blue_path_names: List of substation names on the blue (constrained) path.
             red_loop_paths_names: List of paths (list of substation names) forming red loops.
@@ -1670,7 +1966,9 @@ class ActionDiscoverer:
             pst_ids = self.obs._network_manager.get_pst_ids()
         except AttributeError:
             # Fallback if nm doesn't support get_pst_ids (e.g. grid2op backend)
-            print("Warning: Network manager does not support get_pst_ids, skipping PST discovery.")
+            print(
+                "Warning: Network manager does not support get_pst_ids, skipping PST discovery."
+            )
             return
 
         if not pst_ids:
@@ -1679,69 +1977,75 @@ class ActionDiscoverer:
         identified, effective, ineffective = {}, [], []
         scores_map = {}
         details_map = {}
-        
+
         # Flatten red loop nodes for faster O(1) lookup
         red_loop_nodes_set = set()
         for path in red_loop_paths_names:
             red_loop_nodes_set.update(path)
         blue_path_nodes_set = set(nodes_blue_path_names)
 
-        if not hasattr(self, '_disco_bounds'):
+        if not hasattr(self, "_disco_bounds"):
             self._disco_bounds = self._compute_disconnection_flow_bounds()
             self._disco_capacity_map = self._build_line_capacity_map()
         max_overload_flow, _, _ = self._disco_bounds
 
         nm = self.obs._network_manager
-        
+
         print(f"Evaluating PST tap variations for {len(pst_ids)} PSTs...")
-        
+
         for pst_id in pst_ids:
             # Map PST to its substations
             # From NetworkManager, we know transformers are in _line_ids
             # and we have _line_or_sub / _line_ex_sub caches
             sub1_name = nm._line_or_sub.get(pst_id)
             sub2_name = nm._line_ex_sub.get(pst_id)
-            
+
             if not sub1_name or not sub2_name:
                 continue
-            
+
             # Decide if it's on a blue path or red loop
-            is_blue = sub1_name in blue_path_nodes_set or sub2_name in blue_path_nodes_set
+            is_blue = (
+                sub1_name in blue_path_nodes_set or sub2_name in blue_path_nodes_set
+            )
             is_red = sub1_name in red_loop_nodes_set or sub2_name in red_loop_nodes_set
-            
+
             if not (is_blue or is_red):
                 continue
-            
+
             tap_info = nm.get_pst_tap_info(pst_id)
             if not tap_info:
                 continue
-                
-            tap = tap_info['tap']
-            low = tap_info['low_tap']
-            high = tap_info['high_tap']
-            
+
+            tap = tap_info["tap"]
+            low = tap_info["low_tap"]
+            high = tap_info["high_tap"]
+
             # Assume reference tap is in the middle
             ref_tap = (low + high) // 2
-            
+
             # Variation: 2 steps when possible
             variation = 0
             if is_blue:
                 # Rule: Increase Impedance (Move away from reference)
                 if tap >= ref_tap:
                     target_tap = min(high, tap + 2)
-                    if target_tap > tap: variation = target_tap - tap
-                else: # tap < ref_tap
+                    if target_tap > tap:
+                        variation = target_tap - tap
+                else:  # tap < ref_tap
                     target_tap = max(low, tap - 2)
-                    if target_tap < tap: variation = target_tap - tap
+                    if target_tap < tap:
+                        variation = target_tap - tap
             elif is_red:
                 # Rule: Decrease Impedance (Move towards reference)
                 if tap > ref_tap:
                     target_tap = max(ref_tap, tap - 2)
-                    if target_tap < tap: variation = target_tap - tap
+                    if target_tap < tap:
+                        variation = target_tap - tap
                 elif tap < ref_tap:
                     target_tap = min(ref_tap, tap + 2)
-                    if target_tap > tap: variation = target_tap - tap
-            
+                    if target_tap > tap:
+                        variation = target_tap - tap
+
             if variation != 0:
                 new_tap = tap + variation
                 action_id = f"pst_tap_{pst_id}_{'inc' if variation > 0 else 'dec'}{abs(variation)}"
@@ -1749,20 +2053,22 @@ class ActionDiscoverer:
                 action_desc = {
                     "description": f"Variation de slot de {variation} pour le PST {pst_id} (tap: {tap} -> {new_tap})",
                     "description_unitaire": f"Variation de slot de {variation} pour le PST {pst_id}",
-                    "content": action_dict
+                    "content": action_dict,
                 }
-                
+
                 # In Step 2, prioritized_actions expects Action objects
                 action = self.action_space(action_dict)
                 identified[action_id] = action
-                
+
                 # User-requested score: ratio of dispatch flow on the pst branch over the maximum overload dispatch flow
-                dispatch_flow = getattr(self, '_disco_capacity_map', {}).get(pst_id, 0.0)
+                dispatch_flow = getattr(self, "_disco_capacity_map", {}).get(
+                    pst_id, 0.0
+                )
                 if max_overload_flow > 1e-6:
                     score = abs(dispatch_flow / max_overload_flow)
                 else:
-                    score = 0.5 * abs(variation) # Fallback to original simple score
-                
+                    score = 0.5 * abs(variation)  # Fallback to original simple score
+
                 scores_map[action_id] = score
                 details_map[action_id] = {
                     "pst_id": pst_id,
@@ -1776,15 +2082,24 @@ class ActionDiscoverer:
                     "min_reachable_tap": low,
                     "dispatch_flow_on_pst": dispatch_flow,
                 }
-                
+
                 if self.check_action_simulation:
-                    act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+                    act_defaut = self._create_default_action(
+                        self.action_space, self.lines_defaut
+                    )
                     is_rho_reduction, _ = self._check_rho_reduction(
-                        self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                        self.act_reco_maintenance, self.lines_we_care_about
+                        self.obs,
+                        self.timestep,
+                        act_defaut,
+                        action,
+                        self.lines_overloaded_ids,
+                        self.act_reco_maintenance,
+                        self.lines_we_care_about,
                     )
                     (effective if is_rho_reduction else ineffective).append(action)
-                    print(f"  {'Effective' if is_rho_reduction else 'Ineffective'} PST tap: {action_id}")
+                    print(
+                        f"  {'Effective' if is_rho_reduction else 'Ineffective'} PST tap: {action_id}"
+                    )
 
         self.identified_pst_actions = identified
         self.effective_pst_actions = effective
@@ -1792,26 +2107,23 @@ class ActionDiscoverer:
         self.scores_pst_actions = scores_map
         self.params_pst_actions = details_map
 
-
     # --- Load Shedding ---
 
     def find_relevant_load_shedding(self, nodes_aval_indices: List[int]):
         """
         Discovers load shedding candidates on downstream (aval) nodes of the constrained path.
 
-        For each downstream node that has loads, computes the influence factor from the
-        adjacent blue edge with the maximum negative report, then determines the MW volume
-        of load to shed (with a 5% safety margin) and builds the corresponding action.
-
-        Args:
-            nodes_aval_indices: Substation indices of downstream nodes on the constrained path.
+        Optimized for large networks (>500 nodes, >1000 lines) with:
+        - Vectorized pre-computation of edge attributes
+        - Cached node flow calculations
+        - Early filtering to skip irrelevant nodes
         """
         self._build_lookup_caches()
         obs = self.obs_defaut
         g = self.g_overflow.g
 
-        margin = getattr(config, 'LOAD_SHEDDING_MARGIN', 0.05)
-        min_mw = getattr(config, 'LOAD_SHEDDING_MIN_MW', 1.0)
+        margin = getattr(config, "LOAD_SHEDDING_MARGIN", 0.05)
+        min_mw = getattr(config, "LOAD_SHEDDING_MIN_MW", 1.0)
 
         # Compute overload excess in MW
         name_to_capacity = self._build_line_capacity_map()
@@ -1819,8 +2131,12 @@ class ActionDiscoverer:
             return
 
         overloaded_line_names = {obs.name_line[i] for i in self.lines_overloaded_ids}
-        overloaded_caps = [name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity]
-        max_overload_flow = max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
+        overloaded_caps = [
+            name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
+        ]
+        max_overload_flow = (
+            max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
+        )
 
         rho_overloaded = obs.rho[self.lines_overloaded_ids]
         if len(rho_overloaded) == 0:
@@ -1830,14 +2146,38 @@ class ActionDiscoverer:
             return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
 
-        # Get edge attributes
+        # Pre-compute ALL edge attributes once (O(E) instead of O(V*E))
         edge_names = nx.get_edge_attributes(g, "name")
-        edge_capacities = nx.get_edge_attributes(g, "capacity")
-        edge_labels = nx.get_edge_attributes(g, "label")
+        edge_labels = {
+            edge: float(val) for edge, val in nx.get_edge_attributes(g, "label").items()
+        }
 
-        # Get blue edges set (constrained path edges)
-        constrained_edges_names, _, other_blue_names, _ = self.g_distribution_graph.get_constrained_edges_nodes()
+        # Get blue edges set (constrained path edges) - pre-filtered as dict for O(1) lookup
+        constrained_edges_names, _, other_blue_names, _ = (
+            self.g_distribution_graph.get_constrained_edges_nodes()
+        )
         blue_edge_names_set = set(constrained_edges_names + other_blue_names)
+
+        # Pre-compute node influence flows for ALL nodes at once (O(V+E))
+        # This is the key optimization: calculate all node flows in single pass
+        node_influence_flows = {}  # {node_idx: {'in': float, 'out': float}}
+
+        for edge, name in edge_names.items():
+            if name not in blue_edge_names_set:
+                continue
+            flow_val = edge_labels.get(edge, 0.0)
+            if flow_val >= 0:
+                continue  # Only negative flows matter
+
+            abs_flow = abs(flow_val)
+            # Add to out_edges (negative outflow means leaving node)
+            u, v = edge[0], edge[1]
+            node_influence_flows.setdefault(u, {"in": 0.0, "out": 0.0})["out"] += (
+                abs_flow
+            )
+            node_influence_flows.setdefault(v, {"in": 0.0, "out": 0.0})["in"] += (
+                abs_flow
+            )
 
         identified = {}
         scores_map = {}
@@ -1847,80 +2187,84 @@ class ActionDiscoverer:
 
         for node_idx in nodes_aval_indices:
             sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
-            if sub_name is None:
+            if not sub_name:
                 continue
 
             # Get loads at this substation
             obj = obs.get_obj_connect_to(substation_id=node_idx)
-            load_ids = obj.get('loads_id', [])
-            if len(load_ids) == 0:
+            load_ids = obj.get("loads_id", [])
+            if not load_ids:
                 continue
 
-            # Compute available load (only positive consumption)
-            load_powers = [float(obs.load_p[lid]) for lid in load_ids if lid < len(obs.load_p)]
+            # Compute available load (only positive consumption) - vectorized
+            load_powers = [
+                float(obs.load_p[lid]) for lid in load_ids if lid < len(obs.load_p)
+            ]
             available_load = sum(p for p in load_powers if p > 0)
             if available_load <= 0:
                 continue
 
-            # Compute influence via sum of negative flows on blue edges at this node,
-            # consistent with the node splitting scoring approach:
-            # influence_flow = max(sum_neg_in_edges, sum_neg_out_edges)
-            all_edge_labels = nx.get_edge_attributes(g, "label")
-            total_neg_in = sum(
-                abs(float(all_edge_labels[edge]))
-                for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
-            )
-            total_neg_out = sum(
-                abs(float(all_edge_labels[edge]))
-                for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
-            )
+            # Get pre-computed influence flow (O(1) lookup instead of O(deg))
+            node_flows = node_influence_flows.get(node_idx, {"in": 0.0, "out": 0.0})
+            total_neg_in = node_flows["in"]
+            total_neg_out = node_flows["out"]
             influence_flow = max(total_neg_in, total_neg_out)
 
             if influence_flow <= 0:
                 continue
 
-            influence_factor = min(1.0, influence_flow / max_overload_flow) if max_overload_flow > 0 else 0.0
+            influence_factor = (
+                min(1.0, influence_flow / max_overload_flow)
+                if max_overload_flow > 0
+                else 0.0
+            )
             if influence_factor <= 0:
                 continue
 
             # Compute shedding volume
-            P_shedding_min = P_overload_excess / influence_factor * (1.0 + margin) if influence_factor > 0 else P_overload_excess * (1.0 + margin)
+            P_shedding_min = (
+                P_overload_excess / influence_factor * (1.0 + margin)
+                if influence_factor > 0
+                else P_overload_excess * (1.0 + margin)
+            )
             P_shedding = max(P_shedding_min, min_mw)
             P_shedding = min(P_shedding, available_load)
 
-            coverage_ratio = min(1.0, available_load / P_shedding_min) if P_shedding_min > 0 else 1.0
+            coverage_ratio = (
+                min(1.0, available_load / P_shedding_min) if P_shedding_min > 0 else 1.0
+            )
             score = influence_factor * coverage_ratio
 
-            # Build one action per load at the node, each as a standalone candidate
-            load_entries = [(lid, float(obs.load_p[lid])) for lid in load_ids
-                           if lid < len(obs.load_p) and float(obs.load_p[lid]) > 0]
+            # Build one action per load at the node
+            load_entries = [
+                (lid, float(obs.load_p[lid]))
+                for lid in load_ids
+                if lid < len(obs.load_p) and float(obs.load_p[lid]) > 0
+            ]
             load_entries.sort(key=lambda x: x[1], reverse=True)
 
             if not load_entries:
                 continue
 
-            # Get full assets at the substation
-            assets = self._get_assets_on_bus_for_sub(node_idx, 1)  # bus 1 (default)
+            assets = self._get_assets_on_bus_for_sub(node_idx, 1)
 
             for lid, load_power in load_entries:
-                load_name = str(obs.name_load[lid]) if lid < len(obs.name_load) else str(lid)
+                load_name = (
+                    str(obs.name_load[lid]) if lid < len(obs.name_load) else str(lid)
+                )
                 action_id = f"load_shedding_{load_name}"
 
-                # Per-load coverage: how much of the shedding need this single load covers
-                load_coverage = min(1.0, load_power / P_shedding_min) if P_shedding_min > 0 else 1.0
+                load_coverage = (
+                    min(1.0, load_power / P_shedding_min) if P_shedding_min > 0 else 1.0
+                )
                 load_score = influence_factor * load_coverage
 
                 try:
-                    # Reduce active power to 0 MW instead of disconnecting
                     action = self.action_space({"set_load_p": {load_name: 0.0}})
                 except Exception as e:
-                    print(f"Warning: Could not create load shedding action for {load_name}: {e}")
+                    print(
+                        f"Warning: Could not create load shedding action for {load_name}: {e}"
+                    )
                     continue
 
                 identified[action_id] = action
@@ -1944,13 +2288,19 @@ class ActionDiscoverer:
                     "assets": assets,
                 }
 
-                # Optional simulation check
                 if self.check_action_simulation:
                     try:
-                        act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+                        act_defaut = self._create_default_action(
+                            self.action_space, self.lines_defaut
+                        )
                         is_reduction, obs_after = self._check_rho_reduction(
-                            self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                            self.act_reco_maintenance, self.lines_we_care_about
+                            self.obs,
+                            self.timestep,
+                            act_defaut,
+                            action,
+                            self.lines_overloaded_ids,
+                            self.act_reco_maintenance,
+                            self.lines_we_care_about,
                         )
                         if is_reduction:
                             effective.append(action_id)
@@ -1960,14 +2310,19 @@ class ActionDiscoverer:
                         print(f"Warning: Simulation check failed for {action_id}: {e}")
                         ineffective.append(action_id)
 
-        self.identified_load_shedding = dict(sorted(identified.items(),
-                                                     key=lambda x: scores_map.get(x[0], 0), reverse=True))
+        self.identified_load_shedding = dict(
+            sorted(
+                identified.items(), key=lambda x: scores_map.get(x[0], 0), reverse=True
+            )
+        )
         self.effective_load_shedding = effective
         self.ineffective_load_shedding = ineffective
         self.scores_load_shedding = scores_map
         self.params_load_shedding = details_map
 
-    def find_relevant_renewable_curtailment(self, nodes_indices: List[int], nodes_dispatch_loop_names: List[str] = []):
+    def find_relevant_renewable_curtailment(
+        self, nodes_indices: List[int], nodes_dispatch_loop_names: List[str] = []
+    ):
         """
         Discovers renewable curtailment candidates on upstream (amont) nodes or loop nodes.
         Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
@@ -1976,10 +2331,11 @@ class ActionDiscoverer:
         obs = self.obs_defaut
         g = self.g_overflow.g
 
-        margin = getattr(config, 'RENEWABLE_CURTAILMENT_MARGIN', 0.05)
-        min_mw = getattr(config, 'RENEWABLE_CURTAILMENT_MIN_MW', 1.0)
+        margin = getattr(config, "RENEWABLE_CURTAILMENT_MARGIN", 0.05)
+        min_mw = getattr(config, "RENEWABLE_CURTAILMENT_MIN_MW", 1.0)
         renewable_sources = set(
-            s.upper() for s in getattr(config, 'RENEWABLE_ENERGY_SOURCES', ['WIND', 'SOLAR'])
+            s.upper()
+            for s in getattr(config, "RENEWABLE_ENERGY_SOURCES", ["WIND", "SOLAR"])
         )
 
         # Compute overload excess in MW (same as load shedding)
@@ -1988,129 +2344,168 @@ class ActionDiscoverer:
             return
 
         overloaded_line_names = {obs.name_line[i] for i in self.lines_overloaded_ids}
-        overloaded_caps = [name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity]
-        max_overload_flow = max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
+        overloaded_caps = [
+            name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
+        ]
+        max_overload_flow = (
+            max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
+        )
 
-        if len(self.lines_overloaded_ids) == 0: return
+        if len(self.lines_overloaded_ids) == 0:
+            return
         rho_max = float(np.max(obs.rho[self.lines_overloaded_ids]))
-        if rho_max <= 1.0: return
+        if rho_max <= 1.0:
+            return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
 
-        blue_edge_names_set = set(self.g_distribution_graph.get_constrained_edges_nodes()[0] +
-                                  self.g_distribution_graph.get_constrained_edges_nodes()[2])
+        blue_edge_names_set = set(
+            self.g_distribution_graph.get_constrained_edges_nodes()[0]
+            + self.g_distribution_graph.get_constrained_edges_nodes()[2]
+        )
+
+        # Pre-compute dispatch loop names as dict for O(1) lookup
+        dispatch_loop_set = (
+            set(nodes_dispatch_loop_names) if nodes_dispatch_loop_names else None
+        )
 
         identified, effective, ineffective = {}, [], []
         scores_map, params_map = {}, {}
 
-        # Find influence using similar logic to load shedding
-        all_edge_labels = nx.get_edge_attributes(g, "label")
+        # Pre-compute ALL edge flows in single pass (O(E)) - KEY OPTIMIZATION
         edge_names = nx.get_edge_attributes(g, "name")
+        edge_labels = {
+            edge: float(val) for edge, val in nx.get_edge_attributes(g, "label").items()
+        }
+
+        node_flow_cache = {}  # {node_idx: {'neg_in': float, 'neg_out': float, 'pos_in': float, 'pos_out': float}}
+
+        for edge, name in edge_names.items():
+            flow_val = edge_labels.get(edge, 0.0)
+            u, v = edge[0], edge[1]
+
+            if u not in node_flow_cache:
+                node_flow_cache[u] = {
+                    "neg_in": 0.0,
+                    "neg_out": 0.0,
+                    "pos_in": 0.0,
+                    "pos_out": 0.0,
+                }
+            if v not in node_flow_cache:
+                node_flow_cache[v] = {
+                    "neg_in": 0.0,
+                    "neg_out": 0.0,
+                    "pos_in": 0.0,
+                    "pos_out": 0.0,
+                }
+
+            abs_flow = abs(flow_val)
+
+            # Blue edges - negative flows only (curtailment influence)
+            if name in blue_edge_names_set:
+                if flow_val < 0:
+                    node_flow_cache[u]["neg_in"] += abs_flow
+                    node_flow_cache[v]["neg_out"] += abs_flow
+
+            # Dispatch loop edges - positive flows only (generation influence)
+            elif dispatch_loop_set is not None and name in dispatch_loop_set:
+                if flow_val > 0:
+                    node_flow_cache[u]["pos_in"] += abs_flow
+                    node_flow_cache[v]["pos_out"] += abs_flow
 
         for node_idx in nodes_indices:
             sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
-            if not sub_name: continue
+            if not sub_name:
+                continue
 
             # Get generators at this substation
             obj = obs.get_obj_connect_to(substation_id=node_idx)
-            gen_ids = obj.get('generators_id', [])
+            gen_ids = obj.get("generators_id", [])
             if len(gen_ids) == 0:
                 continue
 
             # Filter to renewable generators only
-            gen_energy_sources = getattr(obs, 'gen_energy_source', None)
+            gen_energy_sources = getattr(obs, "gen_energy_source", None)
             if gen_energy_sources is None:
-                gen_energy_sources = getattr(obs, 'gen_type', None)
+                gen_energy_sources = getattr(obs, "gen_type", None)
             if gen_energy_sources is None:
                 gen_energy_sources = []
             renewable_gen_ids = [
-                gid for gid in gen_ids
+                gid
+                for gid in gen_ids
                 if gid < len(gen_energy_sources)
-                   and str(gen_energy_sources[gid]).upper() in renewable_sources
+                and str(gen_energy_sources[gid]).upper() in renewable_sources
             ]
             if not renewable_gen_ids:
                 continue
 
             # Compute available renewable generation (absolute value of production)
-            gen_powers = [float(obs.gen_p[gid]) for gid in renewable_gen_ids if gid < len(obs.gen_p)]
+            gen_powers = [
+                float(obs.gen_p[gid])
+                for gid in renewable_gen_ids
+                if gid < len(obs.gen_p)
+            ]
             available_gen = sum(abs(p) for p in gen_powers if p != 0)
             if available_gen <= 0:
                 continue
 
-            # Compute influence via sum of negative flows on blue edges at this node
-            total_neg_in = sum(
-                abs(float(all_edge_labels[edge]))
-                for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+            # Get pre-computed influence flows (O(1) lookup instead of O(deg)) - KEY OPTIMIZATION
+            node_flows = node_flow_cache.get(
+                node_idx, {"neg_in": 0.0, "neg_out": 0.0, "pos_in": 0.0, "pos_out": 0.0}
             )
-            total_neg_out = sum(
-                abs(float(all_edge_labels[edge]))
-                for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+            total_neg_in = node_flows["neg_in"]
+            total_neg_out = node_flows["neg_out"]
+            total_pos_in = node_flows["pos_in"]
+            total_pos_out = node_flows["pos_out"]
+
+            influence_flow = max(
+                total_neg_in, total_neg_out, total_pos_in, total_pos_out
+            )
+            if influence_flow <= 0:
+                continue
+
+            influence_factor = (
+                min(1.0, influence_flow / max_overload_flow)
+                if max_overload_flow > 0
+                else 0.0
+            )
+            if influence_factor <= 0:
+                continue
+
+            # Pre-compute common values for all generators at this node - KEY OPTIMIZATION
+            mw_required = (
+                (P_overload_excess * (1 + margin)) / influence_factor
+                if influence_factor > 0
+                else P_overload_excess * (1 + margin)
             )
 
-            total_pos_in = sum(
-                abs(float(all_edge_labels[edge]))
-                for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in nodes_dispatch_loop_names
-                and float(all_edge_labels[edge]) > 0
-            )
-            total_pos_out = sum(
-                abs(float(all_edge_labels[edge]))
-                for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in nodes_dispatch_loop_names
-                and float(all_edge_labels[edge]) > 0
-            )
-            influence_flow = max(total_neg_in, total_neg_out, total_pos_in, total_pos_out)
-            # if influence_flow <= 0: continue
+            for gen_id in renewable_gen_ids:
+                try:
+                    gen_name = obs.name_gen[gen_id]
+                except (IndexError, KeyError):
+                    continue
 
-            influence_factor = min(1.0, influence_flow / max_overload_flow) if max_overload_flow > 0 else 0.0
-            # if influence_factor <= 0: continue
-
-            for gen_id in gen_ids:
-                gen_name = obs.name_gen[gen_id]
-
-                # Filter for renewable generators only (WIND/SOLAR)
-                if hasattr(obs, 'gen_type'):
-                    gen_type = str(obs.gen_type[gen_id]).upper()
-                    if gen_type not in ["WIND", "SOLAR"]:
-                        continue
-                else:
-                    # Fallback to name-based filtering if gen_type is missing (e.g. older backends)
-                    gn_up = gen_name.upper()
-                    if not any(kw in gn_up for kw in ["WIND", "SOLAR", "PV", "EOL"]):
-                        continue
-
-                # Cross-backend compatibility: PyPowsybl uses gen_p, Grid2Op raw uses prod_p
-                # (Though our Grid2Op wrapper should also expose gen_p, this is safer)
-                gen_p_array = getattr(obs, 'gen_p', getattr(obs, 'prod_p', None))
+                # Cross-backend compatibility check
+                gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
                 if gen_p_array is None or gen_id >= len(gen_p_array):
                     continue
+
                 gen_p = float(gen_p_array[gen_id])
-                if gen_p > 0:  # this is equivalent to a load
+                if gen_p > 0:
                     continue
-                # now take absolute value
                 gen_p = abs(gen_p)
-                if gen_p < min_mw: continue
+                if gen_p < min_mw:
+                    continue
 
-                # Volume required = excess / influence_factor
-                mw_required = (P_overload_excess * (
-                            1 + margin)) / influence_factor if influence_factor > 0 else P_overload_excess * (
-                            1 + margin)
-
-                # Disconnecting the generator relieves gen_p * influence_factor
-                coverage_ratio = min(1.0, gen_p / mw_required) if mw_required > 0 else 1.0
+                coverage_ratio = (
+                    min(1.0, gen_p / mw_required) if mw_required > 0 else 1.0
+                )
                 score = influence_factor * coverage_ratio
 
-                # if score >= getattr(config, 'MIN_RENEWABLE_CURTAILMENT', 0.0):
                 action_id = f"curtail_{gen_name}"
                 # Reduce active power to 0 MW instead of disconnecting
-                identified[action_id] = self.action_space({"set_gen_p": {gen_name: 0.0}})
+                identified[action_id] = self.action_space(
+                    {"set_gen_p": {gen_name: 0.0}}
+                )
                 scores_map[action_id] = round(score, 2)
                 params_map[action_id] = {
                     "substation": sub_name,
@@ -2127,18 +2522,27 @@ class ActionDiscoverer:
 
         if self.check_action_simulation and identified:
             try:
-                act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
+                act_defaut = self._create_default_action(
+                    self.action_space, self.lines_defaut
+                )
                 for action_id, action in identified.items():
                     is_reduced, _ = self._check_rho_reduction(
-                        self.obs, self.timestep, act_defaut, action, self.lines_overloaded_ids,
-                        self.act_reco_maintenance, self.lines_we_care_about
+                        self.obs,
+                        self.timestep,
+                        act_defaut,
+                        action,
+                        self.lines_overloaded_ids,
+                        self.act_reco_maintenance,
+                        self.lines_we_care_about,
                     )
                     if is_reduced:
                         effective.append(action_id)
                     else:
                         ineffective.append(action_id)
             except Exception as e:
-                print(f"Warning: Simulation check failed for renewable curtailment: {e}")
+                print(
+                    f"Warning: Simulation check failed for renewable curtailment: {e}"
+                )
 
         self.identified_renewable_curtailment = identified
         self.effective_renewable_curtailment = effective
@@ -2148,7 +2552,13 @@ class ActionDiscoverer:
 
     # --- Main Orchestration Method ---
 
-    def discover_and_prioritize(self, n_action_max: int = 5, n_reco_max: int = 2, n_split_max: int = 3, n_pst_max: int = 2) -> Dict[str, Any]:
+    def discover_and_prioritize(
+        self,
+        n_action_max: int = 5,
+        n_reco_max: int = 2,
+        n_split_max: int = 3,
+        n_pst_max: int = 2,
+    ) -> Dict[str, Any]:
         """
         Runs the full discovery and prioritization pipeline for all action types.
 
@@ -2187,16 +2597,20 @@ class ActionDiscoverer:
             name_sub_arr = np.array(self.obs.name_sub)
             n_subs = len(name_sub_arr)
 
-
             # --- Extract Path Information (Convert Indices to Names) ---
-            lines_dispatch, _ = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=False)
+            lines_dispatch, _ = self.g_distribution_graph.get_dispatch_edges_nodes(
+                only_loop_paths=False
+            )
             # Since the graph nodes are now indices, lines_dispatch contains indices. We need names.
             # However, check_other_reconnectable_line_on_path uses obs to map names to subs, so it expects names.
             # Let's get the names from the obs object.
             lines_dispatch_names = lines_dispatch  # [obs.name_line[line_idx] for line_idx in lines_dispatch]
 
-
-            if hasattr(self.g_distribution_graph, 'red_loops') and self.g_distribution_graph.red_loops is not None and not self.g_distribution_graph.red_loops.empty:
+            if (
+                hasattr(self.g_distribution_graph, "red_loops")
+                and self.g_distribution_graph.red_loops is not None
+                and not self.g_distribution_graph.red_loops.empty
+            ):
                 df = self.g_distribution_graph.red_loops
                 try:
                     if "Path" in df.columns:
@@ -2215,22 +2629,44 @@ class ActionDiscoverer:
             else:
                 red_loop_paths_names = []
 
-            _, nodes_dispatch_loop_indices = self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
-            nodes_dispatch_loop_names = list(name_sub_arr[[idx for idx in nodes_dispatch_loop_indices if idx < n_subs]])
+            _, nodes_dispatch_loop_indices = (
+                self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
+            )
+            nodes_dispatch_loop_names = list(
+                name_sub_arr[
+                    [idx for idx in nodes_dispatch_loop_indices if idx < n_subs]
+                ]
+            )
 
-
-            lines_constrained_names, nodes_constrained_indices, _, other_blue_nodes_indices = self.g_distribution_graph.get_constrained_edges_nodes()
-            nodes_blue_path_indices = nodes_constrained_indices + other_blue_nodes_indices
-            nodes_blue_path_names = list(name_sub_arr[[idx for idx in nodes_blue_path_indices if idx < n_subs]])
-            hubs_names = self.hubs # Assume hubs passed during init were already names
+            (
+                lines_constrained_names,
+                nodes_constrained_indices,
+                _,
+                other_blue_nodes_indices,
+            ) = self.g_distribution_graph.get_constrained_edges_nodes()
+            nodes_blue_path_indices = (
+                nodes_constrained_indices + other_blue_nodes_indices
+            )
+            nodes_blue_path_names = list(
+                name_sub_arr[[idx for idx in nodes_blue_path_indices if idx < n_subs]]
+            )
+            hubs_names = self.hubs  # Assume hubs passed during init were already names
 
         # --- Call Discovery Methods ---
-        interesting_lines_to_reconnect = sorted(list(set(lines_dispatch_names).intersection(set(self.non_connected_reconnectable_lines))))
+        interesting_lines_to_reconnect = sorted(
+            list(
+                set(lines_dispatch_names).intersection(
+                    set(self.non_connected_reconnectable_lines)
+                )
+            )
+        )
         if interesting_lines_to_reconnect:
             with Timer("Verifying relevant line reconnections"):
                 print("\n--- Verifying relevant line reconnections ---")
                 print(interesting_lines_to_reconnect)
-                self.verify_relevant_reconnections(interesting_lines_to_reconnect, red_loop_paths_names)
+                self.verify_relevant_reconnections(
+                    interesting_lines_to_reconnect, red_loop_paths_names
+                )
 
         if nodes_dispatch_loop_names:
             with Timer("Verifying relevant node merging"):
@@ -2250,78 +2686,125 @@ class ActionDiscoverer:
         if nodes_blue_path_names or red_loop_paths_names:
             with Timer("Verifying relevant PST actions"):
                 print("\n--- Verifying relevant PST actions ---")
-                self.find_relevant_pst_actions(nodes_blue_path_names, red_loop_paths_names)
+                self.find_relevant_pst_actions(
+                    nodes_blue_path_names, red_loop_paths_names
+                )
 
         # Load shedding: target downstream (aval) nodes on the constrained path
         constrained_path = self.g_distribution_graph.get_constrained_path()
-        nodes_aval_indices = list(constrained_path.n_aval()) if constrained_path is not None else []
+        nodes_aval_indices = (
+            list(constrained_path.n_aval()) if constrained_path is not None else []
+        )
         if nodes_aval_indices:
             with Timer("Verifying relevant load shedding"):
                 print("\n--- Verifying relevant load shedding ---")
                 self.find_relevant_load_shedding(nodes_aval_indices)
         # Renewable curtailment: target nodes in the constrained path (excluding aval) or red loop nodes
-        nodes_rc_indices = list((set(nodes_blue_path_indices) - set(nodes_aval_indices)) | set(nodes_dispatch_loop_indices))
+        nodes_rc_indices = list(
+            (set(nodes_blue_path_indices) - set(nodes_aval_indices))
+            | set(nodes_dispatch_loop_indices)
+        )
         if nodes_rc_indices:
             with Timer("Verifying relevant renewable curtailment"):
                 print("\n--- Verifying relevant renewable curtailment ---")
-                all_nodes=[i for i in range(n_subs)]
-                self.find_relevant_renewable_curtailment(all_nodes,nodes_dispatch_loop_names)#(nodes_rc_indices)
+                all_nodes = [i for i in range(n_subs)]
+                self.find_relevant_renewable_curtailment(
+                    all_nodes, nodes_dispatch_loop_names
+                )  # (nodes_rc_indices)
 
         with Timer("Finalizing   Priorization"):
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
             from expert_op4grid_recommender import config
+
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_RECONNECTIONS
+                self.prioritized_actions,
+                self.identified_reconnections,
+                n_action_max,
+                n_action_max_per_type=config.MIN_LINE_RECONNECTIONS,
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_merges, n_action_max, n_action_max_per_type=config.MIN_CLOSE_COUPLING
+                self.prioritized_actions,
+                self.identified_merges,
+                n_action_max,
+                n_action_max_per_type=config.MIN_CLOSE_COUPLING,
             )
             # Step 1.3: Add minimum required PST actions
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, getattr(self, 'identified_pst_actions', {}), n_action_max, n_action_max_per_type=config.MIN_PST
+                self.prioritized_actions,
+                getattr(self, "identified_pst_actions", {}),
+                n_action_max,
+                n_action_max_per_type=config.MIN_PST,
             )
 
             # Step 1.4: Add minimum required node splitting and line disconnections
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=config.MIN_OPEN_COUPLING
+                self.prioritized_actions,
+                self.identified_splits,
+                n_action_max,
+                n_action_max_per_type=config.MIN_OPEN_COUPLING,
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_disconnections, n_action_max, n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS
+                self.prioritized_actions,
+                self.identified_disconnections,
+                n_action_max,
+                n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS,
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max, n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT
+                self.prioritized_actions,
+                self.identified_renewable_curtailment,
+                n_action_max,
+                n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT,
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_load_shedding, n_action_max, n_action_max_per_type=config.MIN_LOAD_SHEDDING
+                self.prioritized_actions,
+                self.identified_load_shedding,
+                n_action_max,
+                n_action_max_per_type=config.MIN_LOAD_SHEDDING,
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max, n_action_max_per_type=getattr(config, 'MIN_RENEWABLE_CURTAILMENT', 0)
+                self.prioritized_actions,
+                self.identified_renewable_curtailment,
+                n_action_max,
+                n_action_max_per_type=getattr(config, "MIN_RENEWABLE_CURTAILMENT", 0),
             )
 
             # 2. Fill the remaining slots sequentially using the original priority logic and limits
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_reconnections, n_action_max, n_action_max_per_type=n_reco_max
+                self.prioritized_actions,
+                self.identified_reconnections,
+                n_action_max,
+                n_action_max_per_type=n_reco_max,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_merges, n_action_max
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_splits, n_action_max, n_action_max_per_type=n_split_max
+                self.prioritized_actions,
+                self.identified_splits,
+                n_action_max,
+                n_action_max_per_type=n_split_max,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_disconnections, n_action_max
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, getattr(self, 'identified_pst_actions', {}), n_action_max, n_action_max_per_type=n_pst_max
+                self.prioritized_actions,
+                getattr(self, "identified_pst_actions", {}),
+                n_action_max,
+                n_action_max_per_type=n_pst_max,
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max
+                self.prioritized_actions,
+                self.identified_renewable_curtailment,
+                n_action_max,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_load_shedding, n_action_max
             )
             self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_renewable_curtailment, n_action_max
+                self.prioritized_actions,
+                self.identified_renewable_curtailment,
+                n_action_max,
             )
 
         # Build global action scores dictionary per action type, sorted by descending score
@@ -2335,51 +2818,109 @@ class ActionDiscoverer:
             out = {}
             for k, v in d.items():
                 if isinstance(v, dict):
-                    out[k] = {kk: round(vv, 2) if isinstance(vv, float) else vv for kk, vv in v.items()}
+                    out[k] = {
+                        kk: round(vv, 2) if isinstance(vv, float) else vv
+                        for kk, vv in v.items()
+                    }
                 elif isinstance(v, float):
                     out[k] = round(v, 2)
                 else:
                     out[k] = v
             return out
 
-        self.action_scores  = {
+        self.action_scores = {
             "line_reconnection": {
-                "scores": _round_scores(dict(sorted(self.scores_reconnections.items(), key=lambda x: x[1], reverse=True))),
+                "scores": _round_scores(
+                    dict(
+                        sorted(
+                            self.scores_reconnections.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )
+                    )
+                ),
                 "params": _round_params(self.params_reconnections),
                 "non_convergence": {},
             },
             "line_disconnection": {
-                "scores": _round_scores(dict(sorted(self.scores_disconnections.items(), key=lambda x: x[1], reverse=True))),
+                "scores": _round_scores(
+                    dict(
+                        sorted(
+                            self.scores_disconnections.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )
+                    )
+                ),
                 "params": _round_params(self.params_disconnections),
                 "non_convergence": {},
             },
             "open_coupling": {
-                "scores": _round_scores(dict(sorted(self.scores_splits_dict.items(), key=lambda x: x[1], reverse=True))),
+                "scores": _round_scores(
+                    dict(
+                        sorted(
+                            self.scores_splits_dict.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )
+                    )
+                ),
                 "params": _round_params(self.params_splits_dict),
                 "non_convergence": {},
             },
             "close_coupling": {
-                "scores": _round_scores(dict(sorted(self.scores_merges.items(), key=lambda x: x[1], reverse=True))),
+                "scores": _round_scores(
+                    dict(
+                        sorted(
+                            self.scores_merges.items(), key=lambda x: x[1], reverse=True
+                        )
+                    )
+                ),
                 "params": _round_params(self.params_merges),
                 "non_convergence": {},
             },
             "pst_tap": {
-                "scores": _round_scores(dict(sorted(getattr(self, 'scores_pst_actions', {}).items(), key=lambda x: x[1], reverse=True))),
-                "params": _round_params(getattr(self, 'params_pst_actions', {})),
+                "scores": _round_scores(
+                    dict(
+                        sorted(
+                            getattr(self, "scores_pst_actions", {}).items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )
+                    )
+                ),
+                "params": _round_params(getattr(self, "params_pst_actions", {})),
                 "non_convergence": {},
             },
             "load_shedding": {
-                "scores": _round_scores(dict(sorted(self.scores_load_shedding.items(), key=lambda x: x[1], reverse=True))),
+                "scores": _round_scores(
+                    dict(
+                        sorted(
+                            self.scores_load_shedding.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )
+                    )
+                ),
                 "params": _round_params(self.params_load_shedding),
                 "non_convergence": {},
             },
             "renewable_curtailment": {
-                "scores": _round_scores(dict(sorted(self.scores_renewable_curtailment.items(), key=lambda x: x[1], reverse=True))),
+                "scores": _round_scores(
+                    dict(
+                        sorted(
+                            self.scores_renewable_curtailment.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )
+                    )
+                ),
                 "params": _round_params(self.params_renewable_curtailment),
                 "non_convergence": {},
             },
         }
 
-        print(f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}")
+        print(
+            f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}"
+        )
         return self.prioritized_actions, self.action_scores
-
