@@ -202,6 +202,14 @@ class ActionDiscoverer:
             ex_subs = self.obs.name_sub[self.obs.line_ex_to_subid]
             self._line_to_subs = dict(zip(self.obs.name_line, zip(or_subs, ex_subs)))
 
+    def _build_graph_attribute_caches(self):
+        """Pre-computes edge attributes to avoid repeated nx.get_edge_attributes calls."""
+        if hasattr(self, '_edge_names') and hasattr(self, '_edge_labels'):
+            return
+        g = self.g_overflow.g
+        self._edge_names = nx.get_edge_attributes(g, "name")
+        self._edge_labels = nx.get_edge_attributes(g, "label")
+
     def _build_active_edges_cache(self):
         """Pre-computes which node pairs have active (non-dashed/dotted) edges."""
         if hasattr(self, '_active_edges_cache'):
@@ -1807,6 +1815,7 @@ class ActionDiscoverer:
             nodes_aval_indices: Substation indices of downstream nodes on the constrained path.
         """
         self._build_lookup_caches()
+        self._build_graph_attribute_caches()
         obs = self.obs_defaut
         g = self.g_overflow.g
 
@@ -1829,11 +1838,6 @@ class ActionDiscoverer:
         if rho_max <= 1.0:
             return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
-
-        # Get edge attributes
-        edge_names = nx.get_edge_attributes(g, "name")
-        edge_capacities = nx.get_edge_attributes(g, "capacity")
-        edge_labels = nx.get_edge_attributes(g, "label")
 
         # Get blue edges set (constrained path edges)
         constrained_edges_names, _, other_blue_names, _ = self.g_distribution_graph.get_constrained_edges_nodes()
@@ -1865,20 +1869,19 @@ class ActionDiscoverer:
             # Compute influence via sum of negative flows on blue edges at this node,
             # consistent with the node splitting scoring approach:
             # influence_flow = max(sum_neg_in_edges, sum_neg_out_edges)
-            all_edge_labels = nx.get_edge_attributes(g, "label")
             total_neg_in = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) in blue_edge_names_set
+                and float(self._edge_labels[edge]) < 0
             )
             total_neg_out = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) in blue_edge_names_set
+                and float(self._edge_labels[edge]) < 0
             )
             influence_flow = max(total_neg_in, total_neg_out)
 
@@ -1964,12 +1967,13 @@ class ActionDiscoverer:
         self.scores_load_shedding = scores_map
         self.params_load_shedding = details_map
 
-    def find_relevant_renewable_curtailment(self, nodes_indices: List[int],nodes_dispatch_loop_names: List[str]):
+    def find_relevant_renewable_curtailment(self, nodes_indices: List[int], nodes_dispatch_loop_names: Optional[List[str]] = None):
         """
         Discovers renewable curtailment candidates on upstream (amont) nodes or loop nodes.
         Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
         """
         self._build_lookup_caches()
+        self._build_graph_attribute_caches()
         obs = self.obs_defaut
         g = self.g_overflow.g
 
@@ -1993,7 +1997,7 @@ class ActionDiscoverer:
         if rho_max <= 1.0: return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
 
-        blue_edge_names_set = set(self.g_distribution_graph.get_constrained_edges_nodes()[0] + 
+        blue_edge_names_set = set(self.g_distribution_graph.get_constrained_edges_nodes()[0] +
                                   self.g_distribution_graph.get_constrained_edges_nodes()[2])
 
         identified, effective, ineffective = {}, [], []
@@ -2001,9 +2005,6 @@ class ActionDiscoverer:
 
 
         # Find influence using similar logic to load shedding
-        all_edge_labels = nx.get_edge_attributes(g, "label")
-        edge_names = nx.get_edge_attributes(g, "name")
-
         for node_idx in nodes_indices:
             sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
             if not sub_name: continue
@@ -2015,11 +2016,17 @@ class ActionDiscoverer:
                 continue
 
             # Filter to renewable generators only
-            renewable_gen_ids = [
-                gid for gid in gen_ids
-                if gid < len(gen_energy_sources)
-                and str(gen_energy_sources[gid]).upper() in renewable_sources
-            ]
+            # Use obs.gen_energy_source if available, otherwise use config default
+            gen_energy_sources = getattr(obs, 'gen_energy_source', None)
+            if gen_energy_sources is not None:
+                renewable_gen_ids = [
+                    gid for gid in gen_ids
+                    if gid < len(gen_energy_sources) and gen_energy_sources[gid] is not None  # FIX: Check for None before accessing
+                    and str(gen_energy_sources[gid]).upper() in renewable_sources
+                ]
+            else:
+                # Fallback: assume all generators are non-renewable if source info is missing
+                renewable_gen_ids = []
             if not renewable_gen_ids:
                 continue
 
@@ -2031,33 +2038,37 @@ class ActionDiscoverer:
 
             # Compute influence via sum of negative flows on blue edges at this node
             total_neg_in = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) is not None  # FIX: Check for None before using
+                and self._edge_names.get(edge) in blue_edge_names_set
+                and float(self._edge_labels[edge]) < 0
             )
             total_neg_out = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) is not None  # FIX: Check for None before using
+                and self._edge_names.get(edge) in blue_edge_names_set
+                and float(self._edge_labels[edge]) < 0
             )
 
             total_pos_in = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in nodes_dispatch_loop_names
-                and float(all_edge_labels[edge]) > 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) is not None  # FIX: Check for None before using
+                and self._edge_names.get(edge) in nodes_dispatch_loop_names
+                and float(self._edge_labels[edge]) > 0
             )
             total_pos_out = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in nodes_dispatch_loop_names
-                and float(all_edge_labels[edge]) > 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) is not None  # FIX: Check for None before using
+                and self._edge_names.get(edge) in nodes_dispatch_loop_names
+                and float(self._edge_labels[edge]) > 0
             )
             influence_flow = max(total_neg_in, total_neg_out,total_pos_in,total_pos_out)
             #if influence_flow <= 0: continue
@@ -2066,12 +2077,14 @@ class ActionDiscoverer:
             #if influence_factor <= 0: continue
 
             for gen_id in gen_ids:
-                gen_name = obs.name_gen[gen_id]
+                gen_name = obs.name_gen[gen_id] if hasattr(obs, 'name_gen') and obs.name_gen is not None else None
+                if gen_name is None:
+                    continue
                 
                 # Filter for renewable generators only (WIND/SOLAR)
                 if hasattr(obs, 'gen_type'):
-                    gen_type = str(obs.gen_type[gen_id]).upper()
-                    if gen_type not in ["WIND", "SOLAR"]:
+                    gen_type = str(obs.gen_type[gen_id]).upper() if hasattr(obs, 'gen_type') and obs.gen_type is not None else None
+                    if gen_type is None or gen_type not in ["WIND", "SOLAR"]:
                         continue
                 else:
                     # Fallback to name-based filtering if gen_type is missing (e.g. older backends)
@@ -2099,17 +2112,27 @@ class ActionDiscoverer:
                 score = influence_factor * coverage_ratio
                 
                 #if score >= getattr(config, 'MIN_RENEWABLE_CURTAILMENT', 0.0):
-                action_id = f"curtail_{gen_name}"
+                action_id = f"renewable_curtailment_{gen_name}"
                 identified[action_id] = self.action_space({"set_bus": {"generators_id": {gen_name: -1}}})
                 scores_map[action_id] = round(score, 2)
+                # Get energy source for this generator
+                gen_energy_source = "OTHER"
+                if gen_energy_sources is not None and gid < len(gen_energy_sources):
+                    gen_energy_source = str(gen_energy_sources[gid]).upper()
+                
                 params_map[action_id] = {
                     "substation": sub_name,
-                    "node_type": "aval",
-                    "gen_name": gen_name,
+                    "node_type": "amont",  # Renewable curtailment is for upstream nodes
+                    "generator_name": gen_name,
+                    "energy_source": gen_energy_source,
                     "influence_factor": round(influence_factor, 2),
-                    "mw_required": round(mw_required, 2),
-                    "gen_p": round(gen_p, 2),
+                    "P_curtailment_MW": round(gen_p, 2),
+                    "P_overload_excess_MW": round(P_overload_excess, 2),
+                    "available_gen_MW": round(available_gen, 2),
+                    "in_negative_flows": round(total_neg_in, 2),
+                    "out_negative_flows": round(total_neg_out, 2),
                     "coverage_ratio": round(coverage_ratio, 2),
+                    "generators_curtailed": [gen_name],
                 }
 
         if self.check_action_simulation and identified:
