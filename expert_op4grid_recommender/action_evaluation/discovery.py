@@ -20,6 +20,10 @@ from expert_op4grid_recommender.utils.simulation import (
 from expert_op4grid_recommender.utils.simulation import (
     create_default_action as _default_create_default_action,
 )
+from expert_op4grid_recommender.utils.simulation import (
+    compute_baseline_simulation as _default_compute_baseline,
+    check_rho_reduction_with_baseline as _default_check_with_baseline,
+)
 from expert_op4grid_recommender.utils.helpers import (
     get_delta_theta_line,
     get_theta_node,
@@ -174,6 +178,9 @@ class ActionDiscoverer:
         self._create_default_action = (
             create_default_action_func or _default_create_default_action
         )
+        # Optimized baseline simulation functions (can be overridden for pypowsybl in main.py)
+        self._compute_baseline = _default_compute_baseline
+        self._check_rho_with_baseline = _default_check_with_baseline
 
         # Initialize results holders (remain the same)
         self.identified_reconnections = {}
@@ -226,6 +233,131 @@ class ActionDiscoverer:
             or_subs = self.obs.name_sub[self.obs.line_or_to_subid]
             ex_subs = self.obs.name_sub[self.obs.line_ex_to_subid]
             self._line_to_subs = dict(zip(self.obs.name_line, zip(or_subs, ex_subs)))
+
+    def _get_blue_edge_names_set(self) -> Set[str]:
+        """Cached set of blue (constrained path) edge names."""
+        if not hasattr(self, "_cached_blue_edge_names_set"):
+            constrained_edges_names, _, other_blue_names, _ = (
+                self.g_distribution_graph.get_constrained_edges_nodes()
+            )
+            self._cached_blue_edge_names_set = set(constrained_edges_names + other_blue_names)
+        return self._cached_blue_edge_names_set
+
+    def _get_subs_with_loads(self) -> Dict[int, List[int]]:
+        """Cached mapping of substation_id -> list of load_ids with positive power.
+        Built once using vectorized operations instead of per-node get_obj_connect_to."""
+        if hasattr(self, "_cached_subs_with_loads"):
+            return self._cached_subs_with_loads
+        obs = self.obs_defaut
+        result: Dict[int, List[int]] = {}
+        if hasattr(obs, "load_to_subid"):
+            load_p = obs.load_p
+            for lid in range(len(load_p)):
+                if load_p[lid] > 0:
+                    sub_id = int(obs.load_to_subid[lid])
+                    if sub_id not in result:
+                        result[sub_id] = []
+                    result[sub_id].append(lid)
+        else:
+            # Fallback: iterate substations
+            for sub_id in range(len(obs.name_sub)):
+                obj = obs.get_obj_connect_to(substation_id=sub_id)
+                load_ids = obj.get("loads_id", [])
+                positive = [lid for lid in load_ids if lid < len(obs.load_p) and obs.load_p[lid] > 0]
+                if positive:
+                    result[sub_id] = positive
+        self._cached_subs_with_loads = result
+        return result
+
+    def _get_subs_with_renewable_gens(self) -> Dict[int, List[int]]:
+        """Cached mapping of substation_id -> list of renewable generator_ids with non-zero power.
+        Built once using vectorized operations instead of per-node get_obj_connect_to."""
+        if hasattr(self, "_cached_subs_with_renewable_gens"):
+            return self._cached_subs_with_renewable_gens
+        obs = self.obs_defaut
+        renewable_sources = set(
+            s.upper()
+            for s in getattr(config, "RENEWABLE_ENERGY_SOURCES", ["WIND", "SOLAR"])
+        )
+        gen_energy_sources = getattr(obs, "gen_energy_source", getattr(obs, "gen_type", None))
+        min_mw = getattr(config, "RENEWABLE_CURTAILMENT_MIN_MW", 1.0)
+        result: Dict[int, List[int]] = {}
+
+        if gen_energy_sources is not None and hasattr(obs, "gen_to_subid"):
+            gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
+            if gen_p_array is None:
+                self._cached_subs_with_renewable_gens = result
+                return result
+            for gid in range(len(gen_energy_sources)):
+                if str(gen_energy_sources[gid]).upper() not in renewable_sources:
+                    continue
+                if gid >= len(gen_p_array):
+                    continue
+                gen_p = float(gen_p_array[gid])
+                if gen_p > 0 or abs(gen_p) < min_mw:
+                    continue
+                sub_id = int(obs.gen_to_subid[gid])
+                if sub_id not in result:
+                    result[sub_id] = []
+                result[sub_id].append(gid)
+        elif gen_energy_sources is not None:
+            # Fallback without gen_to_subid
+            gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
+            for sub_id in range(len(obs.name_sub)):
+                obj = obs.get_obj_connect_to(substation_id=sub_id)
+                gen_ids = obj.get("generators_id", [])
+                renewable = []
+                for gid in gen_ids:
+                    if gid >= len(gen_energy_sources):
+                        continue
+                    if str(gen_energy_sources[gid]).upper() not in renewable_sources:
+                        continue
+                    if gen_p_array is not None and gid < len(gen_p_array):
+                        gen_p = float(gen_p_array[gid])
+                        if gen_p > 0 or abs(gen_p) < min_mw:
+                            continue
+                    renewable.append(gid)
+                if renewable:
+                    result[sub_id] = renewable
+        self._cached_subs_with_renewable_gens = result
+        return result
+
+    def _build_node_flow_cache(self, blue_edge_names_set: Set[str],
+                                dispatch_loop_set: Optional[Set[str]] = None
+                                ) -> Dict[int, Dict[str, float]]:
+        """Build node influence flow cache from edge data in a single pass.
+        Returns {node_idx: {neg_in, neg_out, pos_in, pos_out}}."""
+        edge_names = self._cached_edge_names if hasattr(self, "_cached_edge_names") else nx.get_edge_attributes(self.g_overflow.g, "name")
+        edge_labels = self._cached_edge_labels if hasattr(self, "_cached_edge_labels") else {
+            edge: float(val) for edge, val in nx.get_edge_attributes(self.g_overflow.g, "label").items()
+        }
+        node_flow_cache: Dict[int, Dict[str, float]] = {}
+        for edge, name in edge_names.items():
+            flow_val = edge_labels.get(edge, 0.0)
+            u, v = edge[0], edge[1]
+            is_blue = name in blue_edge_names_set
+            is_dispatch = dispatch_loop_set is not None and name in dispatch_loop_set
+
+            if not is_blue and not is_dispatch:
+                continue
+
+            abs_flow = abs(flow_val)
+            if abs_flow == 0.0:
+                continue
+
+            if u not in node_flow_cache:
+                node_flow_cache[u] = {"neg_in": 0.0, "neg_out": 0.0, "pos_in": 0.0, "pos_out": 0.0}
+            if v not in node_flow_cache:
+                node_flow_cache[v] = {"neg_in": 0.0, "neg_out": 0.0, "pos_in": 0.0, "pos_out": 0.0}
+
+            if is_blue and flow_val < 0:
+                node_flow_cache[u]["neg_out"] += abs_flow
+                node_flow_cache[v]["neg_in"] += abs_flow
+            if is_dispatch and flow_val > 0:
+                node_flow_cache[u]["pos_in"] += abs_flow
+                node_flow_cache[v]["pos_out"] += abs_flow
+
+        return node_flow_cache
 
     def _build_active_edges_cache(self):
         """Pre-computes which node pairs have active (non-dashed/dotted) edges."""
@@ -454,18 +586,48 @@ class ActionDiscoverer:
     def _build_line_capacity_map(self) -> Dict[str, float]:
         """
         Builds a mapping from line name to its maximum absolute capacity on the overflow graph.
+        Cached after first call since the overflow graph doesn't change.
 
         Returns:
             Dict[str, float]: line_name -> max absolute capacity (redispatch flow in MW).
         """
-        edge_names = nx.get_edge_attributes(self.g_overflow.g, "name")
-        capacity_dict = nx.get_edge_attributes(self.g_overflow.g, "capacity")
+        if hasattr(self, "_cached_line_capacity_map"):
+            return self._cached_line_capacity_map
+        edge_data = self._get_edge_data_cache()
         name_to_capacity: Dict[str, float] = {}
-        for edge, name in edge_names.items():
-            cap = abs(float(capacity_dict.get(edge, 0.0)))
+        for name, _, cap in edge_data:
+            cap = abs(cap)
             if name not in name_to_capacity or cap > name_to_capacity[name]:
                 name_to_capacity[name] = cap
+        self._cached_line_capacity_map = name_to_capacity
         return name_to_capacity
+
+    def _get_edge_data_cache(self) -> List[Tuple[str, float, float]]:
+        """
+        Single-pass extraction of all edge attributes (name, label, capacity) from the overflow graph.
+        Returns a list of (name, label_float, capacity_float) tuples.
+        Cached after first call.
+        """
+        if hasattr(self, "_cached_edge_data"):
+            return self._cached_edge_data
+        g = self.g_overflow.g
+        result = []
+        for u, v, data in g.edges(data=True):
+            name = data.get("name", "")
+            label = float(data.get("label", 0.0))
+            cap = float(data.get("capacity", 0.0))
+            result.append((name, label, cap))
+        # Also cache name->edges and label->edges dicts for fast lookup
+        edge_names = {}
+        edge_labels = {}
+        for i, (u, v) in enumerate(g.edges()):
+            name, label, cap = result[i]
+            edge_names[(u, v)] = name
+            edge_labels[(u, v)] = label
+        self._cached_edge_data = result
+        self._cached_edge_names = edge_names
+        self._cached_edge_labels = edge_labels
+        return result
 
     def _compute_disconnection_flow_bounds(self) -> Tuple[float, float, float]:
         """
@@ -2114,18 +2276,20 @@ class ActionDiscoverer:
         Discovers load shedding candidates on downstream (aval) nodes of the constrained path.
 
         Optimized for large networks (>500 nodes, >1000 lines) with:
-        - Vectorized pre-computation of edge attributes
+        - Cached single-pass edge attribute extraction
+        - Pre-computed substation-to-load mapping (avoids per-node get_obj_connect_to)
         - Cached node flow calculations
-        - Early filtering to skip irrelevant nodes
+        - Hoisted default action and baseline simulation
         """
         self._build_lookup_caches()
+        # Ensure edge data cache is populated (single pass over all edges)
+        self._get_edge_data_cache()
         obs = self.obs_defaut
-        g = self.g_overflow.g
 
         margin = getattr(config, "LOAD_SHEDDING_MARGIN", 0.05)
         min_mw = getattr(config, "LOAD_SHEDDING_MIN_MW", 1.0)
 
-        # Compute overload excess in MW
+        # Compute overload excess in MW (uses cached capacity map)
         name_to_capacity = self._build_line_capacity_map()
         if not name_to_capacity:
             return
@@ -2146,38 +2310,14 @@ class ActionDiscoverer:
             return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
 
-        # Pre-compute ALL edge attributes once (O(E) instead of O(V*E))
-        edge_names = nx.get_edge_attributes(g, "name")
-        edge_labels = {
-            edge: float(val) for edge, val in nx.get_edge_attributes(g, "label").items()
-        }
+        # Use cached blue edge set and node flow cache
+        blue_edge_names_set = self._get_blue_edge_names_set()
+        node_influence_flows = self._build_node_flow_cache(blue_edge_names_set)
 
-        # Get blue edges set (constrained path edges) - pre-filtered as dict for O(1) lookup
-        constrained_edges_names, _, other_blue_names, _ = (
-            self.g_distribution_graph.get_constrained_edges_nodes()
-        )
-        blue_edge_names_set = set(constrained_edges_names + other_blue_names)
-
-        # Pre-compute node influence flows for ALL nodes at once (O(V+E))
-        # This is the key optimization: calculate all node flows in single pass
-        node_influence_flows = {}  # {node_idx: {'in': float, 'out': float}}
-
-        for edge, name in edge_names.items():
-            if name not in blue_edge_names_set:
-                continue
-            flow_val = edge_labels.get(edge, 0.0)
-            if flow_val >= 0:
-                continue  # Only negative flows matter
-
-            abs_flow = abs(flow_val)
-            # Add to out_edges (negative outflow means leaving node)
-            u, v = edge[0], edge[1]
-            node_influence_flows.setdefault(u, {"in": 0.0, "out": 0.0})["out"] += (
-                abs_flow
-            )
-            node_influence_flows.setdefault(v, {"in": 0.0, "out": 0.0})["in"] += (
-                abs_flow
-            )
+        # Pre-filter: only consider aval nodes that have loads with positive power
+        subs_with_loads = self._get_subs_with_loads()
+        aval_set = set(nodes_aval_indices)
+        relevant_nodes = [n for n in nodes_aval_indices if n in subs_with_loads and n in node_influence_flows]
 
         identified = {}
         scores_map = {}
@@ -2185,29 +2325,33 @@ class ActionDiscoverer:
         effective = []
         ineffective = []
 
-        for node_idx in nodes_aval_indices:
-            sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
-            if not sub_name:
-                continue
+        # Hoist default action creation outside the loop
+        act_defaut = None
+        baseline_rho = None
+        if self.check_action_simulation:
+            act_defaut = self._create_default_action(
+                self.action_space, self.lines_defaut
+            )
+            # Pre-compute baseline simulation once for all actions
+            baseline_rho, _ = self._compute_baseline(
+                self.obs, self.timestep, act_defaut,
+                self.act_reco_maintenance, self.lines_overloaded_ids
+            )
 
-            # Get loads at this substation
-            obj = obs.get_obj_connect_to(substation_id=node_idx)
-            load_ids = obj.get("loads_id", [])
-            if not load_ids:
-                continue
+        for node_idx in relevant_nodes:
+            sub_name = str(obs.name_sub[node_idx])
 
-            # Compute available load (only positive consumption) - vectorized
-            load_powers = [
-                float(obs.load_p[lid]) for lid in load_ids if lid < len(obs.load_p)
-            ]
-            available_load = sum(p for p in load_powers if p > 0)
-            if available_load <= 0:
-                continue
+            # Use pre-computed load list (avoids get_obj_connect_to)
+            load_ids = subs_with_loads[node_idx]
 
-            # Get pre-computed influence flow (O(1) lookup instead of O(deg))
-            node_flows = node_influence_flows.get(node_idx, {"in": 0.0, "out": 0.0})
-            total_neg_in = node_flows["in"]
-            total_neg_out = node_flows["out"]
+            # Load powers already filtered to positive in _get_subs_with_loads
+            load_powers = [(lid, float(obs.load_p[lid])) for lid in load_ids]
+            available_load = sum(p for _, p in load_powers)
+
+            # Get pre-computed influence flow (O(1) lookup)
+            node_flows = node_influence_flows[node_idx]
+            total_neg_in = node_flows["neg_in"]
+            total_neg_out = node_flows["neg_out"]
             influence_flow = max(total_neg_in, total_neg_out)
 
             if influence_flow <= 0:
@@ -2230,25 +2374,12 @@ class ActionDiscoverer:
             P_shedding = max(P_shedding_min, min_mw)
             P_shedding = min(P_shedding, available_load)
 
-            coverage_ratio = (
-                min(1.0, available_load / P_shedding_min) if P_shedding_min > 0 else 1.0
-            )
-            score = influence_factor * coverage_ratio
-
-            # Build one action per load at the node
-            load_entries = [
-                (lid, float(obs.load_p[lid]))
-                for lid in load_ids
-                if lid < len(obs.load_p) and float(obs.load_p[lid]) > 0
-            ]
-            load_entries.sort(key=lambda x: x[1], reverse=True)
-
-            if not load_entries:
-                continue
+            # Sort loads by power descending
+            load_powers.sort(key=lambda x: x[1], reverse=True)
 
             assets = self._get_assets_on_bus_for_sub(node_idx, 1)
 
-            for lid, load_power in load_entries:
+            for lid, load_power in load_powers:
                 load_name = (
                     str(obs.name_load[lid]) if lid < len(obs.name_load) else str(lid)
                 )
@@ -2288,18 +2419,16 @@ class ActionDiscoverer:
                     "assets": assets,
                 }
 
-                if self.check_action_simulation:
+                if self.check_action_simulation and baseline_rho is not None:
                     try:
-                        act_defaut = self._create_default_action(
-                            self.action_space, self.lines_defaut
-                        )
-                        is_reduction, obs_after = self._check_rho_reduction(
+                        is_reduction, obs_after = self._check_rho_with_baseline(
                             self.obs,
                             self.timestep,
                             act_defaut,
                             action,
                             self.lines_overloaded_ids,
                             self.act_reco_maintenance,
+                            baseline_rho,
                             self.lines_we_care_about,
                         )
                         if is_reduction:
@@ -2326,19 +2455,22 @@ class ActionDiscoverer:
         """
         Discovers renewable curtailment candidates on upstream (amont) nodes or loop nodes.
         Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
+
+        Optimized for large networks (>500 nodes, >1000 lines) with:
+        - Pre-computed substation-to-renewable-generator mapping (avoids per-node get_obj_connect_to)
+        - Cached single-pass edge attribute extraction
+        - Cached blue edge names and node flow calculations
+        - Pre-computed baseline simulation for batch action checking
         """
         self._build_lookup_caches()
+        # Ensure edge data cache is populated (single pass over all edges)
+        self._get_edge_data_cache()
         obs = self.obs_defaut
-        g = self.g_overflow.g
 
         margin = getattr(config, "RENEWABLE_CURTAILMENT_MARGIN", 0.05)
         min_mw = getattr(config, "RENEWABLE_CURTAILMENT_MIN_MW", 1.0)
-        renewable_sources = set(
-            s.upper()
-            for s in getattr(config, "RENEWABLE_ENERGY_SOURCES", ["WIND", "SOLAR"])
-        )
 
-        # Compute overload excess in MW (same as load shedding)
+        # Compute overload excess in MW (uses cached capacity map)
         name_to_capacity = self._build_line_capacity_map()
         if not name_to_capacity:
             return
@@ -2358,100 +2490,37 @@ class ActionDiscoverer:
             return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
 
-        blue_edge_names_set = set(
-            self.g_distribution_graph.get_constrained_edges_nodes()[0]
-            + self.g_distribution_graph.get_constrained_edges_nodes()[2]
-        )
+        # Use cached blue edge names (fixes double call to get_constrained_edges_nodes)
+        blue_edge_names_set = self._get_blue_edge_names_set()
 
-        # Pre-compute dispatch loop names as dict for O(1) lookup
+        # Pre-compute dispatch loop names as set for O(1) lookup
         dispatch_loop_set = (
             set(nodes_dispatch_loop_names) if nodes_dispatch_loop_names else None
         )
 
+        # Use cached node flow computation (single pass over edges)
+        node_flow_cache = self._build_node_flow_cache(blue_edge_names_set, dispatch_loop_set)
+
+        # Pre-filter: only iterate substations that have renewable generators (huge win on 500+ node networks)
+        subs_with_renewable = self._get_subs_with_renewable_gens()
+        nodes_set = set(nodes_indices)
+        # Only consider substations in the requested nodes AND that have renewable generators AND non-zero flow
+        relevant_subs = [
+            sub_id for sub_id in subs_with_renewable
+            if sub_id in nodes_set and sub_id in node_flow_cache
+        ]
+
         identified, effective, ineffective = {}, [], []
         scores_map, params_map = {}, {}
 
-        # Pre-compute ALL edge flows in single pass (O(E)) - KEY OPTIMIZATION
-        edge_names = nx.get_edge_attributes(g, "name")
-        edge_labels = {
-            edge: float(val) for edge, val in nx.get_edge_attributes(g, "label").items()
-        }
+        for node_idx in relevant_subs:
+            sub_name = str(obs.name_sub[node_idx])
 
-        node_flow_cache = {}  # {node_idx: {'neg_in': float, 'neg_out': float, 'pos_in': float, 'pos_out': float}}
+            # Use pre-computed renewable generator list (avoids get_obj_connect_to + filtering)
+            renewable_gen_ids = subs_with_renewable[node_idx]
 
-        for edge, name in edge_names.items():
-            flow_val = edge_labels.get(edge, 0.0)
-            u, v = edge[0], edge[1]
-
-            if u not in node_flow_cache:
-                node_flow_cache[u] = {
-                    "neg_in": 0.0,
-                    "neg_out": 0.0,
-                    "pos_in": 0.0,
-                    "pos_out": 0.0,
-                }
-            if v not in node_flow_cache:
-                node_flow_cache[v] = {
-                    "neg_in": 0.0,
-                    "neg_out": 0.0,
-                    "pos_in": 0.0,
-                    "pos_out": 0.0,
-                }
-
-            abs_flow = abs(flow_val)
-
-            # Blue edges - negative flows only (curtailment influence)
-            if name in blue_edge_names_set:
-                if flow_val < 0:
-                    node_flow_cache[u]["neg_in"] += abs_flow
-                    node_flow_cache[v]["neg_out"] += abs_flow
-
-            # Dispatch loop edges - positive flows only (generation influence)
-            elif dispatch_loop_set is not None and name in dispatch_loop_set:
-                if flow_val > 0:
-                    node_flow_cache[u]["pos_in"] += abs_flow
-                    node_flow_cache[v]["pos_out"] += abs_flow
-
-        for node_idx in nodes_indices:
-            sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
-            if not sub_name:
-                continue
-
-            # Get generators at this substation
-            obj = obs.get_obj_connect_to(substation_id=node_idx)
-            gen_ids = obj.get("generators_id", [])
-            if len(gen_ids) == 0:
-                continue
-
-            # Filter to renewable generators only
-            gen_energy_sources = getattr(obs, "gen_energy_source", None)
-            if gen_energy_sources is None:
-                gen_energy_sources = getattr(obs, "gen_type", None)
-            if gen_energy_sources is None:
-                gen_energy_sources = []
-            renewable_gen_ids = [
-                gid
-                for gid in gen_ids
-                if gid < len(gen_energy_sources)
-                and str(gen_energy_sources[gid]).upper() in renewable_sources
-            ]
-            if not renewable_gen_ids:
-                continue
-
-            # Compute available renewable generation (absolute value of production)
-            gen_powers = [
-                float(obs.gen_p[gid])
-                for gid in renewable_gen_ids
-                if gid < len(obs.gen_p)
-            ]
-            available_gen = sum(abs(p) for p in gen_powers if p != 0)
-            if available_gen <= 0:
-                continue
-
-            # Get pre-computed influence flows (O(1) lookup instead of O(deg)) - KEY OPTIMIZATION
-            node_flows = node_flow_cache.get(
-                node_idx, {"neg_in": 0.0, "neg_out": 0.0, "pos_in": 0.0, "pos_out": 0.0}
-            )
+            # Get pre-computed influence flows (O(1) lookup)
+            node_flows = node_flow_cache[node_idx]
             total_neg_in = node_flows["neg_in"]
             total_neg_out = node_flows["neg_out"]
             total_pos_in = node_flows["pos_in"]
@@ -2471,7 +2540,7 @@ class ActionDiscoverer:
             if influence_factor <= 0:
                 continue
 
-            # Pre-compute common values for all generators at this node - KEY OPTIMIZATION
+            # Pre-compute common values for all generators at this node
             mw_required = (
                 (P_overload_excess * (1 + margin)) / influence_factor
                 if influence_factor > 0
@@ -2484,7 +2553,6 @@ class ActionDiscoverer:
                 except (IndexError, KeyError):
                     continue
 
-                # Cross-backend compatibility check
                 gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
                 if gen_p_array is None or gen_id >= len(gen_p_array):
                     continue
@@ -2525,20 +2593,27 @@ class ActionDiscoverer:
                 act_defaut = self._create_default_action(
                     self.action_space, self.lines_defaut
                 )
-                for action_id, action in identified.items():
-                    is_reduced, _ = self._check_rho_reduction(
-                        self.obs,
-                        self.timestep,
-                        act_defaut,
-                        action,
-                        self.lines_overloaded_ids,
-                        self.act_reco_maintenance,
-                        self.lines_we_care_about,
-                    )
-                    if is_reduced:
-                        effective.append(action_id)
-                    else:
-                        ineffective.append(action_id)
+                # Pre-compute baseline simulation once for all actions
+                baseline_rho, _ = self._compute_baseline(
+                    self.obs, self.timestep, act_defaut,
+                    self.act_reco_maintenance, self.lines_overloaded_ids
+                )
+                if baseline_rho is not None:
+                    for action_id, action in identified.items():
+                        is_reduced, _ = self._check_rho_with_baseline(
+                            self.obs,
+                            self.timestep,
+                            act_defaut,
+                            action,
+                            self.lines_overloaded_ids,
+                            self.act_reco_maintenance,
+                            baseline_rho,
+                            self.lines_we_care_about,
+                        )
+                        if is_reduced:
+                            effective.append(action_id)
+                        else:
+                            ineffective.append(action_id)
             except Exception as e:
                 print(
                     f"Warning: Simulation check failed for renewable curtailment: {e}"
