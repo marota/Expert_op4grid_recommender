@@ -202,6 +202,14 @@ class ActionDiscoverer:
             ex_subs = self.obs.name_sub[self.obs.line_ex_to_subid]
             self._line_to_subs = dict(zip(self.obs.name_line, zip(or_subs, ex_subs)))
 
+    def _build_graph_attribute_caches(self):
+        """Pre-computes edge attributes to avoid repeated nx.get_edge_attributes calls."""
+        if hasattr(self, '_edge_names') and hasattr(self, '_edge_labels'):
+            return
+        g = self.g_overflow.g
+        self._edge_names = nx.get_edge_attributes(g, "name")
+        self._edge_labels = nx.get_edge_attributes(g, "label")
+
     def _build_active_edges_cache(self):
         """Pre-computes which node pairs have active (non-dashed/dotted) edges."""
         if hasattr(self, '_active_edges_cache'):
@@ -1807,6 +1815,7 @@ class ActionDiscoverer:
             nodes_aval_indices: Substation indices of downstream nodes on the constrained path.
         """
         self._build_lookup_caches()
+        self._build_graph_attribute_caches()
         obs = self.obs_defaut
         g = self.g_overflow.g
 
@@ -1829,11 +1838,6 @@ class ActionDiscoverer:
         if rho_max <= 1.0:
             return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
-
-        # Get edge attributes
-        edge_names = nx.get_edge_attributes(g, "name")
-        edge_capacities = nx.get_edge_attributes(g, "capacity")
-        edge_labels = nx.get_edge_attributes(g, "label")
 
         # Get blue edges set (constrained path edges)
         constrained_edges_names, _, other_blue_names, _ = self.g_distribution_graph.get_constrained_edges_nodes()
@@ -1865,20 +1869,19 @@ class ActionDiscoverer:
             # Compute influence via sum of negative flows on blue edges at this node,
             # consistent with the node splitting scoring approach:
             # influence_flow = max(sum_neg_in_edges, sum_neg_out_edges)
-            all_edge_labels = nx.get_edge_attributes(g, "label")
             total_neg_in = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) in blue_edge_names_set
+                and float(self._edge_labels[edge]) < 0
             )
             total_neg_out = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) in blue_edge_names_set
+                and float(self._edge_labels[edge]) < 0
             )
             influence_flow = max(total_neg_in, total_neg_out)
 
@@ -1970,6 +1973,7 @@ class ActionDiscoverer:
         Mirroring load shedding logic but for generators (WIND/SOLAR) on the opposite side of the flow.
         """
         self._build_lookup_caches()
+        self._build_graph_attribute_caches()
         obs = self.obs_defaut
         g = self.g_overflow.g
 
@@ -1993,7 +1997,7 @@ class ActionDiscoverer:
         if rho_max <= 1.0: return
         P_overload_excess = (rho_max - 1.0) * max_overload_flow
 
-        blue_edge_names_set = set(self.g_distribution_graph.get_constrained_edges_nodes()[0] + 
+        blue_edge_names_set = set(self.g_distribution_graph.get_constrained_edges_nodes()[0] +
                                   self.g_distribution_graph.get_constrained_edges_nodes()[2])
 
         identified, effective, ineffective = {}, [], []
@@ -2001,9 +2005,6 @@ class ActionDiscoverer:
 
 
         # Find influence using similar logic to load shedding
-        all_edge_labels = nx.get_edge_attributes(g, "label")
-        edge_names = nx.get_edge_attributes(g, "name")
-
         for node_idx in nodes_indices:
             sub_name = obs.name_sub[node_idx] if node_idx < len(obs.name_sub) else None
             if not sub_name: continue
@@ -2031,33 +2032,33 @@ class ActionDiscoverer:
 
             # Compute influence via sum of negative flows on blue edges at this node
             total_neg_in = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) in blue_edge_names_set
+                and float(self._edge_labels[edge]) < 0
             )
             total_neg_out = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in blue_edge_names_set
-                and float(all_edge_labels[edge]) < 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) in blue_edge_names_set
+                and float(self._edge_labels[edge]) < 0
             )
 
             total_pos_in = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.in_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in nodes_dispatch_loop_names
-                and float(all_edge_labels[edge]) > 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) in nodes_dispatch_loop_names
+                and float(self._edge_labels[edge]) > 0
             )
             total_pos_out = sum(
-                abs(float(all_edge_labels[edge]))
+                abs(float(self._edge_labels[edge]))
                 for edge in g.out_edges(node_idx, keys=True)
-                if edge in all_edge_labels
-                and edge_names.get(edge) in nodes_dispatch_loop_names
-                and float(all_edge_labels[edge]) > 0
+                if edge in self._edge_labels
+                and self._edge_names.get(edge) in nodes_dispatch_loop_names
+                and float(self._edge_labels[edge]) > 0
             )
             influence_flow = max(total_neg_in, total_neg_out,total_pos_in,total_pos_out)
             #if influence_flow <= 0: continue
