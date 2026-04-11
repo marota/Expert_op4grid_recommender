@@ -1,0 +1,587 @@
+{
+  "voltage_level_id": "PALUNP3",
+  "substation_id": "PALUN",
+  "nominal_v": 63.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "PALUNP3_PALUN3ENSOL.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 3,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3GARDA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3AUXIL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3CHAB5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3ENSOL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3ROUS5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 28,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3SSSA6.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 29,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3SEPTE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 30,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3COND.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3SSSA6.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 29,
+      "node2": 2,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3AIX.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 33,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3TR631 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3TR631 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3COUPL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3GARD6.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3COND.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3ROUS5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3TR633 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 38,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3GARDA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3GARDA.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 39,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3AIX.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 33,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3TR633 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3AIX.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 40,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3GARD6.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 36,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3SEPTE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3COND.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3ROUS5.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 41,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3COND.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3COUPL.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 42,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3COUPL.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 43,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3AUXIL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3ROUS5.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 41,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3GARDA.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 39,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3ENSOL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3CHAB5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3AIX.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 40,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3ENSOL.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3TR633 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 38,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3ROUS5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3GARD6.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3SSSA6.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3ENSOL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3AUXIL.1 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3TR631 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 34,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3SEPTE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3ROUS5.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 41,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3COND.1 DJ.MCOMP_OC",
+      "kind": "BREAKER",
+      "node1": 37,
+      "node2": 4,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3AIX.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 40,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3COND.2 DJ.MCOMP_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": "PALUNP3_PALUN3GARDA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3AIX.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 33,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3CHAB5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3GARDA.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 39,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3COUPL.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 42,
+      "node2": 43,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_PALUN3ENSOL.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_Disj fict_PALUNP3_1.1",
+      "kind": "BREAKER",
+      "node1": 44,
+      "node2": 45,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_Sect 1.1 fict_PALUNP3_1.1",
+      "kind": "DISCONNECTOR",
+      "node1": 45,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "PALUNP3_Sect 2.1 fict_PALUNP3_1.1",
+      "kind": "DISCONNECTOR",
+      "node1": 45,
+      "node2": 2,
+      "open": true
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "PALUNP3_1.1",
+      "node": 0
+    },
+    {
+      "id": "PALUNP3_1.2",
+      "node": 1
+    },
+    {
+      "id": "PALUNP3_2.1",
+      "node": 2
+    },
+    {
+      "id": "PALUNP3_2.2",
+      "node": 3
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "PALUN3PROVESA1",
+      "type": "LOAD",
+      "node": 6
+    },
+    {
+      "id": "fict_PALUNP3_1.1",
+      "type": "LOAD",
+      "node": 44
+    },
+    {
+      "id": "PALUN3COND.1",
+      "type": "SHUNT_COMPENSATOR",
+      "node": 4
+    },
+    {
+      "id": "PALUN3COND.2",
+      "type": "SHUNT_COMPENSATOR",
+      "node": 5
+    },
+    {
+      "id": "PALUNL31ROUS5",
+      "type": "LINE_SIDE1",
+      "node": 11
+    },
+    {
+      "id": "PALUNL31SEPTE",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": "PALUNL31SSSA6",
+      "type": "LINE_SIDE1",
+      "node": 14
+    },
+    {
+      "id": "PALUNL32ROUS5",
+      "type": "LINE_SIDE1",
+      "node": 19
+    },
+    {
+      "id": "AIX  L31PALUN",
+      "type": "LINE_SIDE2",
+      "node": 10
+    },
+    {
+      "id": "AIX  L32PALUN",
+      "type": "LINE_SIDE2",
+      "node": 18
+    },
+    {
+      "id": "CHAB5L31PALUN",
+      "type": "LINE_SIDE2",
+      "node": 17
+    },
+    {
+      "id": "ENSOLL31PALUN",
+      "type": "LINE_SIDE2",
+      "node": 12
+    },
+    {
+      "id": "ENSOLL32PALUN",
+      "type": "LINE_SIDE2",
+      "node": 13
+    },
+    {
+      "id": "GARD6L31PALUN",
+      "type": "LINE_SIDE2",
+      "node": 21
+    },
+    {
+      "id": "GARDAL31PALUN",
+      "type": "LINE_SIDE2",
+      "node": 20
+    },
+    {
+      "id": "GARDAL32PALUN",
+      "type": "LINE_SIDE2",
+      "node": 15
+    },
+    {
+      "id": "PALUNY631",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 8
+    },
+    {
+      "id": "PALUNY632",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 7
+    },
+    {
+      "id": "PALUNY633",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 9
+    }
+  ],
+  "stats": {
+    "nb_switches": 65,
+    "nb_busbar_sections": 4,
+    "nb_internal_connections": 0,
+    "nb_equipment": 19,
+    "nb_breakers": 21,
+    "nb_disconnectors": 44
+  }
+}

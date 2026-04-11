@@ -158,7 +158,7 @@ def equipment_nodes(G: nx.Graph) -> list[int]:
 
 def _assert_node_breaker(network: pp.network.Network, vl_id: str) -> None:
     """Vérifie que le voltage level est bien en topologie NODE_BREAKER."""
-    vls = network.get_voltage_levels()
+    vls = network.get_voltage_levels(all_attributes=True)
     if vl_id not in vls.index:
         raise TopologyError(f"Voltage level '{vl_id}' introuvable dans le réseau.")
     topology_kind = vls.loc[vl_id, "topology_kind"]
@@ -186,7 +186,7 @@ def _add_switch_edges(
     Les switches fictifs sont inclus car ils font partie de la structure
     topologique (ex : switch fictif entre une SJB et un nœud de départ).
     """
-    all_switches = network.get_switches()
+    all_switches = network.get_switches(all_attributes=True)
     if "voltage_level_id" not in all_switches.columns:
         raise TopologyError(
             "La colonne 'voltage_level_id' est absente de get_switches(). "
@@ -260,7 +260,7 @@ def _tag_busbar_section_nodes(
     pypowsybl expose la colonne ``node`` dans ``get_busbar_sections()``
     pour les VL en topologie NODE_BREAKER.
     """
-    bbs_df = network.get_busbar_sections()
+    bbs_df = network.get_busbar_sections(all_attributes=True)
     if "node" not in bbs_df.columns:
         raise TopologyError(
             "La colonne 'node' est absente de get_busbar_sections(). "
@@ -390,9 +390,22 @@ def _tag_equipment_nodes(
 
 
 def _safe_get(getter) -> Optional[pd.DataFrame]:
-    """Appelle un getter pypowsybl et retourne None en cas d'erreur."""
+    """
+    Appelle un getter pypowsybl avec ``all_attributes=True`` pour obtenir
+    les colonnes node/breaker (``node``, ``node1``, ``node2``).
+
+    Si le getter ne supporte pas ``all_attributes``, on retente sans.
+    Retourne None en cas d'erreur.
+    """
     try:
-        return getter()
+        return getter(all_attributes=True)
+    except TypeError:
+        # Certains getters anciens n'acceptent pas all_attributes
+        try:
+            return getter()
+        except Exception as exc:
+            logger.debug("Erreur lors de l'appel à %s : %s", getter.__name__, exc)
+            return None
     except Exception as exc:
-        logger.debug("Erreur lors de l'appel à %s : %s", getter.__name__, exc)
+        logger.debug("Erreur lors de l'appel à %s (all_attributes=True) : %s", getter.__name__, exc)
         return None

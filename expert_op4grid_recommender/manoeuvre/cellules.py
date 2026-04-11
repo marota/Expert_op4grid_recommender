@@ -176,6 +176,18 @@ class CelluleDepart:
         """Liste des disjoncteurs (DJ) de la cellule."""
         return [s for s in self.switches if s.is_breaker]
 
+    @property
+    def is_reaiguillage(self) -> bool:
+        """
+        True si la cellule est en ré-aiguillage simplifié.
+
+        Dans cette topologie RTE, l'équipement est relié directement à la barre
+        via un unique sectionneur d'aiguillage (SA), sans disjoncteur propre.
+        La cellule a exactement 2 nœuds (SJB + nœud équipement) et un seul
+        switch de type DISCONNECTOR.
+        """
+        return len(self.breakers) == 0 and len(self.switches) == 1 and self.switches[0].is_disconnector
+
     def disconnectors_vers_barre(self, bbs_node: int) -> list[SwitchInfo]:
         """
         Retourne les sectionneurs sur le chemin menant à un nœud de SJB donné.

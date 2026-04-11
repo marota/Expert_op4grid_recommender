@@ -1,0 +1,371 @@
+{
+  "voltage_level_id": "CZTRYP6",
+  "substation_id": "CZTRY",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6PLISO.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 18,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR633 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6COUPL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6PLISO.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.3 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SEC..34 SS.2.34_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6MOISE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6COUPL.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 24,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SENAR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SEC..23 SS.1.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR634 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR633 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 19,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 17,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SEC..34 SS.1.34_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6MOISE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.3 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR634 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SENAR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SEC..23 SS.2.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6COUPL.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6PLISO.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 18,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6COUPL.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6MOISE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.3 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 17,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6SENAR.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR633 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 19,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6CHESN.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "CZTRYP6_CZTRY6TR634 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 10,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "CZTRYP6_1.1",
+      "node": 0
+    },
+    {
+      "id": "CZTRYP6_1.2",
+      "node": 1
+    },
+    {
+      "id": "CZTRYP6_1.3",
+      "node": 2
+    },
+    {
+      "id": "CZTRYP6_1.4",
+      "node": 3
+    },
+    {
+      "id": "CZTRYP6_2.1",
+      "node": 4
+    },
+    {
+      "id": "CZTRYP6_2.2",
+      "node": 5
+    },
+    {
+      "id": "CZTRYP6_2.3",
+      "node": 6
+    },
+    {
+      "id": "CZTRYP6_2.4",
+      "node": 7
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "CZTRYL61MOISE",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "CZTRYL61PLISO",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "CZTRYL61SENAR",
+      "type": "LINE_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "CHESNL61CZTRY",
+      "type": "LINE_SIDE2",
+      "node": 11
+    },
+    {
+      "id": "CHESNL62CZTRY",
+      "type": "LINE_SIDE2",
+      "node": 14
+    },
+    {
+      "id": "CHESNL63CZTRY",
+      "type": "LINE_SIDE2",
+      "node": 16
+    },
+    {
+      "id": "CZTRYY632",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 8
+    },
+    {
+      "id": "CZTRYY633",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 9
+    },
+    {
+      "id": "CZTRYY634",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 10
+    }
+  ],
+  "stats": {
+    "nb_switches": 39,
+    "nb_busbar_sections": 8,
+    "nb_internal_connections": 0,
+    "nb_equipment": 9,
+    "nb_breakers": 11,
+    "nb_disconnectors": 28
+  }
+}

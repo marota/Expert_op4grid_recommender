@@ -1,0 +1,360 @@
+{
+  "voltage_level_id": "NOVIOP3",
+  "substation_id": "NOVIO",
+  "nominal_v": 63.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 14,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.4 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 15,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR631 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TRO.1AB SA.1A_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3COUPL.A SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.3 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3COUPL.A SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 21,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR631 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 17,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TRO.2AB SA.2B_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 22,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TRO.1AB SA.1B_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 24,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TRO.2AB SA.2A_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3ASNIE.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3ASNIE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.3 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR312 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3LAMAR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.4 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3ASNIE.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR312 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR314 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR314 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3LAMAR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 16,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3COUPL.A DJ_OC",
+      "kind": "BREAKER",
+      "node1": 19,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TRO.1AB DJ_OC",
+      "kind": "BREAKER",
+      "node1": 18,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.4 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 15,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TRO.2AB DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.3 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR631 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 17,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR312 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3LAMAR.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR314 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3FALLO.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 14,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "NOVIOP3_NOVIO3ASNIE.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 8,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "NOVIOP3_1A",
+      "node": 0
+    },
+    {
+      "id": "NOVIOP3_1B",
+      "node": 1
+    },
+    {
+      "id": "NOVIOP3_2A",
+      "node": 2
+    },
+    {
+      "id": "NOVIOP3_2B",
+      "node": 3
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "NOVIO3TR0312",
+      "type": "LOAD",
+      "node": 4
+    },
+    {
+      "id": "NOVIO3TR0314",
+      "type": "LOAD",
+      "node": 5
+    },
+    {
+      "id": "ASNIEL31NOVIO",
+      "type": "LINE_SIDE2",
+      "node": 12
+    },
+    {
+      "id": "ASNIEL32NOVIO",
+      "type": "LINE_SIDE2",
+      "node": 8
+    },
+    {
+      "id": "FALLOL32NOVIO",
+      "type": "LINE_SIDE2",
+      "node": 10
+    },
+    {
+      "id": "FALLOL33NOVIO",
+      "type": "LINE_SIDE2",
+      "node": 13
+    },
+    {
+      "id": "FALLOL34NOVIO",
+      "type": "LINE_SIDE2",
+      "node": 11
+    },
+    {
+      "id": "LAMARL31NOVIO",
+      "type": "LINE_SIDE2",
+      "node": 9
+    },
+    {
+      "id": "NOVIOY631",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 7
+    },
+    {
+      "id": "NOVIOY632",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 6
+    }
+  ],
+  "stats": {
+    "nb_switches": 39,
+    "nb_busbar_sections": 4,
+    "nb_internal_connections": 0,
+    "nb_equipment": 10,
+    "nb_breakers": 13,
+    "nb_disconnectors": 26
+  }
+}

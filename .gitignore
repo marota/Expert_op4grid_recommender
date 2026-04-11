@@ -1,6 +1,8 @@
 /data
 /tests/Analyse_parades_scenarios_sessions_evaluation.pdf
-
+*.docx
+*.odt
+*.pdf
 # Python generated files
 __pycache__/
 *.py[cod]
@@ -8,6 +10,7 @@ __pycache__/
 *.egg-info/
 *.egg
 *.pyc
+*.idea
 
 # Build and distribution
 build/

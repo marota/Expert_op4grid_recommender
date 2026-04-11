@@ -363,6 +363,10 @@ class TestCoherenceGlobale:
         for getter, vl_col in [
             (four_sub_network.get_loads, "voltage_level_id"),
             (four_sub_network.get_generators, "voltage_level_id"),
+            (four_sub_network.get_shunt_compensators, "voltage_level_id"),
+            (four_sub_network.get_static_var_compensators, "voltage_level_id"),
+            (four_sub_network.get_batteries, "voltage_level_id"),
+            (four_sub_network.get_dangling_lines, "voltage_level_id"),
         ]:
             try:
                 df = getter()

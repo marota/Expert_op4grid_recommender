@@ -1,0 +1,365 @@
+{
+  "voltage_level_id": "VIELMP6",
+  "substation_id": "VIELM",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "VIELMP6_VIELM6TR634 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 15,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6DARCE.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 16,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6COUCH.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 17,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6DARCE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 18,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6DARCE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6COMMU.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 19,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6COUPL SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 20,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6AT761 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6C.REG.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6TR634 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6SARRY.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6AT761 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6TR635 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6TR635 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6AT763 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6C.REG.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6AT762 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6COUPL SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6C.REG.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6SARRY.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6C.REG.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6AT763 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "VIELMP6_VIELM6COUCH.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6AT762 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6COMMU.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6DARCE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 18,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6COMMU.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 19,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6C.REG.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6AT762 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6SARRY.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6AT763 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6TR634 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 15,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6AT761 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6COUPL DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6COUCH.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 17,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6C.REG.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "VIELMP6_VIELM6TR635 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 5,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "VIELMP6_1.1",
+      "node": 0
+    },
+    {
+      "id": "VIELMP6_1.2",
+      "node": 1
+    },
+    {
+      "id": "VIELMP6_2.1",
+      "node": 2
+    },
+    {
+      "id": "VIELMP6_2.2",
+      "node": 3
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "C.REGL61VIELM",
+      "type": "LINE_SIDE2",
+      "node": 12
+    },
+    {
+      "id": "C.REGL62VIELM",
+      "type": "LINE_SIDE2",
+      "node": 9
+    },
+    {
+      "id": "COMMUL61VIELM",
+      "type": "LINE_SIDE2",
+      "node": 10
+    },
+    {
+      "id": "COUCHL61VIELM",
+      "type": "LINE_SIDE2",
+      "node": 14
+    },
+    {
+      "id": "DARCEL61VIELM",
+      "type": "LINE_SIDE2",
+      "node": 11
+    },
+    {
+      "id": "SARRYL61VIELM",
+      "type": "LINE_SIDE2",
+      "node": 13
+    },
+    {
+      "id": "VIELMY634",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 7
+    },
+    {
+      "id": "VIELMY635",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 5
+    },
+    {
+      "id": "VIELMY761",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 8
+    },
+    {
+      "id": "VIELMY762",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 4
+    },
+    {
+      "id": "VIELMY763",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 6
+    }
+  ],
+  "stats": {
+    "nb_switches": 39,
+    "nb_busbar_sections": 4,
+    "nb_internal_connections": 0,
+    "nb_equipment": 11,
+    "nb_breakers": 12,
+    "nb_disconnectors": 27
+  }
+}

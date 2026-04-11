@@ -1,0 +1,354 @@
+{
+  "voltage_level_id": "COMPIP3",
+  "substation_id": "COMPI",
+  "nominal_v": 63.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "COMPIP3_COMPI3ZLONG.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3SEC..23 SS.2.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3MATZ.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 17,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3SEC..23 SS.1.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR313 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR312 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 19,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3ZCNR6.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3ZCNR6.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR311 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR313 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 18,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3ZLONG.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3MORU.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3CAPEY.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3THOUR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3COUPL.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3COUPL.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 27,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3CAPEY.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3TR312 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3MATZ.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR311 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3THOUR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3MORU.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3ZCNR6.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3THOUR.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR313 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 18,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3COUPL.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "COMPIP3_COMPI3CAPEY.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3MATZ.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 17,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3ZLONG.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 16,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3MORU.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR311 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "COMPIP3_COMPI3TR312 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 19,
+      "node2": 6,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "COMPIP3_1.1",
+      "node": 0
+    },
+    {
+      "id": "COMPIP3_1.2",
+      "node": 1
+    },
+    {
+      "id": "COMPIP3_1.3",
+      "node": 2
+    },
+    {
+      "id": "COMPIP3_2.1",
+      "node": 3
+    },
+    {
+      "id": "COMPIP3_2.2",
+      "node": 4
+    },
+    {
+      "id": "COMPIP3_2.3",
+      "node": 5
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "COMPI3T312",
+      "type": "LOAD",
+      "node": 6
+    },
+    {
+      "id": "COMPI3T313",
+      "type": "LOAD",
+      "node": 7
+    },
+    {
+      "id": "COMPI3T311",
+      "type": "LOAD",
+      "node": 8
+    },
+    {
+      "id": "COMPIL31MATZ",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "COMPIL31MORU",
+      "type": "LINE_SIDE1",
+      "node": 14
+    },
+    {
+      "id": "COMPIL31THOUR",
+      "type": "LINE_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "COMPIL31ZCNR6",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "COMPIL31ZLONG",
+      "type": "LINE_SIDE1",
+      "node": 10
+    },
+    {
+      "id": "CAPEYL31COMPI",
+      "type": "LINE_SIDE2",
+      "node": 11
+    },
+    {
+      "id": "COMPIY632",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 9
+    }
+  ],
+  "stats": {
+    "nb_switches": 37,
+    "nb_busbar_sections": 6,
+    "nb_internal_connections": 0,
+    "nb_equipment": 10,
+    "nb_breakers": 11,
+    "nb_disconnectors": 26
+  }
+}

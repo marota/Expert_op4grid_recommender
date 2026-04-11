@@ -1,0 +1,70 @@
+{
+  "source": "grid.xiidm",
+  "postes_standards": [
+    "CARRIP3",
+    "CARRIP6",
+    "CZTRYP6",
+    "COMPIP3",
+    "BXTO5",
+    "CZBEVP3",
+    "PALUNP3",
+    "NOVIOP3",
+    "SSAVOP3",
+    "VIELMP6"
+  ],
+  "postes_departs_multiples": [
+    "CORNIP3",
+    "CNIEP6",
+    "GUARBP6",
+    "MORBRP6",
+    "RAN.PP6"
+  ],
+  "extracted": {
+    "CARRIP3": [
+      "CARRIP3"
+    ],
+    "CARRIP6": [
+      "CARRIP6"
+    ],
+    "CZTRYP6": [
+      "CZTRYP6"
+    ],
+    "COMPIP3": [
+      "COMPIP3"
+    ],
+    "BXTO5": [
+      "BXTO5P3",
+      "BXTO5P6"
+    ],
+    "CZBEVP3": [
+      "CZBEVP3"
+    ],
+    "PALUNP3": [
+      "PALUNP3"
+    ],
+    "NOVIOP3": [
+      "NOVIOP3"
+    ],
+    "SSAVOP3": [
+      "SSAVOP3"
+    ],
+    "VIELMP6": [
+      "VIELMP6"
+    ],
+    "CORNIP3": [
+      "CORNIP3"
+    ],
+    "GUARBP6": [
+      "GUARBP6"
+    ],
+    "MORBRP6": [
+      "MORBRP6"
+    ],
+    "RAN.PP6": [
+      "RAN.PP6"
+    ]
+  },
+  "not_found": [
+    "CNIEP6"
+  ]
+}

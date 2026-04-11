@@ -1,0 +1,500 @@
+{
+  "voltage_level_id": "CORNIP3",
+  "substation_id": "CORNI",
+  "nominal_v": 63.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "CORNIP3_CORNI3TR633 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3SELF SI.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR311 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ARGON.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3SNCF.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3TR312 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3TR633 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR312 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3COUPL SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 28,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ZSSFA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3BOEGE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 30,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3TR631 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ZSSFA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3TR311 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3ANNEM.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3COUPL SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 33,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3SSGE7.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3TR631 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3SELF SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3ARGON.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3SNCF.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 36,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ANNEM.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3BOEGE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3BONN8.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3BORLY.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3SNCF.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3ANNEM.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3BORLY.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3BONN8.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 38,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3SSGE7.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3SNCF.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3SELF SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ANNEM.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3SSGE7.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 34,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3BOEGE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ANNEM.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 37,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3BORLY.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3SELF DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3BONN8.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 38,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ZSSFA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR633 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR631 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3SNCF.1 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ANNEM.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3ARGON.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3COUPL DJ_OC",
+      "kind": "BREAKER",
+      "node1": 33,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "CORNIP3_CORNI3SNCF.2 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR312 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNI3TR311 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNIP3-CORNIP3.SJB.3.1-CORNI3REAC.1SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "CORNIP3_CORNIP3-CORNIP3.SJB.4.1-CORNI3REAC.1SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 12,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "CORNIP3_1",
+      "node": 0
+    },
+    {
+      "id": "CORNIP3_2",
+      "node": 1
+    },
+    {
+      "id": "CORNIP3_3.1",
+      "node": 2
+    },
+    {
+      "id": "CORNIP3_4.1",
+      "node": 3
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "CORNI3T311",
+      "type": "LOAD",
+      "node": 4
+    },
+    {
+      "id": "CORNI3T312",
+      "type": "LOAD",
+      "node": 5
+    },
+    {
+      "id": "CORNI3SNCFT1",
+      "type": "LOAD",
+      "node": 6
+    },
+    {
+      "id": "CORNI3SNCFT2",
+      "type": "LOAD",
+      "node": 7
+    },
+    {
+      "id": "CORNIL31REAC.",
+      "type": "LINE_SIDE1",
+      "node": 11
+    },
+    {
+      "id": "CORNIL31SSGE7",
+      "type": "LINE_SIDE1",
+      "node": 20
+    },
+    {
+      "id": "CORNIL31ZSSFA",
+      "type": "LINE_SIDE1",
+      "node": 19
+    },
+    {
+      "id": "ANNEML31CORNI",
+      "type": "LINE_SIDE2",
+      "node": 14
+    },
+    {
+      "id": "ANNEML32CORNI",
+      "type": "LINE_SIDE2",
+      "node": 16
+    },
+    {
+      "id": "ARGONL31CORNI",
+      "type": "LINE_SIDE2",
+      "node": 17
+    },
+    {
+      "id": "BOEGEL31CORNI",
+      "type": "LINE_SIDE2",
+      "node": 15
+    },
+    {
+      "id": "BONN8L31CORNI",
+      "type": "LINE_SIDE2",
+      "node": 18
+    },
+    {
+      "id": "BORLYL31CORNI",
+      "type": "LINE_SIDE2",
+      "node": 13
+    },
+    {
+      "id": "CORNIL31REAC.",
+      "type": "LINE_SIDE2",
+      "node": 12
+    },
+    {
+      "id": "CORNIY631",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 9
+    },
+    {
+      "id": "CORNIY632",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 8
+    },
+    {
+      "id": "CORNIY633",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 10
+    }
+  ],
+  "stats": {
+    "nb_switches": 54,
+    "nb_busbar_sections": 4,
+    "nb_internal_connections": 0,
+    "nb_equipment": 17,
+    "nb_breakers": 17,
+    "nb_disconnectors": 37
+  }
+}

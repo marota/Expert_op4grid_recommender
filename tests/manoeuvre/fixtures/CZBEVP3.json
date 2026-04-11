@@ -1,0 +1,140 @@
+{
+  "voltage_level_id": "CZBEVP3",
+  "substation_id": "CZBEV",
+  "nominal_v": 63.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "CZBEVP3_CZBEV3FALLO.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3CBO.1 SS.1.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3DANT5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3FALLO.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 10,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 9,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3TR311 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 0,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3TR313 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 2,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3FALLO.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 11,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "CZBEVP3_CZBEV3TR312 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 1,
+      "node2": 5,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "CZBEVP3_1.1",
+      "node": 0
+    },
+    {
+      "id": "CZBEVP3_1.2",
+      "node": 1
+    },
+    {
+      "id": "CZBEVP3_1.3",
+      "node": 2
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "CZBEV3T311",
+      "type": "LOAD",
+      "node": 3
+    },
+    {
+      "id": "CZBEV3T313",
+      "type": "LOAD",
+      "node": 4
+    },
+    {
+      "id": "CZBEV3T312",
+      "type": "LOAD",
+      "node": 5
+    },
+    {
+      "id": "CZBEVL31DANT5",
+      "type": "LINE_SIDE1",
+      "node": 8
+    },
+    {
+      "id": "CZBEVL31FALLO",
+      "type": "LINE_SIDE1",
+      "node": 7
+    },
+    {
+      "id": "CZBEVL32FALLO",
+      "type": "LINE_SIDE1",
+      "node": 6
+    }
+  ],
+  "stats": {
+    "nb_switches": 11,
+    "nb_busbar_sections": 3,
+    "nb_internal_connections": 0,
+    "nb_equipment": 6,
+    "nb_breakers": 6,
+    "nb_disconnectors": 5
+  }
+}
