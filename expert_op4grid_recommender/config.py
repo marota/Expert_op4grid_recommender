@@ -93,8 +93,6 @@ RENEWABLE_CURTAILMENT_MARGIN = 0.05       # 5% safety margin on top of minimum c
 RENEWABLE_CURTAILMENT_MIN_MW = 1.0        # Minimum curtailment volume in MW (ignore trivial curtailment)
 RENEWABLE_ENERGY_SOURCES = ["WIND", "SOLAR"]  # Generator energy_source values considered renewable
 
-PYPOWSYBL_FAST_MODE=False
-
 # -------------------
 #  Expert System Parameters
 # -------------------
@@ -114,9 +112,3 @@ PARAM_OPTIONS_EXPERT_OP = {
     # number of simulated topologies per node at the final simulation step
     "numberofsimulatedtopospernode": 10
 }
-
-RENEWABLE_ENERGY_SOURCES = ["WIND", "SOLAR"]
-
-# Renewable Curtailment
-RENEWABLE_CURTAILMENT_MARGIN = 0.05 # Safety margin (5%) added when computing required curtailment MW
-RENEWABLE_CURTAILMENT_MIN_MW = 1.0 # Generators below this MW threshold are excluded as candidates

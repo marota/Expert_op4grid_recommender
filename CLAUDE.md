@@ -37,6 +37,12 @@ python expert_op4grid_recommender/main.py --ignore-lines-monitoring
 # Rebuild action space from REPAS files
 python expert_op4grid_recommender/main.py --rebuild-actions --repas-file data/action_space/allLogics.json
 
+# Rebuild actions in pypowsybl (switch-based) format
+python expert_op4grid_recommender/main.py --rebuild-actions --pypowsybl-format
+
+# Enable pypowsybl fast mode (no voltage control, faster variants)
+python expert_op4grid_recommender/main.py --backend pypowsybl --fast-mode
+
 # Run tests
 pytest
 pytest -v tests/test_ActionClassifier.py  # specific test file
@@ -60,6 +66,8 @@ expert_op4grid_recommender/
 │   ├── classifier.py          # ActionClassifier: categorize action types
 │   ├── rules.py               # ActionRuleValidator: apply expert rules
 │   └── discovery.py           # ActionDiscoverer: find & prioritize actions
+│                              # (also: load shedding, renewable curtailment,
+│                              #        PST actions, node splitting/merging)
 │
 ├── graph_analysis/            # Overflow graph module
 │   ├── builder.py             # build_overflow_graph() using alphaDeesp
@@ -81,6 +89,8 @@ expert_op4grid_recommender/
     ├── helpers_pypowsybl.py   # pypowsybl-specific helpers
     ├── action_rebuilder.py    # Rebuild actions from REPAS format
     ├── conversion_actions_repas.py  # REPAS action conversion
+    ├── superposition.py       # Superposition theorem for impact estimation
+    ├── repas.py               # REPAS-specific utilities
     ├── data_utils.py          # StateInfo and data structures
     └── make_*_env.py          # Environment factory functions
 ```
@@ -90,12 +100,18 @@ expert_op4grid_recommender/
 ## Key Classes & Functions
 
 ### Main Entry Point
-- **`run_analysis(analysis_date, current_timestep, current_lines_defaut, env_path, env_name, backend)`** in `main.py`
+- **`run_analysis(analysis_date, current_timestep, current_lines_defaut, env_path=None, env_name=None, backend=Backend.GRID2OP, fast_mode=None)`** in `main.py`
   - Orchestrates the full analysis pipeline
+  - **Two-step pipeline** (v0.1.5+): internally delegates to
+    - `run_analysis_step1(...)` → detects overloads, selects overloads to keep
+    - `run_analysis_step2_graph(context)` → builds the overflow graph
+    - `run_analysis_step2_discovery(context)` → discovers, scores, prioritizes actions
+  - The two-step split lets external callers (e.g. UI, notebooks) intervene between steps.
   - Returns `Dict[str, Any]` with keys:
     - `"lines_overloaded_names"`: `List[str]`
-    - `"prioritized_actions"`: `{action_id: {action, description_unitaire, rho_before, rho_after, max_rho, max_rho_line, is_rho_reduction, observation}}`
+    - `"prioritized_actions"`: `{action_id: {action, description_unitaire, rho_before, rho_after, max_rho, max_rho_line, is_rho_reduction, observation, ...}}`
     - `"action_scores"`: per-type scoring dict (see Data Structures below)
+    - Superposition theorem fields (`virtual_flows`, `delta_theta`, etc.) when available
 
 ### Action Evaluation (`action_evaluation/`)
 - **`ActionClassifier`**: Determines action type (line open/close, nodal split/merge, load disconnect)
@@ -107,11 +123,19 @@ expert_op4grid_recommender/
   - `check_rules(action_type, localization, subs_topology) -> (do_filter, reason)`
   - `localize_line_action(lines)`, `localize_coupling_action(subs)`
 
-- **`ActionDiscoverer`**: Discovers and scores candidate actions
+- **`ActionDiscoverer`** (`action_evaluation/discovery.py`, ~3000 lines, 42+ methods): Discovers and scores candidate actions across **seven** action types
   - `discover_and_prioritize(n_action_max) -> (Dict[action_id, action], action_scores)`
+  - Action types discovered:
+    1. `verify_relevant_reconnections` — line reconnections
+    2. `find_relevant_disconnections` — line disconnections (asymmetric bell / linear scoring)
+    3. `find_relevant_node_splitting` — node splits (via AlphaDeesp)
+    4. `find_relevant_node_merging` — node merges (delta-theta scoring)
+    5. `find_relevant_pst_actions` — phase-shifter transformer tap changes (v0.1.7+)
+    6. `find_relevant_load_shedding` — load shedding on downstream constrained nodes (v0.1.9+)
+    7. `find_relevant_renewable_curtailment` — wind/solar curtailment (v0.1.9+)
   - Returns a tuple; `action_scores` dict has per-type scores and params (see Data Structures)
-  - Enforces minimum action counts from `config.MIN_LINE_RECONNECTIONS`, `MIN_CLOSE_COUPLING`, `MIN_OPEN_COUPLING`, `MIN_LINE_DISCONNECTIONS`
-  - Uses AlphaDeesp for node splitting analysis
+  - Enforces minimum action counts from `config.MIN_LINE_RECONNECTIONS`, `MIN_CLOSE_COUPLING`, `MIN_OPEN_COUPLING`, `MIN_LINE_DISCONNECTIONS`, `MIN_PST`, `MIN_LOAD_SHEDDING`, `MIN_RENEWABLE_CURTAILMENT`
+  - Uses AlphaDeesp for node splitting analysis and superposition theorem (`utils/superposition.py`) for virtual-flow impact estimation
 
 ### Graph Analysis (`graph_analysis/`)
 - **`build_overflow_graph(env, obs, overload_ids, ...) -> (df, sim, graph, hubs, dist_graph, mapping)`**
@@ -159,12 +183,31 @@ LINES_MONITORING_FILE = None        # path to monitoring file (None = use env de
 
 # Loading rate flags (v0.1.3+, pypowsybl only)
 MAX_RHO_BOTH_EXTREMITIES = False    # evaluate max rho from both line extremities
+MONITORING_FACTOR_THERMAL_LIMITS = 0.95  # rescale permanent thermal limits (v0.1.5+)
 
-# Minimum prioritized actions per type (v0.1.3+)
+# Pre-existing overload filtering (v0.1.4+)
+PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # exclude unless worsened by 2%
+
+# Pypowsybl simulation tuning (v0.1.4+)
+PYPOWSYBL_FAST_MODE = False         # disable voltage control for speed
+
+# Minimum prioritized actions per type (v0.1.3+ / v0.1.9+)
 MIN_LINE_RECONNECTIONS = 0
 MIN_CLOSE_COUPLING = 0
 MIN_OPEN_COUPLING = 0
 MIN_LINE_DISCONNECTIONS = 0
+MIN_PST = 0                         # v0.1.7+
+MIN_LOAD_SHEDDING = 0               # v0.1.9+
+MIN_RENEWABLE_CURTAILMENT = 0       # v0.1.9+
+
+# Load shedding parameters (v0.1.9+)
+LOAD_SHEDDING_MARGIN = 0.05         # 5% safety margin on required shedding
+LOAD_SHEDDING_MIN_MW = 1.0          # ignore trivial shedding
+
+# Renewable curtailment parameters (v0.1.9+)
+RENEWABLE_CURTAILMENT_MARGIN = 0.05
+RENEWABLE_CURTAILMENT_MIN_MW = 1.0
+RENEWABLE_ENERGY_SOURCES = ["WIND", "SOLAR"]
 
 # Expert system parameters
 PARAM_OPTIONS_EXPERT_OP = {
@@ -263,7 +306,18 @@ tests/
 ├── test_action_rebuilder.py             # Action rebuilder tests
 ├── test_config_override.py              # Config override mechanism tests
 ├── test_simulation_optimizations.py     # Simulation performance tests
-└── test_switch_action_and_substation_extraction.py  # Switch/substation tests
+├── test_switch_action_and_substation_extraction.py  # Switch/substation tests
+├── test_pst_actions.py                  # PST action unit tests (v0.1.7+)
+├── test_superposition.py                # Superposition theorem core tests (v0.1.8+)
+├── test_superposition_extended.py       # Superposition extended scenarios
+├── test_superposition_action_types.py   # Superposition per action type
+├── test_superposition_identification.py # Superposition target identification
+├── test_superposition_rho_estimation.py # Virtual-flow rho estimation
+├── test_lazy_action_dict.py             # LazyActionDict (v0.1.5+)
+├── test_min_action_counts.py            # MIN_* enforcement
+├── test_islanding_mw.py                 # Islanding MW quantification (v0.1.8+)
+├── test_environment_detection.py        # Env detection logic
+└── test_visualization_filtering.py      # Visualization filters
 ```
 
 ### Test Configuration Override
@@ -297,7 +351,7 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.1.3`
+**Current version**: `0.1.9` (see `CHANGELOG.md` for full history)
 
 ### Active Migration: Grid2Op → Pure pypowsybl
 See `MIGRATION_PLAN.md` for details. The goal is to remove `grid2op` dependency.
@@ -313,7 +367,29 @@ See `MIGRATION_PLAN.md` for details. The goal is to remove `grid2op` dependency.
 - alphaDeesp adaptation for direct pypowsybl support
 - Removal of grid2op from dependencies
 
-### Recent Major Features (v0.1.2 – v0.1.3)
+### Recent Major Features (v0.1.4 – v0.1.9)
+
+- **Load Shedding & Renewable Curtailment** (`v0.1.9`): `find_relevant_load_shedding` and `find_relevant_renewable_curtailment` in `action_evaluation/discovery.py` identify candidates on downstream nodes of constrained paths. Controlled by `MIN_LOAD_SHEDDING`, `MIN_RENEWABLE_CURTAILMENT`, `LOAD_SHEDDING_MARGIN`, `RENEWABLE_CURTAILMENT_MARGIN`, `RENEWABLE_ENERGY_SOURCES`. Deeply optimized for large networks (#76).
+- **Pathlib migration** (`v0.1.9`): all base directories and file paths use `pathlib.Path` for cross-platform robustness.
+- **Superposition Theorem** (`v0.1.8`): `utils/superposition.py` quantifies topological and PST action impacts using virtual flows and delta-theta. Integrated into analysis results.
+- **Islanding MW impact** (`v0.1.8`): islanding detection now reports disconnected MW.
+- **PST Support** (`v0.1.7+`): phase-shifter transformer tap variations, atomized PST actions from REPAS JSON. `find_relevant_pst_actions` in discovery. Grid2Op conversion support. PST asset-ID matching handles REPAS quirks (leading dots, `_inc1`/`_dec2` suffixes).
+- **Direct XIIDM loading** (`v0.1.8_post1`): `main.py` accepts a direct `.xiidm` file path.
+- **Pypowsybl format for rebuild** (`v0.1.6`): `--pypowsybl-format` option produces switch-based action JSONs with dedup.
+- **NetworkTopologyCache optimization** (`v0.1.6`): eliminates O(all_elements) cost per action.
+- **LazyActionDict** (`v0.1.5`): lazily computes action `content` (bus assignments) from switch states, dramatically reducing action JSON size.
+- **Two-step `run_analysis` refactor** (`v0.1.5`): `run_analysis_step1` + `run_analysis_step2_graph` + `run_analysis_step2_discovery`, with `fast_mode` propagated to sub-components.
+- **Direct-overload disconnection boost** (`v0.1.5`): +1.0 score boost for actions disconnecting currently overloaded lines in unconstrained regime.
+- **Thermal limit monitoring factor** (`v0.1.5`): `MONITORING_FACTOR_THERMAL_LIMITS` rescales permanent limits.
+- **Pre-existing overload filtering** (`v0.1.4`): excludes pre-existing overloads from N-1 analysis unless worsened by `PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD`.
+- **Pypowsybl perf wave** (`v0.1.4`):
+    - Incremental simulation branching from converged N-1 states (hot start).
+    - `PYPOWSYBL_FAST_MODE` (default true) disables voltage control on shunts/transformers during variants.
+    - Automatic fallback to "slow" mode on divergence.
+    - Vectorized observation creation (>80% faster init).
+    - Batched topological changes in fewer pypowsybl update calls.
+
+### Historical Features (v0.1.2 – v0.1.3)
 
 - **Action scores dictionary** (`v0.1.2`): `run_analysis()` now returns `action_scores` alongside `prioritized_actions`. Four scoring categories: `line_reconnection`, `line_disconnection`, `open_coupling`, `close_coupling`, each with `scores` (descending) and `params`.
 - **Line disconnection scoring** (`v0.1.2`): asymmetric bell curve (alpha=3, beta=1.5). Separate `"constrained"` and `"unconstrained"` regimes depending on whether the overflow graph produces new overloads.
@@ -335,6 +411,10 @@ See `MIGRATION_PLAN.md` for details. The goal is to remove `grid2op` dependency.
 | pypowsybl migration | `pypowsybl_backend/*`, `environment_pypowsybl.py` |
 | Adjust rho calculation | `pypowsybl_backend/observation.py`, `overflow_analysis.py` |
 | Configure monitoring | `config.py` (`LINES_MONITORING_FILE`, `IGNORE_LINES_MONITORING`) |
+| Add load shedding logic | `action_evaluation/discovery.py` (`find_relevant_load_shedding`) |
+| Add curtailment logic | `action_evaluation/discovery.py` (`find_relevant_renewable_curtailment`) |
+| PST actions | `action_evaluation/discovery.py` (`find_relevant_pst_actions`), `utils/repas.py` |
+| Superposition theorem | `utils/superposition.py` |
 | Add new test | `tests/test_*.py`, update `conftest.py` if needed |
 
 ---
