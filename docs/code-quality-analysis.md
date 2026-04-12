@@ -7,6 +7,8 @@
 
 This document captures a snapshot of code-quality and maintainability findings. Items marked **P0** are low-risk immediate cleanups, **P1** are structural improvements, **P2** are quality-of-life upgrades.
 
+> **Status**: All P0 items have been completed — see [Cleanup log](#cleanup-log) at the bottom of this document. Findings below reflect the state **before** P0 cleanup.
+
 ---
 
 ## 1. Dead / duplicate code
@@ -168,12 +170,12 @@ Rough coverage: **~40%** of functions have type hints.
 
 ## Priority-ordered action list
 
-### P0 — low-risk, immediate wins
-1. Delete `expert_op4grid_recommender/pypowsybl_backend/observation_timers.py`.
-2. Delete `expert_op4grid_recommender/utils/conversion_actions_repas_original.py`.
-3. Remove the hardcoded developer path in `utils/load_training_data.py:341`.
-4. Remove duplicate definitions in `config.py` (`RENEWABLE_*`, `PYPOWSYBL_FAST_MODE`).
-5. Move root-level `.md` guides and `verify_incremental_branching.py` into `docs/` and `scripts/`.
+### P0 — low-risk, immediate wins ✅ done
+1. ✅ Delete `expert_op4grid_recommender/pypowsybl_backend/observation_timers.py`.
+2. ✅ Delete `expert_op4grid_recommender/utils/conversion_actions_repas_original.py`.
+3. ✅ Remove the hardcoded developer path in `utils/load_training_data.py:341`.
+4. ✅ Remove duplicate definitions in `config.py` (`RENEWABLE_*`, `PYPOWSYBL_FAST_MODE`).
+5. ✅ Move root-level `.md` guides and `verify_incremental_branching.py` into `docs/` and `scripts/`.
 
 ### P1 — structural
 6. Split `action_evaluation/discovery.py` into one module per action-type family, sharing common caches via composition.
@@ -196,7 +198,7 @@ Rough coverage: **~40%** of functions have type hints.
 | `utils/conversion_actions_repas.py` | 1309 |
 | `pypowsybl_backend/observation.py` | 1108 |
 | `utils/superposition.py` | 1107 |
-| `pypowsybl_backend/observation_timers.py` | 1052 *(dead)* |
+| ~~`pypowsybl_backend/observation_timers.py`~~ | ~~1052~~ *(deleted in P0 cleanup)* |
 | `main.py` | 1026 |
 | `pypowsybl_backend/overflow_analysis.py` | 987 |
 | `pypowsybl_backend/network_manager.py` | 690 |
@@ -213,7 +215,7 @@ Rough coverage: **~40%** of functions have type hints.
 | `utils/simulation.py` | 308 |
 | `graph_analysis/processor.py` | 303 |
 | `utils/simulation_pypowsybl.py` | 291 |
-| `utils/conversion_actions_repas_original.py` | 273 *(dead)* |
+| ~~`utils/conversion_actions_repas_original.py`~~ | ~~273~~ *(deleted in P0 cleanup)* |
 | `data_loader.py` | 245 |
 | `environment.py` | 236 |
 | `graph_analysis/visualization.py` | 222 |
@@ -225,4 +227,74 @@ Rough coverage: **~40%** of functions have type hints.
 | `config_basic.py` | 90 |
 | `utils/make_assistant_env.py` | 85 |
 | `utils/make_training_env.py` | 68 |
-| **Package total** | **17439** |
+| **Package total (pre-P0)** | **17439** |
+| **Package total (post-P0)** | **16114** *(-1325 LOC: dead-code removal)* |
+
+---
+
+## Cleanup log
+
+### P0 cleanup — completed
+
+All five P0 items have been applied to the codebase on branch `claude/code-quality-analysis-9x1tq`.
+
+#### 1. Deleted dead modules
+- **`expert_op4grid_recommender/pypowsybl_backend/observation_timers.py`** (1052 LOC).
+  Stale fork of `observation.py`; repo-wide grep confirmed zero importers.
+- **`expert_op4grid_recommender/utils/conversion_actions_repas_original.py`** (273 LOC).
+  Pre-rewrite REPAS converter superseded by `conversion_actions_repas.py`; zero importers.
+
+**Net impact**: -1325 LOC from the package.
+
+#### 2. Removed hardcoded developer path
+- **`expert_op4grid_recommender/utils/load_training_data.py`**: the `__main__` demo block
+  previously used a literal path `/home/donnotben/Documents/assistflux/…`. Replaced with
+  a read from the `EXPERT_OP4GRID_TRAINING_OBS_DIR` environment variable, raising a
+  clear `RuntimeError` if unset. `os` was already imported, so no new imports were added.
+
+  ```python
+  training_obs_dir = os.environ.get("EXPERT_OP4GRID_TRAINING_OBS_DIR")
+  if not training_obs_dir:
+      raise RuntimeError(
+          "EXPERT_OP4GRID_TRAINING_OBS_DIR is not set. "
+          "Point it at a directory of gzipped training observations before running this script."
+      )
+  all_obs_files = list_all_obs_files(training_obs_dir, sort_results=True, ext=".gz")
+  ```
+
+#### 3. Removed duplicate definitions in `config.py`
+The following keys were each defined twice in `expert_op4grid_recommender/config.py`
+(silent last-wins behavior). Removed the second definition in every case:
+
+- `RENEWABLE_CURTAILMENT_MARGIN`
+- `RENEWABLE_CURTAILMENT_MIN_MW`
+- `RENEWABLE_ENERGY_SOURCES`
+- `PYPOWSYBL_FAST_MODE`
+
+Verified post-cleanup with `grep`: each key now appears exactly once.
+
+#### 4. Root-level file reorganization
+Moved the following files out of the repository root using `git mv` (preserving history):
+
+| From (root) | To |
+|---|---|
+| `verify_incremental_branching.py` | `scripts/verify_incremental_branching.py` |
+| `SETUP_SUMMARY.md` | `docs/SETUP_SUMMARY.md` |
+| `SKIP_VISUALIZATION_GUIDE.md` | `docs/SKIP_VISUALIZATION_GUIDE.md` |
+| `pr_body_config.md` | `docs/pr_body_config.md` |
+
+`MIGRATION_PLAN.md` was left at the repo root — it is still active while the
+grid2op → pypowsybl migration is ongoing.
+
+The moved script uses absolute package imports (`from expert_op4grid_recommender.pypowsybl_backend import …`), so it continues to work from its new location under an editable install (`pip install -e .`).
+
+### Verification
+- `python -c "import expert_op4grid_recommender.config as c"` imports cleanly and
+  reports the expected values for `PYPOWSYBL_FAST_MODE`, `RENEWABLE_CURTAILMENT_MARGIN`,
+  and `ENV_NAME`.
+- Repo-wide grep confirms no remaining references to the deleted modules.
+
+### Remaining work
+P1 and P2 items (split `discovery.py`, add graph-analysis tests, fix the bare-`except`
+nest in `__init__.py`, migrate configs to `pydantic.BaseSettings`, back-fill type hints)
+have not been touched yet — those are follow-up tasks.

@@ -336,9 +336,20 @@ if __name__ == "__main__":
     path_env = '.'
     nm_env = "env_dijon_v2_training"
 
+    # Training observation directory must be provided via the
+    # EXPERT_OP4GRID_TRAINING_OBS_DIR environment variable. It should point to a
+    # directory of gzipped observation files (e.g. a ``time_series/<date>``
+    # snapshot exported from the upstream training pipeline).
+    training_obs_dir = os.environ.get("EXPERT_OP4GRID_TRAINING_OBS_DIR")
+    if not training_obs_dir:
+        raise RuntimeError(
+            "EXPERT_OP4GRID_TRAINING_OBS_DIR is not set. "
+            "Point it at a directory of gzipped training observations before running this script."
+        )
+
     # find all usable data
     # all_obs_files = list_all_obs_files("time_series", sort_results=True,ext=".json")
-    all_obs_files = list_all_obs_files("/home/donnotben/Documents/assistflux/read_history/20250228_livraison_LJN/time_series/20250527",
+    all_obs_files = list_all_obs_files(training_obs_dir,
                                        sort_results=True,
                                        ext=".gz")
     print(f"Found {len(all_obs_files)} observations.")
