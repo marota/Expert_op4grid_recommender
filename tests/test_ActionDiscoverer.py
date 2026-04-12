@@ -273,9 +273,13 @@ def mock_edge_names_buses_dict(obs, action_topo_vect, sub_impacted_id): return {
 @pytest.fixture
 def discoverer_instance(monkeypatch):
     """Provides a configured ActionDiscoverer instance with mocks for testing discovery methods."""
-    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery._default_check_rho_reduction", mock_rho_reduction_discovery)
+    # NOTE: discovery was split into a package; `_default_check_rho_reduction` now lives in
+    # the `_base` submodule and `AlphaDeesp_warmStart` in the `_node_splitting` submodule.
+    # Monkeypatching at the package level does not rebind the mixin-module globals that the
+    # method bodies actually resolve against, so we target the submodules directly.
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery._base._default_check_rho_reduction", mock_rho_reduction_discovery)
     monkeypatch.setattr("expert_op4grid_recommender.utils.simulation.create_default_action", lambda *args: MockActionObject())
-    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.AlphaDeesp_warmStart", lambda *args: MockAlphaDeesp())
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery._node_splitting.AlphaDeesp_warmStart", lambda *args: MockAlphaDeesp())
     #def mock_id(desc, **kwargs): return desc.get("type", "unknown")
     #monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.classifier.identify_action_type", mock_id)
     def mock_sort(map_score):
