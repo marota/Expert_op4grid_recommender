@@ -211,12 +211,19 @@ def test_no_method_is_defined_in_two_places():
 
 def test_method_count_matches_original_class():
     """Sanity check: the new package distributes exactly 42 methods
-    across the base + mixins (same as the pre-P1 flat class)."""
-    total = sum(
+    across the base + mixins (same as the pre-P1 flat class). The base
+    contributes ``__init__`` plus 24 helpers; the eight mixins together
+    contribute the remaining 17 family methods (1 + 2 + 8 + 2 + 1 + 1
+    + 1 + 1)."""
+    non_dunder = sum(
         len(_class_defined_methods(cls))
         for cls in [DiscovererBase, *MIXIN_EXPECTED_METHODS.keys()]
     )
-    assert total == 42
+    # _class_defined_methods filters out dunder names, so __init__ is
+    # excluded from the per-class counts. Add it back explicitly to get
+    # the full 42 we had before the split.
+    assert "__init__" in DiscovererBase.__dict__
+    assert non_dunder + 1 == 42
 
 
 # ---------------------------------------------------------------------------
