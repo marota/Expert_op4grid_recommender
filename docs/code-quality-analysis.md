@@ -7,7 +7,7 @@
 
 This document captures a snapshot of code-quality and maintainability findings. Items marked **P0** are low-risk immediate cleanups, **P1** are structural improvements, **P2** are quality-of-life upgrades.
 
-> **Status**: All P0 items have been completed — see [Cleanup log](#cleanup-log) at the bottom of this document. Findings below reflect the state **before** P0 cleanup.
+> **Status**: All P0 items **and all three P1 items** have been completed — see [Cleanup log](#cleanup-log) at the bottom of this document. Findings below reflect the state **before** P0/P1 cleanup.
 
 ---
 
@@ -177,10 +177,10 @@ Rough coverage: **~40%** of functions have type hints.
 4. ✅ Remove duplicate definitions in `config.py` (`RENEWABLE_*`, `PYPOWSYBL_FAST_MODE`).
 5. ✅ Move root-level `.md` guides and `verify_incremental_branching.py` into `docs/` and `scripts/`.
 
-### P1 — structural
-6. Split `action_evaluation/discovery.py` into one module per action-type family, sharing common caches via composition.
-7. Add tests for `graph_analysis/*` and `environment_pypowsybl.py`.
-8. Replace the bare `except` nest in `expert_op4grid_recommender/__init__.py`; narrow exception types and route through `logging`.
+### P1 — structural ✅ done
+6. ✅ Split `action_evaluation/discovery.py` into one module per action-type family, sharing common caches via composition.
+7. ✅ Add tests for `graph_analysis/*` and `environment_pypowsybl.py`.
+8. ✅ Replace the bare `except` nest in `expert_op4grid_recommender/__init__.py`; narrow exception types and route through `logging`.
 
 ### P2 — quality-of-life
 9. Migrate `config.py` / `config_basic.py` to `pydantic.BaseSettings` with env-var support and validation.
@@ -294,7 +294,107 @@ The moved script uses absolute package imports (`from expert_op4grid_recommender
   and `ENV_NAME`.
 - Repo-wide grep confirms no remaining references to the deleted modules.
 
+### P1 cleanup — completed
+
+All three P1 items have been applied on branch `claude/refactor-discovery-module-BhhI0`.
+
+#### 6. Split `action_evaluation/discovery.py` into per-family modules
+
+The single 3001-LOC `discovery.py` file has been converted into a
+`action_evaluation/discovery/` **package**. `ActionDiscoverer` is now
+assembled from eight focused mixins composed on top of a shared base class
+that owns the constructor, cached lookup state (observations, graph
+references, node/edge caches, line capacity maps, blue-edge sets…) and the
+generic helper methods used across families.
+
+```
+expert_op4grid_recommender/action_evaluation/discovery/
+├── __init__.py                 # class ActionDiscoverer(OrchestratorMixin, ..., DiscovererBase)
+├── _base.py                    # DiscovererBase — __init__, caches, shared helpers (25 methods)
+├── _line_reconnection.py       # LineReconnectionMixin         (1 method)
+├── _line_disconnection.py      # LineDisconnectionMixin        (2 methods)
+├── _node_splitting.py          # NodeSplittingMixin            (8 methods)
+├── _node_merging.py            # NodeMergingMixin              (2 methods)
+├── _pst.py                     # PSTMixin                      (1 method)
+├── _load_shedding.py           # LoadSheddingMixin             (1 method)
+├── _renewable_curtailment.py   # RenewableCurtailmentMixin     (1 method)
+└── _orchestrator.py            # OrchestratorMixin (discover_and_prioritize, 1 method)
+```
+
+Design notes:
+- **Verbatim method bodies.** Each method was relocated unchanged (the split
+  was scripted via AST extraction to guarantee behavior equivalence), so this
+  is a pure reorganization — no logic edits, no renames, no signature changes.
+- **Composition via mixin MRO.** The shared state lives on `DiscovererBase`;
+  every family mixin accesses it through ``self.`` on the composed
+  `ActionDiscoverer`. Cross-family helpers like
+  `_compute_disconnection_flow_bounds`, `_build_line_capacity_map`,
+  `_asymmetric_bell_score`, `_unconstrained_linear_score`,
+  `_get_assets_on_bus_for_sub`, `_get_subs_impacted_from_action_desc` remain
+  on the base so PST, load shedding, and renewable curtailment can reuse them
+  without reaching into another family's module.
+- **Public API preserved.** `from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer`
+  still works; no call sites in `main.py`, `migration_guide.py`, or the test
+  suite were touched. The package `__init__` also re-exports all eight mixin
+  classes so callers who want family-level subsets (e.g. for narrow unit
+  tests) can import them directly.
+- **Count sanity check.** AST inspection confirms the new package defines
+  exactly the same 42 methods as the original class (25 in `_base.py`, 17
+  distributed across family mixins).
+
+#### 7. Tests for `graph_analysis/*` and `environment_pypowsybl.py`
+
+Added two new test modules covering the previously untested critical-path
+code:
+
+- **`tests/test_graph_analysis.py`** — exercises the pure helpers in
+  `graph_analysis/`:
+  - `builder.inhibit_swapped_flows`: verifies that flagged rows have their
+    delta flows negated and origin/extremity indices swapped, while
+    untouched rows are left intact.
+  - `processor.get_n_connected_components_graph_with_overloads`: single-chain
+    topology (overload removal splits the grid) and triangle topology
+    (overload removal keeps it connected) regression cases.
+  - `processor.identify_overload_lines_to_keep_overflow_graph_connected`:
+    three regimes — keep-all (triangle), islanding → `None` (single bridge
+    line), and empty-overload short-circuit.
+  - `processor.get_subs_islanded_by_overload_disconnections`: both the
+    integer-node and `subid_X_bus_Y` string-node code paths.
+  - `visualization.get_graph_file_name`: DC vs AC suffix behavior and input
+    propagation.
+
+  All tests use `SimpleNamespace` or `MagicMock` observations, so no Grid2Op
+  or alphaDeesp environment is required.
+
+- **`tests/test_environment_pypowsybl.py`** — exercises
+  `environment_pypowsybl.py` with the `SimulationEnvironment` dependency
+  patched out:
+  - `get_env_first_obs_pypowsybl`: four file-discovery regimes (direct
+    `.xiidm` file, `<env>/grid.xiidm`, `<env>/grid/*.iidm` subdirectory,
+    missing network → `FileNotFoundError`), thermal-limits auto-detection,
+    DC-mode flag propagation to the network manager.
+  - `set_thermal_limits_from_network`: threshold multiplication plus the
+    `9999.0` sentinel fallback for lines missing a thermal limit.
+  - Compatibility wrappers `get_env_first_obs` and
+    `setup_environment_configs`: verified to delegate cleanly to their
+    pypowsybl counterparts and drop the legacy `date` parameter.
+
+#### 8. Narrowed `__init__.py` exception handling
+
+`expert_op4grid_recommender/__init__.py:33-38` previously had
+`except (ImportError, Exception) as e: try: print(...) except: pass`, which
+collapsed to "swallow everything silently". Replaced with:
+
+- Module-level `logging.getLogger(__name__)` (no more `print`-to-stderr).
+- The `grid2op` import is isolated in its own `try/except ImportError:
+  ...else:` block so a missing optional dependency no-ops cleanly.
+- The actual monkey-patching is guarded by `except AttributeError` so
+  unexpected API drift in future grid2op versions gets logged at debug
+  level without masking genuine programmer errors.
+- No more bare `except:` nest — the only exceptions caught are the two
+  concrete types we expect (`ImportError`, `AttributeError`).
+
 ### Remaining work
-P1 and P2 items (split `discovery.py`, add graph-analysis tests, fix the bare-`except`
-nest in `__init__.py`, migrate configs to `pydantic.BaseSettings`, back-fill type hints)
-have not been touched yet — those are follow-up tasks.
+Only P2 items remain (migrate configs to `pydantic.BaseSettings`, back-fill
+type hints on older utils modules, convert TODO markers to GitHub issues,
+drop the manual `sys.path` insertion in `main.py`).
