@@ -43,7 +43,8 @@ def get_n_connected_components_graph_with_overloads(obs_simu, lines_overloaded_i
               after removing all edges corresponding to the lines listed in
               `lines_overloaded_ids`.
     """
-    #TODO: adapt by simplifying, just get topo graph and add it a_or and rho attributes per edges
+    # Simplification tracked in marota/expert_op4grid_recommender#83: adapt by simplifying,
+    # just get topo graph and add a_or and rho attributes per edge.
     # 2. List of edges: (Node1, Node2, {attributes})
     edge_list = [("subid_"+str(or_subid)+"_bus_"+str(or_bus),"subid_"+str(ex_subid)+"_bus_"+str(ex_bus),{'name': edge_name,"a_or": a_or,"rho":rho})
                  for edge_name, or_subid, or_bus, ex_subid, ex_bus, line_status, a_or, rho in

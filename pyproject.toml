@@ -31,11 +31,19 @@ dependencies = [
     "pypowsybl2grid>=0.2.1",
     "expertop4grid>=0.2.8",
     "matplotlib>=3.8.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest",
+]
+quality = [
+    "radon>=6.0",
+    "vulture>=2.10",
+    "interrogate>=1.5",
+    "ruff>=0.5",
 ]
 
 [tool.setuptools.packages.find]
