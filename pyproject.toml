@@ -39,6 +39,12 @@ dependencies = [
 test = [
     "pytest",
 ]
+quality = [
+    "radon>=6.0",
+    "vulture>=2.10",
+    "interrogate>=1.5",
+    "ruff>=0.5",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

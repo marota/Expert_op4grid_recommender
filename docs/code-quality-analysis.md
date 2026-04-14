@@ -8,6 +8,14 @@
 This document captures a snapshot of code-quality and maintainability findings. Items marked **P0** are low-risk immediate cleanups, **P1** are structural improvements, **P2** are quality-of-life upgrades.
 
 > **Status**: All P0, P1 **and P2 items** have been completed — see [Cleanup log](#cleanup-log) at the bottom of this document. Findings below reflect the state **before** P0/P1/P2 cleanup.
+>
+> **Automation**: The checks captured in this document are now re-run on
+> every push and pull request by the `code-quality` GitHub Actions
+> workflow (`.github/workflows/code-quality.yml`), which shells out to
+> `scripts/code_quality_report.py`. See
+> [Automation in CI/CD](#automation-in-cicd) at the bottom of this
+> document for the full set of checks, the metrics surfaced in the job
+> summary, and the strict-mode regression gates.
 
 ---
 
@@ -482,3 +490,85 @@ block. The package is always consumed as an installed module (`pip install
 -e .`) in every entry point (CLI, tests, notebooks), so the insertion was
 redundant. `sys` is still imported (it's used a few lines later for
 `sys.stderr` / `sys.exit` in `__main__`).
+
+---
+
+## Automation in CI/CD
+
+The cleanup checklist above has been turned into a repeatable, automated
+workflow so regressions on the findings in this document show up on
+every pull request and every push to `main`.
+
+### Moving parts
+
+| Component | Location | Purpose |
+|---|---|---|
+| Quality-report aggregator | `scripts/code_quality_report.py` | Runs every static check, writes a markdown report, exposes `--strict` for regression gates and `--github-summary` for CI summaries. |
+| GitHub Actions workflow | `.github/workflows/code-quality.yml` | Installs the tools, runs the aggregator, publishes the report to the job summary and as an artifact, then re-runs it in strict mode to fail the job on critical regressions. |
+| Optional dependency group | `pyproject.toml` → `[project.optional-dependencies]` `quality` | `pip install -e .[quality]` installs the same tools locally for developers. |
+
+The CI job does **not** install the package itself. The report is a pure
+static-analysis pass so we avoid pulling in `grid2op` / `pypowsybl` and
+keep the workflow fast and robust.
+
+### What is checked
+
+`scripts/code_quality_report.py` emits ten sections, mapped 1:1 to the
+findings in this document:
+
+1. **Module LOC inventory** — tracks the package-wide LOC and lists the
+   ten fattest modules (originally §2 *God modules / complexity
+   hotspots* and the appendix table).
+2. **Cyclomatic complexity** — via `radon cc -a -j`. Reports the true
+   average across every block, plus the top-15 hotspots (grade C and
+   worse).
+3. **Maintainability index** — via `radon mi`. Counts modules by grade
+   and prints the ones below grade A.
+4. **Dead-code suspects** — via `vulture --min-confidence 80`.
+   Originally §1 *Dead / duplicate code*.
+5. **Docstring coverage** — via `interrogate`. Originally §10 *Type
+   hints & docstrings*.
+6. **Lint findings** — via `ruff check --exit-zero --output-format
+   concise`. Informational only.
+7. **TODO / FIXME markers** — AST-free regex scan, split between bare
+   markers and markers that reference a GitHub issue number. Mirrors
+   §5 *TODO / FIXME inventory*; the P2 cleanup rewrote every bare
+   marker to reference an issue so this counter should stay at zero.
+8. **Hardcoded absolute paths** — regex scan for `"/home/<user>/..."`
+   literals. Mirrors §6 *Hardcoded paths / magic numbers*; the P0
+   cleanup removed the last offender.
+9. **Duplicate config definitions** — parses every `config*.py` with
+   Python's `ast` module and flags any module-level name assigned more
+   than once. Mirrors §7 *Config sprawl* which listed four duplicate
+   definitions silently winning last-assignment.
+10. **Type-hint coverage** — custom AST walk that counts the functions
+    whose every non-`self` argument *and* return type carry an
+    annotation. Mirrors the §10 hand-rolled `~40%` estimate and gives
+    us a trendable metric.
+
+### Strict-mode regression gates
+
+Three of the ten sections are wired as *blocking* gates. When the
+`code-quality` workflow re-runs the aggregator with `--strict` the job
+fails if any of these counters goes above zero:
+
+- **Bare TODO / FIXME markers** (§5). Every todo must reference an
+  issue; anything else is a regression on the P2 work.
+- **Hardcoded `/home/<user>/…` literals** (§6). Would regress the P0
+  removal of the developer-specific path in `load_training_data.py`.
+- **Duplicate config definitions** (§7). Would regress the P0 de-dup
+  of `RENEWABLE_*` / `PYPOWSYBL_FAST_MODE`.
+
+The other seven sections are informational. They appear in the job
+summary and in the `code-quality-report.md` artifact so the team can
+watch trends, but they do not block PRs — dialing them up to blocking
+requires another explicit decision once the baselines have stabilised.
+
+### Running it locally
+
+```bash
+pip install -e .[quality]
+python scripts/code_quality_report.py              # print the report
+python scripts/code_quality_report.py -o report.md # write to a file
+python scripts/code_quality_report.py --strict     # emulate the CI gate
+```
