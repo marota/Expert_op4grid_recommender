@@ -8,8 +8,8 @@
 # This file is part of expert_op4grid_recommender, Expert system analyzer based on ExpertOp4Grid principles. ⚡️ This tool builds overflow graphs,
 # applies expert rules to filter potential actions, and identifies relevant corrective measures to alleviate line overloads.
 
-import sys
 import os
+import sys
 import argparse
 import copy
 import json
@@ -19,12 +19,6 @@ from enum import Enum
 from typing import Optional, List, Dict, Any, Tuple
 import numpy as np
 import pypowsybl as pp
-
-# This adds the parent directory (your project root) to the Python path
-# so that the 'expert_op4grid_recommender' package can be found.
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 from expert_op4grid_recommender import config
 # Import the specific defaults needed

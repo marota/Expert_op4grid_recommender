@@ -120,13 +120,15 @@ class LineReconnectionMixin:
                     )
                 else:
                     try:
-                        # TODO: could make this stronger by considering the direction of delta theta, not only the absolute value, as it would give and indidation if flow will make it in or out
-                        # Example on contingency P.SAOLRONCI 20240828T0100Z, reco_line 'CREYSL71G.ILE', Theta CRESEY:-0.012, Theta G.ILE: -0.10.
-                        # Reconnection will create a flow from CRESEY to G.ILE whie the other direction would have brought more flow on CRESEY loop path
-                        # which would have been benefitial. So this action should have been filtered out.
-                        # Also most influential reconnections are the ones connecting constrained path and loop path, directly in parallel to the constrained path
-                        # TODO: actually rather than looking at phases, see if both extreities of path containing the line to reconnect have some influential dispatch flows.
-                        # If yes this is a very good sign that it could be influential
+                        # Directional delta-theta and path-extremity dispatch-flow heuristics
+                        # are tracked in marota/expert_op4grid_recommender#81.
+                        # Example on contingency P.SAOLRONCI 20240828T0100Z, reco_line 'CREYSL71G.ILE',
+                        # Theta CRESEY:-0.012, Theta G.ILE: -0.10. Reconnection will create a flow
+                        # from CRESEY to G.ILE while the other direction would have brought more
+                        # flow on CRESEY loop path which would have been beneficial. So this action
+                        # should have been filtered out. Also most influential reconnections are the
+                        # ones connecting constrained path and loop path, directly in parallel to
+                        # the constrained path.
                         delta_theta = abs(
                             get_delta_theta_line(self.obs_defaut, line_id)
                         )

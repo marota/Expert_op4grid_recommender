@@ -1,20 +1,37 @@
+"""Parser for REPAS action JSON files.
+
+REPAS is RTE's internal format describing the remedial action catalogue. The
+single entry point :func:`parse_json` walks the JSON tree, filters the
+entries against elements actually present in a pypowsybl network, and
+returns a list of :class:`Action` domain objects suitable for downstream
+scoring.
+"""
+
 import json
-from typing import Optional
-from typing import List, Dict, Tuple, Set, Callable
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from pypowsybl.network import Network
 
 
 class Action:
-    def __init__(self,
-                 id: str,
-                 horizon: str,
-                 description: str,
-                 switches_by_voltage_level: Dict[str, Dict[str, bool]],
-                 loads_by_id: Dict[str, Tuple[float, float]],
-                 generators_by_id: Dict[str, Tuple[float, bool]],
-                 pst_by_id: Dict[str, int]):
+    """A single REPAS action, decomposed by asset family.
+
+    Attributes are accessed through the underscore-prefixed names to keep
+    them read-only by convention; the constructor copies the dicts in as-is
+    without further validation.
+    """
+
+    def __init__(
+        self,
+        id: str,
+        horizon: str,
+        description: str,
+        switches_by_voltage_level: Dict[str, Dict[str, bool]],
+        loads_by_id: Dict[str, Tuple[float, float]],
+        generators_by_id: Dict[str, Tuple[float, bool]],
+        pst_by_id: Dict[str, int],
+    ) -> None:
         super().__init__()
         self._id = id
         self._horizon = horizon
@@ -24,21 +41,33 @@ class Action:
         self._generators_by_id = generators_by_id
         self._pst_by_id = pst_by_id
 
-    def __repr__(self):
-        return f"Action(id={self._id}, horizon={self._horizon} switches={self._switches_by_voltage_level}, loads={self._loads_by_id}, generators={self._generators_by_id}, pst={self._pst_by_id})"
+    def __repr__(self) -> str:
+        return (
+            f"Action(id={self._id}, horizon={self._horizon} "
+            f"switches={self._switches_by_voltage_level}, loads={self._loads_by_id}, "
+            f"generators={self._generators_by_id}, pst={self._pst_by_id})"
+        )
 
 
-def _parse_action(actions,
-                  switches_by_voltage_level: Dict[str, Dict[str, bool]],
-                  loads_by_id: Dict[str, Tuple[float, float]],
-                  generators_by_id: Dict[str, Tuple[float, bool]],
-                  pst_by_id: Dict[str, int],
-                  voltage_level_ids: Set[str],
-                  switch_ids: Set[str],
-                  load_ids: Set[str],
-                  generator_ids: Set[str],
-                  pst_ids: Set[str],
-                  n: Network):
+def _parse_action(
+    actions: List[dict],
+    switches_by_voltage_level: Dict[str, Dict[str, bool]],
+    loads_by_id: Dict[str, Tuple[float, float]],
+    generators_by_id: Dict[str, Tuple[float, bool]],
+    pst_by_id: Dict[str, int],
+    voltage_level_ids: Set[str],
+    switch_ids: Set[str],
+    load_ids: Set[str],
+    generator_ids: Set[str],
+    pst_ids: Set[str],
+    n: Network,
+) -> None:
+    """Recursively accumulate a REPAS action tree into per-family dicts.
+
+    Only actions whose target element exists in the provided id sets are
+    kept; unknown or unhandled action types are silently ignored — see
+    marota/expert_op4grid_recommender#79 for the full backlog.
+    """
     for action in actions:
         if action['actionType'] == "CompositeAction":
             _parse_action(action['actions'], switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id, voltage_level_ids, switch_ids, load_ids, generator_ids, pst_ids, n)
@@ -63,19 +92,20 @@ def _parse_action(actions,
             if gen_id in generator_ids:
                 p = action['selectedPower']
                 delta = action['delta']
-                # TODO the other attributes like connection status, voltage regulation etc
+                # Missing attributes (connection status, voltage regulation, Q setpoint, ...)
+                # tracked in marota/expert_op4grid_recommender#79.
                 generators_by_id[gen_id] = (p, delta)
         elif action['actionType'] == "GeneratorGroupVariation":
-            # TODO
+            # Unhandled REPAS action type, tracked in marota/expert_op4grid_recommender#79.
             pass
         elif action['actionType'] == "LoadGroupVariation":
-            # TODO
+            # Unhandled REPAS action type, tracked in marota/expert_op4grid_recommender#79.
             pass
         elif action['actionType'] == "LoadShedding":
-            # TODO
+            # Unhandled REPAS action type, tracked in marota/expert_op4grid_recommender#79.
             pass
         elif action['actionType'] == "LoadSheddingElement":
-            # TODO
+            # Unhandled REPAS action type, tracked in marota/expert_op4grid_recommender#79.
             pass
         elif action['actionType'] == "PSTRegulation":
             pst_id = action['assetId']
@@ -99,10 +129,25 @@ def _parse_action(actions,
                 pass
 
 
-def _create_action(id: str, horizon: str, description: str, actions, parsed_actions: List[Action], 
-                   generators_ids: Set[str], loads_ids: Set[str], switch_ids: Set[str], 
-                   voltage_level_ids: Set[str], pst_ids: Set[str], n: Network):
-    switches_by_voltage_level = {}
+def _create_action(
+    id: str,
+    horizon: str,
+    description: str,
+    actions: List[dict],
+    parsed_actions: List[Action],
+    generators_ids: Set[str],
+    loads_ids: Set[str],
+    switch_ids: Set[str],
+    voltage_level_ids: Set[str],
+    pst_ids: Set[str],
+    n: Network,
+) -> None:
+    """Materialise a single :class:`Action` from a REPAS node and append it to ``parsed_actions``.
+
+    No-op if the action resolves to an empty payload after filtering
+    (i.e. every target element was unknown to the network).
+    """
+    switches_by_voltage_level: Dict[str, Dict[str, bool]] = {}
     loads_by_id = {}
     generators_by_id = {}
     pst_by_id = {}
@@ -112,7 +157,24 @@ def _create_action(id: str, horizon: str, description: str, actions, parsed_acti
         parsed_actions.append(Action(id, horizon, description, switches_by_voltage_level, loads_by_id, generators_by_id, pst_by_id))
 
 
-def parse_json(file: str, n: Network, voltage_level_filter: Optional[Callable[[(str, pd.Series)], bool]]) -> List[Action]:
+def parse_json(
+    file: str,
+    n: Network,
+    voltage_level_filter: Optional[Callable[[Tuple[str, pd.Series]], bool]],
+) -> List[Action]:
+    """Read a REPAS catalogue from ``file`` and return the parsed actions.
+
+    Parameters
+    ----------
+    file:
+        Path to a REPAS JSON file.
+    n:
+        Reference network used to filter out actions targeting elements that
+        do not exist in this study.
+    voltage_level_filter:
+        Optional predicate ``(voltage_level_id, row) -> bool`` restricting
+        the voltage levels whose switch actions are kept. ``None`` keeps all.
+    """
     # load elements ids to later filter DB on elements present in the network
     voltage_level_ids = set()
     for (index, row) in n.get_voltage_levels().iterrows():
@@ -132,7 +194,7 @@ def parse_json(file: str, n: Network, voltage_level_filter: Optional[Callable[[(
             id = content['id']
             description = content['content']
             rules_list = content['rulesList']
-            # TODO filter on violation elements
+            # Violation-element filtering tracked in marota/expert_op4grid_recommender#79.
             for rules in rules_list:
                 preventive_action = rules['preventiveAction']
                 if preventive_action is not None:

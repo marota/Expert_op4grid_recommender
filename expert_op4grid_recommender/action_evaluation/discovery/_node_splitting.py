@@ -232,7 +232,7 @@ class NodeSplittingMixin:
 
         # If not explicitly Amont or Aval, infer type based on dominant negative flow direction
         if node_type not in ["amont", "aval"]:
-            # TODO: interesting cases to test for
+            # Regression-case backlog tracked in marota/expert_op4grid_recommender#82:
             # 1) GEN.PP6 on Full France for SAOL31RONCI contingency on case 20240828T0100Z => should not be effective
             # 2) FRON5L31LOUHA_chronic_20240828_0000_timestep_36 and subs CREYSP7, MAGNYP3, GEN.PP6, FLEYRP6
             # 3) P.SAOL31RONCI_chronic_20240828_0000_timestep_1 and sub MAGNYP6

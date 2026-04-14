@@ -7,7 +7,7 @@
 
 This document captures a snapshot of code-quality and maintainability findings. Items marked **P0** are low-risk immediate cleanups, **P1** are structural improvements, **P2** are quality-of-life upgrades.
 
-> **Status**: All P0 items **and all three P1 items** have been completed — see [Cleanup log](#cleanup-log) at the bottom of this document. Findings below reflect the state **before** P0/P1 cleanup.
+> **Status**: All P0, P1 **and P2 items** have been completed — see [Cleanup log](#cleanup-log) at the bottom of this document. Findings below reflect the state **before** P0/P1/P2 cleanup.
 
 ---
 
@@ -182,11 +182,11 @@ Rough coverage: **~40%** of functions have type hints.
 7. ✅ Add tests for `graph_analysis/*` and `environment_pypowsybl.py`.
 8. ✅ Replace the bare `except` nest in `expert_op4grid_recommender/__init__.py`; narrow exception types and route through `logging`.
 
-### P2 — quality-of-life
-9. Migrate `config.py` / `config_basic.py` to `pydantic.BaseSettings` with env-var support and validation.
-10. Back-fill type hints and docstrings on `utils/` modules.
-11. Convert TODO markers to GitHub issues and reference issue numbers from the code.
-12. Drop the manual `sys.path` insertion in `main.py`.
+### P2 — quality-of-life ✅ done
+9. ✅ Migrate `config.py` / `config_basic.py` to `pydantic.BaseSettings` with env-var support and validation.
+10. ✅ Back-fill type hints and docstrings on `utils/` modules.
+11. ✅ Convert TODO markers to GitHub issues and reference issue numbers from the code.
+12. ✅ Drop the manual `sys.path` insertion in `main.py`.
 
 ---
 
@@ -394,7 +394,91 @@ collapsed to "swallow everything silently". Replaced with:
 - No more bare `except:` nest — the only exceptions caught are the two
   concrete types we expect (`ImportError`, `AttributeError`).
 
-### Remaining work
-Only P2 items remain (migrate configs to `pydantic.BaseSettings`, back-fill
-type hints on older utils modules, convert TODO markers to GitHub issues,
-drop the manual `sys.path` insertion in `main.py`).
+### P2 cleanup — completed
+
+All four P2 items have been applied on branch
+`claude/migrate-config-pydantic-4X3bX`.
+
+#### 9. `config.py` / `config_basic.py` → `pydantic.BaseSettings`
+
+`expert_op4grid_recommender/config.py` now defines a
+`Settings(BaseSettings)` class (from `pydantic-settings`) that validates
+every runtime knob (types, `ge=`/`gt=` bounds on the thermal-limit factor
+and minimum-action counts, a `mode="before"` validator on `LINES_DEFAUT`
+that accepts either a JSON list or a bare line name). The instance is
+built once at import time and its fields are promoted to module-level
+attributes through a small `apply_settings_to_namespace` helper, so every
+existing `from expert_op4grid_recommender.config import DATE`,
+`config.ENV_NAME`, and runtime mutation like
+`config.ENV_NAME = env_name` keeps working unchanged.
+
+Each knob can now be overridden from the environment via an
+`EXPERT_OP4GRID_`-prefixed variable, for example:
+
+```bash
+EXPERT_OP4GRID_TIMESTEP=12 \
+EXPERT_OP4GRID_LINES_DEFAUT='["BEON L31CPVAN","FOO"]' \
+EXPERT_OP4GRID_PYPOWSYBL_FAST_MODE=true \
+  python -m expert_op4grid_recommender.main
+```
+
+`expert_op4grid_recommender/config_basic.py` was rewritten to import the
+shared `Settings` class and instantiate it with the basic-scenario
+overrides (assistant environment, 5 prioritized actions, all `MIN_*`
+counters zeroed), then publish the same module-level attribute layout as
+`config.py`. The test override mechanism in `tests/conftest.py`
+(`sys.modules['expert_op4grid_recommender.config'] = config_test`)
+continues to work without modification because the substitute
+`tests/config_test.py` is still a flat attribute module.
+
+`pyproject.toml` gained `pydantic>=2.0` and `pydantic-settings>=2.0` as
+core dependencies.
+
+Verification:
+- `python -c "from expert_op4grid_recommender import config; print(config.DATE, config.CASE_NAME)"` prints the expected values.
+- `EXPERT_OP4GRID_TIMESTEP=42 EXPERT_OP4GRID_LINES_DEFAUT=FOO python -c "from expert_op4grid_recommender import config; print(config.CASE_NAME)"` → `defaut_FOO_t42`.
+- `EXPERT_OP4GRID_LINES_DEFAUT='["A","B"]' python -c "from expert_op4grid_recommender import config; print(config.LINES_DEFAUT)"` → `['A', 'B']`.
+- `Settings(MONITORING_FACTOR_THERMAL_LIMITS=-1.0)` raises `ValidationError` thanks to the `gt=0.0` bound.
+- `pytest tests/test_config_override.py` (9 passed, 2 skipped — the remaining failure is unrelated, caused by a missing optional `pypowsybl` dependency in the test environment).
+
+#### 10. Type hints and docstrings on `utils/` modules
+
+Back-filled hints and docstrings on the older utils modules flagged in the
+analysis (`load_training_data.py`, `load_evaluation_data.py`, `repas.py`,
+`make_env_utils.py`, `make_assistant_env.py`, `make_training_env.py`).
+Each module now has:
+
+- A module-level docstring explaining what the module does.
+- Class docstrings (`repas.Action`).
+- Function signatures typed end-to-end (arguments + return annotations).
+- One-line (or short-paragraph) docstrings on every public function,
+  covering the contract and any mutation / thread-safety notes.
+
+The changes are purely additive — no logic was touched — so no tests
+needed updating. `python -m py_compile` is green on every modified file.
+
+#### 11. TODO markers → GitHub issues
+
+The 13 remaining TODO markers (one was already stale and was removed in
+P0) were grouped into five issues and each in-code marker now references
+the corresponding issue number instead of the bare `TODO` keyword:
+
+| Issue | Title | Replaced markers |
+|---|---|---|
+| marota/expert_op4grid_recommender#79 | REPAS parser: handle unimplemented action types in `utils/repas.py` | `utils/repas.py` × 6 (`GeneratorModification` attrs, `GeneratorGroupVariation`, `LoadGroupVariation`, `LoadShedding`, `LoadSheddingElement`, `parse_json` violation-element filter) |
+| marota/expert_op4grid_recommender#80 | Harden pypowsybl loader kwargs in `utils/make_env_utils.py` | `utils/make_env_utils.py` × 3 (`reconnect_disco_gen`, `reconnect_disco_load`, `gen_slack_id`) |
+| marota/expert_op4grid_recommender#81 | Improve line-reconnection scoring heuristics (direction + extremity dispatch) | `action_evaluation/discovery/_line_reconnection.py` × 2 |
+| marota/expert_op4grid_recommender#82 | Add regression cases for node-splitting scoring edge scenarios | `action_evaluation/discovery/_node_splitting.py` × 1 |
+| marota/expert_op4grid_recommender#83 | Simplify overflow graph construction in `graph_analysis/processor.py` | `graph_analysis/processor.py` × 1 |
+
+Verification: `grep -rn "TODO\|FIXME"` on the five touched files returns
+no results.
+
+#### 12. Dropped manual `sys.path` insertion in `main.py`
+
+`expert_op4grid_recommender/main.py` no longer contains the
+`project_root = os.path.abspath(...); sys.path.insert(0, project_root)`
+block. The package is always consumed as an installed module (`pip install
+-e .`) in every entry point (CLI, tests, notebooks), so the insertion was
+redundant. `sys` is still imported (it's used a few lines later for
+`sys.stderr` / `sys.exit` in `__main__`).

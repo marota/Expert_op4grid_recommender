@@ -1,4 +1,11 @@
-from typing import Any, Dict, Literal, Union
+"""Factory for the *training* flavour of the Grid2Op environment.
+
+Uses :class:`LightSimBackend` for speed during training pipelines and falls
+back gracefully when the backend rejects ``gen_slack_id`` (older
+``lightsim2grid`` versions).
+"""
+
+from typing import Any
 import os
 
 from expert_op4grid_recommender.utils.make_env_utils import (make_backend_kwargs_data,
@@ -15,13 +22,21 @@ except (ImportError, Exception):
     _HAS_GRID2OP = False
 
     
-def make_grid2op_training_env(path_env: str,
-                              nm_env: str,
-                              *,
-                              allow_detachment=True,
-                              params=None,
-                              backend_loader_kwargs=None,
-                              **bk_kwargs) -> Any:
+def make_grid2op_training_env(
+    path_env: str,
+    nm_env: str,
+    *,
+    allow_detachment: bool = True,
+    params: Any = None,
+    backend_loader_kwargs: dict | None = None,
+    **bk_kwargs: Any,
+) -> Any:
+    """Build the training Grid2Op environment rooted at ``path_env/nm_env``.
+
+    If ``lightsim2grid`` raises a ``gen_slack_id``-related error, the slack
+    key is stripped from ``backend_loader_kwargs`` and the backend is
+    reconstructed once; any other error is re-raised untouched.
+    """
     if not _HAS_GRID2OP:
         raise ImportError("grid2op and lightsim2grid are required for make_grid2op_training_env()")
     backend_kwargs_data = make_backend_kwargs_data(loader_kwargs=backend_loader_kwargs, **bk_kwargs)

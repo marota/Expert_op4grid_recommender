@@ -1,8 +1,15 @@
+"""Training-time helpers: obs-file discovery, state setup, reconnection fences.
+
+These utilities back the ``__main__`` block's end-to-end sanity check and
+are reused by the evaluation pipeline. Most functions mutate the Grid2Op
+environment in place and are therefore not thread-safe.
+"""
+
 import json
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
-import numpy as np
 import time
+from typing import Any, List, Optional, Tuple, Union
+import numpy as np
 
 from expert_op4grid_recommender.pypowsybl_backend import PypowsyblAction
 from expert_op4grid_recommender.utils.data_utils import StateInfo
@@ -22,11 +29,19 @@ except (ImportError, Exception):
 DELETED_LINE_NAME = set(['BXNE L32BXNE5', 'BXNE5L32MTAGN', 'BXNE5L32CORGO', 'BXNE5L31MTAGN'])
 
 
-def list_all_obs_files(root: str,
-                       ext : str =".gz",
-                       sort_results: bool =False,
-                       exclude : Optional[str]="20241205") -> List[str]:
-    res = []
+def list_all_obs_files(
+    root: str,
+    ext: str = ".gz",
+    sort_results: bool = False,
+    exclude: Optional[str] = "20241205",
+) -> List[str]:
+    """Walk ``root`` and return every file whose extension matches ``ext``.
+
+    ``exclude`` drops any filename containing the substring (defaults to
+    excluding the known-bad 2024-12-05 snapshot). If ``sort_results`` is
+    true the output is lexicographically sorted.
+    """
+    res: List[str] = []
     tmp = os.path.splitext(ext)
     tmp = [el for el in tmp if el != ""]
     if len(tmp) != 1:
@@ -43,10 +58,19 @@ def list_all_obs_files(root: str,
     return res
 
 
-def set_state(env: Any,
-              action_path : Union[str, StateInfo],
-              with_timings=False) -> Tuple[Any, StateInfo]:
-    """NOT thread safe ! It modifies the environment (first argument)"""
+def set_state(
+    env: Any,
+    action_path: Union[str, StateInfo],
+    with_timings: bool = False,
+) -> Tuple[Any, StateInfo]:
+    """Reset ``env`` to the state described by ``action_path`` and return the obs.
+
+    ``action_path`` may be a path to a ``.json`` or ``.gz`` init-state file,
+    or an already-parsed :class:`StateInfo`. When ``with_timings`` is true,
+    a third element with a timings dict is returned.
+
+    .. warning:: NOT thread safe — mutates ``env`` in place.
+    """
     timings = {}
     if isinstance(action_path, StateInfo):
         state = action_path[0]
@@ -131,9 +155,14 @@ def aux_prevent_prod_conso_reconnection(obs: Any,
         return act
 
 
-def aux_prevent_line_reconnection_cond1(obs: Any,
-                                        should_not_reco: set,
-                                        act: Any) -> Tuple[Any, np.ndarray]:
+def aux_prevent_line_reconnection_cond1(
+    obs: Any, should_not_reco: set, act: Any
+) -> Tuple[Any, np.ndarray]:
+    """Force-disconnect any line in ``should_not_reco`` that ``act`` would reconnect.
+
+    Returns the (possibly mutated) ``act`` and a boolean array flagging which
+    lines were touched so follow-up helpers can skip them.
+    """
     line_or_set = act.line_or_set_bus
     line_ex_set = act.line_ex_set_bus
     line_or_change = act.line_or_change_bus
@@ -160,9 +189,16 @@ def aux_prevent_line_reconnection_cond1(obs: Any,
     return act, lines_treated
 
 
-def aux_prevent_line_reconnection_cond2(obs: Any,
-                                        lines_treated: np.ndarray,
-                                        act: Any) -> Any:
+def aux_prevent_line_reconnection_cond2(
+    obs: Any, lines_treated: np.ndarray, act: Any
+) -> Any:
+    """Strip side-effect reconnections introduced by a busbar-coupler action.
+
+    When an action touches two elements at the same substation (interpreted
+    as a coupler), Grid2Op may silently reconnect lines that were off in the
+    observation. This helper undoes any such reconnection on lines not
+    already treated by :func:`aux_prevent_line_reconnection_cond1`.
+    """
     # act is an "action on a busbar coupler"
     # if it affects through set_bus at least 2 disctinct elements
     subs_impacted = type(act).grid_objects_types[act.set_bus >= 1, type(act).SUB_COL]
@@ -244,15 +280,24 @@ def aux_prevent_line_reconnection(obs: Any,
 
         return act
 
-def aux_prevent_asset_reconnection(obs: Any,
-                                   state: StateInfo,
-                                   act: Any) -> Any:
-    act = aux_prevent_prod_conso_reconnection(obs,state, act)
+def aux_prevent_asset_reconnection(
+    obs: Any, state: StateInfo, act: Any
+) -> Any:
+    """Chain the load/gen and line reconnection fences into one pass on ``act``."""
+    act = aux_prevent_prod_conso_reconnection(obs, state, act)
     act = aux_prevent_line_reconnection(obs, state, act)
     return act
 
 
-def load_interesting_lines(path : Optional[str]=None, file_name : str ="lignes_a_monitorer.csv") -> np.ndarray:
+def load_interesting_lines(
+    path: Optional[str] = None, file_name: str = "lignes_a_monitorer.csv"
+) -> np.ndarray:
+    """Return the list of "branches" from a monitoring CSV as a numpy array.
+
+    Missing files are non-fatal — an empty array is returned with a warning
+    printed to stdout — because many training environments ship without the
+    evaluation's monitoring lists.
+    """
     import pandas as pd
     if path is None:
         path = os.path.abspath(".")
@@ -265,7 +310,16 @@ def load_interesting_lines(path : Optional[str]=None, file_name : str ="lignes_a
     return np.array([el.rstrip().lstrip() for el in pd.read_csv(fn_)["branches"].values])
         
 
-def filter_out_non_reproductible_observation(env: Any, all_obs_files : List[str], lines_we_care_about: List[str]) -> List[StateInfo]:
+def filter_out_non_reproductible_observation(
+    env: Any, all_obs_files: List[str], lines_we_care_about: List[str]
+) -> Tuple[List[str], List[str]]:
+    """Split ``all_obs_files`` into (usable, not-usable) based on replay consistency.
+
+    For each observation we reset ``env`` to its init state, verify that the
+    N-1 line disconnection is reflected in ``obs.line_status`` and that the
+    overflow set matches the file metadata. Files failing any of those
+    checks are rerouted to the second list.
+    """
     from tqdm import tqdm
     if not _HAS_GRID2OP:
         raise ImportError("grid2op is required for filter_out_non_reproductible_observation")
@@ -320,7 +374,10 @@ def filter_out_non_reproductible_observation(env: Any, all_obs_files : List[str]
     print(f"Found {nb_errors} mismatch between RTE-server and local, finally using only {len(usable_obs_files)} / {len(all_obs_files)}")
     return usable_obs_files, not_usable_obs_file
 
-def save_observation_files(usable_obs_files, not_usable_obs_file):
+def save_observation_files(
+    usable_obs_files: List[str], not_usable_obs_file: List[str]
+) -> None:
+    """Persist the (usable, not-usable) obs-file partitions as two JSON dumps."""
     # Saving usable_obs_files
     with open('usable_obs_files.json', 'w') as f:
         json.dump(usable_obs_files, f, indent=4)
