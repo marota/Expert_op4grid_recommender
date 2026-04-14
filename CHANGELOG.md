@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-04-14
+
+### Added
+
+- **`PowerReductionAction`** (`pypowsybl_backend/action_space.py`, PR #74): New action class that modifies active power setpoints (`target_p`) for loads and generators without electrically disconnecting them. Enables partial load shedding and renewable curtailment with maintained grid connectivity and voltage support. Integrated via `set_load_p` and `set_gen_p` action dictionary keys with `update_loads()` / `update_generators()` batch calls.
+- **Renewable curtailment discovery fully integrated** (`action_evaluation/discovery/`, PR #73): `find_relevant_renewable_curtailment` is now part of the main analysis pipeline. Candidates are identified on upstream nodes of the constrained path among wind/solar generators. Controlled by `ENABLE_RENEWABLE_CURTAILMENT`, `RENEWABLE_CURTAILMENT_MARGIN`, `RENEWABLE_CURTAILMENT_MIN_MW`, and `RENEWABLE_ENERGY_SOURCES` configuration flags.
+- **`ENABLE_RENEWABLE_CURTAILMENT` / `ENABLE_LOAD_SHEDDING` config flags** (PR #73): Explicit boolean switches to include or exclude heuristic action types from the analysis without touching `MIN_*` counts.
+- **Pydantic-based configuration** (PR #84): `config.py` and `config_basic.py` define a `Settings(BaseSettings)` class with type validation, range/bound checking, and `EXPERT_OP4GRID_*` environment variable overrides. Module-level attribute publishing is preserved, so existing `config.DATE = ...` mutation and `from ... import DATE` call sites continue to work unchanged.
+- **`quality` optional dependency group** (PR #84): `pip install -e .[quality]` installs `radon>=6.0`, `vulture>=2.10`, `interrogate>=1.5`, and `ruff>=0.5` for static analysis.
+- **Comprehensive discovery caching** (`action_evaluation/discovery/_base.py`, PR #76): Six cache helpers that eliminate repeated expensive traversals on large networks — `_get_edge_data_cache()`, `_get_blue_edge_names_set()`, `_get_subs_with_loads()`, `_get_subs_with_renewable_gens()`, `_build_line_capacity_map()`, and `_build_node_flow_cache()`.
+- **Baseline simulation hoisted outside action loops** (PR #76): For load shedding and renewable curtailment, the N-1 baseline rho is computed once per scenario and reused across all candidate actions.
+- **`SimulationEnvironment` caching** (PR #72): Avoids redundant environment initialisation on repeated analysis calls.
+- **`skip_enrichment` parameter** on the detection phase (PR #72): Bypasses redundant action enrichment during the initial overload detection step.
+- **New tests**: `test_graph_analysis.py` (PR #78) for graph analysis helpers and `test_environment_pypowsybl.py` (PR #78) for pypowsybl environment setup logic.
+- **Design and quality documents** (PR #71, PR #77): `docs/renewable_curtailment_design.md` (algorithm, scoring, data requirements) and `docs/code-quality-analysis.md` (static analysis snapshot: god-module inventory, testing gaps, TODO/FIXME catalogue).
+- **Type hints and docstrings** back-filled on `load_training_data.py`, `load_evaluation_data.py`, `repas.py`, `make_env_utils.py`, `make_assistant_env.py`, and `make_training_env.py` (PR #84).
+
+### Changed
+
+- **Discovery module refactored to mixin architecture** (PR #78): The monolithic `discovery.py` (3001 lines, 42+ methods) is split into `action_evaluation/discovery/` with nine focused mixin modules:
+  - `_base.py` — `DiscovererBase` with shared state, caches, and simulation plumbing
+  - `_line_reconnection.py` — line reconnection discovery
+  - `_line_disconnection.py` — line disconnection scoring
+  - `_node_merging.py` — bus merge discovery and delta-theta scoring
+  - `_node_splitting.py` — bus split discovery (AlphaDeesp)
+  - `_load_shedding.py` — load shedding candidate identification
+  - `_renewable_curtailment.py` — renewable curtailment candidate identification
+  - `_pst.py` — phase-shifter transformer tap discovery
+  - `_orchestrator.py` — top-level pipeline orchestration and scoring assembly
+- **Load shedding and curtailment emit `PowerReductionAction`** (PR #74): Both discovery methods now produce partial setpoint reductions (`set_load_p` / `set_gen_p`) instead of `set_bus` disconnections. Action metadata includes `action_mode`, `target_p_MW`, and `reduction_MW`.
+- **`ActionClassifier` enhanced** (PR #73, PR #74): Now supports `open_load`, `open_gen`, `load_power_reduction`, and `gen_power_reduction` action types; handles `None` description input without raising `AttributeError`.
+- **Superposition theorem filtering** (PR #73): `curtail_*` and `load_shedding_*` action IDs are excluded from the beta-coefficient linear solver, which assumes standard topological coupling not applicable to power-setpoint actions.
+- **Vectorised topology cache** (PR #72): `NetworkTopologyCache` construction uses vectorised operations instead of per-element Python loops — faster initialisation and update.
+- **Environment variable for training data path** (PR #77): `load_training_data.py` reads `EXPERT_OP4GRID_TRAINING_OBS_DIR` instead of a hardcoded developer path.
+- **`sys.path` manipulation removed from `main.py`** (PR #77, PR #84): The package now relies on proper editable installation (`pip install -e .`) rather than runtime path hacking.
+
+### Fixed
+
+- **`ActionClassifier` robustness** (PR #73): `None` description no longer raises `AttributeError` during type identification.
+- **`NoneType` and `AttributeError` regressions** (PR #73): Fixed during integration of renewable curtailment in `discovery.py` and `classifier.py`.
+- **Topology reconstruction for mixed actions** (PR #78): `_build_action_entry_from_topology` robustified for combined topology/switch action formats.
+- **Duplicate config definitions** (PR #77): Removed second (silent last-write-wins) definitions of `RENEWABLE_CURTAILMENT_MARGIN`, `RENEWABLE_CURTAILMENT_MIN_MW`, `RENEWABLE_ENERGY_SOURCES`, and `PYPOWSYBL_FAST_MODE`.
+
+### Removed
+
+- **`observation_timers.py`** — 1052-line stale fork of `observation.py` with zero importers; deleted (PR #77).
+- **`conversion_actions_repas_original.py`** — 274-line superseded stub with zero importers; deleted (PR #77).
+
+### Dependencies
+
+- Added `pydantic>=2.0` and `pydantic-settings>=2.0` as core runtime dependencies (PR #84).
+
+---
+
 ## [0.1.9] - 2026-03-25
 
 ### Added
