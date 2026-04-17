@@ -30,8 +30,9 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
                                   thermal_limits_file: Optional[str] = None,
                                   is_DC: bool = False,
                                   threshold_thermal_limit: float = 0.95,
-                                  network: Optional[pp.network.Network] = None
-                                  ) -> Tuple[SimulationEnvironment, PypowsyblObservation, str]:
+                                  network: Optional[pp.network.Network] = None,
+                                  skip_initial_obs: bool = False
+                                  ) -> Tuple[SimulationEnvironment, Optional[PypowsyblObservation], str]:
     """
     Creates a pypowsybl-based simulation environment and retrieves the initial observation.
 
@@ -52,11 +53,19 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
             `env_folder` / `env_name` are still used to locate companion files
             (thermal limits, non-reconnectable list), but NOT to locate the
             network itself. Defaults to None (load from disk).
+        skip_initial_obs (bool, optional): When True, do NOT call `env.get_obs()`
+            — returns `obs=None` in the result tuple. Building the first
+            `PypowsyblObservation` on a large grid is ~3-5 s of pypowsybl
+            reads (get_lines/buses/generators/loads). Callers that don't
+            consume the returned `obs` (e.g. HTTP backends that only use
+            `env`) can set this flag to save that time. Subsequent
+            `env.get_obs()` calls remain functional. Defaults to False.
 
     Returns:
         tuple: A tuple containing:
             - env (SimulationEnvironment): The initialized environment object.
-            - obs (PypowsyblObservation): The initial observation object.
+            - obs (PypowsyblObservation | None): The initial observation — `None`
+              when `skip_initial_obs=True`.
             - path_env (str): The path to the environment.
     """
     env_path = Path(env_folder) / env_name
@@ -127,8 +136,10 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
         env._use_dc = True
         env.network_manager._default_dc = True
 
-    # Get initial observation
-    obs = env.get_obs()
+    # Get initial observation — skipped when the caller doesn't consume it.
+    # Building the first PypowsyblObservation on a large grid is several
+    # seconds of pypowsybl reads; skipping saves that time.
+    obs = None if skip_initial_obs else env.get_obs()
 
     return env, obs, str(env_path)
 
@@ -136,8 +147,9 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
 def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetime] = None,
                                          env_folder: Optional[Union[str, Path]] = None,
                                          env_name: Optional[str] = None,
-                                         network: Optional[pp.network.Network] = None
-                                         ) -> Tuple[SimulationEnvironment, PypowsyblObservation, str, str,
+                                         network: Optional[pp.network.Network] = None,
+                                         skip_initial_obs: bool = False
+                                         ) -> Tuple[SimulationEnvironment, Optional[PypowsyblObservation], str, str,
                                                     Optional[List], Dict, List[str], List[str]]:
     """
     Sets up the pypowsybl environment and loads related configuration files.
@@ -185,6 +197,7 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
         is_DC=config.USE_DC_LOAD_FLOW,
         threshold_thermal_limit=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 0.95),
         network=network,
+        skip_initial_obs=skip_initial_obs,
     )
     
     # For static analysis, use env_name as chronic_name
@@ -357,13 +370,17 @@ def get_env_first_obs(env_folder, env_name, use_evaluation_config, date=None, is
 
 
 def setup_environment_configs(analysis_date: datetime.datetime,
-                               network: Optional[pp.network.Network] = None):
+                               network: Optional[pp.network.Network] = None,
+                               skip_initial_obs: bool = False):
     """
     Compatibility wrapper that uses pypowsybl backend.
 
     This function provides the same interface as the original grid2op version.
     `network` is an optional pre-loaded Network passed through to
     `setup_environment_configs_pypowsybl` — see that docstring for the
-    load-deduplication use case.
+    load-deduplication use case. `skip_initial_obs` skips the first
+    `env.get_obs()` call, returning `obs=None` in the tuple — useful when
+    the caller only consumes the env and not the obs (saves ~3-5 s on
+    large grids).
     """
-    return setup_environment_configs_pypowsybl(analysis_date, network=network)
+    return setup_environment_configs_pypowsybl(analysis_date, network=network, skip_initial_obs=skip_initial_obs)

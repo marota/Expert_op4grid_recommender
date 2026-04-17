@@ -190,7 +190,7 @@ def test_setup_environment_configs_delegates_to_pypowsybl_wrapper():
     # `network=None` is threaded through the compatibility wrapper so
     # external callers that pass a pre-loaded Network survive the
     # compat layer too.
-    mocked.assert_called_once_with("2024-01-01", network=None)
+    mocked.assert_called_once_with("2024-01-01", network=None, skip_initial_obs=False)
     assert result == "sentinel"
 
 
@@ -201,7 +201,7 @@ def test_setup_environment_configs_forwards_injected_network():
         fake_net = MagicMock(name="preloaded_network")
         env_pp.setup_environment_configs("2024-01-01", network=fake_net)
 
-    mocked.assert_called_once_with("2024-01-01", network=fake_net)
+    mocked.assert_called_once_with("2024-01-01", network=fake_net, skip_initial_obs=False)
 
 
 # ---------------------------------------------------------------------------
@@ -278,3 +278,53 @@ def test_get_env_first_obs_injected_network_handles_direct_xiidm_env_name(tmp_pa
     call_kwargs = fake_cls.call_args.kwargs
     assert call_kwargs["network"] is fake_net
     assert call_kwargs["network_path"] is None
+
+
+# ---------------------------------------------------------------------------
+# skip_initial_obs (avoid the ~3-5 s first env.get_obs() when obs not used)
+# ---------------------------------------------------------------------------
+
+def test_get_env_first_obs_skips_get_obs_when_requested(tmp_path, fake_sim_env):
+    """When `skip_initial_obs=True`, the first `env.get_obs()` call is
+    skipped and the returned `obs` is None. Useful for HTTP backends that
+    consume only `env` (e.g. to pass it as `prebuilt_env_context`)."""
+    fake_cls, fake_instance = fake_sim_env
+    env_name = "env_x"
+    subdir = tmp_path / env_name
+    subdir.mkdir()
+    (subdir / "grid.xiidm").write_text("<network/>")
+
+    _, obs, _ = env_pp.get_env_first_obs_pypowsybl(
+        env_folder=str(tmp_path),
+        env_name=env_name,
+        skip_initial_obs=True,
+    )
+
+    assert obs is None
+    fake_instance.get_obs.assert_not_called()
+
+
+def test_get_env_first_obs_calls_get_obs_by_default(tmp_path, fake_sim_env):
+    """Default path (skip_initial_obs=False) still builds the first obs."""
+    fake_cls, fake_instance = fake_sim_env
+    env_name = "env_y"
+    subdir = tmp_path / env_name
+    subdir.mkdir()
+    (subdir / "grid.xiidm").write_text("<network/>")
+
+    _, obs, _ = env_pp.get_env_first_obs_pypowsybl(
+        env_folder=str(tmp_path),
+        env_name=env_name,
+    )
+
+    fake_instance.get_obs.assert_called_once()
+    assert obs is fake_instance.get_obs.return_value
+
+
+def test_setup_environment_configs_forwards_skip_initial_obs():
+    """The flag must thread through the compat wrapper unchanged."""
+    with patch.object(env_pp, "setup_environment_configs_pypowsybl") as mocked:
+        mocked.return_value = "sentinel"
+        env_pp.setup_environment_configs("2024-01-01", skip_initial_obs=True)
+
+    mocked.assert_called_once_with("2024-01-01", network=None, skip_initial_obs=True)

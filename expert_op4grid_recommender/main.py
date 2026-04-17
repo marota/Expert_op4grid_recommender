@@ -144,15 +144,19 @@ def build_overflow_graph_grid2op(env, obs_simu_defaut, lines_overloaded_ids_kept
 # PYPOWSYBL BACKEND FUNCTIONS  
 # =============================================================================
 
-def setup_environment_pypowsybl(analysis_date: Optional[datetime], network=None) -> Tuple:
+def setup_environment_pypowsybl(analysis_date: Optional[datetime], network=None,
+                                 skip_initial_obs: bool = False) -> Tuple:
     """Setup environment using pure pypowsybl backend.
 
     `network` is an optional pre-loaded `pp.network.Network` forwarded to
     `setup_environment_configs_pypowsybl` to avoid re-parsing the .xiidm
     file when the caller already holds a Network instance.
+    `skip_initial_obs=True` skips the first `env.get_obs()` call (returns
+    `obs=None`) — saves ~3-5 s on large grids when the caller doesn't
+    consume the initial observation.
     """
     from expert_op4grid_recommender.environment_pypowsybl import setup_environment_configs_pypowsybl
-    return setup_environment_configs_pypowsybl(analysis_date, network=network)
+    return setup_environment_configs_pypowsybl(analysis_date, network=network, skip_initial_obs=skip_initial_obs)
 
 
 def get_env_first_obs_pypowsybl(env_folder, env_name, use_evaluation_config, date, is_DC):
