@@ -278,3 +278,63 @@ def test_get_env_first_obs_injected_network_handles_direct_xiidm_env_name(tmp_pa
     call_kwargs = fake_cls.call_args.kwargs
     assert call_kwargs["network"] is fake_net
     assert call_kwargs["network_path"] is None
+
+
+# ---------------------------------------------------------------------------
+# skip_non_reconnectable_detection (deferred-detection path)
+# ---------------------------------------------------------------------------
+
+def test_setup_environment_configs_runs_detection_by_default(tmp_path):
+    """By default (no flag), the setup function must run the topology
+    detection of non-reconnectable lines — preserves backward compat."""
+    from unittest.mock import MagicMock, patch
+
+    fake_env = MagicMock(name="env")
+    fake_env.network_manager.detect_non_reconnectable_lines.return_value = ["line_topo"]
+    fake_env.network_manager.network.get_operational_limits.return_value = MagicMock()
+    fake_env.name_line = []
+
+    with patch.object(env_pp, "load_actions", return_value={}), \
+         patch.object(env_pp, "get_env_first_obs_pypowsybl",
+                      return_value=(fake_env, MagicMock(), str(tmp_path))), \
+         patch.object(env_pp, "load_interesting_lines", side_effect=FileNotFoundError()), \
+         patch.object(env_pp.config, "ENV_FOLDER", str(tmp_path)), \
+         patch.object(env_pp.config, "ENV_NAME", "case"), \
+         patch.object(env_pp.config, "ACTION_FILE_PATH", "/tmp/actions.json"), \
+         patch.object(env_pp.config, "IGNORE_LINES_MONITORING", True):
+        result = env_pp.setup_environment_configs_pypowsybl()
+
+    fake_env.network_manager.detect_non_reconnectable_lines.assert_called_once()
+    lines_non_reco = result[6]
+    assert "line_topo" in lines_non_reco
+
+
+def test_setup_environment_configs_skips_detection_when_flag_set(tmp_path):
+    """When skip_non_reconnectable_detection=True, the slow topology walk
+    MUST be skipped. The caller is then responsible for computing it
+    in the background. See the deferred-detection pattern in
+    Co-Study4Grid's recommender_service."""
+    from unittest.mock import MagicMock, patch
+
+    fake_env = MagicMock(name="env")
+    fake_env.network_manager.detect_non_reconnectable_lines.return_value = ["should_not_appear"]
+    fake_env.network_manager.network.get_operational_limits.return_value = MagicMock()
+    fake_env.name_line = []
+
+    with patch.object(env_pp, "load_actions", return_value={}), \
+         patch.object(env_pp, "get_env_first_obs_pypowsybl",
+                      return_value=(fake_env, MagicMock(), str(tmp_path))), \
+         patch.object(env_pp, "load_interesting_lines", side_effect=FileNotFoundError()), \
+         patch.object(env_pp.config, "ENV_FOLDER", str(tmp_path)), \
+         patch.object(env_pp.config, "ENV_NAME", "case"), \
+         patch.object(env_pp.config, "ACTION_FILE_PATH", "/tmp/actions.json"), \
+         patch.object(env_pp.config, "IGNORE_LINES_MONITORING", True):
+        result = env_pp.setup_environment_configs_pypowsybl(
+            skip_non_reconnectable_detection=True,
+        )
+
+    # The expensive call MUST NOT have been made.
+    fake_env.network_manager.detect_non_reconnectable_lines.assert_not_called()
+    # And its would-be result must NOT leak into the returned list.
+    lines_non_reco = result[6]
+    assert "should_not_appear" not in lines_non_reco
