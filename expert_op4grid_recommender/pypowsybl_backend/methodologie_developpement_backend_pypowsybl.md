@@ -79,6 +79,8 @@ Cela montre que le développement n'est pas resté sur des réseaux jouets (IEEE
 
 6. **Optimisations progressives** : caching des mappings (nom→indice, éléments par poste, limites thermiques), vectorisation numpy/pandas, opérations batch, fusion de passes de load flow (`compute_flow_changes_and_rho`). Chaque optimisation validée par non-régression sur les résultats.
 
+---
+
 ### Phase 1 — Les fondations : `NetworkManager`
 
 Le développement a commencé par la couche la plus basse : l'accès direct au réseau pypowsybl.
