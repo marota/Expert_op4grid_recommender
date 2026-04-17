@@ -136,8 +136,7 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
 def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetime] = None,
                                          env_folder: Optional[Union[str, Path]] = None,
                                          env_name: Optional[str] = None,
-                                         network: Optional[pp.network.Network] = None,
-                                         skip_non_reconnectable_detection: bool = False
+                                         network: Optional[pp.network.Network] = None
                                          ) -> Tuple[SimulationEnvironment, PypowsyblObservation, str, str,
                                                     Optional[List], Dict, List[str], List[str]]:
     """
@@ -158,15 +157,6 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
             which forwards it to `SimulationEnvironment`. Useful when an outer
             caller (HTTP backend, notebook, …) already holds a Network instance
             — avoids a duplicate ~1-5 s pypowsybl parse on large grids.
-        skip_non_reconnectable_detection: When True, skip the (potentially slow,
-            ~2-10 s on large grids) `env.network_manager.detect_non_reconnectable_lines()`
-            topology walk. The returned `lines_non_reconnectable` list will then
-            contain ONLY the lines read from the `non_reconnectable_lines.csv`
-            file plus `DELETED_LINE_NAME`. Callers that set this flag are
-            expected to compute the topology-based detection themselves, typically
-            in a background thread running during client render — see the
-            deferred-detection pattern in `recommender_service`. Default False
-            preserves full backward compatibility.
 
     Returns:
         tuple: A tuple containing:
@@ -218,19 +208,15 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
     # Detect non-reconnectable lines from switch topology in the grid context.
     # CSV file per chronic remains the authoritative source, but we supplement with
     # topology detection for robustness (e.g. for bare environments with specific dates).
-    # `skip_non_reconnectable_detection` lets callers defer this ~2-10 s topology
-    # walk to a background thread; they must then call
-    # `env.network_manager.detect_non_reconnectable_lines()` themselves.
-    if not skip_non_reconnectable_detection:
-        try:
-            detected_non_reco = env.network_manager.detect_non_reconnectable_lines()
-            if detected_non_reco:
-                print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
-            for line in detected_non_reco:
-                if line not in lines_non_reconnectable:
-                    lines_non_reconnectable.append(line)
-        except Exception as e:
-            print(f"Warning: Could not detect non-reconnectable lines from grid topology: {e}")
+    try:
+        detected_non_reco = env.network_manager.detect_non_reconnectable_lines()
+        if detected_non_reco:
+            print(f"Detected {len(detected_non_reco)} non-reconnectable lines from grid topology: {detected_non_reco}")
+        for line in detected_non_reco:
+            if line not in lines_non_reconnectable:
+                lines_non_reconnectable.append(line)
+    except Exception as e:
+        print(f"Warning: Could not detect non-reconnectable lines from grid topology: {e}")
 
     # Add deleted lines
     lines_non_reconnectable += list(DELETED_LINE_NAME)
