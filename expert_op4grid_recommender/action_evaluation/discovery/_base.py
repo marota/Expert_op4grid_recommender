@@ -663,9 +663,10 @@ class DiscovererBase:
                             # Newly overloaded line: compute binding flow margin using user-revised formula
                             # ratio = capacity_l * (rho_after - 1) / (rho_after - rho_before)
                             ratio = (
-                                capacity_l
-                                * (rho_after - 1.0)
-                                / (rho_after - rho_before)
+                                max_overload_flow / (rho_after - rho_before)*(1- rho_before)
+                                #capacity_l*
+                                #* (rho_after - 1.0)
+                                #/ (rho_after - rho_before)
                             )
                             if ratio > 0:
                                 max_redispatch = min(max_redispatch, ratio)

@@ -39,99 +39,176 @@ from expert_op4grid_recommender.utils import repas
 # pypowsybl version compatibility helpers
 # =============================================================================
 
-def _get_injection_with_bus_breaker_info(network: Network, getter_name: str) -> pd.DataFrame:
+def _is_node_breaker_network(network: Network) -> bool:
+    """
+    Detect whether the network uses node-breaker topology.
+
+    Checks the topology_kind attribute of voltage levels. Returns True if
+    any voltage level uses NODE_BREAKER topology.
+    """
+    vls = network.get_voltage_levels(attributes=['topology_kind'])
+    if vls.empty or 'topology_kind' not in vls.columns:
+        return False
+    return (vls['topology_kind'] == 'NODE_BREAKER').any()
+
+
+def _node_breaker_node_id(vl_id: str, node: int) -> str:
+    """
+    Build a unique string node identifier for node-breaker topology.
+
+    In node-breaker mode, nodes are integers local to each voltage level.
+    We prefix with the VL ID to make them globally unique, matching the
+    format used for bus-breaker bus IDs.
+
+    Parameters
+    ----------
+    vl_id : str
+        Voltage level ID
+    node : int
+        Integer node number within the voltage level
+
+    Returns
+    -------
+    str
+        Unique node identifier, e.g. "VL_xxx#3"
+    """
+    return f"{vl_id}#{node}"
+
+
+def _get_injection_with_bus_breaker_info(network: Network, getter_name: str,
+                                          node_breaker: bool = False) -> pd.DataFrame:
     """
     Get injection DataFrame with bus-breaker bus information.
-    
-    Handles pypowsybl version differences in attribute naming.
-    
+
+    Handles both bus-breaker and node-breaker topologies. In node-breaker mode,
+    uses the 'node' column (integer) and converts to a VL-prefixed string ID
+    for consistency with the Union-Find algorithm.
+
     Parameters
     ----------
     network : Network
         The pypowsybl network
     getter_name : str
         Name of the getter method ('get_loads', 'get_generators', 'get_shunt_compensators')
-        
+    node_breaker : bool
+        If True, use node-breaker column ('node') instead of bus-breaker columns
+
     Returns
     -------
     pd.DataFrame
         DataFrame with 'bus_breaker_bus_id' and 'voltage_level_id' columns
     """
     getter = getattr(network, getter_name)
-    
+
     # Get all attributes to see what's available
     df = getter(all_attributes=True)
-    
+
     if df.empty:
         # Return empty DataFrame with expected columns
         return pd.DataFrame(columns=['bus_breaker_bus_id', 'voltage_level_id'])
-    
-    # Determine which column to use for bus-breaker bus ID
-    # Priority order: bus_breaker_bus_id > connectable_bus_id > bus_id
+
+    if node_breaker and 'node' in df.columns:
+        # Node-breaker mode: use integer node, prefixed with VL ID for uniqueness
+        bus_ids = [
+            _node_breaker_node_id(row['voltage_level_id'], int(row['node']))
+            if pd.notna(row['node']) else None
+            for _, row in df.iterrows()
+        ]
+        result = pd.DataFrame({
+            'bus_breaker_bus_id': bus_ids,
+            'voltage_level_id': df['voltage_level_id']
+        }, index=df.index)
+        return result
+
+    # Bus-breaker mode: priority order: bus_breaker_bus_id > connectable_bus_id > bus_id
     bus_col = None
     for candidate in ['bus_breaker_bus_id', 'connectable_bus_id', 'bus_id']:
         if candidate in df.columns:
             bus_col = candidate
             break
-    
+
     if bus_col is None:
         raise ValueError(f"Cannot find bus column in {getter_name}. Available columns: {list(df.columns)}")
-    
+
     # Build result DataFrame
     result = pd.DataFrame({
         'bus_breaker_bus_id': df[bus_col],
         'voltage_level_id': df['voltage_level_id']
     }, index=df.index)
-    
+
     return result
 
 
-def _get_branch_with_bus_breaker_info(network: Network, getter_name: str) -> pd.DataFrame:
+def _get_branch_with_bus_breaker_info(network: Network, getter_name: str,
+                                       node_breaker: bool = False) -> pd.DataFrame:
     """
     Get branch DataFrame with bus-breaker bus information for both ends.
-    
-    Handles pypowsybl version differences in attribute naming.
-    
+
+    Handles both bus-breaker and node-breaker topologies. In node-breaker mode,
+    uses the 'node1'/'node2' columns (integers) and converts to VL-prefixed
+    string IDs for consistency with the Union-Find algorithm.
+
     Parameters
     ----------
     network : Network
         The pypowsybl network
     getter_name : str
         Name of the getter method ('get_branches', 'get_lines')
-        
+    node_breaker : bool
+        If True, use node-breaker columns ('node1', 'node2') instead of bus-breaker
+
     Returns
     -------
     pd.DataFrame
-        DataFrame with 'bus_breaker_bus1_id', 'bus_breaker_bus2_id', 
+        DataFrame with 'bus_breaker_bus1_id', 'bus_breaker_bus2_id',
         'voltage_level1_id', 'voltage_level2_id' columns
     """
     getter = getattr(network, getter_name)
-    
+
     # Get all attributes to see what's available
     df = getter(all_attributes=True)
-    
+
     if df.empty:
         # Return empty DataFrame with expected columns
-        return pd.DataFrame(columns=['bus_breaker_bus1_id', 'bus_breaker_bus2_id', 
+        return pd.DataFrame(columns=['bus_breaker_bus1_id', 'bus_breaker_bus2_id',
                                       'voltage_level1_id', 'voltage_level2_id'])
-    
-    # Find bus1 column
+
+    if node_breaker and 'node1' in df.columns and 'node2' in df.columns:
+        # Node-breaker mode: use integer nodes, prefixed with VL ID
+        bus1_ids = [
+            _node_breaker_node_id(row['voltage_level1_id'], int(row['node1']))
+            if pd.notna(row['node1']) else None
+            for _, row in df.iterrows()
+        ]
+        bus2_ids = [
+            _node_breaker_node_id(row['voltage_level2_id'], int(row['node2']))
+            if pd.notna(row['node2']) else None
+            for _, row in df.iterrows()
+        ]
+        result = pd.DataFrame({
+            'bus_breaker_bus1_id': bus1_ids,
+            'bus_breaker_bus2_id': bus2_ids,
+            'voltage_level1_id': df['voltage_level1_id'],
+            'voltage_level2_id': df['voltage_level2_id']
+        }, index=df.index)
+        return result
+
+    # Bus-breaker mode
     bus1_col = None
     for candidate in ['bus_breaker_bus1_id', 'connectable_bus1_id', 'bus1_id']:
         if candidate in df.columns:
             bus1_col = candidate
             break
-    
-    # Find bus2 column
+
     bus2_col = None
     for candidate in ['bus_breaker_bus2_id', 'connectable_bus2_id', 'bus2_id']:
         if candidate in df.columns:
             bus2_col = candidate
             break
-    
+
     if bus1_col is None or bus2_col is None:
         raise ValueError(f"Cannot find bus columns in {getter_name}. Available columns: {list(df.columns)}")
-    
+
     # Build result DataFrame
     result = pd.DataFrame({
         'bus_breaker_bus1_id': df[bus1_col],
@@ -139,52 +216,82 @@ def _get_branch_with_bus_breaker_info(network: Network, getter_name: str) -> pd.
         'voltage_level1_id': df['voltage_level1_id'],
         'voltage_level2_id': df['voltage_level2_id']
     }, index=df.index)
-    
+
     return result
 
 
-def _get_switches_with_topology(network: Network) -> pd.DataFrame:
+def _get_switches_with_topology(network: Network,
+                                  node_breaker: bool = False) -> pd.DataFrame:
     """
-    Get switches DataFrame with bus-breaker topology information.
-    
-    Handles pypowsybl version differences in attribute naming.
-    
+    Get switches DataFrame with topology information.
+
+    Handles both bus-breaker and node-breaker topologies. In node-breaker mode,
+    uses 'node1'/'node2' columns and converts to VL-prefixed string IDs.
+
     Parameters
     ----------
     network : Network
         The pypowsybl network
-        
+    node_breaker : bool
+        If True, use node-breaker columns ('node1', 'node2') with VL-prefixed IDs
+
     Returns
     -------
     pd.DataFrame
-        DataFrame with 'voltage_level_id', 'bus_breaker_bus1_id', 
+        DataFrame with 'voltage_level_id', 'bus_breaker_bus1_id',
         'bus_breaker_bus2_id', 'open' columns
     """
     # Get all attributes to see what's available
     df = network.get_switches(all_attributes=True)
-    
+
     if df.empty:
         # Return empty DataFrame with expected columns
-        return pd.DataFrame(columns=['voltage_level_id', 'bus_breaker_bus1_id', 
+        return pd.DataFrame(columns=['voltage_level_id', 'bus_breaker_bus1_id',
                                       'bus_breaker_bus2_id', 'open'])
-    
-    # Find bus1 column
+
+    if node_breaker and 'node1' in df.columns and 'node2' in df.columns:
+        # Node-breaker mode: use integer nodes, prefixed with VL ID
+        bus1_ids = [
+            _node_breaker_node_id(row['voltage_level_id'], int(row['node1']))
+            if pd.notna(row['node1']) else None
+            for _, row in df.iterrows()
+        ]
+        bus2_ids = [
+            _node_breaker_node_id(row['voltage_level_id'], int(row['node2']))
+            if pd.notna(row['node2']) else None
+            for _, row in df.iterrows()
+        ]
+        result = pd.DataFrame({
+            'voltage_level_id': df['voltage_level_id'],
+            'bus_breaker_bus1_id': bus1_ids,
+            'bus_breaker_bus2_id': bus2_ids,
+            'open': df['open']
+        }, index=df.index)
+        return result
+
+    # Bus-breaker mode
     bus1_col = None
     for candidate in ['bus_breaker_bus1_id', 'node1']:
         if candidate in df.columns:
+            # Check that bus_breaker columns have actual values (not empty strings)
+            if candidate == 'bus_breaker_bus1_id':
+                if (df[candidate] == '').all():
+                    continue  # Skip empty bus-breaker columns
             bus1_col = candidate
             break
-    
-    # Find bus2 column  
+
     bus2_col = None
     for candidate in ['bus_breaker_bus2_id', 'node2']:
         if candidate in df.columns:
+            if candidate == 'bus_breaker_bus2_id':
+                if (df[candidate] == '').all():
+                    continue
             bus2_col = candidate
             break
-    
+
     if bus1_col is None or bus2_col is None:
         raise ValueError(f"Cannot find bus/node columns in get_switches. Available columns: {list(df.columns)}")
-    
+
     # Build result DataFrame
     result = pd.DataFrame({
         'voltage_level_id': df['voltage_level_id'],
@@ -192,7 +299,7 @@ def _get_switches_with_topology(network: Network) -> pd.DataFrame:
         'bus_breaker_bus2_id': df[bus2_col],
         'open': df['open']
     }, index=df.index)
-    
+
     return result
 
 
@@ -385,28 +492,31 @@ class NetworkTopologyCache:
     def __init__(self, n: Network):
         """
         Build topology cache from network.
-        
+
         Parameters
         ----------
         n : Network
             The pypowsybl network object.
         """
         self.network = n
-        
+
+        # Detect node-breaker topology
+        self._node_breaker = _is_node_breaker_network(n)
+
         # Get switch data with topology information (using compatibility helper)
-        self._switches_df = _get_switches_with_topology(n)
-        
+        self._switches_df = _get_switches_with_topology(n, node_breaker=self._node_breaker)
+
         # Get element DataFrames with bus connections (using compatibility helpers)
-        # Use bus_breaker_bus_id to get the node ID in the bus-breaker topology
-        self._loads_df = _get_injection_with_bus_breaker_info(n, 'get_loads')
-        self._generators_df = _get_injection_with_bus_breaker_info(n, 'get_generators')
-        self._shunts_df = _get_injection_with_bus_breaker_info(n, 'get_shunt_compensators')
-        
-        # For branches, get bus_breaker_bus1_id and bus_breaker_bus2_id
-        self._branches_df = _get_branch_with_bus_breaker_info(n, 'get_branches')
-        
+        # In node-breaker mode, uses 'node' columns with VL-prefixed string IDs
+        self._loads_df = _get_injection_with_bus_breaker_info(n, 'get_loads', node_breaker=self._node_breaker)
+        self._generators_df = _get_injection_with_bus_breaker_info(n, 'get_generators', node_breaker=self._node_breaker)
+        self._shunts_df = _get_injection_with_bus_breaker_info(n, 'get_shunt_compensators', node_breaker=self._node_breaker)
+
+        # For branches, get bus connection info (node-breaker uses node1/node2)
+        self._branches_df = _get_branch_with_bus_breaker_info(n, 'get_branches', node_breaker=self._node_breaker)
+
         # Get lines separately (lines connect to external network, transformers don't)
-        self._lines_df = _get_branch_with_bus_breaker_info(n, 'get_lines')
+        self._lines_df = _get_branch_with_bus_breaker_info(n, 'get_lines', node_breaker=self._node_breaker)
         
         # Get buses with connected_component info to identify main component
         self._buses_df = n.get_buses(attributes=['voltage_level_id', 'connected_component'])
@@ -745,31 +855,34 @@ class NetworkTopologyCache:
             if not vl_map:
                 continue
 
-            # Collect all positive raw bus values to build a per-VL reindex map.
+            # Collect all non-negative raw bus values to build a per-VL reindex map.
             # All element types share the same reindexing so bus numbers are
-            # consistent across types within a VL.
+            # consistent across types within a VL.  Bus 0 is a valid Union-Find
+            # root and must be remapped to grid2op bus 1.
             raw_buses: set = set()
             for branch_id in self._vl_branches_or.get(vl_id, []):
                 bus = vl_map.get(self._branch_or_to_node.get(branch_id))
-                if bus and bus > 0:
+                if bus is not None and bus >= 0:
                     raw_buses.add(bus)
             for branch_id in self._vl_branches_ex.get(vl_id, []):
                 bus = vl_map.get(self._branch_ex_to_node.get(branch_id))
-                if bus and bus > 0:
+                if bus is not None and bus >= 0:
                     raw_buses.add(bus)
             for load_id in self._vl_loads.get(vl_id, []):
                 bus = vl_map.get(self._load_to_node.get(load_id))
-                if bus and bus > 0:
+                if bus is not None and bus >= 0:
                     raw_buses.add(bus)
             for gen_id in self._vl_generators.get(vl_id, []):
                 bus = vl_map.get(self._gen_to_node.get(gen_id))
-                if bus and bus > 0:
+                if bus is not None and bus >= 0:
                     raw_buses.add(bus)
             for shunt_id in self._vl_shunts.get(vl_id, []):
                 bus = vl_map.get(self._shunt_to_node.get(shunt_id))
-                if bus and bus > 0:
+                if bus is not None and bus >= 0:
                     raw_buses.add(bus)
 
+            # Remap raw Union-Find roots (0-based) to grid2op buses (1-based).
+            # Bus 0 → 1, bus N → N+1.  Negative values (-1) mean disconnected.
             bus_remap: Dict[int, int] = {
                 old: new for new, old in enumerate(sorted(raw_buses), start=1)
             }
@@ -781,7 +894,7 @@ class NetworkTopologyCache:
                     if node:
                         raw = vl_map.get(node)
                         if raw is not None:
-                            out[eid] = bus_remap.get(raw, raw) if raw > 0 else raw
+                            out[eid] = bus_remap.get(raw, raw) if raw >= 0 else raw
                         else:
                             out[eid] = -1
 
