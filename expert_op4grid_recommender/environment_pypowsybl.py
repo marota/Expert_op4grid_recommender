@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional, Dict, List, Tuple, Any, Union
 
 import numpy as np
+import pypowsybl as pp
 
 from expert_op4grid_recommender.pypowsybl_backend import (
     SimulationEnvironment,
@@ -24,11 +25,12 @@ from expert_op4grid_recommender import config
 from expert_op4grid_recommender.data_loader import load_interesting_lines, DELETED_LINE_NAME, load_actions
 
 
-def get_env_first_obs_pypowsybl(env_folder: Union[str, Path], 
+def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
                                   env_name: str,
                                   thermal_limits_file: Optional[str] = None,
                                   is_DC: bool = False,
-                                  threshold_thermal_limit: float = 0.95
+                                  threshold_thermal_limit: float = 0.95,
+                                  network: Optional[pp.network.Network] = None
                                   ) -> Tuple[SimulationEnvironment, PypowsyblObservation, str]:
     """
     Creates a pypowsybl-based simulation environment and retrieves the initial observation.
@@ -42,6 +44,14 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
         thermal_limits_file (str, optional): Name of thermal limits JSON file.
         is_DC (bool, optional): If True, use DC load flow instead of AC. Defaults to False.
         threshold_thermal_limit (float, optional): Multiplier for thermal limits. Defaults to 0.95.
+        network (pp.network.Network, optional): A pre-loaded pypowsybl network
+            object. When provided, the XIIDM/CGMES file on disk is NOT re-parsed;
+            the SimulationEnvironment reuses this exact instance. Useful when an
+            outer caller (e.g. an HTTP backend) has already called
+            `pp.network.load(...)` and wants to avoid the ~1-5 s duplicate parse.
+            `env_folder` / `env_name` are still used to locate companion files
+            (thermal limits, non-reconnectable list), but NOT to locate the
+            network itself. Defaults to None (load from disk).
 
     Returns:
         tuple: A tuple containing:
@@ -50,73 +60,84 @@ def get_env_first_obs_pypowsybl(env_folder: Union[str, Path],
             - path_env (str): The path to the environment.
     """
     env_path = Path(env_folder) / env_name
-    
-    # Look for network file
+
+    # When a pre-loaded Network is injected we skip the .xiidm discovery
+    # entirely — we only need env_path resolved for downstream helpers
+    # (thermal limits lookup, non-reconnectable CSV, etc.).
     network_file = None
-    
-    # Check if env_path is already a valid network file
-    if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
-        network_file = env_path
-        # If it's a file, we treat its parent as the environment folder for other files (e.g. thermal limits)
-        env_path = env_path.parent
-    
-    if network_file is None:
-        for ext in ['.xiidm', '.iidm', '.xml']:
-            candidates = list(env_path.glob(f"*{ext}"))
-            if candidates:
-                network_file = candidates[0]
-                break
-    
-    # Also check in grid/ subfolder
-    if network_file is None:
-        grid_folder = env_path / "grid"
-        if grid_folder.exists():
+    if network is None:
+        # Check if env_path is already a valid network file
+        if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
+            network_file = env_path
+            # If it's a file, we treat its parent as the environment folder for other files (e.g. thermal limits)
+            env_path = env_path.parent
+
+        if network_file is None:
             for ext in ['.xiidm', '.iidm', '.xml']:
-                candidates = list(grid_folder.glob(f"*{ext}"))
+                candidates = list(env_path.glob(f"*{ext}"))
                 if candidates:
                     network_file = candidates[0]
                     break
-    
-    if network_file is None:
-        raise FileNotFoundError(f"No network file found in {env_path}")
-    
+
+        # Also check in grid/ subfolder
+        if network_file is None:
+            grid_folder = env_path / "grid"
+            if grid_folder.exists():
+                for ext in ['.xiidm', '.iidm', '.xml']:
+                    candidates = list(grid_folder.glob(f"*{ext}"))
+                    if candidates:
+                        network_file = candidates[0]
+                        break
+
+        if network_file is None:
+            raise FileNotFoundError(f"No network file found in {env_path}")
+    else:
+        # When env_path itself points to a file (direct .xiidm path), treat
+        # its parent as the companion-file folder — same rule as the disk
+        # path above, applied in the pre-loaded branch too.
+        if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
+            env_path = env_path.parent
+
     # Look for thermal limits
     thermal_limits_path = None
     if thermal_limits_file:
         thermal_limits_path = env_path / thermal_limits_file
         if not thermal_limits_path.exists():
             thermal_limits_path = None
-    
+
     if thermal_limits_path is None:
         for name in ['thermal_limits.json', 'limits.json']:
             candidate = env_path / name
             if candidate.exists():
                 thermal_limits_path = candidate
                 break
-    
-    # Create environment
+
+    # Create environment — inject the pre-loaded Network when provided so
+    # SimulationEnvironment/NetworkManager skip the duplicate pp.network.load().
     env = SimulationEnvironment(
         network_path=network_file,
+        network=network,
         thermal_limits_path=thermal_limits_path,
         threshold_thermal_limit=threshold_thermal_limit
     )
-    
+
     # Configure DC mode if requested
     if is_DC:
         # Store DC preference for simulations
         env._use_dc = True
         env.network_manager._default_dc = True
-    
+
     # Get initial observation
     obs = env.get_obs()
-    
+
     return env, obs, str(env_path)
 
 
 def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetime] = None,
                                          env_folder: Optional[Union[str, Path]] = None,
-                                         env_name: Optional[str] = None
-                                         ) -> Tuple[SimulationEnvironment, PypowsyblObservation, str, str, 
+                                         env_name: Optional[str] = None,
+                                         network: Optional[pp.network.Network] = None
+                                         ) -> Tuple[SimulationEnvironment, PypowsyblObservation, str, str,
                                                     Optional[List], Dict, List[str], List[str]]:
     """
     Sets up the pypowsybl environment and loads related configuration files.
@@ -131,6 +152,11 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
         analysis_date: The date for analysis (optional, for compatibility).
         env_folder: Override for environment folder path.
         env_name: Override for environment name.
+        network: Optional pre-loaded `pp.network.Network` to reuse instead of
+            re-parsing the .xiidm file. Forwarded to `get_env_first_obs_pypowsybl`
+            which forwards it to `SimulationEnvironment`. Useful when an outer
+            caller (HTTP backend, notebook, …) already holds a Network instance
+            — avoids a duplicate ~1-5 s pypowsybl parse on large grids.
 
     Returns:
         tuple: A tuple containing:
@@ -148,16 +174,17 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
         env_folder = config.ENV_FOLDER
     if env_name is None:
         env_name = config.ENV_NAME
-    
+
     # Load action dictionary
     dict_action = load_actions(config.ACTION_FILE_PATH)
-    
+
     # Create environment
     env, obs, env_path = get_env_first_obs_pypowsybl(
-        env_folder, 
+        env_folder,
         env_name,
         is_DC=config.USE_DC_LOAD_FLOW,
-        threshold_thermal_limit=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 0.95)
+        threshold_thermal_limit=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 0.95),
+        network=network,
     )
     
     # For static analysis, use env_name as chronic_name
@@ -329,10 +356,14 @@ def get_env_first_obs(env_folder, env_name, use_evaluation_config, date=None, is
     )
 
 
-def setup_environment_configs(analysis_date: datetime.datetime):
+def setup_environment_configs(analysis_date: datetime.datetime,
+                               network: Optional[pp.network.Network] = None):
     """
     Compatibility wrapper that uses pypowsybl backend.
-    
+
     This function provides the same interface as the original grid2op version.
+    `network` is an optional pre-loaded Network passed through to
+    `setup_environment_configs_pypowsybl` — see that docstring for the
+    load-deduplication use case.
     """
-    return setup_environment_configs_pypowsybl(analysis_date)
+    return setup_environment_configs_pypowsybl(analysis_date, network=network)
