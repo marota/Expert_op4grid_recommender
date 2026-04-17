@@ -328,7 +328,222 @@ for coup in cellules.cellules_couplage:
 
 ---
 
-## 9. Tests
+## 9. Exemples sur postes RTE reels
+
+Les sorties ci-dessous proviennent de l'execution du module sur 15 voltage
+levels extraits d'un reseau RTE reel (`.xiidm`). Les fixtures sont
+serialisees dans `tests/manoeuvre/fixtures/` et peuvent etre rejouees sans
+pypowsybl via `build_graph_from_fixture()`.
+
+### 9.1 Vue d'ensemble des 15 postes
+
+```
+POSTE      nœuds  arêtes   SJB  équip  départ  coupl  réaig
+------------------------------------------------------------------------
+CARRIP3       40      54     4     17      15      1      0
+CARRIP6       32      43     6     12      12      1      0
+CZTRYP6       30      39     8      9       9      1      0   ← max SJB
+COMPIP3       28      37     6     10      10      1      0
+BXTO5P3       46      61     6     19      15      1      0
+BXTO5P6       30      41     4     11      11      1      0
+CZBEVP3       12      11     3      6       6      1      0   ← plus petit
+PALUNP3       46      65     4     19      19      1      0
+NOVIOP3       30      39     4     10      10      1      0
+SSAVOP3       80     107     8     34      27      1      0   ← plus grand
+VIELMP6       29      39     4     11      11      1      0
+CORNIP3       39      54     4     17      17      1      2
+GUARBP6       23      29     6      8       8      1      2
+MORBRP6       47      63     6     17      17      1      2
+RAN_PP6       29      39     4     12      12      1      2
+```
+
+Colonnes : `nœuds` = connectivity nodes du graphe, `SJB` = sections de jeux de
+barres, `départ` = cellules de depart detectees, `réaig` = dont ré-aiguillages.
+
+---
+
+### 9.2 Poste standard : CARRIP3 (225 kV, 4 SJB)
+
+Topologie double barre classique. Chaque depart = 1 DJ + 2 SA, acces a 2 SJB.
+
+```
+VL 'CARRIP3': 15 départ(s), 1 couplage(s), 0 nœud(s) non attribué(s)
+
+Cellules de départ (15) :
+  CARRIL31VALES          LINE_SIDE1         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRIL31RANTI          LINE_SIDE1         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRIL31V.PAU          LINE_SIDE1         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRIL31U.MON          LINE_SIDE1         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRIL31PERSA          LINE_SIDE1         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRIL32U.MON          LINE_SIDE1         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  BERT L31CARRI          LINE_SIDE2         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  BARR6L31CARRI          LINE_SIDE2         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  BRENOL31CARRI          LINE_SIDE2         2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRI3T314             LOAD               2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRI3T312             LOAD               2 SJB, 1 conn.  (3 DJ, 2 SA)  [OMNIBUS]
+  CARRI3T313             LOAD               2 SJB, 1 conn.  (3 DJ, 2 SA)  [OMNIBUS]
+  CARRIY632              TRANSFORMER_SIDE2  2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRIY633              TRANSFORMER_SIDE2  2 SJB, 1 conn.  (1 DJ, 2 SA)
+  CARRIY631              TRANSFORMER_SIDE2  2 SJB, 1 conn.  (1 DJ, 2 SA)
+
+Cellules de couplage (1) :
+  SJB 0 ↔ SJB 1  fermé=True  1 DJ + 4 SA  DJ: CARRI3COUPL.1 DJ_OC
+```
+
+**Cellule omnibus `CARRI3T312`** : 3 DJ detectes car deux transformateurs
+(TR312 et l'auxiliaire CARRIINF) partagent les memes noeuds intermediaires.
+`shared_equipment_ids = {'CARRIINF'}`.
+
+---
+
+### 9.3 Poste avec re-aiguillages : CORNIP3 (225 kV)
+
+```
+VL 'CORNIP3': 17 départ(s), 1 couplage(s), 0 nœud(s) non attribué(s)
+
+  CORNIL31REAC.          LINE_SIDE1        1 SJB, 1 conn.  (0 DJ, 1 SA)  [RÉAIG]
+  CORNIL31REAC.          LINE_SIDE2        1 SJB, 1 conn.  (0 DJ, 1 SA)  [RÉAIG]
+  BORLYL31CORNI          LINE_SIDE2        3 SJB, 1 conn.  (1 DJ, 3 SA)   ← 3 barres
+  ...
+```
+
+La ligne `CORNIL31REAC.` est raccordee directement a la barre via un unique
+sectionneur fictif `CORNIP3.SJB.3.1-CORNI3REAC.1SA_F` — pas de disjoncteur
+propre. Les deux cotes (SIDE1 et SIDE2) apparaissent comme deux cellules
+independantes, chacune avec 1 noeud d'equipement + 1 noeud SJB.
+
+Detail de la cellule de re-aiguillage (SIDE1) :
+
+```
+Equipement : CORNIL31REAC.  (LINE_SIDE1)
+  Nœuds : [2, 11]
+  SJB accessibles (struct.) : {2}
+  SJB connectées (électr.)  : {2}
+  Switch unique : CORNIP3_CORNIP3-CORNIP3.SJB.3.1-CORNI3REAC.1SA_F
+    kind=DISCONNECTOR  node1=2  node2=11  open=False
+  is_reaiguillage=True   breakers=[]
+```
+
+---
+
+### 9.4 Poste avec generateurs : SSAVOP3 (225 kV, 8 SJB, 34 equipements)
+
+Plus grand poste du jeu de donnees. Abrite trois groupes de production avec
+un schema de raccordement complexe (jusqu'a 5 DJ + 2 SA par cellule groupe).
+
+```
+VL 'SSAVOP3': 27 départ(s), 1 couplage(s), 0 nœud(s) non attribué(s)
+
+Nœuds totaux : 80  |  Arêtes totales : 107
+Taux de connectivité : 96%  |  Cellules multi-barres : 27/27
+
+Top 5 cellules par nb switches :
+  SSAVOIN1               GENERATOR         7 switches  (5 DJ, 2 SA)
+  SSAVOIN2               GENERATOR         6 switches  (4 DJ, 2 SA)
+  SSAVOIN3               GENERATOR         6 switches  (4 DJ, 2 SA)
+  SSAVOL32SYNTH          LINE_SIDE1        3 switches  (1 DJ, 2 SA)
+  CREUTL31SSAVO          LINE_SIDE2        3 switches  (1 DJ, 2 SA)
+```
+
+Le couplage comporte 4 DJ paralleles + 8 SA (schema de by-pass complet
+sur 8 SJB). Un groupe (`SSAVOIN2`) est detecte comme electriquement
+deconnecte (`connected_busbars=0`).
+
+---
+
+### 9.5 Postes 63 kV avec re-aiguillages : GUARBP6, MORBRP6, RAN_PP6
+
+Les trois postes 63 kV du jeu de donnees presentent le meme motif :
+un transformateur HTB/HTA (ou une ligne reactance) raccorde directement
+a la barre sans disjoncteur propre.
+
+**GUARBP6** — transformateur `GUARBY661` en re-aiguillage :
+```
+  GUARBY661  TRANSFORMER_SIDE1  1 SJB, 1 conn.  (0 DJ, 1 SA)  [RÉAIG]
+  GUARBY661  TRANSFORMER_SIDE2  1 SJB, 1 conn.  (0 DJ, 1 SA)  [RÉAIG]
+```
+Le couplage de GUARBP6 a pour DJ principal `GUARB6TR661 DJ_OC` — c'est le
+DJ de la cellule de couplage qui sert de protection pour ce transformateur.
+
+**MORBRP6** — ligne reactance `MORBRL61REAC.` en re-aiguillage :
+```
+  MORBRL61REAC.  LINE_SIDE1  1 SJB, 1 conn.  (0 DJ, 1 SA)  [RÉAIG]
+  MORBRL61REAC.  LINE_SIDE2  1 SJB, 1 conn.  (0 DJ, 1 SA)  [RÉAIG]
+```
+Couplage le plus riche : 5 DJ + 10 SA (poste multi-departs sur 6 SJB).
+
+**RAN_PP6** — transformateur `RAN.PY661` en re-aiguillage :
+```
+  RAN.PY661  TRANSFORMER_SIDE2  1 SJB, 1 conn.  (0 DJ, 1 SA)  [RÉAIG]
+  RAN.PY661  TRANSFORMER_SIDE1  1 SJB, 1 conn.  (0 DJ, 1 SA)  [RÉAIG]
+```
+
+---
+
+### 9.6 Cas particuliers notables
+
+#### CZBEVP3 — poste simplifie (3 SJB, couplage sans DJ)
+
+```
+VL 'CZBEVP3': 6 départ(s), 1 couplage(s), 0 nœud(s) non attribué(s)
+
+  CZBEVL31DANT5  LINE_SIDE1  1 SJB, 1 conn.  (1 DJ, 1 SA)
+  CZBEV3T311     LOAD        1 SJB, 1 conn.  (1 DJ, 0 SA)   ← pas de SA
+  ...
+  Couplage :  SJB 0 ↔ SJB 1  fermé=True  0 DJ + 2 SA        ← pas de DJ
+```
+
+Seul poste avec des cellules sans sectionneur (charges directement sur une
+seule barre) et un couplage purement sectionneur (0 DJ). Topologie
+volontairement simplifiee pour un poste de moindre criticite.
+
+#### NOVIOP3 — couplage a 3 DJ (poste de transit)
+
+```
+Couplage :  SJB 0 ↔ SJB 1  fermé=False  3 DJ + 6 SA  DJ: NOVIO3TRO.1AB DJ_OC
+```
+
+Trois disjoncteurs en parallele dans la cellule de couplage, jeu de barres
+ouvert en exploitation. Typique d'un poste de transit 225 kV avec by-pass.
+
+#### BXTO5P3 — poste avec equipements hors service (5 cellules deconnectees)
+
+```
+Cellules déconnectées (connected_busbars=0) :
+  BXTO5L31TERGN   LINE_SIDE1        → ligne ouverte
+  BXTO5L32TERGN   LINE_SIDE1        → ligne ouverte
+  BXTO5L31HAM     LINE_SIDE1        → ligne ouverte
+  BXTO5Y638       TRANSFORMER_SIDE2 → transformateur deconnecte
+  BXTO5IN2        GENERATOR         → groupe non engage
+```
+
+5 equipements hors service sur 19 — le poste est en configuration
+partielle au moment de la capture.
+
+---
+
+### 9.7 Observations transversales sur les 15 postes
+
+**Couplages ouverts** (jeux de barres separes en exploitation) :
+COMPIP3, PALUNP3, NOVIOP3, SSAVOP3, CORNIP3 — soit 5 postes sur 15.
+
+**Cellules a 3 SJB accessibles** (topologie de transit de barre) :
+4 postes presentent au moins une cellule avec 3 SA (acces a 3 barres) :
+CORNIP3 (`BORLYL31CORNI`), GUARBP6 (`GUARBL61ZWOES`),
+MORBRP6 (`MORBRL61V.GEO`), RAN_PP6 (`LAUNAL61RAN.P`).
+
+**Equipements fictifs** :
+`fict_PALUNP3_1.1` (LOAD) dans PALUNP3 — injection ajoutee par le modele
+pour equilibrer le bilan du poste.
+
+**Taux de connectivite** :
+Sur l'ensemble des 15 postes, 14 cellules presentent `connected_busbars=0`
+(lignes hors service, condensateurs ouverts, groupes non engages) — soit
+~5% des equipements, coherent avec un etat reseau en exploitation normale.
+
+---
+
+## 10. Tests
 
 ### Tests unitaires (`test_graph_cellules.py`)
 
@@ -370,7 +585,7 @@ avec un `index.json` de synthese.
 
 ---
 
-## 10. Prochaines etapes (roadmap)
+## 11. Prochaines etapes (roadmap)
 
 | Etape   | Fichier          | Description                                              |
 |---------|-----------------|----------------------------------------------------------|
@@ -382,7 +597,7 @@ avec un `index.json` de synthese.
 
 ---
 
-## 11. Dependances
+## 12. Dependances
 
 | Package      | Role                                        | Version min |
 |-------------|---------------------------------------------|-------------|
