@@ -356,28 +356,44 @@ class NetworkManager:
             else:
                 raise e
 
-    def run_load_flow(self, dc: Optional[bool] = None, fast: bool = False):
+    def run_load_flow(self, dc: Optional[bool] = None, fast: bool = False,
+                      voltage_init_mode: Optional['lf.VoltageInitMode'] = None):
         """
         Run load flow on the current working variant.
-        
+
         Args:
-            dc: If True, run DC load flow instead of AC. 
+            dc: If True, run DC load flow instead of AC.
                 If None, uses the _default_dc attribute.
             fast: If True, disable voltage control for transformers and shunts.
-            
+            voltage_init_mode: If provided, override the default
+                `voltage_init_mode` in the LF parameters. Most callers should
+                leave this None and let the default `PREVIOUS_VALUES` apply —
+                but the INITIAL LF (at network load time, before any variant
+                has a valid state to read from) MUST use `DC_VALUES` since no
+                previous voltage magnitudes exist. Without this, pypowsybl
+                tries `PREVIOUS_VALUES`, throws, then retries with
+                `DC_VALUES` internally — wasted work + spurious warning in
+                the logs. See `SimulationEnvironment._ensure_valid_state`.
+
         Returns:
             Load flow result object
         """
         # Use default if not specified
         use_dc = dc if dc is not None else self._default_dc
-        
+
         # Prepare parameters
         params = self.lf_parameters
-        if fast and not use_dc:
+        needs_copy = fast and not use_dc
+        if voltage_init_mode is not None and not use_dc:
+            needs_copy = True
+        if needs_copy:
             # Create a shallow copy via JSON to avoid modifying the main lf_parameters
             params = lf.Parameters.from_json(self.lf_parameters.to_json())
-            params.transformer_voltage_control_on = False
-            params.shunt_compensator_voltage_control_on = False
+            if fast:
+                params.transformer_voltage_control_on = False
+                params.shunt_compensator_voltage_control_on = False
+            if voltage_init_mode is not None:
+                params.voltage_init_mode = voltage_init_mode
         
         try:
             if use_dc:

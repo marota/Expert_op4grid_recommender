@@ -100,8 +100,20 @@ class SimulationEnvironment:
         return {k: v * self._threshold for k, v in base_limits.items()}
     
     def _ensure_valid_state(self):
-        """Run load flow to ensure network is in a valid state."""
-        result = self.network_manager.run_load_flow()
+        """Run load flow to ensure network is in a valid state.
+
+        Uses `voltage_init_mode=DC_VALUES` explicitly because this LF is
+        called both at construction time (no previous voltage state has
+        ever been computed on this Network) and on `reset()` (the base
+        variant has been restored, so "previous values" may be stale or
+        invalid). Without this, pypowsybl defaults to `PREVIOUS_VALUES`
+        which throws a "Voltage magnitude is undefined" exception and
+        retries internally with DC_VALUES — wasted ~70 ms + spurious
+        warning in the logs.
+        """
+        result = self.network_manager.run_load_flow(
+            voltage_init_mode=lf.VoltageInitMode.DC_VALUES,
+        )
         if result is None or result.status != lf.ComponentStatus.CONVERGED:
             print(f"Warning: Initial load flow did not converge: {result}")
     
