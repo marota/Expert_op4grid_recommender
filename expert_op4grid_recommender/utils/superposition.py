@@ -1191,4 +1191,41 @@ def compute_all_pairs_superposition(
                 result.update(verification)
 
     print(f"[Superposition] Computed {len(results)} pair combinations")
+
+    if verify_max_rho:
+        _log_verification_statistics(results)
+
     return results
+
+
+def _log_verification_statistics(results: Dict[str, Dict]) -> None:
+    """Aggregate and print estimated-vs-simulated max rho stats across pairs.
+
+    Iterates over ``results`` and summarises ``max_rho_gap`` (signed
+    error = estimated − simulated) and ``max_rho_line_match`` for the
+    pairs that were actually verified. Silently returns if nothing was
+    verified (simulation divergence, no monitored lines, etc.).
+    """
+    verified = [r for r in results.values() if "max_rho_gap" in r]
+    total = len(results)
+    n_verified = len(verified)
+
+    if n_verified == 0:
+        print(f"[Superposition][verify] No pairs could be verified "
+              f"(0/{total}).")
+        return
+
+    gaps = np.array([r["max_rho_gap"] for r in verified], dtype=float)
+    line_matches = sum(1 for r in verified if r.get("max_rho_line_match"))
+    abs_gaps = np.abs(gaps)
+    rmse = float(np.sqrt(np.mean(gaps ** 2)))
+
+    print("[Superposition][verify] Summary over "
+          f"{n_verified}/{total} verified pairs:")
+    print(f"  mean signed gap (bias) : {float(np.mean(gaps)):+.3f}")
+    print(f"  mean |gap|             : {float(np.mean(abs_gaps)):.3f}")
+    print(f"  median |gap|           : {float(np.median(abs_gaps)):.3f}")
+    print(f"  max |gap|              : {float(np.max(abs_gaps)):.3f}")
+    print(f"  rmse                   : {rmse:.3f}")
+    print(f"  max-rho line match     : {line_matches}/{n_verified} "
+          f"({100.0 * line_matches / n_verified:.1f}%)")
