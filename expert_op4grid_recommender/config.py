@@ -120,6 +120,12 @@ class Settings(BaseSettings):
     # current increased by more than this fraction.
     PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD: float = Field(default=0.02, ge=0.0)
     PYPOWSYBL_FAST_MODE: bool = False
+    # When True, compute_all_pairs_superposition also runs an actual
+    # simulation of each combined action pair and prints the gap between
+    # the estimated max rho / max-rho line and the simulated ones. Useful
+    # for validating the superposition approximation; adds one extra
+    # simulation per pair so leave off for production runs.
+    VERIFY_SUPERPOSITION_MAX_RHO: bool = False
 
     # -------------------
     #  Minimum prioritized actions per type

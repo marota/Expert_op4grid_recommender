@@ -865,6 +865,77 @@ def compute_combined_pair_superposition(
 
 
 # =============================================================================
+# Verification helper: compare estimated vs simulated max rho on a pair
+# =============================================================================
+
+def _verify_pair_max_rho_by_simulation(
+    obs_start,
+    action1,
+    action2,
+    care_mask: np.ndarray,
+    name_line: List[str],
+    monitoring_factor: float,
+    estimated_max_rho: float,
+    estimated_max_rho_line: str,
+    pair_key: str,
+) -> Optional[Dict[str, Any]]:
+    """Simulate the combined action pair and log the gap vs. the estimate.
+
+    Runs ``obs_start.simulate(action1 + action2)`` and compares its max rho
+    (and the line carrying it) against the values produced by the
+    superposition estimator. Both estimated and simulated max rho are
+    expressed in the permanent-limit reference frame (i.e. multiplied by
+    ``monitoring_factor``) so they are directly comparable.
+
+    Returns a dict with the simulated figures and the estimation gap, or
+    ``None`` if the simulation failed / no monitored line is available.
+    """
+    try:
+        combined_action = action1 + action2
+        obs_simu_action, _, _, info_action = obs_start.simulate(
+            combined_action,
+            time_step=0,
+            keep_variant=True,
+            fast_mode=True,
+        )
+    except Exception as e:
+        print(f"[Superposition][verify] {pair_key}: simulation failed: {e}")
+        return None
+
+    if info_action.get("exception"):
+        print(f"[Superposition][verify] {pair_key}: non-converged "
+              f"({info_action['exception']})")
+        return None
+
+    if not np.any(care_mask):
+        return None
+
+    rho_care = obs_simu_action.rho[care_mask]
+    max_simulated_rho = float(np.max(rho_care))
+    max_sim_line_idx = int(np.where(obs_simu_action.rho == max_simulated_rho)[0][0])
+    max_simulated_rho_scaled = max_simulated_rho * monitoring_factor
+    max_simulated_rho_line = name_line[max_sim_line_idx]
+
+    estimated_max_rho_scaled = estimated_max_rho * monitoring_factor
+    rho_gap = estimated_max_rho_scaled - max_simulated_rho_scaled
+
+    print(f"[Superposition][verify] {pair_key}: "
+          f"max estimated rho {estimated_max_rho_scaled:.3f} vs "
+          f"max simulated rho {max_simulated_rho_scaled:.3f} "
+          f"(gap={rho_gap:+.3f})")
+    print(f"[Superposition][verify] {pair_key}: "
+          f"line max estimated rho {estimated_max_rho_line} vs "
+          f"max simulated rho {max_simulated_rho_line}")
+
+    return {
+        "max_rho_simulated": max_simulated_rho_scaled,
+        "max_rho_line_simulated": max_simulated_rho_line,
+        "max_rho_gap": rho_gap,
+        "max_rho_line_match": max_simulated_rho_line == estimated_max_rho_line,
+    }
+
+
+# =============================================================================
 # Main entry point: compute all pairs
 # =============================================================================
 
@@ -954,6 +1025,7 @@ def compute_all_pairs_superposition(
     name_line = list(env.name_line)
     num_lines = len(name_line)
     worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
+    verify_max_rho = getattr(config, 'VERIFY_SUPERPOSITION_MAX_RHO', False)
 
     monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
     pre_existing_baseline = np.zeros(num_lines)
@@ -1102,6 +1174,21 @@ def compute_all_pairs_superposition(
         print(f"  {pair_key}: betas={np.round(result['betas'], 4)}, "
               f"max_rho={max_rho:.3f} on {max_rho_line}, "
               f"rho_reduction={is_rho_reduction}")
+
+        if verify_max_rho:
+            verification = _verify_pair_max_rho_by_simulation(
+                obs_start=obs_start,
+                action1=detailed_actions[aid1]["action"],
+                action2=detailed_actions[aid2]["action"],
+                care_mask=care_mask,
+                name_line=name_line,
+                monitoring_factor=monitoring_factor,
+                estimated_max_rho=max_rho,
+                estimated_max_rho_line=max_rho_line,
+                pair_key=pair_key,
+            )
+            if verification is not None:
+                result.update(verification)
 
     print(f"[Superposition] Computed {len(results)} pair combinations")
     return results
