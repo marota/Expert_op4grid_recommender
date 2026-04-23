@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, Dict, List, MutableMapping, Optional
+from typing import Annotated, Any, Dict, List, Literal, MutableMapping, Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -107,6 +107,10 @@ class Settings(BaseSettings):
     IGNORE_RECONNECTIONS: bool = False
     IGNORE_LINES_MONITORING: bool = True
     DO_VISUALIZATION: bool = True
+    # Output format for the overflow graph visualization. "pdf" saves the
+    # static PDF (default); "html" saves the interactive HTML viewer
+    # introduced by ExpertOp4Grid PR #74.
+    VISUALIZATION_FORMAT: Literal["pdf", "html"] = "pdf"
     # Only possible for now with the pypowsybl backend.
     MAX_RHO_BOTH_EXTREMITIES: bool = True
     # Factor applied to permanent thermal limits when loading from
