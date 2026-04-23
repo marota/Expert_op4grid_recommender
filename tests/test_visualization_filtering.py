@@ -60,6 +60,7 @@ def test_make_overflow_graph_visualization_filtering():
         mock_config.DRAW_ONLY_SIGNIFICANT_EDGES = False
         mock_config.USE_GRID_LAYOUT = False
         mock_config.DO_CONSOLIDATE_GRAPH = False
+        mock_config.VISUALIZATION_FORMAT = "pdf"
         mock_glob.return_value = ["/dummy/save/test_graph/Base graph/plot.pdf"]
 
         # 6. Call the function
