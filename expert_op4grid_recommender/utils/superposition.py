@@ -1198,15 +1198,20 @@ def compute_all_pairs_superposition(
     return results
 
 
-def _log_verification_statistics(results: Dict[str, Dict]) -> None:
+def _log_verification_statistics(
+    results: Dict[str, Dict],
+    gap_report_threshold: float = 0.01,
+) -> None:
     """Aggregate and print estimated-vs-simulated max rho stats across pairs.
 
     Iterates over ``results`` and summarises ``max_rho_gap`` (signed
     error = estimated − simulated) and ``max_rho_line_match`` for the
-    pairs that were actually verified. Silently returns if nothing was
-    verified (simulation divergence, no monitored lines, etc.).
+    pairs that were actually verified. Additionally lists every pair whose
+    absolute gap exceeds ``gap_report_threshold`` (default 0.01, i.e. 1%)
+    or whose simulated max-rho line differs from the estimate. Silently
+    returns if nothing was verified.
     """
-    verified = [r for r in results.values() if "max_rho_gap" in r]
+    verified = [(k, r) for k, r in results.items() if "max_rho_gap" in r]
     total = len(results)
     n_verified = len(verified)
 
@@ -1215,8 +1220,8 @@ def _log_verification_statistics(results: Dict[str, Dict]) -> None:
               f"(0/{total}).")
         return
 
-    gaps = np.array([r["max_rho_gap"] for r in verified], dtype=float)
-    line_matches = sum(1 for r in verified if r.get("max_rho_line_match"))
+    gaps = np.array([r["max_rho_gap"] for _, r in verified], dtype=float)
+    line_matches = sum(1 for _, r in verified if r.get("max_rho_line_match"))
     abs_gaps = np.abs(gaps)
     rmse = float(np.sqrt(np.mean(gaps ** 2)))
 
@@ -1229,3 +1234,24 @@ def _log_verification_statistics(results: Dict[str, Dict]) -> None:
     print(f"  rmse                   : {rmse:.3f}")
     print(f"  max-rho line match     : {line_matches}/{n_verified} "
           f"({100.0 * line_matches / n_verified:.1f}%)")
+
+    flagged = [
+        (k, r) for k, r in verified
+        if abs(r["max_rho_gap"]) > gap_report_threshold
+        or not r.get("max_rho_line_match", True)
+    ]
+    if not flagged:
+        return
+
+    print(f"[Superposition][verify] {len(flagged)} pair(s) with "
+          f"|gap|>{gap_report_threshold:.2f} or line mismatch:")
+    # Worst gaps first to surface the biggest discrepancies.
+    flagged.sort(key=lambda kv: abs(kv[1]["max_rho_gap"]), reverse=True)
+    for pair_key, r in flagged:
+        est_line = r.get("max_rho_line", "N/A")
+        sim_line = r.get("max_rho_line_simulated", "N/A")
+        line_note = "" if r.get("max_rho_line_match") else " [LINE MISMATCH]"
+        print(f"  {pair_key}: "
+              f"estimated={r.get('max_rho', float('nan')):.3f} on {est_line}, "
+              f"simulated={r.get('max_rho_simulated', float('nan')):.3f} on {sim_line}, "
+              f"gap={r['max_rho_gap']:+.3f}{line_note}")
