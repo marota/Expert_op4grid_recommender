@@ -546,10 +546,51 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
             graph_file_name = get_graph_file_name(current_lines_defaut, chronic_name, current_timestep, use_dc)
             save_folder = config.SAVE_FOLDER_VISUALIZATION
             lines_swapped = list(df_of_g[df_of_g.new_flows_swapped].line_name)
+            # Pre-compute the constrained path so the visualization can stamp
+            # source-of-truth `on_constrained_path` flags on the graph; the
+            # interactive HTML viewer's "Constrained path" layer toggle reads
+            # those flags. Defensive: any failure here must not block render.
+            # Source-of-truth lists from the structured-overload
+            # distribution graph: the strict ConstrainedPath
+            # (amont + constrained_edge + aval) and the loop-only
+            # dispatch paths (red loops). These are the same lists the
+            # action-evaluation rule engine consumes — propagating
+            # them as graph attributes keeps the layer toggles aligned
+            # with the recommender's domain definitions.
+            lines_constrained_path = None
+            nodes_constrained_path = None
+            lines_red_loops = None
+            nodes_red_loops = None
+            try:
+                cp_lines, cp_nodes, _other_blue_edges, _other_blue_nodes = (
+                    g_distribution_graph.get_constrained_edges_nodes()
+                )
+                lines_constrained_path = list(cp_lines)
+                nodes_constrained_path = list(cp_nodes)
+            except Exception as exc:  # pragma: no cover - defensive
+                print(
+                    "Could not pre-compute constrained path for overflow viewer: "
+                    + str(exc)
+                )
+            try:
+                rl_lines, rl_nodes = g_distribution_graph.get_dispatch_edges_nodes(
+                    only_loop_paths=True
+                )
+                lines_red_loops = list(rl_lines)
+                nodes_red_loops = list(rl_nodes)
+            except Exception as exc:  # pragma: no cover - defensive
+                print(
+                    "Could not pre-compute red-loop dispatch paths for "
+                    "overflow viewer: " + str(exc)
+                )
             make_overflow_graph_visualization(
                 env, overflow_sim, g_overflow, hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped,
                 custom_layout, lines_we_care_about=lines_we_care_about,
-                monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
+                monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
+                lines_constrained_path=lines_constrained_path,
+                nodes_constrained_path=nodes_constrained_path,
+                lines_red_loops=lines_red_loops,
+                nodes_red_loops=nodes_red_loops,
             )
     else:
         print("Skipping visualization (DO_VISUALIZATION=False)")

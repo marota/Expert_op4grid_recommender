@@ -76,7 +76,9 @@ def get_graph_file_name(lines_defaut, chronic_name, timestep, use_dc_load_flow):
 
 def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_simu, save_folder, graph_file_name,
                                       lines_swapped, custom_layout=None, lines_we_care_about=None,
-                                      monitoring_factor_thermal_limits=1.0):
+                                      monitoring_factor_thermal_limits=1.0,
+                                      lines_constrained_path=None, nodes_constrained_path=None,
+                                      lines_red_loops=None, nodes_red_loops=None):
     """
     Generates and saves a visualization of the overflow graph with various annotations.
 
@@ -204,7 +206,27 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
         }
         g_overflow.highlight_significant_line_loading(dict_significant_change)
 
+    # Tag the constrained-path lines/nodes (source-of-truth flags consumed
+    # by the interactive HTML viewer's "Constrained path" layer toggle).
+    # Caller passes these from the recommender pipeline to avoid having
+    # the visualization layer reinterpret edge colour/style.
+    if lines_constrained_path or nodes_constrained_path:
+        g_overflow.tag_constrained_path(
+            lines_constrained_path=lines_constrained_path,
+            nodes_constrained_path=nodes_constrained_path,
+        )
+
+    # Tag the dispatch loop paths (the "red loops") from the structured
+    # analysis. This must run AFTER `collapse_red_loops` so the visual
+    # collapse heuristic does not stomp on or pre-empt the
+    # source-of-truth tags. When the caller does not supply the lists
+    # the layer simply stays empty (no false positives).
     g_overflow.collapse_red_loops()
+    if lines_red_loops or nodes_red_loops:
+        g_overflow.tag_red_loops(
+            lines_red_loops=lines_red_loops,
+            nodes_red_loops=nodes_red_loops,
+        )
     # Generate and save visualization
     tmp_save_folder = os.path.join(save_folder, graph_file_name)
     svg = g_overflow.plot(
