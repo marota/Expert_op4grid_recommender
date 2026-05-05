@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-05-05
+
+### Added
+
+- **Overflow-graph tagger wiring** (`graph_analysis/visualization.py`, `main.py`, PR #88): `make_overflow_graph_visualization` now accepts optional `lines_constrained_path` / `nodes_constrained_path` / `red_loop_lines` / `red_loop_nodes` / `lines_overloaded` parameters and forwards them to the new `OverflowGraph.tag_constrained_path` and `OverflowGraph.tag_red_loops` taggers (alongside the existing `highlight_significant_line_loading`). The pipeline computes these lists right after the distribution-graph pass and passes them into the three call sites of `make_overflow_graph_visualization`. Result: the serialised overflow graph now carries explicit `is_hub` / `in_red_loop` / `on_constrained_path` / `is_monitored` / `is_overload` boolean flags driving the upstream alphaDeesp interactive viewer's semantic layer toggles.
+
+### Compatibility
+
+- All new parameters default to `None`. Existing callers see no behaviour change — the taggers are no-ops when the recommender does not pass any list. Requires `ExpertOp4Grid >= 0.3.2` to consume the flags in the interactive HTML viewer; older versions still serialise the same numerical / colour content unchanged.
+
+---
+
 ## [0.2.0] - 2026-04-14
 
 ### Added
