@@ -187,5 +187,144 @@ def test_setup_environment_configs_delegates_to_pypowsybl_wrapper():
         mocked.return_value = "sentinel"
         result = env_pp.setup_environment_configs("2024-01-01")
 
-    mocked.assert_called_once_with("2024-01-01")
+    # `network=None` is threaded through the compatibility wrapper so
+    # external callers that pass a pre-loaded Network survive the
+    # compat layer too.
+    mocked.assert_called_once_with("2024-01-01", network=None, skip_initial_obs=False)
     assert result == "sentinel"
+
+
+def test_setup_environment_configs_forwards_injected_network():
+    """`network=` on the compat wrapper reaches the inner function."""
+    with patch.object(env_pp, "setup_environment_configs_pypowsybl") as mocked:
+        mocked.return_value = "sentinel"
+        fake_net = MagicMock(name="preloaded_network")
+        env_pp.setup_environment_configs("2024-01-01", network=fake_net)
+
+    mocked.assert_called_once_with("2024-01-01", network=fake_net, skip_initial_obs=False)
+
+
+# ---------------------------------------------------------------------------
+# Pre-loaded Network injection (load-deduplication path)
+# ---------------------------------------------------------------------------
+
+def test_get_env_first_obs_skips_file_load_when_network_is_injected(tmp_path, fake_sim_env):
+    """When a pre-loaded `pp.network.Network` is passed, the .xiidm file
+    discovery is skipped entirely. `SimulationEnvironment` is constructed
+    with `network=<injected>` and `network_path=None`. This is the
+    load-deduplication fast path — no disk I/O, no pypowsybl re-parse."""
+    fake_cls, _ = fake_sim_env
+    fake_net = MagicMock(name="preloaded_network")
+
+    # Deliberately point at a directory with NO .xiidm file — the
+    # injection path must not attempt a discovery.
+    env_folder = tmp_path
+    (env_folder / "empty_env").mkdir()
+
+    env_pp.get_env_first_obs_pypowsybl(
+        env_folder=str(env_folder),
+        env_name="empty_env",
+        network=fake_net,
+    )
+
+    call_kwargs = fake_cls.call_args.kwargs
+    assert call_kwargs["network"] is fake_net
+    assert call_kwargs["network_path"] is None
+
+
+def test_get_env_first_obs_injected_network_still_looks_up_companion_files(tmp_path, fake_sim_env):
+    """File discovery is skipped for the network itself, but companion
+    files (thermal_limits.json in particular) are still looked up next to
+    the env folder — the injection only short-circuits the network load."""
+    fake_cls, _ = fake_sim_env
+    fake_net = MagicMock(name="preloaded_network")
+    env_name = "env_tl"
+    subdir = tmp_path / env_name
+    subdir.mkdir()
+    tl = subdir / "thermal_limits.json"
+    tl.write_text("{}")
+
+    env_pp.get_env_first_obs_pypowsybl(
+        env_folder=str(tmp_path),
+        env_name=env_name,
+        network=fake_net,
+    )
+
+    call_kwargs = fake_cls.call_args.kwargs
+    assert call_kwargs["network"] is fake_net
+    assert call_kwargs["network_path"] is None
+    assert call_kwargs["thermal_limits_path"] == tl
+
+
+def test_get_env_first_obs_injected_network_handles_direct_xiidm_env_name(tmp_path, fake_sim_env):
+    """When `env_name` points at a file path (e.g. `/data/grid.xiidm`)
+    AND a pre-loaded network is injected, the env_path resolves to the
+    file's parent so companion files still work."""
+    fake_cls, _ = fake_sim_env
+    fake_net = MagicMock(name="preloaded_network")
+    # File doesn't have to exist on disk — the injection path skips
+    # the .exists() discovery branch. We only need the suffix to be
+    # recognised so env_path falls back to the parent directory.
+    network_file = tmp_path / "direct.xiidm"
+    network_file.write_text("<network/>")
+
+    _, _, path = env_pp.get_env_first_obs_pypowsybl(
+        env_folder=str(tmp_path),
+        env_name="direct.xiidm",
+        network=fake_net,
+    )
+
+    assert path == str(tmp_path)  # parent of the direct file
+    call_kwargs = fake_cls.call_args.kwargs
+    assert call_kwargs["network"] is fake_net
+    assert call_kwargs["network_path"] is None
+
+
+# ---------------------------------------------------------------------------
+# skip_initial_obs (avoid the ~3-5 s first env.get_obs() when obs not used)
+# ---------------------------------------------------------------------------
+
+def test_get_env_first_obs_skips_get_obs_when_requested(tmp_path, fake_sim_env):
+    """When `skip_initial_obs=True`, the first `env.get_obs()` call is
+    skipped and the returned `obs` is None. Useful for HTTP backends that
+    consume only `env` (e.g. to pass it as `prebuilt_env_context`)."""
+    fake_cls, fake_instance = fake_sim_env
+    env_name = "env_x"
+    subdir = tmp_path / env_name
+    subdir.mkdir()
+    (subdir / "grid.xiidm").write_text("<network/>")
+
+    _, obs, _ = env_pp.get_env_first_obs_pypowsybl(
+        env_folder=str(tmp_path),
+        env_name=env_name,
+        skip_initial_obs=True,
+    )
+
+    assert obs is None
+    fake_instance.get_obs.assert_not_called()
+
+
+def test_get_env_first_obs_calls_get_obs_by_default(tmp_path, fake_sim_env):
+    """Default path (skip_initial_obs=False) still builds the first obs."""
+    fake_cls, fake_instance = fake_sim_env
+    env_name = "env_y"
+    subdir = tmp_path / env_name
+    subdir.mkdir()
+    (subdir / "grid.xiidm").write_text("<network/>")
+
+    _, obs, _ = env_pp.get_env_first_obs_pypowsybl(
+        env_folder=str(tmp_path),
+        env_name=env_name,
+    )
+
+    fake_instance.get_obs.assert_called_once()
+    assert obs is fake_instance.get_obs.return_value
+
+
+def test_setup_environment_configs_forwards_skip_initial_obs():
+    """The flag must thread through the compat wrapper unchanged."""
+    with patch.object(env_pp, "setup_environment_configs_pypowsybl") as mocked:
+        mocked.return_value = "sentinel"
+        env_pp.setup_environment_configs("2024-01-01", skip_initial_obs=True)
+
+    mocked.assert_called_once_with("2024-01-01", network=None, skip_initial_obs=True)
