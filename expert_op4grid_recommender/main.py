@@ -130,14 +130,16 @@ def compute_baseline_simulation_grid2op(obs, timestep, act_defaut, act_reco_main
     return compute_baseline_simulation(obs, timestep, act_defaut, act_reco_maintenance, overload_ids)
 
 
-def build_overflow_graph_grid2op(env, obs_simu_defaut, lines_overloaded_ids_kept, 
+def build_overflow_graph_grid2op(env, obs_simu_defaut, lines_overloaded_ids_kept,
                                   non_connected_reconnectable_lines, lines_non_reconnectable,
-                                  timestep, do_consolidate_graph,use_dc=False):
+                                  timestep, do_consolidate_graph,use_dc=False,
+                                  extra_lines_to_cut_ids=None):
     """Build overflow graph using Grid2Op/alphaDeesp."""
     from expert_op4grid_recommender.graph_analysis.builder import build_overflow_graph
     return build_overflow_graph(env, obs_simu_defaut, lines_overloaded_ids_kept,
                                  non_connected_reconnectable_lines, lines_non_reconnectable,
-                                 timestep, do_consolidate_graph=do_consolidate_graph,use_dc=use_dc)
+                                 timestep, do_consolidate_graph=do_consolidate_graph,use_dc=use_dc,
+                                 extra_lines_to_cut_ids=extra_lines_to_cut_ids)
 
 
 # =============================================================================
@@ -209,13 +211,15 @@ def compute_baseline_simulation_pypowsybl(obs, timestep, act_defaut, act_reco_ma
 
 def build_overflow_graph_pypowsybl_wrapper(env, obs_simu_defaut, lines_overloaded_ids_kept,
                                            non_connected_reconnectable_lines, lines_non_reconnectable,
-                                           timestep, do_consolidate_graph,use_dc=False, fast_mode=True):
+                                           timestep, do_consolidate_graph,use_dc=False, fast_mode=True,
+                                           extra_lines_to_cut_ids=None):
     """Wrapper for pypowsybl overflow graph builder with correct signature."""
     from expert_op4grid_recommender.pypowsybl_backend.overflow_analysis import build_overflow_graph_pypowsybl as _build
     return _build(env, obs_simu_defaut, lines_overloaded_ids_kept,
                   non_connected_reconnectable_lines, lines_non_reconnectable,
-                  timestep, do_consolidate_graph=do_consolidate_graph, 
-                  use_dc=use_dc, param_options={"fast_mode": fast_mode})
+                  timestep, do_consolidate_graph=do_consolidate_graph,
+                  use_dc=use_dc, param_options={"fast_mode": fast_mode},
+                  extra_lines_to_cut_ids=extra_lines_to_cut_ids)
 
 
 # =============================================================================
@@ -462,6 +466,15 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         "pre_existing_rho": pre_existing_rho,
         "lines_overloaded_names": lines_overloaded_names,
         "non_connected_reconnectable_lines": non_connected_reconnectable_lines,
+        # Operator-supplied extras (line indices) that should be cut in
+        # the overflow graph alongside the detected overloads but
+        # NOT classified as overloads in the viewer.  Step 2 callers
+        # (e.g. CoStudy4Grid) populate this when narrowing the context
+        # before ``run_analysis_step2_graph``; left empty here so the
+        # legacy single-step / no-extras path keeps its current
+        # behaviour.  Plumbed through to ``build_overflow_graph`` in
+        # Step 2 graph generation.
+        "extra_lines_to_cut_ids": [],
         "dict_action": dict_action,
         "is_bare_env": is_bare_env,
         "is_pypowsybl": is_pypowsybl,
@@ -500,10 +513,13 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     custom_layout = context["custom_layout"]
     chronic_name = context["chronic_name"]
     non_connected_reconnectable_lines = context["non_connected_reconnectable_lines"]
-    
+    # Operator-supplied extras — see step1 `context["extra_lines_to_cut_ids"]`.
+    # Defaulted to an empty list when missing so older callers keep working.
+    extra_lines_to_cut_ids = context.get("extra_lines_to_cut_ids") or []
+
     is_pypowsybl = context["is_pypowsybl"]
     actual_fast_mode = context["actual_fast_mode"]
-    
+
     check_simu_overloads = context["check_simu_overloads"]
     switch_to_dc = context["switch_to_dc"]
     build_overflow_graph = context["build_overflow_graph"]
@@ -532,12 +548,14 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
         if is_pypowsybl:
             df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
                 env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable,
-                current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH,use_dc=use_dc, fast_mode=actual_fast_mode
+                current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH,use_dc=use_dc, fast_mode=actual_fast_mode,
+                extra_lines_to_cut_ids=extra_lines_to_cut_ids,
             )
         else:
             df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph, node_name_mapping = build_overflow_graph(
                 env, obs_simu_defaut, lines_overloaded_ids_kept, non_connected_reconnectable_lines, lines_non_reconnectable,
                 current_timestep, do_consolidate_graph=config.DO_CONSOLIDATE_GRAPH,use_dc=use_dc,
+                extra_lines_to_cut_ids=extra_lines_to_cut_ids,
             )
 
     # Visualize graph (only if enabled in config)
@@ -591,6 +609,7 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
                 nodes_constrained_path=nodes_constrained_path,
                 lines_red_loops=lines_red_loops,
                 nodes_red_loops=nodes_red_loops,
+                extra_lines_to_cut_ids=extra_lines_to_cut_ids,
             )
     else:
         print("Skipping visualization (DO_VISUALIZATION=False)")

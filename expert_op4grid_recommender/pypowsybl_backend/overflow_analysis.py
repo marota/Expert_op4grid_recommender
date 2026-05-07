@@ -640,14 +640,15 @@ class OverflowGraphBuilder:
 
 
 def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
-                                    obs: 'PypowsyblObservation', 
+                                    obs: 'PypowsyblObservation',
                                     overloaded_line_ids: List[int],
                                     non_connected_reconnectable_lines: List[str],
                                     lines_non_reconnectable: List[str],
                                     timestep: int,
                                     do_consolidate_graph: bool = True,
                                     use_dc: bool = False,
-                                    param_options: Optional[Dict] = None):
+                                    param_options: Optional[Dict] = None,
+                                    extra_lines_to_cut_ids: Optional[List[int]] = None):
     """
     Build overflow graph using pure pypowsybl.
     
@@ -681,7 +682,15 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
     params = param_options or PARAM_OPTIONS_EXPERT_OP
     # Keep the fast_mode extraction flexible
     fast_mode = params.get("fast_mode", True) if isinstance(params, dict) else True
-    
+
+    # Operator-supplied extras: cut in the simulation alongside the
+    # detected overloads but tagged ``is_extra_cut`` in the overflow
+    # graph so the visualization keeps them out of the Overloads layer.
+    extras = list(extra_lines_to_cut_ids or [])
+    seen = set(overloaded_line_ids)
+    extras = [idx for idx in extras if idx not in seen]
+    full_ltc = list(overloaded_line_ids) + extras
+
     # Create alphaDeesp-compatible adapter (replaces Grid2opSimulation)
     overflow_sim = AlphaDeespAdapter(
         obs=obs,
@@ -689,26 +698,27 @@ def build_overflow_graph_pypowsybl(env: 'SimulationEnvironment',
         observation_space=None,  # Not needed for our use case
         param_options=params,
         debug=False,
-        ltc=overloaded_line_ids,
+        ltc=full_ltc,
         plot=False,
         simu_step=timestep,
         use_dc=use_dc,
         fast_mode=fast_mode
     )
-    
+
     # Get flow changes DataFrame
     df_of_g = overflow_sim.get_dataframe()
     df_of_g["line_name"] = obs.name_line
-    
+
     # Apply flow swap correction - this negates delta_flows for lines where
     # new_flows_swapped=True, making them negative (blue) instead of positive (red)
     df_of_g = _inhibit_swapped_flows(df_of_g)
-    
+
     # Build topology info for alphaDeesp
     topo = overflow_sim.topo
-    
+
     # Use alphaDeesp's OverFlowGraph to construct graph with proper color attributes
-    g_overflow = OverFlowGraph(topo, overloaded_line_ids, df_of_g, float_precision="%.0f")
+    g_overflow = OverFlowGraph(topo, full_ltc, df_of_g, float_precision="%.0f",
+                               extra_lines_to_cut=extras)
     
     # Node name mapping
     node_name_mapping = {i: name for i, name in enumerate(obs.name_sub)}

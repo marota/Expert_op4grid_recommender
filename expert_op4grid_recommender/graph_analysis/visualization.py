@@ -78,7 +78,8 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
                                       lines_swapped, custom_layout=None, lines_we_care_about=None,
                                       monitoring_factor_thermal_limits=1.0,
                                       lines_constrained_path=None, nodes_constrained_path=None,
-                                      lines_red_loops=None, nodes_red_loops=None):
+                                      lines_red_loops=None, nodes_red_loops=None,
+                                      extra_lines_to_cut_ids=None):
     """
     Generates and saves a visualization of the overflow graph with various annotations.
 
