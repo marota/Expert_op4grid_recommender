@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1.post1] - 2026-05-07
+
+### Added
+
+- **`extra_lines_to_cut_ids` plumbing** (`graph_analysis/builder.py`, `pypowsybl_backend/overflow_analysis.py`, `graph_analysis/visualization.py`, `main.py`, PR #89): `build_overflow_graph` (and its grid2op / pypowsybl wrappers) now accept an optional `extra_lines_to_cut_ids` parameter. Operator-supplied indices are appended to `Grid2opSimulation.ltc` / `AlphaDeespAdapter.ltc` so the cut still happens, and forwarded as `extra_lines_to_cut=…` to `OverFlowGraph` so the new `is_extra_cut` tag flows through (and the visualization keeps these edges out of the Overloads / Monitored layers). Implements ExpertAgent's `additionalLinesToCut` semantic. `run_analysis_step2_graph` reads `context["extra_lines_to_cut_ids"]` (default `[]`); `make_overflow_graph_visualization` accepts the parameter for plumbing completeness.
+
+### Compatibility
+
+- Defaults to an empty list / `None` everywhere — existing callers see no behaviour change. Step1 populates `context["extra_lines_to_cut_ids"] = []`; step2 callers (e.g. CoStudy4Grid) can override before invoking `run_analysis_step2_graph`. Extras already present in `overloaded_line_ids` are silently de-duplicated.
+
+---
+
 ## [0.2.1] - 2026-05-05
 
 ### Added
