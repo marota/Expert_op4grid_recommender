@@ -637,12 +637,22 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     return context
 
 
-def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
+def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
+                          ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Path analysis + rule validation + AlphaDeesp pre-processing + expert discovery.
+
+    Extracted from the historical body of ``run_analysis_step2_discovery`` so
+    :class:`ExpertRecommender` can call it through the new pluggable interface
+    without duplicating ~80 lines of glue.
+
+    Side-effect: when the overflow graph was built in DC mode, switches
+    ``context["env"]`` and ``context["obs"]`` to fresh AC instances so the
+    downstream reassessment runs against the AC state, matching legacy
+    behaviour.
+
+    Returns ``(prioritized_actions, action_scores)`` from the underlying
+    :class:`ActionDiscoverer`.
     """
-    Third part of the expert system analysis focusing on path analysis and action discovery.
-    """
-    # Unpack context
-    backend = context["backend"]
     env = context["env"]
     obs = context["obs"]
     obs_simu_defaut = context["obs_simu_defaut"]
@@ -656,18 +666,16 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
     lines_non_reconnectable = context["lines_non_reconnectable"]
     lines_we_care_about = context["lines_we_care_about"]
     classifier = context["classifier"]
-    pre_existing_rho = context["pre_existing_rho"]
-    lines_overloaded_names = context["lines_overloaded_names"]
     non_connected_reconnectable_lines = context["non_connected_reconnectable_lines"]
     dict_action = context["dict_action"]
-    
+
     is_pypowsybl = context["is_pypowsybl"]
     actual_fast_mode = context["actual_fast_mode"]
-    
+
     get_env_first_obs = context["get_env_first_obs"]
     create_default_action = context["create_default_action"]
     check_rho_reduction = context["check_rho_reduction"]
-    
+
     g_overflow = context["g_overflow"]
     overflow_sim = context["overflow_sim"]
     hubs = context["hubs"]
@@ -675,7 +683,9 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
     node_name_mapping = context["node_name_mapping"]
     use_dc = context["use_dc"]
 
-    # Get graph paths and apply expert rules
+    if n_action_max is None:
+        n_action_max = config.N_PRIORITIZED_ACTIONS
+
     with Timer("Path Analysis & Rule Validation"):
         lines_blue_paths, nodes_blue_path, lines_dispatch, nodes_dispatch_path = get_constrained_and_dispatch_paths(
             g_distribution_graph, obs, lines_overloaded_ids, lines_overloaded_ids_kept
@@ -702,7 +712,6 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
 
         print_filtered_out_action(len(dict_action), actions_to_filter)
 
-    # Pre-process graph for AlphaDeesp
     with Timer("Pre-process for AlphaDeesp"):
         g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_graph_alphadeesp(
             g_overflow, overflow_sim, node_name_mapping
@@ -712,8 +721,15 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
         print("Warning: you have used the DC load flow, so results are more approximate")
         env, obs, path_chronic = get_env_first_obs(config.ENV_FOLDER, config.ENV_NAME,
                                                    config.USE_EVALUATION_CONFIG, analysis_date, is_DC=False)
+        # Mirror the AC env/obs back into the context so the downstream
+        # reassessment runs against them (matches legacy behaviour).
+        context["env"] = env
+        context["obs"] = obs
 
-    # Run the discovery process
+    # Surface the filtered-action set to downstream consumers (e.g. the
+    # random-overflow model picks among these).
+    context["filtered_candidate_actions"] = list(actions_unfiltered.keys())
+
     with Timer("Action Discovery"):
         discoverer = ActionDiscoverer(
             env=env,
@@ -738,12 +754,11 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
             create_default_action_func=create_default_action,
             obs_linecut=getattr(overflow_sim, 'obs_linecut', None)
         )
-        
+
         # Monkey patch check_rho_reduction if using PyPowSybl so we can pass fast_mode through the discoverer indirectly
         if is_pypowsybl:
             original_check = discoverer._check_rho_reduction
             discoverer._check_rho_reduction = lambda *args, **kwargs: original_check(*args, fast_mode=actual_fast_mode, **kwargs)
-            # Also override baseline simulation functions for optimized batch checking
             from expert_op4grid_recommender.utils.simulation_pypowsybl import (
                 compute_baseline_simulation as _pypowsybl_compute_baseline,
                 check_rho_reduction_with_baseline as _pypowsybl_check_with_baseline,
@@ -752,161 +767,54 @@ def run_analysis_step2_discovery(context: Dict[str, Any]) -> Dict[str, Any]:
             discoverer._check_rho_with_baseline = lambda *args, **kwargs: _pypowsybl_check_with_baseline(*args, fast_mode=actual_fast_mode, **kwargs)
 
         prioritized_actions, action_scores = discoverer.discover_and_prioritize(
-            n_action_max=config.N_PRIORITIZED_ACTIONS
+            n_action_max=n_action_max
         )
 
     print("\nPrioritized actions are: " + str(list(prioritized_actions.keys())))
+    return prioritized_actions, action_scores
 
-    # Reassess the prioritized actions and collect detailed results
-    with Timer("Reassessment"):
-        act_defaut = create_default_action(env.action_space, current_lines_defaut)
 
-        # Compute baseline rho once for all actions
-        # recompute obs_simu_defaut if DC mode was used for overflow graph
-        if is_pypowsybl and obs_simu_defaut._network_manager._default_dc:
-            obs_simu_defaut, has_converged = simulate_contingency_pypowsybl(
-                env, obs, current_lines_defaut, act_reco_maintenance, current_timestep, fast_mode=actual_fast_mode
-            )
-            obs_simu_defaut._network_manager._default_dc = False
-        elif not is_pypowsybl:
-            obs_simu_defaut, has_converged = simulate_contingency_grid2op(
-                env, obs, current_lines_defaut, act_reco_maintenance, current_timestep
-            )
-        baseline_rho = obs_simu_defaut.rho[lines_overloaded_ids]
+def run_analysis_step2_discovery(context: Dict[str, Any],
+                                 recommender=None,
+                                 params: Optional[Dict[str, Any]] = None,
+                                 ) -> Dict[str, Any]:
+    """Run the chosen recommendation model and reassess its actions.
 
-        # Performance optimization: Pre-calculate masks and baseline for large grids
-        num_lines = len(obs.name_line)
-        pre_existing_baseline = np.zeros(num_lines)
-        is_pre_existing = np.zeros(num_lines, dtype=bool)
-        for idx, rho_val in pre_existing_rho.items():
-            pre_existing_baseline[idx] = rho_val
-            is_pre_existing[idx] = True
+    Defaults to :class:`ExpertRecommender` so every existing caller
+    behaves exactly like before. Pass any :class:`RecommenderModel`
+    instance to swap in a different model (random, ML, ...).
 
-        if lines_we_care_about is not None and len(lines_we_care_about) > 0:
-            care_mask = np.isin(obs.name_line, list(lines_we_care_about))
-        else:
-            care_mask = np.ones(num_lines, dtype=bool)
+    The reassessment + combined-pair phase always runs and is shared
+    across models — see
+    :mod:`expert_op4grid_recommender.utils.reassessment`.
+    """
+    # Late imports keep the legacy import graph at module load.
+    from expert_op4grid_recommender.models.expert import ExpertRecommender
+    from expert_op4grid_recommender.utils.reassessment import (
+        build_recommender_inputs,
+        compute_combined_pairs,
+        propagate_non_convergence_to_scores,
+        reassess_prioritized_actions,
+    )
 
-        detailed_actions = {}
-        for action_id, action in prioritized_actions.items():
-            # Get description_unitaire if available
-            description_unitaire = None
-            if action_id in dict_action:
-                action_desc = dict_action[action_id]
-                description_unitaire = action_desc.get("description_unitaire")
+    if recommender is None:
+        recommender = ExpertRecommender()
+    if params is None:
+        params = {"n_prioritized_actions": config.N_PRIORITIZED_ACTIONS}
 
-            # Simulate action
-            is_pypowsybl = backend == Backend.PYPOWSYBL
-            if is_pypowsybl:
-                # Optimized for pypowsybl: simulate starting from the N-1 converged state
-                obs_simu_action, _, _, info_action = obs_simu_defaut.simulate(
-                    action,
-                    time_step=current_timestep,
-                    keep_variant=True,
-                    fast_mode=actual_fast_mode
-                )
-            else:
-                # Standard backend behavior
-                obs_simu_action, _, _, info_action = obs.simulate(
-                    action + act_defaut + act_reco_maintenance,
-                    time_step=current_timestep
-                )
+    inputs = build_recommender_inputs(context)
+    output = recommender.recommend(inputs, params)
 
-            # Compute rho evolution and max rho
-            rho_before = baseline_rho
-            rho_after = None
-            max_rho = 0.0
-            max_rho_line = "N/A"
-            is_rho_reduction = False
-
-            if not info_action["exception"]:
-                rho_after = obs_simu_action.rho[lines_overloaded_ids]
-
-                # Determine if rho was reduced on all overloaded lines
-                if rho_before is not None:
-                    is_rho_reduction = bool(np.all(rho_after + 0.01 < rho_before))
-
-                # Find max rho among lines_we_care_about (or all lines)
-                worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
-                action_rho = obs_simu_action.rho
-
-                # Optimized vectorized max rho calculation
-                worsened_mask = action_rho > pre_existing_baseline * (1 + worsening_threshold)
-                eligible_mask = care_mask & (~is_pre_existing | worsened_mask)
-
-                if np.any(eligible_mask):
-                    masked_rho = action_rho[eligible_mask]
-                    max_idx_in_masked = np.argmax(masked_rho)
-                    max_rho = float(masked_rho[max_idx_in_masked])
-                    max_rho_line = obs_simu_action.name_line[np.where(eligible_mask)[0][max_idx_in_masked]]
-
-            # Capture non-convergence reason
-            sim_exception = info_action.get("exception")
-            non_convergence = None
-            if sim_exception:
-                if isinstance(sim_exception, list):
-                    non_convergence = "; ".join([str(e) for e in sim_exception])
-                else:
-                    non_convergence = str(sim_exception)
-
-            # Print summary
-            print(f"{action_id}")
-            if description_unitaire:
-                print(f"  {description_unitaire}")
-            if rho_before is not None and rho_after is not None:
-                print(f"  Rho reduction from {np.round(rho_before, 2)} to {np.round(rho_after, 2)}")
-                print(f"  New max rho is {max_rho:.2f} on line {max_rho_line}")
-
-            detailed_actions[action_id] = {
-                "action": action,
-                "description_unitaire": description_unitaire,
-                "rho_before": rho_before,
-                "rho_after": rho_after,
-                "max_rho": max_rho,
-                "max_rho_line": max_rho_line,
-                "is_rho_reduction": is_rho_reduction,
-                "observation": obs_simu_action,
-                "non_convergence": non_convergence,
-            }
-
-        # Propagate non-convergence info to the score map
-        for action_id, details in detailed_actions.items():
-            nc = details.get("non_convergence")
-            for category in action_scores:
-                if action_id in action_scores[category]["scores"]:
-                    # Ensure non_convergence dict exists (safety)
-                    if "non_convergence" not in action_scores[category]:
-                        action_scores[category]["non_convergence"] = {}
-                    action_scores[category]["non_convergence"][action_id] = nc
-
-    # Combined Action Pairs using the Superposition Theorem
-    combined_actions = {}
-    with Timer("Combined Action Pairs (Superposition)"):
-        try:
-            from expert_op4grid_recommender.utils.superposition import compute_all_pairs_superposition
-            combined_actions = compute_all_pairs_superposition(
-                obs_start=obs_simu_defaut,
-                detailed_actions=detailed_actions,
-                classifier=classifier,
-                env=env,
-                lines_overloaded_ids=lines_overloaded_ids,
-                lines_we_care_about=lines_we_care_about,
-                pre_existing_rho=pre_existing_rho,
-                dict_action=dict_action,
-            )
-        except Exception as e:
-            print(f"Warning: Failed to compute combined action pairs: {e}")
-            import traceback
-            traceback.print_exc()
-
-    # Build pre-existing overloads info for the frontend
-    pre_existing_info = [
-        {"name": str(obs.name_line[i]), "rho_N": pre_existing_rho[i]}
-        for i in sorted(pre_existing_rho.keys())
-    ]
+    detailed_actions, pre_existing_info = reassess_prioritized_actions(
+        output.prioritized_actions, context
+    )
+    action_scores = propagate_non_convergence_to_scores(
+        detailed_actions, output.action_scores
+    )
+    combined_actions = compute_combined_pairs(detailed_actions, context)
 
     return {
-        "lines_overloaded_names": lines_overloaded_names,
+        "lines_overloaded_names": context["lines_overloaded_names"],
         "prioritized_actions": detailed_actions,
         "action_scores": action_scores,
         "pre_existing_overloads": pre_existing_info,
