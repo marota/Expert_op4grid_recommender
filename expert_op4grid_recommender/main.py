@@ -148,15 +148,7 @@ def build_overflow_graph_grid2op(env, obs_simu_defaut, lines_overloaded_ids_kept
 
 def setup_environment_pypowsybl(analysis_date: Optional[datetime], network=None,
                                  skip_initial_obs: bool = False) -> Tuple:
-    """Setup environment using pure pypowsybl backend.
-
-    `network` is an optional pre-loaded `pp.network.Network` forwarded to
-    `setup_environment_configs_pypowsybl` to avoid re-parsing the .xiidm
-    file when the caller already holds a Network instance.
-    `skip_initial_obs=True` skips the first `env.get_obs()` call (returns
-    `obs=None`) — saves ~3-5 s on large grids when the caller doesn't
-    consume the initial observation.
-    """
+    """Setup environment using pure pypowsybl backend."""
     from expert_op4grid_recommender.environment_pypowsybl import setup_environment_configs_pypowsybl
     return setup_environment_configs_pypowsybl(analysis_date, network=network, skip_initial_obs=skip_initial_obs)
 
@@ -235,27 +227,7 @@ def run_analysis_step1(analysis_date: Optional[datetime],
                        fast_mode: Optional[bool] = None,
                        dict_action: Optional[Dict[str, Any]] = None,
                        prebuilt_env_context: Optional[Dict[str, Any]] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
-    """
-    First part of the expert system analysis up to detection and selection of overloads.
-
-    Args:
-        dict_action: Pre-built enriched action dictionary (output of enrich_actions_lazy).
-            When provided for the pypowsybl backend, the enrich_actions_lazy step inside
-            Environment Setup is skipped, avoiding a redundant NetworkTopologyCache rebuild.
-        prebuilt_env_context: Pre-built environment context dict with keys
-            ``env``, ``path_chronic``, ``chronic_name``, ``custom_layout``,
-            ``lines_non_reconnectable``, ``lines_we_care_about``.
-            When provided for the pypowsybl backend, ``setup_environment`` is skipped
-            entirely and ``env.get_obs()`` is used to read the current N-state.
-            The network is reset to the base variant before reading so that stale
-            variants from previous analyses do not pollute the observation.
-
-    Returns:
-        (final_result, context):
-            - If final_result is not None, it means the analysis should stop here (e.g. no overloads).
-            - Otherwise, context contains all information needed for Step 2.
-    """
-    # --- Select backend functions ---
+    """First part of the expert system analysis up to detection and selection of overloads."""
     if backend == Backend.GRID2OP:
         print(f"Using Grid2Op backend")
         setup_environment = setup_environment_grid2op
@@ -281,7 +253,6 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     else:
         raise ValueError(f"Unknown backend: {backend}")
 
-    # --- Argument Handling ---
     is_bare_env = False
 
     if analysis_date is None:
@@ -302,12 +273,8 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     if env_path is not None:
         config.ENV_PATH = env_path
 
-    # Load setup
     with Timer("Environment Setup"):
         if prebuilt_env_context is not None and backend == Backend.PYPOWSYBL:
-            # Fast path: reuse a cached SimulationEnvironment built during update_config.
-            # Reset the network to the base variant so any variants left by the previous
-            # analysis are not visible in the N-state observation.
             env = prebuilt_env_context['env']
             env.network_manager.reset_to_base()
             obs = env.get_obs()
@@ -321,34 +288,22 @@ def run_analysis_step1(analysis_date: Optional[datetime],
             env, obs, path_chronic, chronic_name, custom_layout, raw_dict_action, lines_non_reconnectable, lines_we_care_about = setup_environment(
                 analysis_date)
 
-            # Get pypowsybl network reference
             if backend == Backend.GRID2OP:
                 n_grid = env.backend._grid.network
             else:
                 n_grid = env.network_manager.network
 
-            # Temporary fix for thermal limits
             if np.mean(env.get_thermal_limit()) >= 10 ** 4:
                 env = set_thermal_limits(n_grid, env, thresold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS)
                 obs = env.reset() if backend == Backend.GRID2OP else env.get_obs()
 
-        # Wrap action dicts for lazy content computation from switches.
-        # Only needed for pypowsybl backend — Grid2Op environments may use
-        # node-breaker topologies where NetworkTopologyCache cannot reliably
-        # compute set_bus from switches, so actions must ship with pre-computed content.
-        # Skip if the caller already provided a pre-built enriched dict (avoids rebuilding
-        # the NetworkTopologyCache on every run_analysis_step1 call).
         if backend == Backend.PYPOWSYBL:
             if dict_action is None:
                 dict_action = enrich_actions_lazy(raw_dict_action, n_grid)
-            # else: use the caller-supplied pre-built dict as-is
         else:
             dict_action = raw_dict_action
 
-    # --- Instantiate Classifier ---
     if backend == Backend.PYPOWSYBL:
-        # Build name sets once so identify_action_type can infer has_line/has_load
-        # from switch IDs without triggering lazy content computation.
         _branch_names = set(n_grid.get_lines().index) | set(n_grid.get_2_windings_transformers().index)
         _load_names = set(n_grid.get_loads(attributes=[]).index)
         classifier = ActionClassifier(grid2op_action_space=env.action_space,
@@ -360,8 +315,6 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         act_reco_maintenance = env.action_space({})
         maintenance_to_reco_at_t = []
     else:
-        # For pypowsybl backend, detect disconnected lines from network state
-        # (no chronics/time-series maintenance data available)
         if backend == Backend.PYPOWSYBL:
             from expert_op4grid_recommender.utils.helpers_pypowsybl import get_maintenance_timestep_pypowsybl
             act_reco_maintenance, maintenance_to_reco_at_t = get_maintenance_timestep_pypowsybl(
@@ -372,12 +325,10 @@ def run_analysis_step1(analysis_date: Optional[datetime],
                 current_timestep, lines_non_reconnectable, env, config.DO_RECO_MAINTENANCE
             )
 
-    # Simulate Contingency
     is_pypowsybl = backend == Backend.PYPOWSYBL
     if fast_mode:
         actual_fast_mode = True
     else:
-        # Resolve fast_mode if not correctly specified, falling back to config for default
         actual_fast_mode = config.PYPOWSYBL_FAST_MODE if fast_mode is None else fast_mode
 
     with Timer("Initial Contingency Simulation"):
@@ -392,7 +343,6 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     if not has_converged:
         raise RuntimeError("Initial contingency simulation failed. Cannot proceed.")
 
-    # Find overloads caused by the contingency (not pre-existing, or significantly worsened)
     lines_overloaded_ids = []
     pre_existing_overloads = []
     pre_existing_rho = {}
@@ -422,7 +372,6 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     if config.IGNORE_RECONNECTIONS:
         non_connected_reconnectable_lines = []
 
-    # Check if graph remains connected
     lines_overloaded_ids_kept, prevent_islanded_subs = identify_overload_lines_to_keep_overflow_graph_connected(
         obs_simu_defaut, lines_overloaded_ids, config.DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART
     )
@@ -445,7 +394,6 @@ def run_analysis_step1(analysis_date: Optional[datetime],
             },
         }, None
 
-    # Pack everything into context for Step 2
     context = {
         "backend": backend,
         "env": env,
@@ -466,20 +414,11 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         "pre_existing_rho": pre_existing_rho,
         "lines_overloaded_names": lines_overloaded_names,
         "non_connected_reconnectable_lines": non_connected_reconnectable_lines,
-        # Operator-supplied extras (line indices) that should be cut in
-        # the overflow graph alongside the detected overloads but
-        # NOT classified as overloads in the viewer.  Step 2 callers
-        # (e.g. CoStudy4Grid) populate this when narrowing the context
-        # before ``run_analysis_step2_graph``; left empty here so the
-        # legacy single-step / no-extras path keeps its current
-        # behaviour.  Plumbed through to ``build_overflow_graph`` in
-        # Step 2 graph generation.
         "extra_lines_to_cut_ids": [],
         "dict_action": dict_action,
         "is_bare_env": is_bare_env,
         "is_pypowsybl": is_pypowsybl,
         "actual_fast_mode": actual_fast_mode,
-        # Backend specific functions
         "check_simu_overloads": check_simu_overloads,
         "switch_to_dc": switch_to_dc,
         "build_overflow_graph": build_overflow_graph,
@@ -494,10 +433,7 @@ def run_analysis_step1(analysis_date: Optional[datetime],
 
 
 def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Second part of the expert system analysis, focusing on graph generation and visualization.
-    """
-    # Unpack context
+    """Second part of the expert system analysis, focusing on graph generation and visualization."""
     backend = context["backend"]
     env = context["env"]
     obs = context["obs"]
@@ -513,8 +449,6 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     custom_layout = context["custom_layout"]
     chronic_name = context["chronic_name"]
     non_connected_reconnectable_lines = context["non_connected_reconnectable_lines"]
-    # Operator-supplied extras — see step1 `context["extra_lines_to_cut_ids"]`.
-    # Defaulted to an empty list when missing so older callers keep working.
     extra_lines_to_cut_ids = context.get("extra_lines_to_cut_ids") or []
 
     is_pypowsybl = context["is_pypowsybl"]
@@ -524,7 +458,6 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     switch_to_dc = context["switch_to_dc"]
     build_overflow_graph = context["build_overflow_graph"]
 
-    # Build the overflow graph
     with Timer("Graph Building & DC Switch"):
         if is_pypowsybl:
             has_converged, has_lost_load = check_simu_overloads(
@@ -558,23 +491,11 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
                 extra_lines_to_cut_ids=extra_lines_to_cut_ids,
             )
 
-    # Visualize graph (only if enabled in config)
     if config.DO_VISUALIZATION:
         with Timer("Visualization"):
             graph_file_name = get_graph_file_name(current_lines_defaut, chronic_name, current_timestep, use_dc)
             save_folder = config.SAVE_FOLDER_VISUALIZATION
             lines_swapped = list(df_of_g[df_of_g.new_flows_swapped].line_name)
-            # Pre-compute the constrained path so the visualization can stamp
-            # source-of-truth `on_constrained_path` flags on the graph; the
-            # interactive HTML viewer's "Constrained path" layer toggle reads
-            # those flags. Defensive: any failure here must not block render.
-            # Source-of-truth lists from the structured-overload
-            # distribution graph: the strict ConstrainedPath
-            # (amont + constrained_edge + aval) and the loop-only
-            # dispatch paths (red loops). These are the same lists the
-            # action-evaluation rule engine consumes — propagating
-            # them as graph attributes keeps the layer toggles aligned
-            # with the recommender's domain definitions.
             lines_constrained_path = None
             nodes_constrained_path = None
             lines_red_loops = None
@@ -585,7 +506,7 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
                 )
                 lines_constrained_path = list(cp_lines)
                 nodes_constrained_path = list(cp_nodes)
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 print(
                     "Could not pre-compute constrained path for overflow viewer: "
                     + str(exc)
@@ -596,7 +517,7 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
                 )
                 lines_red_loops = list(rl_lines)
                 nodes_red_loops = list(rl_nodes)
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 print(
                     "Could not pre-compute red-loop dispatch paths for "
                     "overflow viewer: " + str(exc)
@@ -614,14 +535,12 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     else:
         print("Skipping visualization (DO_VISUALIZATION=False)")
 
-    # Save data for tests
     if config.DO_SAVE_DATA_FOR_TEST:
         with Timer("Saving Test Data"):
             case_name = f"defaut_{'_'.join(current_lines_defaut)}_t{current_timestep}"
             save_data_for_test(config.ENV_PATH, case_name, df_of_g, overflow_sim, obs_simu_defaut,
                                 lines_non_reconnectable, non_connected_reconnectable_lines, lines_overloaded_ids_kept)
 
-    # Update context with new objects for Step 2 Discovery
     context.update({
         "env": env,
         "obs": obs,
@@ -637,22 +556,89 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     return context
 
 
+def _run_expert_action_filter(context: Dict[str, Any]) -> None:
+    """Path analysis + expert rule validation.
+
+    Populates ``context["filtered_candidate_actions"]`` with the action
+    IDs retained by the expert rules (overflow-graph paths + per-action
+    domain logic in :class:`ActionRuleValidator`). Idempotent: returns
+    immediately when the field is already populated.
+
+    Requires the overflow-graph artefacts (``g_distribution_graph``,
+    ``hubs``) to be in ``context`` — i.e. callers must run
+    :func:`run_analysis_step2_graph` first.
+
+    Surfaced as a standalone helper so non-expert recommenders that
+    declare ``requires_overflow_graph=True`` (e.g.
+    :class:`RandomOverflowRecommender`) can sample from the same
+    reduced action space the expert sees, without paying for the full
+    :class:`ActionDiscoverer` scoring pass.
+    """
+    if context.get("filtered_candidate_actions"):
+        return
+
+    env = context["env"]
+    obs = context["obs"]
+    current_timestep = context["current_timestep"]
+    current_lines_defaut = context["current_lines_defaut"]
+    lines_overloaded_ids = context["lines_overloaded_ids"]
+    lines_overloaded_ids_kept = context["lines_overloaded_ids_kept"]
+    maintenance_to_reco_at_t = context["maintenance_to_reco_at_t"]
+    lines_we_care_about = context["lines_we_care_about"]
+    classifier = context["classifier"]
+    dict_action = context["dict_action"]
+    hubs = context["hubs"]
+    g_distribution_graph = context["g_distribution_graph"]
+
+    with Timer("Path Analysis & Rule Validation"):
+        lines_blue_paths, nodes_blue_path, lines_dispatch, nodes_dispatch_path = get_constrained_and_dispatch_paths(
+            g_distribution_graph, obs, lines_overloaded_ids, lines_overloaded_ids_kept
+        )
+
+        validator = ActionRuleValidator(
+            obs=obs,
+            action_space=env.action_space,
+            classifier=classifier,
+            hubs=hubs,
+            paths=((lines_blue_paths, nodes_blue_path), (lines_dispatch, nodes_dispatch_path)),
+            by_description=config.CHECK_WITH_ACTION_DESCRIPTION,
+        )
+
+        actions_to_filter, actions_unfiltered = validator.categorize_actions(
+            dict_action=dict_action,
+            timestep=current_timestep,
+            defauts=current_lines_defaut,
+            overload_ids=lines_overloaded_ids,
+            lines_reco_maintenance=maintenance_to_reco_at_t,
+            lines_we_care_about=lines_we_care_about,
+            do_simulation_checks=config.CHECK_ACTION_SIMULATION,
+        )
+
+        print_filtered_out_action(len(dict_action), actions_to_filter)
+
+    context["filtered_candidate_actions"] = list(actions_unfiltered.keys())
+
+
 def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
                           ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Path analysis + rule validation + AlphaDeesp pre-processing + expert discovery.
 
-    Extracted from the historical body of ``run_analysis_step2_discovery`` so
-    :class:`ExpertRecommender` can call it through the new pluggable interface
-    without duplicating ~80 lines of glue.
+    Filtering of candidate actions is delegated to
+    :func:`_run_expert_action_filter` (idempotent) so the same logic
+    feeds both the expert discoverer AND non-expert recommenders that
+    request the filtered action set.
 
     Side-effect: when the overflow graph was built in DC mode, switches
-    ``context["env"]`` and ``context["obs"]`` to fresh AC instances so the
-    downstream reassessment runs against the AC state, matching legacy
-    behaviour.
+    ``context["env"]`` and ``context["obs"]`` to fresh AC instances so
+    the downstream reassessment runs against the AC state.
 
     Returns ``(prioritized_actions, action_scores)`` from the underlying
     :class:`ActionDiscoverer`.
     """
+    # Run the rule-validation filter (idempotent — no-op when already
+    # populated by a previous call, e.g. via run_analysis_step2_discovery).
+    _run_expert_action_filter(context)
+
     env = context["env"]
     obs = context["obs"]
     obs_simu_defaut = context["obs_simu_defaut"]
@@ -660,8 +646,6 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
     current_timestep = context["current_timestep"]
     current_lines_defaut = context["current_lines_defaut"]
     lines_overloaded_ids = context["lines_overloaded_ids"]
-    lines_overloaded_ids_kept = context["lines_overloaded_ids_kept"]
-    maintenance_to_reco_at_t = context["maintenance_to_reco_at_t"]
     act_reco_maintenance = context["act_reco_maintenance"]
     lines_non_reconnectable = context["lines_non_reconnectable"]
     lines_we_care_about = context["lines_we_care_about"]
@@ -679,38 +663,11 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
     g_overflow = context["g_overflow"]
     overflow_sim = context["overflow_sim"]
     hubs = context["hubs"]
-    g_distribution_graph = context["g_distribution_graph"]
     node_name_mapping = context["node_name_mapping"]
     use_dc = context["use_dc"]
 
     if n_action_max is None:
         n_action_max = config.N_PRIORITIZED_ACTIONS
-
-    with Timer("Path Analysis & Rule Validation"):
-        lines_blue_paths, nodes_blue_path, lines_dispatch, nodes_dispatch_path = get_constrained_and_dispatch_paths(
-            g_distribution_graph, obs, lines_overloaded_ids, lines_overloaded_ids_kept
-        )
-
-        validator = ActionRuleValidator(
-            obs=obs,
-            action_space=env.action_space,
-            classifier=classifier,
-            hubs=hubs,
-            paths=((lines_blue_paths, nodes_blue_path), (lines_dispatch, nodes_dispatch_path)),
-            by_description=config.CHECK_WITH_ACTION_DESCRIPTION
-        )
-
-        actions_to_filter, actions_unfiltered = validator.categorize_actions(
-            dict_action=dict_action,
-            timestep=current_timestep,
-            defauts=current_lines_defaut,
-            overload_ids=lines_overloaded_ids,
-            lines_reco_maintenance=maintenance_to_reco_at_t,
-            lines_we_care_about=lines_we_care_about,
-            do_simulation_checks=config.CHECK_ACTION_SIMULATION
-        )
-
-        print_filtered_out_action(len(dict_action), actions_to_filter)
 
     with Timer("Pre-process for AlphaDeesp"):
         g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_graph_alphadeesp(
@@ -721,14 +678,10 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
         print("Warning: you have used the DC load flow, so results are more approximate")
         env, obs, path_chronic = get_env_first_obs(config.ENV_FOLDER, config.ENV_NAME,
                                                    config.USE_EVALUATION_CONFIG, analysis_date, is_DC=False)
-        # Mirror the AC env/obs back into the context so the downstream
-        # reassessment runs against them (matches legacy behaviour).
         context["env"] = env
         context["obs"] = obs
 
-    # Surface the filtered-action set to downstream consumers (e.g. the
-    # random-overflow model picks among these).
-    context["filtered_candidate_actions"] = list(actions_unfiltered.keys())
+    actions_unfiltered_keys = set(context["filtered_candidate_actions"])
 
     with Timer("Action Discovery"):
         discoverer = ActionDiscoverer(
@@ -743,7 +696,7 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
             non_connected_reconnectable_lines=non_connected_reconnectable_lines,
             all_disconnected_lines=lines_non_reconnectable + non_connected_reconnectable_lines,
             dict_action=dict_action,
-            actions_unfiltered=set(actions_unfiltered.keys()),
+            actions_unfiltered=actions_unfiltered_keys,
             hubs=hubs,
             g_overflow=g_overflow_processed,
             g_distribution_graph=g_distribution_graph_processed,
@@ -755,7 +708,6 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
             obs_linecut=getattr(overflow_sim, 'obs_linecut', None)
         )
 
-        # Monkey patch check_rho_reduction if using PyPowSybl so we can pass fast_mode through the discoverer indirectly
         if is_pypowsybl:
             original_check = discoverer._check_rho_reduction
             discoverer._check_rho_reduction = lambda *args, **kwargs: original_check(*args, fast_mode=actual_fast_mode, **kwargs)
@@ -784,11 +736,18 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
     behaves exactly like before. Pass any :class:`RecommenderModel`
     instance to swap in a different model (random, ML, ...).
 
+    When the chosen model declares ``requires_overflow_graph=True``,
+    this function also runs the expert rule-validation filter
+    (:func:`_run_expert_action_filter`) BEFORE invoking the model, so
+    the model receives ``inputs.filtered_candidate_actions`` populated
+    with the same reduced action space the expert discoverer would
+    consume. The filter is idempotent — when the model is the expert
+    itself, the call is a free no-op (the expert re-runs it internally
+    and finds the cached result).
+
     The reassessment + combined-pair phase always runs and is shared
-    across models — see
-    :mod:`expert_op4grid_recommender.utils.reassessment`.
+    across models.
     """
-    # Late imports keep the legacy import graph at module load.
     from expert_op4grid_recommender.models.expert import ExpertRecommender
     from expert_op4grid_recommender.utils.reassessment import (
         build_recommender_inputs,
@@ -801,6 +760,16 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         recommender = ExpertRecommender()
     if params is None:
         params = {"n_prioritized_actions": config.N_PRIORITIZED_ACTIONS}
+
+    # For models that consume the overflow graph, run the expert
+    # rule-validation filter so the model sees the reduced action
+    # space (overflow paths + per-action domain checks). Idempotent
+    # for the expert path; required for RandomOverflowRecommender et al.
+    if (
+        getattr(recommender, "requires_overflow_graph", False)
+        and context.get("g_distribution_graph") is not None
+    ):
+        _run_expert_action_filter(context)
 
     inputs = build_recommender_inputs(context)
     output = recommender.recommend(inputs, params)
@@ -823,10 +792,7 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
 
 
 def run_analysis_step2(context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Second part of the expert system analysis after detection/selection of overloads.
-    (Compatibility wrapper for the previous monolithic Step 2)
-    """
+    """Compatibility wrapper for the previous monolithic Step 2."""
     context = run_analysis_step2_graph(context)
     return run_analysis_step2_discovery(context)
 
@@ -838,11 +804,7 @@ def run_analysis(analysis_date: Optional[datetime],
                  env_name: Optional[str] = None,
                  backend: Backend = Backend.GRID2OP,
                  fast_mode: Optional[bool] = None) -> Dict[str, Any]:
-    """
-    Runs the expert system analysis for a given date, timestep, and contingency.
-    (Now refactored to use run_analysis_step1, run_analysis_step2_graph and run_analysis_step2_discovery)
-    """
-    # Step 1: Detect overloads and selection of overloads to keep
+    """Runs the expert system analysis for a given date, timestep, and contingency."""
     res_step1, context = run_analysis_step1(
         analysis_date=analysis_date,
         current_timestep=current_timestep,
@@ -856,85 +818,39 @@ def run_analysis(analysis_date: Optional[datetime],
     if res_step1 is not None:
         return res_step1
 
-    # Step 2: Run the remaining analysis
     context = run_analysis_step2_graph(context)
     return run_analysis_step2_discovery(context)
 
 
 def main():
-    """
-    Main function to run the expert system analysis from the command line.
-    """
-
-    # --- Argument Parsing ---
+    """Main function to run the expert system analysis from the command line."""
     default_date_str = DEFAULT_DATE.strftime("%Y-%m-%d")
 
     parser = argparse.ArgumentParser(description="Run ExpertOp4Grid analysis for a specific contingency.")
-    parser.add_argument(
-        "--date",
-        default=default_date_str,
-        help=f"Date for the chronic in YYYY-MM-DD format (default: {default_date_str}). Pass 'None' to use the bare environment without a specific date."
-    )
-    parser.add_argument(
-        "--timestep",
-        type=int,
-        default=DEFAULT_TIMESTEP,
-        help=f"Timestep index within the chronic (default: {DEFAULT_TIMESTEP})"
-    )
-    parser.add_argument(
-        "--lines-defaut",
-        nargs='+',
-        default=DEFAULT_LINES_DEFAUT,
-        help=f"One or more line names for the N-1 contingency (default: {' '.join(DEFAULT_LINES_DEFAUT)})"
-    )
-    parser.add_argument(
-        "--backend",
-        choices=["grid2op", "pypowsybl"],
-        default="grid2op",
-        help="Simulation backend to use (default: grid2op)"
-    )
-    parser.add_argument(
-        "--rebuild-actions",
-        action='store_true',
-        help="If set, rebuilds the action dictionary from REPAS files based on the current grid snapshot before analysis. Stops analysis after rebuilding."
-    )
-    parser.add_argument(
-        "--repas-file",
+    parser.add_argument("--date", default=default_date_str,
+        help=f"Date for the chronic in YYYY-MM-DD format (default: {default_date_str}). Pass 'None' to use the bare environment without a specific date.")
+    parser.add_argument("--timestep", type=int, default=DEFAULT_TIMESTEP,
+        help=f"Timestep index within the chronic (default: {DEFAULT_TIMESTEP})")
+    parser.add_argument("--lines-defaut", nargs='+', default=DEFAULT_LINES_DEFAUT,
+        help=f"One or more line names for the N-1 contingency (default: {' '.join(DEFAULT_LINES_DEFAUT)})")
+    parser.add_argument("--backend", choices=["grid2op", "pypowsybl"], default="grid2op",
+        help="Simulation backend to use (default: grid2op)")
+    parser.add_argument("--rebuild-actions", action='store_true',
+        help="If set, rebuilds the action dictionary from REPAS files based on the current grid snapshot before analysis. Stops analysis after rebuilding.")
+    parser.add_argument("--repas-file",
         default=os.path.join("data", "action_space", "allLogics.2024.12.10.json"),
-        help="Path to the REPAS actions file (default: data/action_space/allLogics.2024.12.10.json)"
-    )
-    parser.add_argument(
-        "--grid-snapshot-file",
+        help="Path to the REPAS actions file (default: data/action_space/allLogics.2024.12.10.json)")
+    parser.add_argument("--grid-snapshot-file",
         default=os.path.join("data", "snapshot", "pf_20240828T0100Z_20240828T0100Z.xiidm"),
-        help="Path to the snapshot grid file in detailed topology format with switches, to rebuild action dictionary on (default: data/snapshot/pf_20240828T0100Z_20240828T0100Z.xiidm)"
-    )
-    parser.add_argument(
-        "--voltage-threshold",
-        type=float,
-        default=300.0,
-        help="Voltage filter threshold for REPAS actions (default: 300)"
-    )
-    parser.add_argument(
-        "--pypowsybl-format",
-        action='store_true',
-        help=(
-            "When used with --rebuild-actions and an empty action file (from scratch), "
-            "outputs the action dictionary in pypowsybl format: switch-based entries with "
-            "description, description_unitaire, VoltageLevelId and switches fields "
-            "(no Grid2Op set_bus content). Duplicate actions sharing identical switch "
-            "states are deduplicated; removed duplicates are listed in 'other_action_ids'."
-        )
-    )
-    parser.add_argument(
-        "--ignore-lines-monitoring",
-        action='store_true',
-        help="If set, ignores the lignes_a_monitorer.csv file and monitors all lines."
-    )
-    parser.add_argument(
-        "--fast-mode",
-        action='store_true',
-        help="If set, uses pypowsybl fast mode (no voltage control) for grid simulations."
-    )
+        help="Path to the snapshot grid file in detailed topology format with switches, to rebuild action dictionary on")
+    parser.add_argument("--voltage-threshold", type=float, default=300.0,
+        help="Voltage filter threshold for REPAS actions (default: 300)")
+    parser.add_argument("--pypowsybl-format", action='store_true',
+        help="When used with --rebuild-actions and an empty action file (from scratch), outputs the action dictionary in pypowsybl format.")
+    parser.add_argument("--ignore-lines-monitoring", action='store_true',
+        help="If set, ignores the lignes_a_monitorer.csv file and monitors all lines.")
+    parser.add_argument("--fast-mode", action='store_true',
+        help="If set, uses pypowsybl fast mode (no voltage control) for grid simulations.")
     args = parser.parse_args()
 
     if args.ignore_lines_monitoring:
@@ -950,15 +866,12 @@ def main():
               f"maximum number of prioritized actions overall ({config.N_PRIORITIZED_ACTIONS}). "
               f"Some minimums will not be respected.", file=sys.stderr)
 
-    # --- Handle explicit "None" string for date ---
     date_arg = args.date
     if date_arg == "None":
         date_arg = None
 
-    # --- Select backend ---
     backend = Backend.GRID2OP if args.backend == "grid2op" else Backend.PYPOWSYBL
 
-    # --- Call the core logic function ---
     try:
         with Timer("Total Execution"):
             if args.rebuild_actions:
@@ -979,7 +892,7 @@ def main():
                                                    pypowsybl_format=args.pypowsybl_format)
 
                 print("Action rebuilding process complete. Stopping analysis as requested.")
-                return  # EXIT EARLY
+                return
             else:
                 run_analysis(
                     analysis_date=date_arg,
