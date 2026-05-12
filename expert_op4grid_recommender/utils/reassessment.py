@@ -30,17 +30,17 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_pypowsybl_network(env: Any) -> Any:
-    """Best-effort extraction of the underlying pypowsybl ``Network``.
+    """Best-effort extraction of the underlying pypowsybl ``Network``
+    from a simulation environment.
 
     The two supported backends expose it in different places:
 
     - pypowsybl backend: ``env.network_manager.network``
     - grid2op backend:   ``env.backend._grid.network``
 
-    Returns ``None`` when neither path is present (e.g. a backend that
-    does not surface a pypowsybl ``Network`` at all). Errors are
-    swallowed on purpose — the network handle is an optional convenience
-    for downstream models and must not break the pipeline.
+    Returns ``None`` when neither path is present. Errors are swallowed
+    on purpose — the network handle is an optional convenience for
+    downstream models and must not break the pipeline.
     """
     if env is None:
         return None
@@ -54,6 +54,25 @@ def _extract_pypowsybl_network(env: Any) -> Any:
         grid = getattr(backend, "_grid", None)
         if grid is not None:
             return getattr(grid, "network", None)
+    return None
+
+
+def _extract_pypowsybl_network_from_obs(obs: Any) -> Any:
+    """Best-effort extraction of the pypowsybl ``Network`` from an
+    observation.
+
+    On the pypowsybl backend an observation wraps a ``NetworkManager``
+    that points at the active variant of the underlying Network:
+    ``obs._network_manager.network``. Grid2Op observations do not
+    expose a network handle this way, so this helper returns ``None``
+    in that case — the caller is expected to fall back to ``env`` /
+    ``context['n_grid_defaut']``.
+    """
+    if obs is None:
+        return None
+    nm = getattr(obs, "_network_manager", None)
+    if nm is not None:
+        return getattr(nm, "network", None)
     return None
 
 
@@ -258,23 +277,42 @@ def build_recommender_inputs(context: Dict[str, Any]):
     The ``_context`` escape hatch is populated so :class:`ExpertRecommender`
     can still reach internals. External models must NOT use it.
 
-    The pypowsybl ``network`` field is sourced from
-    ``context["n_grid"]`` when available; otherwise it is extracted by
-    best-effort introspection of ``env`` (works for both the pypowsybl
-    and grid2op backends). Either way the field is paired with the
-    N-state ``obs``.
+    Two pypowsybl ``Network`` handles are exposed, each paired with the
+    corresponding observation:
+
+    - ``network``         sourced from ``context['n_grid']`` when
+                          set, otherwise from best-effort introspection
+                          of ``env``. Paired with ``obs`` (N state).
+    - ``network_defaut``  sourced from ``context['n_grid_defaut']`` when
+                          set, otherwise from ``obs_defaut._network_manager.network``
+                          (pypowsybl backend), otherwise from ``env``.
+                          Paired with ``obs_defaut`` (N-K state).
+
+    On the pypowsybl backend ``network`` and ``network_defaut`` are
+    typically the same underlying :class:`Network` instance with
+    different variants active.
     """
     # Late import to avoid a top-level cycle with ``models.base`` consumers.
     from expert_op4grid_recommender.models.base import RecommenderInputs
 
     env = context.get("env")
+    obs_defaut = context["obs_simu_defaut"]
+
     network = context.get("n_grid")
     if network is None:
         network = _extract_pypowsybl_network(env)
 
+    network_defaut = context.get("n_grid_defaut")
+    if network_defaut is None:
+        network_defaut = _extract_pypowsybl_network_from_obs(obs_defaut)
+    if network_defaut is None:
+        # Fallback: same path as `network`; on pypowsybl this is the
+        # same Network instance (with whatever variant is currently active).
+        network_defaut = _extract_pypowsybl_network(env)
+
     return RecommenderInputs(
         obs=context["obs"],
-        obs_defaut=context["obs_simu_defaut"],
+        obs_defaut=obs_defaut,
         lines_defaut=list(context["current_lines_defaut"]),
         lines_overloaded_names=list(context["lines_overloaded_names"]),
         lines_overloaded_ids=list(context["lines_overloaded_ids"]),
@@ -282,6 +320,7 @@ def build_recommender_inputs(context: Dict[str, Any]):
         env=env,
         classifier=context["classifier"],
         network=network,
+        network_defaut=network_defaut,
         timestep=context["current_timestep"],
         overflow_graph=context.get("g_overflow"),
         distribution_graph=context.get("g_distribution_graph"),

@@ -64,7 +64,6 @@ def test_complete_subclass_instantiates_with_defaults():
     instance = _Complete()
     assert instance.name == "complete"
     assert instance.label == "Complete"
-    # Default for the capability flag.
     assert instance.requires_overflow_graph is False
 
 
@@ -89,8 +88,9 @@ def _minimal_inputs(**overrides):
 
 def test_recommender_inputs_default_optional_fields_are_none_or_false():
     inputs = _minimal_inputs()
-    # New paired-with-obs field defaults to None.
+    # Both paired-with-obs network handles default to None.
     assert inputs.network is None
+    assert inputs.network_defaut is None
     assert inputs.timestep == 0
     assert inputs.overflow_graph is None
     assert inputs.distribution_graph is None
@@ -120,19 +120,37 @@ def test_recommender_inputs_accepts_overflow_graph_artifacts():
     assert inputs.filtered_candidate_actions == ["a1"]
 
 
-def test_recommender_inputs_accepts_network_handle():
-    """The new ``network`` field carries the pypowsybl Network paired with obs."""
-    fake_net = object()
-    inputs = _minimal_inputs(network=fake_net)
-    assert inputs.network is fake_net
+def test_recommender_inputs_accepts_network_handles():
+    """The ``network`` and ``network_defaut`` fields carry the pypowsybl
+    Networks paired with ``obs`` and ``obs_defaut`` respectively."""
+    n_state = object()
+    nk_state = object()
+    inputs = _minimal_inputs(network=n_state, network_defaut=nk_state)
+    assert inputs.network is n_state
+    assert inputs.network_defaut is nk_state
 
 
-def test_recommender_inputs_network_is_independent_of_obs():
-    """obs and network are passed side by side — changing one doesn't touch the other."""
-    fake_net = object()
-    inputs = _minimal_inputs(obs="my_obs", network=fake_net)
+def test_recommender_inputs_pairs_are_independent_of_observations():
+    """obs, obs_defaut, network, network_defaut are independent fields."""
+    n_state = object()
+    nk_state = object()
+    inputs = _minimal_inputs(
+        obs="my_obs", obs_defaut="my_obs_d",
+        network=n_state, network_defaut=nk_state,
+    )
     assert inputs.obs == "my_obs"
-    assert inputs.network is fake_net
+    assert inputs.obs_defaut == "my_obs_d"
+    assert inputs.network is n_state
+    assert inputs.network_defaut is nk_state
+    assert inputs.network is not inputs.network_defaut
+
+
+def test_recommender_inputs_network_and_network_defaut_can_share_instance():
+    """Real backends usually share the same Network instance with
+    different variants active — the DTO doesn't forbid that."""
+    shared = object()
+    inputs = _minimal_inputs(network=shared, network_defaut=shared)
+    assert inputs.network is inputs.network_defaut is shared
 
 
 # ---------------------------------------------------------------------
@@ -142,7 +160,6 @@ def test_recommender_inputs_network_is_independent_of_obs():
 def test_recommender_output_default_scores_is_empty_dict():
     out = RecommenderOutput(prioritized_actions={"a": object()})
     assert out.action_scores == {}
-    # Default factory — each instance gets its own dict.
     other = RecommenderOutput(prioritized_actions={})
     other.action_scores["x"] = 1
     assert out.action_scores == {}
