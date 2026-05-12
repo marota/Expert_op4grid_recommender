@@ -89,6 +89,8 @@ def _minimal_inputs(**overrides):
 
 def test_recommender_inputs_default_optional_fields_are_none_or_false():
     inputs = _minimal_inputs()
+    # New paired-with-obs field defaults to None.
+    assert inputs.network is None
     assert inputs.timestep == 0
     assert inputs.overflow_graph is None
     assert inputs.distribution_graph is None
@@ -116,6 +118,21 @@ def test_recommender_inputs_accepts_overflow_graph_artifacts():
     assert inputs.distribution_graph == "gd"
     assert inputs.hubs == ["h1", "h2"]
     assert inputs.filtered_candidate_actions == ["a1"]
+
+
+def test_recommender_inputs_accepts_network_handle():
+    """The new ``network`` field carries the pypowsybl Network paired with obs."""
+    fake_net = object()
+    inputs = _minimal_inputs(network=fake_net)
+    assert inputs.network is fake_net
+
+
+def test_recommender_inputs_network_is_independent_of_obs():
+    """obs and network are passed side by side — changing one doesn't touch the other."""
+    fake_net = object()
+    inputs = _minimal_inputs(obs="my_obs", network=fake_net)
+    assert inputs.obs == "my_obs"
+    assert inputs.network is fake_net
 
 
 # ---------------------------------------------------------------------

@@ -29,6 +29,34 @@ from expert_op4grid_recommender.utils.helpers import Timer
 logger = logging.getLogger(__name__)
 
 
+def _extract_pypowsybl_network(env: Any) -> Any:
+    """Best-effort extraction of the underlying pypowsybl ``Network``.
+
+    The two supported backends expose it in different places:
+
+    - pypowsybl backend: ``env.network_manager.network``
+    - grid2op backend:   ``env.backend._grid.network``
+
+    Returns ``None`` when neither path is present (e.g. a backend that
+    does not surface a pypowsybl ``Network`` at all). Errors are
+    swallowed on purpose — the network handle is an optional convenience
+    for downstream models and must not break the pipeline.
+    """
+    if env is None:
+        return None
+    nm = getattr(env, "network_manager", None)
+    if nm is not None:
+        net = getattr(nm, "network", None)
+        if net is not None:
+            return net
+    backend = getattr(env, "backend", None)
+    if backend is not None:
+        grid = getattr(backend, "_grid", None)
+        if grid is not None:
+            return getattr(grid, "network", None)
+    return None
+
+
 def reassess_prioritized_actions(
     prioritized_actions: Dict[str, Any],
     context: Dict[str, Any],
@@ -229,9 +257,20 @@ def build_recommender_inputs(context: Dict[str, Any]):
 
     The ``_context`` escape hatch is populated so :class:`ExpertRecommender`
     can still reach internals. External models must NOT use it.
+
+    The pypowsybl ``network`` field is sourced from
+    ``context["n_grid"]`` when available; otherwise it is extracted by
+    best-effort introspection of ``env`` (works for both the pypowsybl
+    and grid2op backends). Either way the field is paired with the
+    N-state ``obs``.
     """
     # Late import to avoid a top-level cycle with ``models.base`` consumers.
     from expert_op4grid_recommender.models.base import RecommenderInputs
+
+    env = context.get("env")
+    network = context.get("n_grid")
+    if network is None:
+        network = _extract_pypowsybl_network(env)
 
     return RecommenderInputs(
         obs=context["obs"],
@@ -240,8 +279,9 @@ def build_recommender_inputs(context: Dict[str, Any]):
         lines_overloaded_names=list(context["lines_overloaded_names"]),
         lines_overloaded_ids=list(context["lines_overloaded_ids"]),
         dict_action=context["dict_action"],
-        env=context["env"],
+        env=env,
         classifier=context["classifier"],
+        network=network,
         timestep=context["current_timestep"],
         overflow_graph=context.get("g_overflow"),
         distribution_graph=context.get("g_distribution_graph"),

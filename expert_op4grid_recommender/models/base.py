@@ -46,6 +46,20 @@ class RecommenderInputs:
     - ``classifier``                :class:`ActionClassifier` instance
     - ``timestep``                  current timestep
 
+    Network handle (paired with the observation):
+
+    - ``network``  pypowsybl :class:`pypowsybl.network.Network` paired
+                   with ``obs`` (N state). Exposed alongside the
+                   observation so models can read topology / device
+                   properties (lines, generators, voltage levels,
+                   transformers, switches, ...) without digging through
+                   the ``env`` backend's internals. May be ``None`` on
+                   Grid2Op-only paths that do not expose a pypowsybl
+                   network. The post-fault network is implicit in
+                   ``obs_defaut`` (e.g. ``obs_defaut._network_manager
+                   .network`` for the pypowsybl backend, switched to the
+                   contingency variant).
+
     Optional — set only when the caller asked for the overflow graph
     (``compute_overflow_graph=True``) AND the chosen model declared
     ``requires_overflow_graph=True``:
@@ -74,6 +88,11 @@ class RecommenderInputs:
     dict_action: dict
     env: Any
     classifier: Any
+
+    # --- Optional from here on -----------------------------------------
+    # Pypowsybl Network paired with ``obs``. Defaults to None so existing
+    # call sites that did not pass it remain valid.
+    network: Any = None
     timestep: int = 0
 
     overflow_graph: Any = None
@@ -176,6 +195,11 @@ class RecommenderModel(ABC):
 
         Args:
             inputs: read-only DTO with everything the pipeline gathered.
+                Notably ``inputs.obs`` is the N-state observation and
+                ``inputs.network`` is the pypowsybl :class:`Network`
+                paired with it (when available) — use the network handle
+                for topology / device-level queries and the observation
+                for state-dependent values (flows, voltages, ...).
             params: ``{ParamSpec.name -> value}`` from the operator.
                 Models should look only at keys they declared.
 

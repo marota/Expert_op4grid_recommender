@@ -4,14 +4,17 @@
 """Tests for :mod:`expert_op4grid_recommender.utils.reassessment`.
 
 These tests focus on the pure logic that does not require a live
-pypowsybl / grid2op environment: input DTO mapping, non-convergence
-propagation, and graceful failure of the superposition helper.
+pypowsybl / grid2op environment: input DTO mapping, network extraction,
+non-convergence propagation, and graceful failure of the superposition
+helper.
 """
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from expert_op4grid_recommender.utils.reassessment import (
+    _extract_pypowsybl_network,
     build_recommender_inputs,
     compute_combined_pairs,
     propagate_non_convergence_to_scores,
@@ -40,7 +43,6 @@ def test_propagate_unknown_id_does_not_create_entry():
     detailed = {"orphan": {"non_convergence": "x"}}
     scores = {"line_reconnection": {"scores": {}, "params": {}}}
     out = propagate_non_convergence_to_scores(detailed, scores)
-    # No entry created when the action_id isn't part of any category.
     assert out["line_reconnection"].get("non_convergence", {}) == {}
 
 
@@ -52,10 +54,48 @@ def test_propagate_creates_non_convergence_dict_when_absent():
 
 
 # ---------------------------------------------------------------------
+# _extract_pypowsybl_network
+# ---------------------------------------------------------------------
+
+def test_extract_network_from_pypowsybl_env():
+    """pypowsybl backend exposes the Network via ``env.network_manager.network``."""
+    fake_net = object()
+    env = SimpleNamespace(network_manager=SimpleNamespace(network=fake_net))
+    assert _extract_pypowsybl_network(env) is fake_net
+
+
+def test_extract_network_from_grid2op_env():
+    """grid2op backend exposes the Network via ``env.backend._grid.network``."""
+    fake_net = object()
+    env = SimpleNamespace(backend=SimpleNamespace(_grid=SimpleNamespace(network=fake_net)))
+    assert _extract_pypowsybl_network(env) is fake_net
+
+
+def test_extract_network_returns_none_when_unavailable():
+    """A bare env with no recognised attribute path returns ``None``."""
+    assert _extract_pypowsybl_network(SimpleNamespace()) is None
+
+
+def test_extract_network_returns_none_for_none_env():
+    assert _extract_pypowsybl_network(None) is None
+
+
+def test_extract_network_prefers_pypowsybl_path_over_grid2op():
+    """When both attribute paths exist the pypowsybl one wins."""
+    primary = object()
+    fallback = object()
+    env = SimpleNamespace(
+        network_manager=SimpleNamespace(network=primary),
+        backend=SimpleNamespace(_grid=SimpleNamespace(network=fallback)),
+    )
+    assert _extract_pypowsybl_network(env) is primary
+
+
+# ---------------------------------------------------------------------
 # build_recommender_inputs
 # ---------------------------------------------------------------------
 
-def _full_context():
+def _full_context(env=None, n_grid=None):
     return {
         "obs": "obs",
         "obs_simu_defaut": "obs_d",
@@ -63,7 +103,7 @@ def _full_context():
         "lines_overloaded_names": ["L2"],
         "lines_overloaded_ids": [2],
         "dict_action": {"a": {}},
-        "env": "env",
+        "env": env if env is not None else "env",
         "classifier": "cls",
         "current_timestep": 7,
         "g_overflow": "g",
@@ -79,6 +119,7 @@ def _full_context():
         "use_dc": False,
         "is_pypowsybl": True,
         "actual_fast_mode": True,
+        **({"n_grid": n_grid} if n_grid is not None else {}),
     }
 
 
@@ -103,7 +144,7 @@ def test_build_recommender_inputs_maps_full_context():
 def test_build_recommender_inputs_exposes_context_as_escape_hatch():
     ctx = _full_context()
     inputs = build_recommender_inputs(ctx)
-    # The expert model relies on this escape hatch to reach internal helpers.
+    # The expert model relies on this escape hatch to reach internals.
     assert inputs._context is ctx
 
 
@@ -135,6 +176,49 @@ def test_build_recommender_inputs_tolerates_missing_optional_keys():
     # Defaults from `get(..., default)` calls take over.
     assert inputs.is_pypowsybl is True
     assert inputs.fast_mode is False
+
+
+# ---------------------------------------------------------------------
+# build_recommender_inputs: network handle
+# ---------------------------------------------------------------------
+
+def test_build_recommender_inputs_uses_explicit_n_grid_when_present():
+    fake_net = object()
+    ctx = _full_context(n_grid=fake_net)
+    inputs = build_recommender_inputs(ctx)
+    assert inputs.network is fake_net
+
+
+def test_build_recommender_inputs_falls_back_to_env_pypowsybl_path():
+    fake_net = object()
+    env = SimpleNamespace(network_manager=SimpleNamespace(network=fake_net))
+    ctx = _full_context(env=env)
+    inputs = build_recommender_inputs(ctx)
+    assert inputs.network is fake_net
+
+
+def test_build_recommender_inputs_falls_back_to_env_grid2op_path():
+    fake_net = object()
+    env = SimpleNamespace(backend=SimpleNamespace(_grid=SimpleNamespace(network=fake_net)))
+    ctx = _full_context(env=env)
+    inputs = build_recommender_inputs(ctx)
+    assert inputs.network is fake_net
+
+
+def test_build_recommender_inputs_network_is_none_when_env_does_not_expose_one():
+    ctx = _full_context(env=SimpleNamespace())  # neither path available
+    inputs = build_recommender_inputs(ctx)
+    assert inputs.network is None
+
+
+def test_build_recommender_inputs_explicit_n_grid_wins_over_env():
+    """context['n_grid'] is the explicit override and takes priority."""
+    primary = object()
+    fallback = object()
+    env = SimpleNamespace(network_manager=SimpleNamespace(network=fallback))
+    ctx = _full_context(env=env, n_grid=primary)
+    inputs = build_recommender_inputs(ctx)
+    assert inputs.network is primary
 
 
 # ---------------------------------------------------------------------
