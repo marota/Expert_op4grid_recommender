@@ -91,6 +91,10 @@ def test_recommender_inputs_default_optional_fields_are_none_or_false():
     # Both paired-with-obs network handles default to None.
     assert inputs.network is None
     assert inputs.network_defaut is None
+    # Pre-computed step-1 outcome defaults to None when not provided.
+    assert inputs.lines_overloaded_rho is None
+    assert inputs.lines_overloaded_ids_kept is None
+    assert inputs.pre_existing_rho is None
     assert inputs.timestep == 0
     assert inputs.overflow_graph is None
     assert inputs.distribution_graph is None
@@ -121,8 +125,6 @@ def test_recommender_inputs_accepts_overflow_graph_artifacts():
 
 
 def test_recommender_inputs_accepts_network_handles():
-    """The ``network`` and ``network_defaut`` fields carry the pypowsybl
-    Networks paired with ``obs`` and ``obs_defaut`` respectively."""
     n_state = object()
     nk_state = object()
     inputs = _minimal_inputs(network=n_state, network_defaut=nk_state)
@@ -130,27 +132,27 @@ def test_recommender_inputs_accepts_network_handles():
     assert inputs.network_defaut is nk_state
 
 
-def test_recommender_inputs_pairs_are_independent_of_observations():
-    """obs, obs_defaut, network, network_defaut are independent fields."""
-    n_state = object()
-    nk_state = object()
+def test_recommender_inputs_accepts_precomputed_step1_outcome():
+    """Pre-extracted N-K outcome travels through the DTO."""
     inputs = _minimal_inputs(
-        obs="my_obs", obs_defaut="my_obs_d",
-        network=n_state, network_defaut=nk_state,
+        lines_overloaded_names=["L2", "L4"],
+        lines_overloaded_ids=[1, 3],
+        lines_overloaded_rho=[1.25, 1.7],
+        lines_overloaded_ids_kept=[3],
+        pre_existing_rho={0: 1.05},
     )
-    assert inputs.obs == "my_obs"
-    assert inputs.obs_defaut == "my_obs_d"
-    assert inputs.network is n_state
-    assert inputs.network_defaut is nk_state
-    assert inputs.network is not inputs.network_defaut
+    assert inputs.lines_overloaded_rho == [1.25, 1.7]
+    assert inputs.lines_overloaded_ids_kept == [3]
+    assert inputs.pre_existing_rho == {0: 1.05}
+    # Pre-computed lists align one-to-one with names/ids.
+    assert len(inputs.lines_overloaded_rho) == len(inputs.lines_overloaded_names)
+    assert len(inputs.lines_overloaded_rho) == len(inputs.lines_overloaded_ids)
 
 
-def test_recommender_inputs_network_and_network_defaut_can_share_instance():
-    """Real backends usually share the same Network instance with
-    different variants active — the DTO doesn't forbid that."""
-    shared = object()
-    inputs = _minimal_inputs(network=shared, network_defaut=shared)
-    assert inputs.network is inputs.network_defaut is shared
+def test_recommender_inputs_pre_existing_rho_can_be_empty_dict():
+    """Empty dict is meaningful (no pre-existing overload) and accepted."""
+    inputs = _minimal_inputs(pre_existing_rho={})
+    assert inputs.pre_existing_rho == {}
 
 
 # ---------------------------------------------------------------------

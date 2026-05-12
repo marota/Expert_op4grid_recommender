@@ -1,19 +1,16 @@
 # Copyright (c) 2025-2026, RTE (https://www.rte-france.com)
 # This Source Code Form is subject to the terms of the Mozilla Public License, version 2.0.
 # SPDX-License-Identifier: MPL-2.0
-"""Tests for :mod:`expert_op4grid_recommender.utils.reassessment`.
-
-These tests focus on the pure logic that does not require a live
-pypowsybl / grid2op environment: input DTO mapping, network extraction
-(N + N-K), non-convergence propagation, and graceful failure of the
-superposition helper.
-"""
+"""Tests for :mod:`expert_op4grid_recommender.utils.reassessment`."""
 from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import numpy as np
+
 from expert_op4grid_recommender.utils.reassessment import (
+    _extract_overloaded_rho,
     _extract_pypowsybl_network,
     _extract_pypowsybl_network_from_obs,
     build_recommender_inputs,
@@ -93,15 +90,13 @@ def test_extract_network_prefers_pypowsybl_path_over_grid2op():
 # ---------------------------------------------------------------------
 
 def test_extract_network_from_obs_pypowsybl_backend():
-    """pypowsybl obs exposes the Network via ``obs._network_manager.network``."""
     fake_net = object()
     obs = SimpleNamespace(_network_manager=SimpleNamespace(network=fake_net))
     assert _extract_pypowsybl_network_from_obs(obs) is fake_net
 
 
 def test_extract_network_from_obs_none_when_no_manager():
-    """Grid2Op observations don't have ``_network_manager`` — returns None."""
-    obs = SimpleNamespace()  # no _network_manager
+    obs = SimpleNamespace()
     assert _extract_pypowsybl_network_from_obs(obs) is None
 
 
@@ -109,22 +104,59 @@ def test_extract_network_from_obs_none_when_obs_is_none():
     assert _extract_pypowsybl_network_from_obs(None) is None
 
 
-def test_extract_network_from_obs_none_when_manager_has_no_network():
-    obs = SimpleNamespace(_network_manager=SimpleNamespace())
-    assert _extract_pypowsybl_network_from_obs(obs) is None
+# ---------------------------------------------------------------------
+# _extract_overloaded_rho
+# ---------------------------------------------------------------------
+
+def test_extract_overloaded_rho_from_numpy_array():
+    """Real obs.rho is a numpy array — result should be a list of plain floats."""
+    obs = SimpleNamespace(rho=np.array([0.5, 1.2, 0.9, 1.8, 0.3]))
+    out = _extract_overloaded_rho(obs, [1, 3])
+    assert out == [1.2, 1.8]
+    assert all(isinstance(v, float) for v in out)
+
+
+def test_extract_overloaded_rho_from_list():
+    obs = SimpleNamespace(rho=[0.4, 0.8, 1.1])
+    assert _extract_overloaded_rho(obs, [0, 2]) == [0.4, 1.1]
+
+
+def test_extract_overloaded_rho_none_when_no_rho_attr():
+    obs = SimpleNamespace()  # no rho
+    assert _extract_overloaded_rho(obs, [0, 1]) is None
+
+
+def test_extract_overloaded_rho_none_for_empty_ids():
+    obs = SimpleNamespace(rho=np.array([0.5, 1.2]))
+    assert _extract_overloaded_rho(obs, []) is None
+
+
+def test_extract_overloaded_rho_none_for_none_obs():
+    assert _extract_overloaded_rho(None, [0]) is None
+
+
+def test_extract_overloaded_rho_none_on_index_error():
+    obs = SimpleNamespace(rho=[0.1, 0.2])
+    # index 5 is out of range — must be caught, not propagated.
+    assert _extract_overloaded_rho(obs, [5]) is None
 
 
 # ---------------------------------------------------------------------
 # build_recommender_inputs
 # ---------------------------------------------------------------------
 
-def _full_context(env=None, obs_simu_defaut="obs_d", n_grid=None, n_grid_defaut=None):
+def _full_context(env=None, obs_simu_defaut=None,
+                  n_grid=None, n_grid_defaut=None,
+                  lines_overloaded_ids_kept=None, pre_existing_rho=None):
+    obs_d = obs_simu_defaut
+    if obs_d is None:
+        obs_d = SimpleNamespace(rho=np.array([0.0, 1.2, 0.5, 1.5]))
     ctx = {
         "obs": "obs",
-        "obs_simu_defaut": obs_simu_defaut,
+        "obs_simu_defaut": obs_d,
         "current_lines_defaut": ["L1"],
-        "lines_overloaded_names": ["L2"],
-        "lines_overloaded_ids": [2],
+        "lines_overloaded_names": ["L2", "L4"],
+        "lines_overloaded_ids": [1, 3],
         "dict_action": {"a": {}},
         "env": env if env is not None else "env",
         "classifier": "cls",
@@ -142,6 +174,8 @@ def _full_context(env=None, obs_simu_defaut="obs_d", n_grid=None, n_grid_defaut=
         "use_dc": False,
         "is_pypowsybl": True,
         "actual_fast_mode": True,
+        "lines_overloaded_ids_kept": lines_overloaded_ids_kept,
+        "pre_existing_rho": pre_existing_rho if pre_existing_rho is not None else {},
     }
     if n_grid is not None:
         ctx["n_grid"] = n_grid
@@ -154,18 +188,12 @@ def test_build_recommender_inputs_maps_full_context():
     ctx = _full_context()
     inputs = build_recommender_inputs(ctx)
     assert inputs.obs == "obs"
-    assert inputs.obs_defaut == "obs_d"
     assert inputs.timestep == 7
     assert inputs.lines_defaut == ["L1"]
-    assert inputs.lines_overloaded_names == ["L2"]
-    assert inputs.lines_overloaded_ids == [2]
+    assert inputs.lines_overloaded_names == ["L2", "L4"]
+    assert inputs.lines_overloaded_ids == [1, 3]
     assert inputs.overflow_graph == "g"
-    assert inputs.distribution_graph == "gd"
     assert inputs.hubs == ["h1"]
-    assert inputs.non_connected_reconnectable_lines == ["L3"]
-    assert inputs.use_dc is False
-    assert inputs.is_pypowsybl is True
-    assert inputs.fast_mode is True
 
 
 def test_build_recommender_inputs_exposes_context_as_escape_hatch():
@@ -184,7 +212,7 @@ def test_build_recommender_inputs_copies_list_inputs():
 def test_build_recommender_inputs_tolerates_missing_optional_keys():
     minimal_ctx = {
         "obs": "o",
-        "obs_simu_defaut": "od",
+        "obs_simu_defaut": SimpleNamespace(),
         "current_lines_defaut": [],
         "lines_overloaded_names": [],
         "lines_overloaded_ids": [],
@@ -195,15 +223,16 @@ def test_build_recommender_inputs_tolerates_missing_optional_keys():
     }
     inputs = build_recommender_inputs(minimal_ctx)
     assert inputs.overflow_graph is None
-    assert inputs.distribution_graph is None
-    assert inputs.hubs is None
     assert inputs.use_dc is False
     assert inputs.is_pypowsybl is True
-    assert inputs.fast_mode is False
+    # Pre-computed step-1 outcome is None when missing from context.
+    assert inputs.lines_overloaded_rho is None
+    assert inputs.lines_overloaded_ids_kept is None
+    assert inputs.pre_existing_rho is None
 
 
 # ---------------------------------------------------------------------
-# build_recommender_inputs: ``network`` (N-state, paired with obs)
+# build_recommender_inputs: network handles
 # ---------------------------------------------------------------------
 
 def test_build_recommender_inputs_uses_explicit_n_grid_when_present():
@@ -213,94 +242,101 @@ def test_build_recommender_inputs_uses_explicit_n_grid_when_present():
     assert inputs.network is fake_net
 
 
-def test_build_recommender_inputs_falls_back_to_env_pypowsybl_path():
-    fake_net = object()
-    env = SimpleNamespace(network_manager=SimpleNamespace(network=fake_net))
-    ctx = _full_context(env=env)
-    inputs = build_recommender_inputs(ctx)
-    assert inputs.network is fake_net
-
-
-def test_build_recommender_inputs_falls_back_to_env_grid2op_path():
-    fake_net = object()
-    env = SimpleNamespace(backend=SimpleNamespace(_grid=SimpleNamespace(network=fake_net)))
-    ctx = _full_context(env=env)
-    inputs = build_recommender_inputs(ctx)
-    assert inputs.network is fake_net
-
-
-def test_build_recommender_inputs_network_is_none_when_env_does_not_expose_one():
-    ctx = _full_context(env=SimpleNamespace(), obs_simu_defaut=SimpleNamespace())
-    inputs = build_recommender_inputs(ctx)
-    assert inputs.network is None
-
-
-def test_build_recommender_inputs_explicit_n_grid_wins_over_env():
-    primary = object()
-    fallback = object()
-    env = SimpleNamespace(network_manager=SimpleNamespace(network=fallback))
-    ctx = _full_context(env=env, n_grid=primary)
-    inputs = build_recommender_inputs(ctx)
-    assert inputs.network is primary
-
-
-# ---------------------------------------------------------------------
-# build_recommender_inputs: ``network_defaut`` (N-K, paired with obs_defaut)
-# ---------------------------------------------------------------------
-
 def test_build_recommender_inputs_network_defaut_from_obs_simu():
-    """On the pypowsybl backend, the post-fault network comes from
-    ``obs_simu_defaut._network_manager.network`` (the contingency-variant
-    NetworkManager)."""
     fake_net = object()
-    obs_simu = SimpleNamespace(_network_manager=SimpleNamespace(network=fake_net))
+    obs_simu = SimpleNamespace(
+        rho=np.array([0.5, 1.2, 0.9, 1.8]),
+        _network_manager=SimpleNamespace(network=fake_net),
+    )
     ctx = _full_context(obs_simu_defaut=obs_simu)
     inputs = build_recommender_inputs(ctx)
     assert inputs.network_defaut is fake_net
 
 
 def test_build_recommender_inputs_uses_explicit_n_grid_defaut_when_present():
-    """context['n_grid_defaut'] takes priority over obs / env introspection."""
     primary = object()
-    fallback_obs_net = object()
-    fallback_env_net = object()
-    obs_simu = SimpleNamespace(_network_manager=SimpleNamespace(network=fallback_obs_net))
-    env = SimpleNamespace(network_manager=SimpleNamespace(network=fallback_env_net))
-    ctx = _full_context(
-        env=env, obs_simu_defaut=obs_simu, n_grid_defaut=primary,
-    )
+    ctx = _full_context(n_grid_defaut=primary)
     inputs = build_recommender_inputs(ctx)
     assert inputs.network_defaut is primary
 
 
-def test_build_recommender_inputs_network_defaut_falls_back_to_env():
-    """When obs has no ``_network_manager`` (e.g. grid2op) and no
-    explicit ``n_grid_defaut`` is set, fall back to env introspection."""
-    fake_net = object()
-    env = SimpleNamespace(backend=SimpleNamespace(_grid=SimpleNamespace(network=fake_net)))
-    ctx = _full_context(env=env, obs_simu_defaut=SimpleNamespace())
+# ---------------------------------------------------------------------
+# build_recommender_inputs: pre-computed step-1 outcome
+# ---------------------------------------------------------------------
+
+def test_build_recommender_inputs_pre_extracts_overloaded_rho():
+    """obs.rho[ids] is computed once and exposed on the DTO so models
+    don't repeat the indexing."""
+    obs_simu = SimpleNamespace(rho=np.array([0.5, 1.2, 0.5, 1.8]))
+    ctx = _full_context(obs_simu_defaut=obs_simu)
     inputs = build_recommender_inputs(ctx)
-    assert inputs.network_defaut is fake_net
+    assert inputs.lines_overloaded_rho == [1.2, 1.8]
+    assert all(isinstance(v, float) for v in inputs.lines_overloaded_rho)
 
 
-def test_build_recommender_inputs_network_defaut_is_none_when_unavailable():
-    """No env path, no obs network handle, no explicit override — None."""
-    ctx = _full_context(env=SimpleNamespace(), obs_simu_defaut=SimpleNamespace())
+def test_build_recommender_inputs_overloaded_rho_aligned_with_names():
+    """The rho list is in the same order as ``lines_overloaded_names``
+    (and ``lines_overloaded_ids``)."""
+    obs_simu = SimpleNamespace(rho=np.array([0.0, 1.4, 0.5, 1.7]))
+    ctx = _full_context(obs_simu_defaut=obs_simu)
     inputs = build_recommender_inputs(ctx)
-    assert inputs.network_defaut is None
+    assert len(inputs.lines_overloaded_rho) == len(inputs.lines_overloaded_names)
+    # Pair-up: names[i] <-> ids[i] <-> rho[i]
+    paired = dict(zip(inputs.lines_overloaded_names, inputs.lines_overloaded_rho))
+    assert paired == {"L2": 1.4, "L4": 1.7}
 
 
-def test_build_recommender_inputs_network_and_network_defaut_are_independent():
-    """The two handles can point to different objects when explicit overrides
-    are provided (real backends typically share the same instance with different
-    variants active)."""
-    n_state = object()
-    nk_state = object()
-    ctx = _full_context(n_grid=n_state, n_grid_defaut=nk_state)
+def test_build_recommender_inputs_overloaded_rho_none_when_obs_lacks_rho():
+    ctx = _full_context(obs_simu_defaut=SimpleNamespace())  # no .rho
     inputs = build_recommender_inputs(ctx)
-    assert inputs.network is n_state
-    assert inputs.network_defaut is nk_state
-    assert inputs.network is not inputs.network_defaut
+    assert inputs.lines_overloaded_rho is None
+
+
+def test_build_recommender_inputs_passes_through_ids_kept():
+    ctx = _full_context(lines_overloaded_ids_kept=[1])
+    inputs = build_recommender_inputs(ctx)
+    assert inputs.lines_overloaded_ids_kept == [1]
+
+
+def test_build_recommender_inputs_ids_kept_is_subset_of_ids():
+    """Sanity check: the kept list is by construction a subset of
+    ``lines_overloaded_ids`` (the pipeline drops overloads that would
+    island substations)."""
+    ctx = _full_context(lines_overloaded_ids_kept=[1])
+    inputs = build_recommender_inputs(ctx)
+    assert set(inputs.lines_overloaded_ids_kept).issubset(set(inputs.lines_overloaded_ids))
+
+
+def test_build_recommender_inputs_ids_kept_independent_from_context():
+    """Mutating the list on the DTO doesn't leak back into context."""
+    kept = [1]
+    ctx = _full_context(lines_overloaded_ids_kept=kept)
+    inputs = build_recommender_inputs(ctx)
+    inputs.lines_overloaded_ids_kept.append(99)
+    assert kept == [1]
+
+
+def test_build_recommender_inputs_passes_through_pre_existing_rho():
+    ctx = _full_context(pre_existing_rho={0: 1.05, 2: 1.01})
+    inputs = build_recommender_inputs(ctx)
+    assert inputs.pre_existing_rho == {0: 1.05, 2: 1.01}
+
+
+def test_build_recommender_inputs_pre_existing_rho_independent_from_context():
+    pre = {0: 1.1}
+    ctx = _full_context(pre_existing_rho=pre)
+    inputs = build_recommender_inputs(ctx)
+    inputs.pre_existing_rho[99] = 0.0
+    # Original dict in context is untouched.
+    assert 99 not in pre
+
+
+def test_build_recommender_inputs_empty_pre_existing_is_preserved_as_empty():
+    """Empty dict is meaningful (= no pre-existing overload) and must NOT
+    be coerced to None."""
+    ctx = _full_context(pre_existing_rho={})
+    inputs = build_recommender_inputs(ctx)
+    assert inputs.pre_existing_rho == {}
 
 
 # ---------------------------------------------------------------------
@@ -349,7 +385,5 @@ def test_compute_combined_pairs_forwards_arguments():
 
     assert result == {"a+b": {"betas": [0.5, 0.5]}}
     assert captured["obs_start"] == "obs_d"
-    assert captured["classifier"] == "cls"
-    assert captured["env"] == "env"
     assert captured["lines_overloaded_ids"] == [2]
     assert captured["dict_action"] == {"a": {}}

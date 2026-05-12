@@ -22,12 +22,16 @@ Design principles
    into action cards lives downstream in
    :mod:`expert_op4grid_recommender.utils.reassessment` and works for any
    model that emits raw actions.
+5. **Pass what was already computed** — step-1 (overload detection,
+   pre-existing exclusion, island guard) is expensive; its outputs are
+   propagated to the model via :class:`RecommenderInputs` instead of
+   being recomputed downstream.
 """
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, List, Literal, Optional
+from typing import Any, ClassVar, Dict, List, Literal, Optional
 
 
 @dataclass
@@ -38,9 +42,13 @@ class RecommenderInputs:
 
     - ``obs``                       initial network observation (N state)
     - ``obs_defaut``                post-fault observation (N-K state)
-    - ``lines_defaut``              names of the lines forming the contingency
-    - ``lines_overloaded_names``    names of lines under constraint
+    - ``lines_defaut``              names of the lines forming the
+                                    N-K contingency (faulted lines)
+    - ``lines_overloaded_names``    names of constrained lines
+                                    (overloaded under the N-K state)
     - ``lines_overloaded_ids``      indices into ``obs_defaut.name_line``
+                                    matching ``lines_overloaded_names``
+                                    one-to-one
     - ``dict_action``               action dictionary
     - ``env``                       simulation environment
     - ``classifier``                :class:`ActionClassifier` instance
@@ -49,21 +57,34 @@ class RecommenderInputs:
     Network handles (each paired with an observation):
 
     - ``network``         pypowsybl :class:`pypowsybl.network.Network`
-                          paired with ``obs`` (N state). Exposed alongside
-                          the observation so models can read topology /
-                          device properties (lines, generators, voltage
-                          levels, transformers, switches, ...) without
-                          digging through the ``env`` backend internals.
-                          May be ``None`` on Grid2Op-only paths that do
-                          not expose a pypowsybl network.
+                          paired with ``obs`` (N state).
     - ``network_defaut``  pypowsybl :class:`Network` paired with
                           ``obs_defaut`` (post-fault N-K state). On the
                           pypowsybl backend this is the same underlying
                           :class:`Network` as ``network`` but with the
-                          contingency variant active; sourced from
-                          ``obs_defaut._network_manager.network`` when
-                          present, otherwise from ``env``. May be
-                          ``None`` when no pypowsybl network is exposed.
+                          contingency variant active.
+
+    Pre-computed N-K outcome — surfaced so models do not recompute it:
+
+    - ``lines_overloaded_rho``      loading rate (rho) of each
+                                    constrained line under N-K, in the
+                                    same order as ``lines_overloaded_names``
+                                    / ``lines_overloaded_ids``. Equivalent
+                                    to ``obs_defaut.rho[lines_overloaded_ids]``
+                                    but pre-extracted as a plain Python
+                                    list of floats.
+    - ``lines_overloaded_ids_kept`` subset of ``lines_overloaded_ids``
+                                    kept after the island-prevention
+                                    guard (some overloads are dropped
+                                    when relieving them would disconnect
+                                    substations).
+    - ``pre_existing_rho``          ``{line_idx: rho_N}`` for lines that
+                                    were already overloaded in the N
+                                    state. Used by reassessment to
+                                    exclude them from worst-case rho
+                                    scoring; downstream models can read
+                                    it directly instead of re-scanning
+                                    ``obs.rho``.
 
     Optional — set only when the caller asked for the overflow graph
     (``compute_overflow_graph=True``) AND the chosen model declared
@@ -95,11 +116,15 @@ class RecommenderInputs:
     classifier: Any
 
     # --- Optional from here on -----------------------------------------
-    # Pypowsybl Network handles, paired with the corresponding
-    # observations. Both default to None so existing call sites that
-    # did not pass them remain valid.
+    # Pypowsybl Network handles, paired with the corresponding observations.
     network: Any = None          # paired with ``obs``         (N state)
     network_defaut: Any = None   # paired with ``obs_defaut``  (N-K state)
+
+    # Pre-computed N-K outcome surfaced from step-1.
+    lines_overloaded_rho: Optional[List[float]] = None
+    lines_overloaded_ids_kept: Optional[List[int]] = None
+    pre_existing_rho: Optional[Dict[int, float]] = None
+
     timestep: int = 0
 
     overflow_graph: Any = None
@@ -202,12 +227,12 @@ class RecommenderModel(ABC):
 
         Args:
             inputs: read-only DTO with everything the pipeline gathered.
-                Two paired (observation, network) handles are available:
-                ``(inputs.obs, inputs.network)`` for the N state and
-                ``(inputs.obs_defaut, inputs.network_defaut)`` for the
-                post-fault N-K state. Use the network handle for
-                topology / device-level queries and the observation for
-                state-dependent values (flows, voltages, ...).
+                Two paired (observation, network) handles are available
+                — ``(obs, network)`` for N and ``(obs_defaut, network_defaut)``
+                for N-K — and step-1 outcomes are exposed directly via
+                ``lines_overloaded_names`` / ``lines_overloaded_ids`` /
+                ``lines_overloaded_rho`` / ``lines_overloaded_ids_kept`` /
+                ``pre_existing_rho`` so the model does not recompute them.
             params: ``{ParamSpec.name -> value}`` from the operator.
                 Models should look only at keys they declared.
 

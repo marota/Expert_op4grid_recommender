@@ -19,7 +19,7 @@ combinations.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -38,9 +38,7 @@ def _extract_pypowsybl_network(env: Any) -> Any:
     - pypowsybl backend: ``env.network_manager.network``
     - grid2op backend:   ``env.backend._grid.network``
 
-    Returns ``None`` when neither path is present. Errors are swallowed
-    on purpose — the network handle is an optional convenience for
-    downstream models and must not break the pipeline.
+    Returns ``None`` when neither path is present.
     """
     if env is None:
         return None
@@ -59,14 +57,7 @@ def _extract_pypowsybl_network(env: Any) -> Any:
 
 def _extract_pypowsybl_network_from_obs(obs: Any) -> Any:
     """Best-effort extraction of the pypowsybl ``Network`` from an
-    observation.
-
-    On the pypowsybl backend an observation wraps a ``NetworkManager``
-    that points at the active variant of the underlying Network:
-    ``obs._network_manager.network``. Grid2Op observations do not
-    expose a network handle this way, so this helper returns ``None``
-    in that case — the caller is expected to fall back to ``env`` /
-    ``context['n_grid_defaut']``.
+    observation. Grid2Op observations return ``None``.
     """
     if obs is None:
         return None
@@ -74,6 +65,29 @@ def _extract_pypowsybl_network_from_obs(obs: Any) -> Any:
     if nm is not None:
         return getattr(nm, "network", None)
     return None
+
+
+def _extract_overloaded_rho(
+    obs_defaut: Any, lines_overloaded_ids: List[int],
+) -> Optional[List[float]]:
+    """Pre-extract the loading rate (rho) of each constrained line under
+    the N-K state, paired with ``lines_overloaded_ids``.
+
+    Returns a plain Python ``list[float]`` for serialisation friendliness
+    (the underlying ``obs_defaut.rho`` may be a numpy array). Returns
+    ``None`` when either the observation has no ``rho`` attribute or the
+    indices cannot be resolved — callers treat that as "data not
+    pre-computed".
+    """
+    if obs_defaut is None or not lines_overloaded_ids:
+        return None
+    rho = getattr(obs_defaut, "rho", None)
+    if rho is None:
+        return None
+    try:
+        return [float(rho[i]) for i in lines_overloaded_ids]
+    except (TypeError, IndexError, KeyError):
+        return None
 
 
 def reassess_prioritized_actions(
@@ -89,15 +103,6 @@ def reassess_prioritized_actions(
 
     Returns:
         ``(detailed_actions, pre_existing_info)``.
-
-        ``detailed_actions`` matches the schema historically produced
-        by the expert pipeline so the frontend stays unchanged:
-        ``action``, ``description_unitaire``, ``rho_before``,
-        ``rho_after``, ``max_rho``, ``max_rho_line``,
-        ``is_rho_reduction``, ``observation``, ``non_convergence``.
-
-        ``pre_existing_info`` is the JSON-ready list consumed by the
-        frontend as ``pre_existing_overloads``.
     """
     backend = context["backend"]
     env = context["env"]
@@ -114,7 +119,6 @@ def reassess_prioritized_actions(
     actual_fast_mode = context["actual_fast_mode"]
     create_default_action = context["create_default_action"]
 
-    # Late import — avoids a cycle with ``main``.
     from expert_op4grid_recommender.main import (
         simulate_contingency_grid2op, simulate_contingency_pypowsybl,
     )
@@ -122,8 +126,6 @@ def reassess_prioritized_actions(
     with Timer("Reassessment"):
         act_defaut = create_default_action(env.action_space, current_lines_defaut)
 
-        # Recompute obs_simu_defaut if DC mode was used during the
-        # overflow graph build, so reassessment runs in AC like before.
         if is_pypowsybl and obs_simu_defaut._network_manager._default_dc:
             obs_simu_defaut, _ = simulate_contingency_pypowsybl(
                 env, obs, current_lines_defaut, act_reco_maintenance,
@@ -274,30 +276,25 @@ def compute_combined_pairs(
 def build_recommender_inputs(context: Dict[str, Any]):
     """Project the analysis ``context`` into a :class:`RecommenderInputs`.
 
-    The ``_context`` escape hatch is populated so :class:`ExpertRecommender`
-    can still reach internals. External models must NOT use it.
+    Surfaces three classes of data:
 
-    Two pypowsybl ``Network`` handles are exposed, each paired with the
-    corresponding observation:
-
-    - ``network``         sourced from ``context['n_grid']`` when
-                          set, otherwise from best-effort introspection
-                          of ``env``. Paired with ``obs`` (N state).
-    - ``network_defaut``  sourced from ``context['n_grid_defaut']`` when
-                          set, otherwise from ``obs_defaut._network_manager.network``
-                          (pypowsybl backend), otherwise from ``env``.
-                          Paired with ``obs_defaut`` (N-K state).
-
-    On the pypowsybl backend ``network`` and ``network_defaut`` are
-    typically the same underlying :class:`Network` instance with
-    different variants active.
+    1. **Observations + networks**: ``(obs, network)`` for the N state
+       and ``(obs_defaut, network_defaut)`` for the N-K state.
+    2. **Step-1 outcome already computed**: ``lines_overloaded_names``,
+       ``lines_overloaded_ids``, ``lines_overloaded_rho`` (pre-extracted
+       from ``obs_defaut.rho``), ``lines_overloaded_ids_kept`` (post-
+       island-guard subset), and ``pre_existing_rho`` (N-state rho of
+       lines that were already overloaded before the contingency).
+       Models read these instead of recomputing.
+    3. **Overflow-graph artefacts** when step-2 produced them.
     """
-    # Late import to avoid a top-level cycle with ``models.base`` consumers.
     from expert_op4grid_recommender.models.base import RecommenderInputs
 
     env = context.get("env")
     obs_defaut = context["obs_simu_defaut"]
+    lines_overloaded_ids = list(context["lines_overloaded_ids"])
 
+    # --- Network handles (paired with the two observations) -----------
     network = context.get("n_grid")
     if network is None:
         network = _extract_pypowsybl_network(env)
@@ -306,21 +303,33 @@ def build_recommender_inputs(context: Dict[str, Any]):
     if network_defaut is None:
         network_defaut = _extract_pypowsybl_network_from_obs(obs_defaut)
     if network_defaut is None:
-        # Fallback: same path as `network`; on pypowsybl this is the
-        # same Network instance (with whatever variant is currently active).
         network_defaut = _extract_pypowsybl_network(env)
+
+    # --- Pre-computed step-1 outcome ----------------------------------
+    lines_overloaded_rho = _extract_overloaded_rho(obs_defaut, lines_overloaded_ids)
+
+    ids_kept_raw = context.get("lines_overloaded_ids_kept")
+    lines_overloaded_ids_kept = list(ids_kept_raw) if ids_kept_raw is not None else None
+
+    pre_existing_rho_raw = context.get("pre_existing_rho")
+    pre_existing_rho = (
+        dict(pre_existing_rho_raw) if pre_existing_rho_raw is not None else None
+    )
 
     return RecommenderInputs(
         obs=context["obs"],
         obs_defaut=obs_defaut,
         lines_defaut=list(context["current_lines_defaut"]),
         lines_overloaded_names=list(context["lines_overloaded_names"]),
-        lines_overloaded_ids=list(context["lines_overloaded_ids"]),
+        lines_overloaded_ids=lines_overloaded_ids,
         dict_action=context["dict_action"],
         env=env,
         classifier=context["classifier"],
         network=network,
         network_defaut=network_defaut,
+        lines_overloaded_rho=lines_overloaded_rho,
+        lines_overloaded_ids_kept=lines_overloaded_ids_kept,
+        pre_existing_rho=pre_existing_rho,
         timestep=context["current_timestep"],
         overflow_graph=context.get("g_overflow"),
         distribution_graph=context.get("g_distribution_graph"),
