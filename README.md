@@ -5,6 +5,11 @@
 
 Expert system recommender for power grid contingency analysis based on ExpertOp4Grid principles. This tool analyzes N-1 contingencies in Grid2Op/pypowsybl environments, builds overflow graphs, applies expert rules to filter potential actions, and identifies relevant corrective measures to alleviate line overloads.
 
+The recommender is now **pluggable**: the analysis pipeline dispatches to any
+class implementing the `RecommenderModel` ABC, with the rule-based expert
+system shipped as the default. See
+[Pluggable Recommendation Models](#pluggable-recommendation-models) below.
+
 ---
 
 ## Features
@@ -13,6 +18,11 @@ Expert system recommender for power grid contingency analysis based on ExpertOp4
 * **Overflow Graph Generation**: Builds and visualizes overflow graphs using `alphaDeesp` and `networkx`.
 * **Expert Rule Engine**: Filters potential grid actions (line switching, topology changes) based on predefined rules derived from operator expertise.
 * **Action Prioritization**: Identifies and scores relevant corrective actions (line reconnections, disconnections, node splitting/merging).
+* **Pluggable Recommendation Models**: the rule-based expert system is one
+  implementation of the `RecommenderModel` contract; external models
+  (random baselines, ML policies, …) plug in through the same DTO with
+  no changes to the analysis pipeline. See
+  [Pluggable Recommendation Models](#pluggable-recommendation-models).
 * **Modular Structure**: Organized code for better maintainability and testing.
 
 ---
@@ -89,6 +99,131 @@ python expert_op4grid_recommender/main.py --rebuild-actions --repas-file allLogi
 ```
 
 From all known logics on the full grid, and targeted action ids in the ACTION_FILE, it rebuilds the actions to be applied on the grid snapshot (in detailed topology format with switches) at the date of interest.
+
+---
+
+## Pluggable Recommendation Models
+
+The analysis pipeline dispatches to any class implementing the
+`RecommenderModel` ABC. The rule-based expert system (`ExpertRecommender`)
+is one such implementation, registered as the default. Third-party models
+(random baselines, ML policies, learnt heuristics, …) plug into the same
+DTO with no changes to the pipeline.
+
+### The contract
+
+```python
+from expert_op4grid_recommender.models.base import (
+    RecommenderModel, RecommenderInputs, RecommenderOutput, ParamSpec,
+)
+
+class MyModel(RecommenderModel):
+    name = "my_model"                       # registry key (snake_case)
+    label = "My Model"                      # UI label
+    requires_overflow_graph = False         # capability flag
+
+    @classmethod
+    def params_spec(cls) -> list[ParamSpec]:
+        # Parameters the model consumes. UI hides anything not listed here.
+        return [
+            ParamSpec("n_prioritized_actions", "N", "int",
+                      default=5, min=1, max=50),
+        ]
+
+    def recommend(self, inputs: RecommenderInputs, params: dict) -> RecommenderOutput:
+        # Use any of the pre-computed pipeline data on `inputs`
+        # (DTO details below). Return raw actions — the reassessment
+        # phase (rho-before / rho-after / max_rho / simulated obs /
+        # non-convergence / combined-pair superposition) runs
+        # automatically and shapes the action cards uniformly across
+        # every model.
+        return RecommenderOutput(
+            prioritized_actions={action_id: action_obj, ...},
+            action_scores={},   # free-form; may be empty
+        )
+```
+
+### What's on `RecommenderInputs`
+
+Everything the pipeline has already computed — your model picks what
+helps, ignores the rest.
+
+**Always populated**
+
+| Field                       | Description                                                |
+|-----------------------------|------------------------------------------------------------|
+| `obs` / `network`           | N state — observation paired with its pypowsybl `Network`. |
+| `obs_defaut` / `network_defaut` | N-K state — post-fault observation paired with its `Network`. |
+| `lines_defaut`              | Names of the lines forming the contingency (N-K).          |
+| `lines_overloaded_names`    | Names of constrained lines under the N-K state.            |
+| `lines_overloaded_ids`      | Indices into `obs_defaut.name_line`, paired with `_names`. |
+| `lines_overloaded_rho`      | Loading rate of each constrained line — pre-extracted as `list[float]`. |
+| `lines_overloaded_ids_kept` | Subset retained after the island-prevention guard.         |
+| `pre_existing_rho`          | `{line_idx: rho_N}` for lines already overloaded in N.     |
+| `dict_action`               | Action dictionary (id → entry).                            |
+| `env` / `classifier`        | Simulation environment + `ActionClassifier`.               |
+| `timestep`                  | Current timestep.                                          |
+
+**Optional — populated only when the overflow graph step ran** (because
+the model required it, or the operator opted in via Co-Study4Grid's
+`Compute Overflow Graph` toggle):
+
+| Field                        | Description                                                  |
+|------------------------------|--------------------------------------------------------------|
+| `overflow_graph`             | alphaDeesp overflow graph.                                   |
+| `distribution_graph`         | Structured overload distribution graph (paths + hubs).       |
+| `overflow_sim`               | Associated alphaDeesp simulator.                             |
+| `hubs`                       | Hub substation names (node-splitting candidates).            |
+| `node_name_mapping`          | Internal index → substation-name mapping.                    |
+| `non_connected_reconnectable_lines` | Reconnectable line candidates.                        |
+| `lines_non_reconnectable`    | Disconnected lines NOT eligible for reconnection.            |
+| `lines_we_care_about`        | Operator-supplied monitoring list.                           |
+| `filtered_candidate_actions` | Action IDs retained by the expert `ActionRuleValidator`. Available to ANY model that has the graph in context, so non-expert models can sample inside the same reduced action space. |
+
+### Built-in: `ExpertRecommender`
+
+The historical rule-based discovery + scoring pipeline, exposed through
+the new interface. Lives in
+[`expert_op4grid_recommender/models/expert.py`](expert_op4grid_recommender/models/expert.py).
+Behaviour for existing callers is unchanged — it remains the default.
+
+### Reusable pipeline phases
+
+Three pieces of infrastructure your model gets for free:
+
+1. **Reassessment** (`utils/reassessment.py`): simulates each returned
+   action and builds the rich card payload (rho-before / rho-after /
+   `max_rho` / `is_rho_reduction` / non-convergence reason /
+   post-action observation). Schema is preserved verbatim from the
+   historical expert pipeline, so existing UI consumers work
+   unchanged.
+2. **Combined-pair superposition**: pairwise superposition theorem on
+   every detailed-action pair. Decorative metadata — failures never
+   break the main flow.
+3. **`_run_expert_action_filter(context)`**: the path analysis + rule
+   validation step that produces `filtered_candidate_actions`.
+   Idempotent and invoked automatically by
+   `run_analysis_step2_discovery` whenever the overflow graph is
+   available — so any model that wants the expert-reduced action set
+   just reads it off `inputs.filtered_candidate_actions`.
+
+### Where the registry lives
+
+The library only defines the **contract**. The model **registry** lives
+on the app side (`marota/Co-Study4Grid`) so the app stays in control
+of which models it exposes to operators. Canonical random examples,
+the registration mechanism, and the step-by-step plug-in guide are in
+[`marota/Co-Study4Grid` — Plug Your Own Recommendation Model](https://github.com/marota/Co-Study4Grid#plug-your-own-recommendation-model).
+
+### Full reference
+
+[`docs/recommender_models.md`](docs/recommender_models.md) — complete
+contract reference: every field on `RecommenderInputs` and
+`RecommenderOutput` with descriptions, the reusable pipeline phases,
+the integration point (`run_analysis_step2_discovery`), a minimal
+new-model example, and the test layout.
+
+---
 
 ## Configuration
 
