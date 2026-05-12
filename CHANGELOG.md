@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-05-12
+
+### Added
+
+- **Pluggable `RecommenderModel` contract** (`expert_op4grid_recommender/models/base.py`, PR #90): new abstract base class with the `recommend(inputs, params) -> RecommenderOutput` contract and a class-level `params_spec()` introspection hook. Any third-party model (random baselines, ML policies, …) can now plug into the analysis pipeline without modifying the library. Class attributes `name`, `label` and `requires_overflow_graph` advertise registry id, UI label and capability needs so callers can skip expensive graph builds when the model doesn't consume them.
+- **DTO layer for model inputs / outputs** (`expert_op4grid_recommender/models/base.py`, PR #90):
+  - `RecommenderInputs` — paired N / N-K data (`obs`, `obs_defaut`, `network`, `network_defaut`), pre-computed step-1 outputs (`lines_overloaded_names`, `lines_overloaded_ids`, `lines_overloaded_ids_kept`, `lines_overloaded_rho`, `pre_existing_rho`), the full `dict_action`, the expert-rule-filtered `filtered_candidate_actions` list, the overflow-graph artefacts (`overflow_graph`, `distribution_graph`, `overflow_sim`, `hubs`, `node_name_mapping`) and a private `_context` escape hatch for advanced models (used internally by `ExpertRecommender`).
+  - `RecommenderOutput` — `{action_id: action_object}` plus a free-form `action_scores` dict.
+  - `SimulatedAction` — post-reassessment payload (`max_rho`, `rho_after`, simulated observation, non-convergence reason, …).
+  - `ParamSpec` — per-parameter introspection (`name`, `label`, `kind` ∈ `{"int", "float", "bool"}`, `default`, optional `min` / `max`) so frontends can render dynamic forms.
+- **`ExpertRecommender`** (`expert_op4grid_recommender/models/expert.py`, PR #90): the legacy rule-based system, now exposed as the canonical `RecommenderModel` implementation. Declares `requires_overflow_graph=True`, surfaces all legacy scoring knobs (`n_prioritized_actions`, `min_*`, `monitoring_factor`, `pre_existing_overload_threshold`, `ignore_reconnections`, …) via `params_spec()`, and delegates to `_run_expert_discovery` through `inputs._context`. Remains the default model — every existing call site sees identical behaviour.
+- **Reassessment + combined-pair phase extracted into a reusable module** (`expert_op4grid_recommender/utils/reassessment.py`, PR #90):
+  - `build_recommender_inputs(context)` constructs the DTO from any pipeline context, including network handle extraction for both grid2op and pypowsybl backends (`_extract_pypowsybl_network`, `_extract_pypowsybl_network_from_obs`), pre-extraction of `lines_overloaded_rho` as a plain Python list, and propagation of the expert-rule-filtered candidate set.
+  - `reassess_prioritized_actions(...)` simulates every action emitted by `recommender.recommend(...)`, computes `max_rho` / `rho_after` / impacted-line set / simulated observation, and tags non-convergence reasons.
+  - `propagate_non_convergence_to_scores(...)` enriches the per-type score dicts with convergence-failure markers so the UI can surface them.
+  - `compute_combined_pairs(...)` runs the superposition theorem on the top-K reassessed actions to estimate the best pair without a full simulation.
+  Works for *any* model that returns `{action_id: action_object}` — third-party models inherit the same downstream pipeline for free.
+- **`run_analysis_step2_discovery(context, recommender=None, params=None)`** (`expert_op4grid_recommender/main.py`, PR #90): new model-aware step-2 entry point. When `recommender` is omitted it defaults to `ExpertRecommender()`. The expert action filter (`_run_expert_action_filter`) runs idempotently whenever the overflow graph is in context, populating `context["filtered_candidate_actions"]` — both for `ExpertRecommender` (which still applies the rule chain internally) and for sampling models that want to restrict their pool.
+- **Library-side contract documentation** (`docs/recommender_models.md`, PR #90): step-by-step guide to writing a third-party recommender — minimal ABC implementation, registry pattern, DTO field reference, capability flags, integration with the reassessment phase.
+- **Comprehensive test coverage** (PR #90, all mock-based, no live pypowsybl / grid2op required):
+  - `tests/test_models_base.py` — ABC contract enforcement, default `params_spec()` returning `[]`, DTO defaults & private context handling.
+  - `tests/test_models_expert.py` — `ExpertRecommender` metadata, `requires_overflow_graph=True`, full `params_spec()` enumeration, fallback to `_context` on `recommend()`.
+  - `tests/test_reassessment.py` — `build_recommender_inputs` coverage for both backends, pre-existing rho extraction, `lines_overloaded_rho` plain-list conversion, `reassess_prioritized_actions` happy path / non-convergence / combined-pair fan-out.
+  - `tests/test_filtered_candidate_actions_propagation.py` — regression coverage for the wiring of `context["filtered_candidate_actions"]` into the DTO (would have caught the historical `is None despite filter running` bug observed in CoStudy4Grid).
+
+### Changed
+
+- **`main.py` cleaned up around the new dispatch entry point** (PR #90): removed redundant docstrings on wrapper functions, tidied import comments, kept all legacy public entry points (`run_analysis`, `run_analysis_step1`, `run_analysis_step2_graph`) with identical signatures. Callers wanting the new pluggable behaviour opt-in by switching to `run_analysis_step2_discovery`.
+
+### Compatibility
+
+- **No behaviour change for existing callers.** Every existing public function keeps the same signature. The pluggable layer is purely additive: when no `recommender` argument is supplied, `run_analysis_step2_discovery` instantiates `ExpertRecommender()` and the pipeline behaves exactly as in 0.2.1.post1. The DTO's `_context` escape hatch is the bridge: `ExpertRecommender` still reaches into the original pipeline state, so output parity is guaranteed.
+- New `tests/test_filtered_candidate_actions_propagation.py` codifies that `filtered_candidate_actions` is forwarded from the context to the DTO — preventing future regressions in the propagation chain.
+
+---
+
 ## [0.2.1.post1] - 2026-05-07
 
 ### Added
