@@ -286,7 +286,12 @@ def build_recommender_inputs(context: Dict[str, Any]):
        island-guard subset), and ``pre_existing_rho`` (N-state rho of
        lines that were already overloaded before the contingency).
        Models read these instead of recomputing.
-    3. **Overflow-graph artefacts** when step-2 produced them.
+    3. **Overflow-graph artefacts** when step-2 produced them, including
+       ``filtered_candidate_actions`` — the action IDs retained by the
+       expert :class:`ActionRuleValidator`. Forwarded so non-expert
+       models that declare ``requires_overflow_graph=True`` (e.g.
+       :class:`RandomOverflowRecommender`) can sample inside the same
+       reduced action space the expert sees.
     """
     from expert_op4grid_recommender.models.base import RecommenderInputs
 
@@ -314,6 +319,17 @@ def build_recommender_inputs(context: Dict[str, Any]):
     pre_existing_rho_raw = context.get("pre_existing_rho")
     pre_existing_rho = (
         dict(pre_existing_rho_raw) if pre_existing_rho_raw is not None else None
+    )
+
+    # --- Expert-rule-filtered candidate set ---------------------------
+    # Populated by ``_run_expert_action_filter`` whenever a recommender
+    # that declares ``requires_overflow_graph=True`` enters
+    # ``run_analysis_step2_discovery``. None when the filter never ran
+    # (e.g. step-2 graph was skipped); empty list when it ran but
+    # nothing passed — downstream models distinguish those two cases.
+    filtered_raw = context.get("filtered_candidate_actions")
+    filtered_candidate_actions = (
+        list(filtered_raw) if filtered_raw is not None else None
     )
 
     return RecommenderInputs(
@@ -344,5 +360,6 @@ def build_recommender_inputs(context: Dict[str, Any]):
         use_dc=context.get("use_dc", False),
         is_pypowsybl=context.get("is_pypowsybl", True),
         fast_mode=context.get("actual_fast_mode", False),
+        filtered_candidate_actions=filtered_candidate_actions,
         _context=context,
     )
