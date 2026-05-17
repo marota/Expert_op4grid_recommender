@@ -206,8 +206,16 @@ def run_analysis_step1(analysis_date: Optional[datetime],
                        backend: Backend = Backend.GRID2OP,
                        fast_mode: Optional[bool] = None,
                        dict_action: Optional[Dict[str, Any]] = None,
-                       prebuilt_env_context: Optional[Dict[str, Any]] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
-    """First part of the expert system analysis up to detection and selection of overloads."""
+                       prebuilt_env_context: Optional[Dict[str, Any]] = None,
+                       prebuilt_obs_simu_defaut: Optional[Any] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """First part of the expert system analysis up to detection and selection of overloads.
+
+    ``prebuilt_obs_simu_defaut`` lets a caller skip the contingency
+    load-flow when the post-contingency observation has already been
+    computed elsewhere (e.g. for the N-1 diagram view). The caller
+    vouches for convergence; the function trusts the provided
+    observation and proceeds straight to overload detection.
+    """
     if backend == Backend.GRID2OP:
         print(f"Using Grid2Op backend")
         setup_environment = setup_environment_grid2op
@@ -312,7 +320,14 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         actual_fast_mode = config.PYPOWSYBL_FAST_MODE if fast_mode is None else fast_mode
 
     with Timer("Initial Contingency Simulation"):
-        if is_pypowsybl:
+        if prebuilt_obs_simu_defaut is not None:
+            # Caller pre-computed the post-contingency observation (e.g.
+            # the host app built it while serving the N-1 diagram). Skip
+            # the redundant LF / variant clone; the caller vouches for
+            # convergence.
+            obs_simu_defaut = prebuilt_obs_simu_defaut
+            has_converged = True
+        elif is_pypowsybl:
             obs_simu_defaut, has_converged = simulate_contingency_pypowsybl(
                 env, obs, current_lines_defaut, act_reco_maintenance, current_timestep, fast_mode=actual_fast_mode
             )
@@ -745,8 +760,11 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         _run_expert_action_filter(context)
 
     inputs = build_recommender_inputs(context)
+    _t_predict = time.time()
     output = recommender.recommend(inputs, params)
+    prediction_time = time.time() - _t_predict
 
+    _t_assess = time.time()
     detailed_actions, pre_existing_info = reassess_prioritized_actions(
         output.prioritized_actions, context
     )
@@ -754,6 +772,7 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         detailed_actions, output.action_scores
     )
     combined_actions = compute_combined_pairs(detailed_actions, context)
+    assessment_time = time.time() - _t_assess
 
     return {
         "lines_overloaded_names": context["lines_overloaded_names"],
@@ -761,6 +780,16 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         "action_scores": action_scores,
         "pre_existing_overloads": pre_existing_info,
         "combined_actions": combined_actions,
+        # Per-stage execution times (seconds). ``prediction_time`` is the
+        # model's intrinsic recommend() call (includes internal candidate
+        # simulation done by Expert-style models). ``assessment_time`` is
+        # the re-simulation of the prioritized actions to compute their
+        # final rho_before / rho_after + the combined-pair estimation —
+        # this is what scales linearly with the number of prioritized
+        # actions returned. Surfaced so callers can show an execution-
+        # time breakdown to the operator.
+        "prediction_time": prediction_time,
+        "assessment_time": assessment_time,
     }
 
 
