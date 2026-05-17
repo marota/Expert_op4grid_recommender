@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`run_analysis_step1(prebuilt_obs_simu_defaut=...)`** in `main.py`: optional kwarg letting a host application (typically a UI that already produced the post-contingency observation while rendering an N-1 diagram) skip the redundant `simulate_contingency_pypowsybl` call. When provided, the function trusts the caller's observation and proceeds straight to overload detection. Default `None` preserves the legacy behaviour for every existing call site. Saves ~1-3 s on the French grid when the host already ran the contingency LF for its own purposes (see Co-Study4Grid `_cached_obs_n1` integration).
+- **`run_analysis_step2_discovery(...)` now returns per-stage timings** (`prediction_time`, `assessment_time`) alongside the result payload. `prediction_time` is the model's intrinsic `recommend()` call (which for Expert-style models still includes the internal candidate simulation done to score topology actions); `assessment_time` is `reassess_prioritized_actions` + `propagate_non_convergence_to_scores` + `compute_combined_pairs` — the re-simulation step that scales linearly with the number of prioritized actions. Lets callers expose an honest per-stage breakdown without re-timing inside their own wrappers.
+
+### Changed
+
+- **`get_maintenance_timestep_pypowsybl(do_reco_maintenance=False)` fast-exits** (`utils/helpers_pypowsybl.py`): returns an empty action and an empty list immediately when the flag is off, skipping the disconnected-line scan + the formatted `print` of the result. On large grids with many pre-disconnected lines this saves ~150-300 ms per analysis run (the previous version unconditionally iterated and printed even though the returned list was unused). Behaviour when `do_reco_maintenance=True` is unchanged.
+
+### Tests
+
+- `tests/test_helpers_pypowsybl_maintenance.py` covers the fast-exit semantics (empty action, no scan, no print) and the full path (scan + filter + action build when the flag is True).
+- `tests/test_run_analysis_step1_prebuilt_obs.py` is a static contract guard: `prebuilt_obs_simu_defaut` exists with `default=None` so host applications can introspect the signature with `inspect.signature` before forwarding the kwarg.
+
+---
+
 ## [0.2.2] - 2026-05-12
 
 ### Added
