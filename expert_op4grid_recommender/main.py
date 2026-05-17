@@ -206,8 +206,16 @@ def run_analysis_step1(analysis_date: Optional[datetime],
                        backend: Backend = Backend.GRID2OP,
                        fast_mode: Optional[bool] = None,
                        dict_action: Optional[Dict[str, Any]] = None,
-                       prebuilt_env_context: Optional[Dict[str, Any]] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
-    """First part of the expert system analysis up to detection and selection of overloads."""
+                       prebuilt_env_context: Optional[Dict[str, Any]] = None,
+                       prebuilt_obs_simu_defaut: Optional[Any] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """First part of the expert system analysis up to detection and selection of overloads.
+
+    ``prebuilt_obs_simu_defaut`` lets a caller skip the contingency
+    load-flow when the post-contingency observation has already been
+    computed elsewhere (e.g. for the N-1 diagram view). The caller
+    vouches for convergence; the function trusts the provided
+    observation and proceeds straight to overload detection.
+    """
     if backend == Backend.GRID2OP:
         print(f"Using Grid2Op backend")
         setup_environment = setup_environment_grid2op
@@ -312,7 +320,14 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         actual_fast_mode = config.PYPOWSYBL_FAST_MODE if fast_mode is None else fast_mode
 
     with Timer("Initial Contingency Simulation"):
-        if is_pypowsybl:
+        if prebuilt_obs_simu_defaut is not None:
+            # Caller pre-computed the post-contingency observation (e.g.
+            # the host app built it while serving the N-1 diagram). Skip
+            # the redundant LF / variant clone; the caller vouches for
+            # convergence.
+            obs_simu_defaut = prebuilt_obs_simu_defaut
+            has_converged = True
+        elif is_pypowsybl:
             obs_simu_defaut, has_converged = simulate_contingency_pypowsybl(
                 env, obs, current_lines_defaut, act_reco_maintenance, current_timestep, fast_mode=actual_fast_mode
             )
