@@ -745,8 +745,11 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         _run_expert_action_filter(context)
 
     inputs = build_recommender_inputs(context)
+    _t_predict = time.time()
     output = recommender.recommend(inputs, params)
+    prediction_time = time.time() - _t_predict
 
+    _t_assess = time.time()
     detailed_actions, pre_existing_info = reassess_prioritized_actions(
         output.prioritized_actions, context
     )
@@ -754,6 +757,7 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         detailed_actions, output.action_scores
     )
     combined_actions = compute_combined_pairs(detailed_actions, context)
+    assessment_time = time.time() - _t_assess
 
     return {
         "lines_overloaded_names": context["lines_overloaded_names"],
@@ -761,6 +765,16 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         "action_scores": action_scores,
         "pre_existing_overloads": pre_existing_info,
         "combined_actions": combined_actions,
+        # Per-stage execution times (seconds). ``prediction_time`` is the
+        # model's intrinsic recommend() call (includes internal candidate
+        # simulation done by Expert-style models). ``assessment_time`` is
+        # the re-simulation of the prioritized actions to compute their
+        # final rho_before / rho_after + the combined-pair estimation —
+        # this is what scales linearly with the number of prioritized
+        # actions returned. Surfaced so callers can show an execution-
+        # time breakdown to the operator.
+        "prediction_time": prediction_time,
+        "assessment_time": assessment_time,
     }
 
 
