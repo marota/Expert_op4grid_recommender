@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2.post2] - 2026-05-19
+
+### Fixed
+
+- **AC load flow now retries with `DC_VALUES` init on any non-converged status, not just on synchronous exceptions** (`pypowsybl_backend/network_manager.py`, `_run_ac_with_init_fallback`). The previous fallback (commit 22e8a39e, v0.2.0) only triggered when `pypowsybl.loadflow.run_ac` raised a `PowsyblException`. But OpenLoadFlow can also return a `ComponentResult` whose `status` is `FAILED` ("Unrealistic state" reached by the voltage-control consistency check) or `MAX_ITERATION_REACHED` — *without* raising — so the bad result was propagated up the stack and surfaced as a `non_convergence` flag on action cards in downstream UIs. This was reproducibly hit on PyPSA-EUR / France 400 kV grid for `node_merging_PYMONP3` on contingency `P.SAOL31RONCI`: the two pre-merge coupler buses sat 8.4° apart in angle, so NR seeded from those stale `PREVIOUS_VALUES` diverged in ~13 iterations with `FAILED`. Seeded from `DC_VALUES`, the same LF converges in 11 outer iterations (fast) / 48 outer iterations (slow). The fallback now inspects the returned status and re-runs the LF with `DC_VALUES` whenever the first attempt did not converge and was seeded with `PREVIOUS_VALUES`. The pre-existing exception-based path is preserved unchanged.
+
+### Changed
+
+- **`maxOuterLoopIterations` default raised from 20 → 100** in `NetworkManager._create_default_lf_parameters` provider parameters. OpenLoadFlow's stock 20-iteration cap on the outer loop was tripping `MAX_ITERATION_REACHED` on the `IncrementalTransformerVoltageControl` loop after a node-merging action even once seeded correctly with `DC_VALUES`. Empirically the post-merge slow-mode LF needs ~40-50 outer iterations on the French grid; 100 leaves a comfortable margin and has no measurable cost on the normal warm-start path (which converges in single-digit outer iterations).
+
+### Tests
+
+- `tests/test_lf_fallback_non_converged.py` (8 tests):
+  - `TestDefaultLfParametersOuterLoopCap` guards the bumped `maxOuterLoopIterations ≥ 40` default;
+  - `TestInitFallbackOnNonConvergedStatus` covers the new retry on `FAILED` and `MAX_ITERATION_REACHED`, the no-retry-on-CONVERGED warm-start path, the no-retry-when-already-DC-init guard, the preserved synchronous-exception retry from v0.2.0, the exception propagation on DC_VALUES init, and the no-mutation invariant on shared `lf_parameters`.
+
+---
+
 ## [0.2.2.post1] - 2026-05-17
 
 ### Added
