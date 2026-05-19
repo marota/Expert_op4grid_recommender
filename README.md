@@ -90,6 +90,9 @@ The `pypowsybl` backend provides a high-performance alternative to Grid2Op for n
 > [!NOTE]
 > **Simulation Simplification**: To maximize speed during what-if analyses (N-1 and remedial actions), voltage control for transformers and shunts is disabled in variant simulations. The base N-state observation maintains full regulation to provide a high-fidelity reference point.
 
+> [!TIP]
+> For a complete description of the simulation pipeline — load-flow modes (AC/DC, fast/slow), voltage initialisation strategies, the `DC_VALUES` fallback on non-converged status, variant lifecycle, thermal-limit hypotheses, and the four available retry branches — see [`docs/architecture/simulation-pipeline.md`](docs/architecture/simulation-pipeline.md).
+
 -----
 
 An option that can be activated for specific use is to rebuild an action space from one segmentation of a grid to another or the full grid:
