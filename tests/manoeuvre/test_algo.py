@@ -1,0 +1,129 @@
+"""
+tests/manoeuvre/test_algo.py
+------------------------------
+Tests de l'algorithme nodale → détaillée (phase 2) sur CARRIP3.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from expert_op4grid_recommender.manoeuvre.topologie import (
+    TopologieNodale,
+    PosteTopologique,
+)
+from expert_op4grid_recommender.manoeuvre.algo import (
+    determiner_topo_complete_cible,
+    Manoeuvre,
+)
+
+from .fixture_loader import build_graph_from_fixture, list_available_fixtures
+
+
+def _fixtures_available() -> bool:
+    return len(list_available_fixtures()) > 0
+
+
+pytestmark = pytest.mark.skipif(
+    not _fixtures_available(), reason="Fixtures de postes non générées."
+)
+
+
+@pytest.fixture
+def poste_carrip3() -> PosteTopologique:
+    G = build_graph_from_fixture("CARRIP3")
+    return PosteTopologique.from_graph(G, "CARRIP3")
+
+
+def _split_2_barres(poste_carrip3):
+    """Construit une cible 2 barres en scindant le gros nœud connecté en deux."""
+    topo = poste_carrip3.topologie_nodale
+    plus_gros = max(topo.noeuds.values(), key=lambda n: len(n.departs))
+    ids = sorted(plus_gros.equipment_ids)
+    half = len(ids) // 2
+    groupes = [ids[:half], ids[half:]]
+    # On préserve les autres nœuds (équipements isolés) tels quels.
+    for nom, noeud in topo.noeuds.items():
+        if noeud is plus_gros:
+            continue
+        groupes.append(sorted(noeud.equipment_ids))
+    return TopologieNodale.from_node_groups("CARRIP3", groupes)
+
+
+# ---------------------------------------------------------------------------
+# Cas no-op
+# ---------------------------------------------------------------------------
+
+def test_noop_aucune_manoeuvre(poste_carrip3):
+    """Cible == état courant → aucune manœuvre, vérifié."""
+    res = determiner_topo_complete_cible(
+        poste_carrip3, poste_carrip3.topologie_nodale
+    )
+    assert res.nb_manoeuvres == 0
+    assert res.is_verified
+    assert not res.is_changed
+
+
+# ---------------------------------------------------------------------------
+# Cas 2 barres : ré-aiguillage + ouverture de couplage
+# ---------------------------------------------------------------------------
+
+def test_split_2_barres_verifie(poste_carrip3):
+    """Une cible 2-nœuds est atteinte et vérifiée."""
+    cible = _split_2_barres(poste_carrip3)
+    res = determiner_topo_complete_cible(poste_carrip3, cible)
+    assert res.is_verified, res.message
+    assert res.is_changed
+    assert res.nb_manoeuvres > 0
+    # La topologie obtenue est isomorphe à la cible.
+    assert cible.meme_topologie(res.topo_obtenue)
+
+
+def test_split_ouvre_le_couplage(poste_carrip3):
+    """Le passage à 2 nœuds requiert l'ouverture du DJ de couplage."""
+    cible = _split_2_barres(poste_carrip3)
+    res = determiner_topo_complete_cible(poste_carrip3, cible)
+    couplage_ouvert = [
+        m for m in res.manoeuvres
+        if m.action == "OPEN" and "couplage" in m.raison.lower()
+    ]
+    assert couplage_ouvert, "Le couplage de barres doit être ouvert"
+    assert any("COUPL" in m.switch_id for m in couplage_ouvert)
+
+
+def test_split_genere_des_reaiguillages(poste_carrip3):
+    """Le split produit des ré-aiguillages de départs (SA fermé/ouvert)."""
+    cible = _split_2_barres(poste_carrip3)
+    res = determiner_topo_complete_cible(poste_carrip3, cible)
+    assert res.departs_reaiguilles
+    # Chaque manœuvre référence un switch et une action valides.
+    for m in res.manoeuvres:
+        assert isinstance(m, Manoeuvre)
+        assert m.action in ("OPEN", "CLOSE")
+        assert m.switch_id
+
+
+def test_split_boucle_courte(poste_carrip3):
+    """Couplage initialement fermé → ré-aiguillage en boucle courte."""
+    cible = _split_2_barres(poste_carrip3)
+    res = determiner_topo_complete_cible(poste_carrip3, cible)
+    reaig = [m for m in res.manoeuvres if m.type_boucle is not None]
+    assert reaig
+    assert all(m.type_boucle == "COURTE" for m in reaig)
+
+
+# ---------------------------------------------------------------------------
+# Cas infaisable : plus de nœuds que de barres
+# ---------------------------------------------------------------------------
+
+def test_trois_noeuds_sur_deux_barres_infaisable(poste_carrip3):
+    """Demander 3 nœuds connectés sur un poste 2 barres n'est pas réalisable."""
+    topo = poste_carrip3.topologie_nodale
+    plus_gros = max(topo.noeuds.values(), key=lambda n: len(n.departs))
+    ids = sorted(plus_gros.equipment_ids)
+    third = max(1, len(ids) // 3)
+    groupes = [ids[:third], ids[third:2 * third], ids[2 * third:]]
+    cible = TopologieNodale.from_node_groups("CARRIP3", groupes)
+    res = determiner_topo_complete_cible(poste_carrip3, cible)
+    # On ne peut pas créer 3 potentiels distincts avec 2 barres.
+    assert not res.is_verified

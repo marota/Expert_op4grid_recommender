@@ -15,7 +15,10 @@ de couplage.
 | `models.py`    | Enums (`NodeType`, `EquipmentType`, `SwitchKind`, `CelluleType`) et dataclasses (`NodeAttrs`, `EdgeAttrs`) |
 | `graph.py`     | Etape 1.1 : `build_vl_graph()` — graphe NetworkX depuis un voltage level pypowsybl |
 | `cellules.py`  | Etape 1.2 : `detecter_cellules()` — BFS structurel + connectivite electrique |
-| `__init__.py`  | API publique (19 symboles)                       |
+| `troncons.py`  | Etapes 1.3-1.4 : `construire_tronconnement()` — barres, troncons, attribution |
+| `topologie.py` | Etapes 1.5-1.6 : `TopologieNodale`, `PosteTopologique`, `attribuer_noeuds()` |
+| `algo.py`      | Phase 2 : `determiner_topo_complete_cible()` — sequence de manoeuvres |
+| `__init__.py`  | API publique                                     |
 
 ## Commandes
 
@@ -81,11 +84,28 @@ Le `fixture_loader.py` contient les fonctions de chargement :
 Les tests unitaires (`test_graph_cellules.py`) utilisent le reseau standard
 `pp.network.create_four_substations_node_breaker_network()`, cible `S1VL2`.
 
-## Roadmap (fichiers a venir)
+## Etat algo (phase 2)
 
-- `troncons.py` : etapes 1.3-1.4 (attribution des noeuds, tronconnement)
-- `topologie.py` : etapes 1.5-1.6 (TopologieNodale, PosteTopologique)
-- `algo.py` : phase 2 (algorithme nodale -> detaillee)
+`determiner_topo_complete_cible(poste, topo_cible)` traite :
+- postes 1 barre (cas trivial) ;
+- postes 2 barres standard : evaluation de couplage (`nbNoeuds`/`nbBarres`),
+  affectation noeud->barre par cout minimal, re-aiguillage boucle courte
+  (couplage ferme) ou longue, ouverture/fermeture de couplage, verification
+  post-manoeuvre par recalcul de `TopologieNodale.from_graph`.
+
+Limites connues (cf. docstring `algo.py`) :
+- re-aiguillage d'omnibus complexes : partiel ;
+- pas de verification fine de court-circuit avant fermeture de couplage ;
+- postes >= 3 barres : partiel (une cible a plus de noeuds que de barres est
+  signalee comme non verifiee).
+
+### Convention de detection des barres
+
+`troncons.py` distingue **sectionnement** (SA reliant deux SJB d'une meme barre)
+de **couplage** (travee a DJ reliant deux barres). La barre d'une SJB est
+deduite en priorite du **nommage RTE** (entier de tete apres `VL_id_`, ex.
+`CARRIP3_1.1` -> barre 1) ; repli structurel par connectivite sectionnement
+(chemins sans BREAKER) si le nommage est inexploitable.
 
 ## Dependances internes
 

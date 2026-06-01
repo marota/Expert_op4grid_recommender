@@ -10,9 +10,9 @@ Structure
 models.py    — Structures de données partagées (SwitchKind, NodeType, …)
 graph.py     — Étape 1.1 : extraction du graphe node/breaker d'un voltage level
 cellules.py  — Étape 1.2 : détection des cellules de départ et de couplage
-troncons.py  — Étape 1.3-1.4 : attribution des nœuds et tronçonnement (à venir)
-topologie.py — Étape 1.5-1.6 : TopologieNodale, PosteTopologique (à venir)
-algo.py      — Phase 2 : algorithme nodale → détaillée (à venir)
+troncons.py  — Étape 1.3-1.4 : tronçonnement et attribution des nœuds
+topologie.py — Étape 1.5-1.6 : TopologieNodale, PosteTopologique
+algo.py      — Phase 2 : algorithme nodale → détaillée (séquence de manœuvres)
 
 Usage rapide
 ------------
@@ -49,6 +49,24 @@ from .cellules import (
     detecter_cellules,
     calculer_connected_busbars,
 )
+from .troncons import (
+    Troncon,
+    Tronconnement,
+    construire_tronconnement,
+)
+from .topologie import (
+    DepartInfo,
+    NoeudElectrique,
+    TopologieNodale,
+    PosteTopologique,
+    attribuer_noeuds,
+)
+from .algo import (
+    Manoeuvre,
+    ResultatManoeuvres,
+    determiner_topo_complete_cible,
+    determiner_manoeuvres_avec_sections,
+)
 
 __all__ = [
     # models
@@ -60,4 +78,12 @@ __all__ = [
     # cellules
     "SwitchInfo", "CelluleDepart", "CelluleCouplage", "CellulesVL",
     "detecter_cellules", "calculer_connected_busbars",
+    # troncons
+    "Troncon", "Tronconnement", "construire_tronconnement",
+    # topologie
+    "DepartInfo", "NoeudElectrique", "TopologieNodale", "PosteTopologique",
+    "attribuer_noeuds",
+    # algo
+    "Manoeuvre", "ResultatManoeuvres", "determiner_topo_complete_cible",
+    "determiner_manoeuvres_avec_sections",
 ]
