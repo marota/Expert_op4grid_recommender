@@ -7,6 +7,156 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2.post2] - 2026-05-19
+
+### Fixed
+
+- **AC load flow now retries with `DC_VALUES` init on any non-converged status, not just on synchronous exceptions** (`pypowsybl_backend/network_manager.py`, `_run_ac_with_init_fallback`). The previous fallback (commit 22e8a39e, v0.2.0) only triggered when `pypowsybl.loadflow.run_ac` raised a `PowsyblException`. But OpenLoadFlow can also return a `ComponentResult` whose `status` is `FAILED` ("Unrealistic state" reached by the voltage-control consistency check) or `MAX_ITERATION_REACHED` — *without* raising — so the bad result was propagated up the stack and surfaced as a `non_convergence` flag on action cards in downstream UIs. This was reproducibly hit on PyPSA-EUR / France 400 kV grid for `node_merging_PYMONP3` on contingency `P.SAOL31RONCI`: the two pre-merge coupler buses sat 8.4° apart in angle, so NR seeded from those stale `PREVIOUS_VALUES` diverged in ~13 iterations with `FAILED`. Seeded from `DC_VALUES`, the same LF converges in 11 outer iterations (fast) / 48 outer iterations (slow). The fallback now inspects the returned status and re-runs the LF with `DC_VALUES` whenever the first attempt did not converge and was seeded with `PREVIOUS_VALUES`. The pre-existing exception-based path is preserved unchanged.
+
+### Changed
+
+- **`maxOuterLoopIterations` default raised from 20 → 100** in `NetworkManager._create_default_lf_parameters` provider parameters. OpenLoadFlow's stock 20-iteration cap on the outer loop was tripping `MAX_ITERATION_REACHED` on the `IncrementalTransformerVoltageControl` loop after a node-merging action even once seeded correctly with `DC_VALUES`. Empirically the post-merge slow-mode LF needs ~40-50 outer iterations on the French grid; 100 leaves a comfortable margin and has no measurable cost on the normal warm-start path (which converges in single-digit outer iterations).
+
+### Tests
+
+- `tests/test_lf_fallback_non_converged.py` (8 tests):
+  - `TestDefaultLfParametersOuterLoopCap` guards the bumped `maxOuterLoopIterations ≥ 40` default;
+  - `TestInitFallbackOnNonConvergedStatus` covers the new retry on `FAILED` and `MAX_ITERATION_REACHED`, the no-retry-on-CONVERGED warm-start path, the no-retry-when-already-DC-init guard, the preserved synchronous-exception retry from v0.2.0, the exception propagation on DC_VALUES init, and the no-mutation invariant on shared `lf_parameters`.
+
+---
+
+## [0.2.2.post1] - 2026-05-17
+
+### Added
+
+- **`run_analysis_step1(prebuilt_obs_simu_defaut=...)`** in `main.py`: optional kwarg letting a host application (typically a UI that already produced the post-contingency observation while rendering an N-1 diagram) skip the redundant `simulate_contingency_pypowsybl` call. When provided, the function trusts the caller's observation and proceeds straight to overload detection. Default `None` preserves the legacy behaviour for every existing call site. Saves ~1-3 s on the French grid when the host already ran the contingency LF for its own purposes (see Co-Study4Grid `_cached_obs_n1` integration).
+- **`run_analysis_step2_discovery(...)` now returns per-stage timings** (`prediction_time`, `assessment_time`) alongside the result payload. `prediction_time` is the model's intrinsic `recommend()` call (which for Expert-style models still includes the internal candidate simulation done to score topology actions); `assessment_time` is `reassess_prioritized_actions` + `propagate_non_convergence_to_scores` + `compute_combined_pairs` — the re-simulation step that scales linearly with the number of prioritized actions. Lets callers expose an honest per-stage breakdown without re-timing inside their own wrappers.
+
+### Changed
+
+- **`get_maintenance_timestep_pypowsybl(do_reco_maintenance=False)` fast-exits** (`utils/helpers_pypowsybl.py`): returns an empty action and an empty list immediately when the flag is off, skipping the disconnected-line scan + the formatted `print` of the result. On large grids with many pre-disconnected lines this saves ~150-300 ms per analysis run (the previous version unconditionally iterated and printed even though the returned list was unused). Behaviour when `do_reco_maintenance=True` is unchanged.
+
+### Tests
+
+- `tests/test_helpers_pypowsybl_maintenance.py` covers the fast-exit semantics (empty action, no scan, no print) and the full path (scan + filter + action build when the flag is True).
+- `tests/test_run_analysis_step1_prebuilt_obs.py` is a static contract guard: `prebuilt_obs_simu_defaut` exists with `default=None` so host applications can introspect the signature with `inspect.signature` before forwarding the kwarg.
+
+---
+
+## [0.2.2] - 2026-05-12
+
+### Added
+
+- **Pluggable `RecommenderModel` contract** (`expert_op4grid_recommender/models/base.py`, PR #90): new abstract base class with the `recommend(inputs, params) -> RecommenderOutput` contract and a class-level `params_spec()` introspection hook. Any third-party model (random baselines, ML policies, …) can now plug into the analysis pipeline without modifying the library. Class attributes `name`, `label` and `requires_overflow_graph` advertise registry id, UI label and capability needs so callers can skip expensive graph builds when the model doesn't consume them.
+- **DTO layer for model inputs / outputs** (`expert_op4grid_recommender/models/base.py`, PR #90):
+  - `RecommenderInputs` — paired N / N-K data (`obs`, `obs_defaut`, `network`, `network_defaut`), pre-computed step-1 outputs (`lines_overloaded_names`, `lines_overloaded_ids`, `lines_overloaded_ids_kept`, `lines_overloaded_rho`, `pre_existing_rho`), the full `dict_action`, the expert-rule-filtered `filtered_candidate_actions` list, the overflow-graph artefacts (`overflow_graph`, `distribution_graph`, `overflow_sim`, `hubs`, `node_name_mapping`) and a private `_context` escape hatch for advanced models (used internally by `ExpertRecommender`).
+  - `RecommenderOutput` — `{action_id: action_object}` plus a free-form `action_scores` dict.
+  - `SimulatedAction` — post-reassessment payload (`max_rho`, `rho_after`, simulated observation, non-convergence reason, …).
+  - `ParamSpec` — per-parameter introspection (`name`, `label`, `kind` ∈ `{"int", "float", "bool"}`, `default`, optional `min` / `max`) so frontends can render dynamic forms.
+- **`ExpertRecommender`** (`expert_op4grid_recommender/models/expert.py`, PR #90): the legacy rule-based system, now exposed as the canonical `RecommenderModel` implementation. Declares `requires_overflow_graph=True`, surfaces all legacy scoring knobs (`n_prioritized_actions`, `min_*`, `monitoring_factor`, `pre_existing_overload_threshold`, `ignore_reconnections`, …) via `params_spec()`, and delegates to `_run_expert_discovery` through `inputs._context`. Remains the default model — every existing call site sees identical behaviour.
+- **Reassessment + combined-pair phase extracted into a reusable module** (`expert_op4grid_recommender/utils/reassessment.py`, PR #90):
+  - `build_recommender_inputs(context)` constructs the DTO from any pipeline context, including network handle extraction for both grid2op and pypowsybl backends (`_extract_pypowsybl_network`, `_extract_pypowsybl_network_from_obs`), pre-extraction of `lines_overloaded_rho` as a plain Python list, and propagation of the expert-rule-filtered candidate set.
+  - `reassess_prioritized_actions(...)` simulates every action emitted by `recommender.recommend(...)`, computes `max_rho` / `rho_after` / impacted-line set / simulated observation, and tags non-convergence reasons.
+  - `propagate_non_convergence_to_scores(...)` enriches the per-type score dicts with convergence-failure markers so the UI can surface them.
+  - `compute_combined_pairs(...)` runs the superposition theorem on the top-K reassessed actions to estimate the best pair without a full simulation.
+  Works for *any* model that returns `{action_id: action_object}` — third-party models inherit the same downstream pipeline for free.
+- **`run_analysis_step2_discovery(context, recommender=None, params=None)`** (`expert_op4grid_recommender/main.py`, PR #90): new model-aware step-2 entry point. When `recommender` is omitted it defaults to `ExpertRecommender()`. The expert action filter (`_run_expert_action_filter`) runs idempotently whenever the overflow graph is in context, populating `context["filtered_candidate_actions"]` — both for `ExpertRecommender` (which still applies the rule chain internally) and for sampling models that want to restrict their pool.
+- **Library-side contract documentation** (`docs/recommender_models.md`, PR #90): step-by-step guide to writing a third-party recommender — minimal ABC implementation, registry pattern, DTO field reference, capability flags, integration with the reassessment phase.
+- **Comprehensive test coverage** (PR #90, all mock-based, no live pypowsybl / grid2op required):
+  - `tests/test_models_base.py` — ABC contract enforcement, default `params_spec()` returning `[]`, DTO defaults & private context handling.
+  - `tests/test_models_expert.py` — `ExpertRecommender` metadata, `requires_overflow_graph=True`, full `params_spec()` enumeration, fallback to `_context` on `recommend()`.
+  - `tests/test_reassessment.py` — `build_recommender_inputs` coverage for both backends, pre-existing rho extraction, `lines_overloaded_rho` plain-list conversion, `reassess_prioritized_actions` happy path / non-convergence / combined-pair fan-out.
+  - `tests/test_filtered_candidate_actions_propagation.py` — regression coverage for the wiring of `context["filtered_candidate_actions"]` into the DTO (would have caught the historical `is None despite filter running` bug observed in CoStudy4Grid).
+
+### Changed
+
+- **`main.py` cleaned up around the new dispatch entry point** (PR #90): removed redundant docstrings on wrapper functions, tidied import comments, kept all legacy public entry points (`run_analysis`, `run_analysis_step1`, `run_analysis_step2_graph`) with identical signatures. Callers wanting the new pluggable behaviour opt-in by switching to `run_analysis_step2_discovery`.
+
+### Compatibility
+
+- **No behaviour change for existing callers.** Every existing public function keeps the same signature. The pluggable layer is purely additive: when no `recommender` argument is supplied, `run_analysis_step2_discovery` instantiates `ExpertRecommender()` and the pipeline behaves exactly as in 0.2.1.post1. The DTO's `_context` escape hatch is the bridge: `ExpertRecommender` still reaches into the original pipeline state, so output parity is guaranteed.
+- New `tests/test_filtered_candidate_actions_propagation.py` codifies that `filtered_candidate_actions` is forwarded from the context to the DTO — preventing future regressions in the propagation chain.
+
+---
+
+## [0.2.1.post1] - 2026-05-07
+
+### Added
+
+- **`extra_lines_to_cut_ids` plumbing** (`graph_analysis/builder.py`, `pypowsybl_backend/overflow_analysis.py`, `graph_analysis/visualization.py`, `main.py`, PR #89): `build_overflow_graph` (and its grid2op / pypowsybl wrappers) now accept an optional `extra_lines_to_cut_ids` parameter. Operator-supplied indices are appended to `Grid2opSimulation.ltc` / `AlphaDeespAdapter.ltc` so the cut still happens, and forwarded as `extra_lines_to_cut=…` to `OverFlowGraph` so the new `is_extra_cut` tag flows through (and the visualization keeps these edges out of the Overloads / Monitored layers). Implements ExpertAgent's `additionalLinesToCut` semantic. `run_analysis_step2_graph` reads `context["extra_lines_to_cut_ids"]` (default `[]`); `make_overflow_graph_visualization` accepts the parameter for plumbing completeness.
+
+### Compatibility
+
+- Defaults to an empty list / `None` everywhere — existing callers see no behaviour change. Step1 populates `context["extra_lines_to_cut_ids"] = []`; step2 callers (e.g. CoStudy4Grid) can override before invoking `run_analysis_step2_graph`. Extras already present in `overloaded_line_ids` are silently de-duplicated.
+
+---
+
+## [0.2.1] - 2026-05-05
+
+### Added
+
+- **Overflow-graph tagger wiring** (`graph_analysis/visualization.py`, `main.py`, PR #88): `make_overflow_graph_visualization` now accepts optional `lines_constrained_path` / `nodes_constrained_path` / `red_loop_lines` / `red_loop_nodes` / `lines_overloaded` parameters and forwards them to the new `OverflowGraph.tag_constrained_path` and `OverflowGraph.tag_red_loops` taggers (alongside the existing `highlight_significant_line_loading`). The pipeline computes these lists right after the distribution-graph pass and passes them into the three call sites of `make_overflow_graph_visualization`. Result: the serialised overflow graph now carries explicit `is_hub` / `in_red_loop` / `on_constrained_path` / `is_monitored` / `is_overload` boolean flags driving the upstream alphaDeesp interactive viewer's semantic layer toggles.
+
+### Compatibility
+
+- All new parameters default to `None`. Existing callers see no behaviour change — the taggers are no-ops when the recommender does not pass any list. Requires `ExpertOp4Grid >= 0.3.2` to consume the flags in the interactive HTML viewer; older versions still serialise the same numerical / colour content unchanged.
+
+---
+
+## [0.2.0] - 2026-04-14
+
+### Added
+
+- **`PowerReductionAction`** (`pypowsybl_backend/action_space.py`, PR #74): New action class that modifies active power setpoints (`target_p`) for loads and generators without electrically disconnecting them. Enables partial load shedding and renewable curtailment with maintained grid connectivity and voltage support. Integrated via `set_load_p` and `set_gen_p` action dictionary keys with `update_loads()` / `update_generators()` batch calls.
+- **Renewable curtailment discovery fully integrated** (`action_evaluation/discovery/`, PR #73): `find_relevant_renewable_curtailment` is now part of the main analysis pipeline. Candidates are identified on upstream nodes of the constrained path among wind/solar generators. Controlled by `ENABLE_RENEWABLE_CURTAILMENT`, `RENEWABLE_CURTAILMENT_MARGIN`, `RENEWABLE_CURTAILMENT_MIN_MW`, and `RENEWABLE_ENERGY_SOURCES` configuration flags.
+- **`ENABLE_RENEWABLE_CURTAILMENT` / `ENABLE_LOAD_SHEDDING` config flags** (PR #73): Explicit boolean switches to include or exclude heuristic action types from the analysis without touching `MIN_*` counts.
+- **Pydantic-based configuration** (PR #84): `config.py` and `config_basic.py` define a `Settings(BaseSettings)` class with type validation, range/bound checking, and `EXPERT_OP4GRID_*` environment variable overrides. Module-level attribute publishing is preserved, so existing `config.DATE = ...` mutation and `from ... import DATE` call sites continue to work unchanged.
+- **`quality` optional dependency group** (PR #84): `pip install -e .[quality]` installs `radon>=6.0`, `vulture>=2.10`, `interrogate>=1.5`, and `ruff>=0.5` for static analysis.
+- **Comprehensive discovery caching** (`action_evaluation/discovery/_base.py`, PR #76): Six cache helpers that eliminate repeated expensive traversals on large networks — `_get_edge_data_cache()`, `_get_blue_edge_names_set()`, `_get_subs_with_loads()`, `_get_subs_with_renewable_gens()`, `_build_line_capacity_map()`, and `_build_node_flow_cache()`.
+- **Baseline simulation hoisted outside action loops** (PR #76): For load shedding and renewable curtailment, the N-1 baseline rho is computed once per scenario and reused across all candidate actions.
+- **`SimulationEnvironment` caching** (PR #72): Avoids redundant environment initialisation on repeated analysis calls.
+- **`skip_enrichment` parameter** on the detection phase (PR #72): Bypasses redundant action enrichment during the initial overload detection step.
+- **New tests**: `test_graph_analysis.py` (PR #78) for graph analysis helpers and `test_environment_pypowsybl.py` (PR #78) for pypowsybl environment setup logic.
+- **Design and quality documents** (PR #71, PR #77): `docs/renewable_curtailment_design.md` (algorithm, scoring, data requirements) and `docs/code-quality-analysis.md` (static analysis snapshot: god-module inventory, testing gaps, TODO/FIXME catalogue).
+- **Type hints and docstrings** back-filled on `load_training_data.py`, `load_evaluation_data.py`, `repas.py`, `make_env_utils.py`, `make_assistant_env.py`, and `make_training_env.py` (PR #84).
+
+### Changed
+
+- **Discovery module refactored to mixin architecture** (PR #78): The monolithic `discovery.py` (3001 lines, 42+ methods) is split into `action_evaluation/discovery/` with nine focused mixin modules:
+  - `_base.py` — `DiscovererBase` with shared state, caches, and simulation plumbing
+  - `_line_reconnection.py` — line reconnection discovery
+  - `_line_disconnection.py` — line disconnection scoring
+  - `_node_merging.py` — bus merge discovery and delta-theta scoring
+  - `_node_splitting.py` — bus split discovery (AlphaDeesp)
+  - `_load_shedding.py` — load shedding candidate identification
+  - `_renewable_curtailment.py` — renewable curtailment candidate identification
+  - `_pst.py` — phase-shifter transformer tap discovery
+  - `_orchestrator.py` — top-level pipeline orchestration and scoring assembly
+- **Load shedding and curtailment emit `PowerReductionAction`** (PR #74): Both discovery methods now produce partial setpoint reductions (`set_load_p` / `set_gen_p`) instead of `set_bus` disconnections. Action metadata includes `action_mode`, `target_p_MW`, and `reduction_MW`.
+- **`ActionClassifier` enhanced** (PR #73, PR #74): Now supports `open_load`, `open_gen`, `load_power_reduction`, and `gen_power_reduction` action types; handles `None` description input without raising `AttributeError`.
+- **Superposition theorem filtering** (PR #73): `curtail_*` and `load_shedding_*` action IDs are excluded from the beta-coefficient linear solver, which assumes standard topological coupling not applicable to power-setpoint actions.
+- **Vectorised topology cache** (PR #72): `NetworkTopologyCache` construction uses vectorised operations instead of per-element Python loops — faster initialisation and update.
+- **Environment variable for training data path** (PR #77): `load_training_data.py` reads `EXPERT_OP4GRID_TRAINING_OBS_DIR` instead of a hardcoded developer path.
+- **`sys.path` manipulation removed from `main.py`** (PR #77, PR #84): The package now relies on proper editable installation (`pip install -e .`) rather than runtime path hacking.
+
+### Fixed
+
+- **`ActionClassifier` robustness** (PR #73): `None` description no longer raises `AttributeError` during type identification.
+- **`NoneType` and `AttributeError` regressions** (PR #73): Fixed during integration of renewable curtailment in `discovery.py` and `classifier.py`.
+- **Topology reconstruction for mixed actions** (PR #78): `_build_action_entry_from_topology` robustified for combined topology/switch action formats.
+- **Duplicate config definitions** (PR #77): Removed second (silent last-write-wins) definitions of `RENEWABLE_CURTAILMENT_MARGIN`, `RENEWABLE_CURTAILMENT_MIN_MW`, `RENEWABLE_ENERGY_SOURCES`, and `PYPOWSYBL_FAST_MODE`.
+
+### Removed
+
+- **`observation_timers.py`** — 1052-line stale fork of `observation.py` with zero importers; deleted (PR #77).
+- **`conversion_actions_repas_original.py`** — 274-line superseded stub with zero importers; deleted (PR #77).
+
+### Dependencies
+
+- Added `pydantic>=2.0` and `pydantic-settings>=2.0` as core runtime dependencies (PR #84).
+
+---
+
 ## [0.1.9] - 2026-03-25
 
 ### Added

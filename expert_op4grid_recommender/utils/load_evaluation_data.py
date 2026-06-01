@@ -1,42 +1,71 @@
+"""Evaluation-time helpers for running Grid2Op scenarios end-to-end.
+
+This module bundles the utilities used by the evaluation / notebook pipeline:
+discovering the available chronics on an environment, loading the thermal
+limits for a specific day, iterating over timesteps to detect overloads, and
+replaying remedial actions against a prioritization JSON. It is intentionally
+thin around Grid2Op so the same functions can be driven from a script or a
+test.
+"""
+
 import json
 import os
-from typing import Dict, List, Optional, Tuple, Union
-import numpy as np
 import datetime
-from expert_op4grid_recommender.utils.data_utils import StateInfo
+from typing import Any, List, Optional, Tuple
+
+import numpy as np
 import pandas as pd
 
-from expert_op4grid_recommender.utils.load_training_data import aux_prevent_asset_reconnection, load_interesting_lines
+from expert_op4grid_recommender.utils.data_utils import StateInfo
+from expert_op4grid_recommender.utils.load_training_data import (
+    aux_prevent_asset_reconnection,
+    load_interesting_lines,
+)
 
 #: name of the powerline that are now removed (non existant)
 #: but are in the environment because we need them when we will use
 #: historical dataset
-DELETED_LINE_NAME=['BXNE L32BXNE5', 'BXNE5L32MTAGN', 'BXNE5L32CORGO', 'BXNE5L31MTAGN']#dupplicating here as it causes errors otherwise when imported
+DELETED_LINE_NAME: List[str] = [
+    'BXNE L32BXNE5', 'BXNE5L32MTAGN', 'BXNE5L32CORGO', 'BXNE5L31MTAGN'
+]  # duplicated here because importing it from load_training_data races with grid2op init
 
-def list_all_chronics(env) -> List[str]:
-    res = []
-
-    for id, sp in enumerate(env.chronics_handler.real_data.subpaths):
+def list_all_chronics(env: Any) -> List[str]:
+    """Return the basenames of every chronic folder registered on ``env``."""
+    res: List[str] = []
+    for _, sp in enumerate(env.chronics_handler.real_data.subpaths):
         res.append(os.path.basename(sp))
-
     return res
 
-def search_chronic_num_from_name(scenario_name, env):
-    found_id = None
+def search_chronic_num_from_name(scenario_name: str, env: Any) -> Optional[int]:
+    """Look up the integer id of a chronic by its folder name.
+
+    Returns ``None`` when ``scenario_name`` is not attached to ``env``.
+    """
+    found_id: Optional[int] = None
     # Search scenario with provided name
     list_chronic_names = list_all_chronics(env)
     if scenario_name in list_chronic_names:
-        found_id=[i  for i,scenario in enumerate(list_chronic_names) if scenario==scenario_name][0]
+        found_id = [
+            i for i, scenario in enumerate(list_chronic_names) if scenario == scenario_name
+        ][0]
 
     return found_id
 
-def set_thermal_limits_scenario(path,date_str,env):
-    with open(os.path.join(path,"thermal_limits_" + date_str + ".json"), 'r') as fp:
-        th_lim_dict_day = json.load(fp)  #
+def set_thermal_limits_scenario(path: str, date_str: str, env: Any) -> None:
+    """Load per-line thermal limits from ``thermal_limits_<date_str>.json`` and apply them to ``env``."""
+    with open(os.path.join(path, "thermal_limits_" + date_str + ".json"), 'r') as fp:
+        th_lim_dict_day = json.load(fp)
         th_lim_dict_day_arr = [th_lim_dict_day[l] for l in env.name_line]
         env.set_thermal_limit(th_lim_dict_day_arr)
 
-def get_reconnectable_lines_disconnected_at_start(env,lines_non_reconnectable):
+def get_reconnectable_lines_disconnected_at_start(
+    env: Any, lines_non_reconnectable: List[str]
+) -> Tuple[List[str], pd.DataFrame]:
+    """List lines that are in maintenance at t=0 but will come back during the chronic.
+
+    Returns a ``(reconnectable_lines, maintenance_df)`` tuple; the dataframe
+    tabulates the maintenance schedule per line over the full horizon.
+    """
     maintenance_df = pd.DataFrame(env.chronics_handler.real_data.data.maintenance_handler.array, columns=env.name_line)
     lines_in_maintenance_obs_start = list(maintenance_df.iloc[0][(maintenance_df.iloc[
         0])].index)  # could use obs.time_next_maintenance instead in theory for that (but possible wrong currently for maintenance at first timestep)
@@ -48,7 +77,12 @@ def get_reconnectable_lines_disconnected_at_start(env,lines_non_reconnectable):
     return reconnectabble_line_in_maintenance_at_start,maintenance_df
 
 
-def get_lines_disconnected_at_start_to_reconnect(maintenance_df,lines_disconnected_at_start,timestep):
+def get_lines_disconnected_at_start_to_reconnect(
+    maintenance_df: pd.DataFrame,
+    lines_disconnected_at_start: List[str],
+    timestep: int,
+) -> List[str]:
+    """Return lines that were in maintenance at t=0 but should be reconnected at ``timestep``."""
 
     # act to reconnect some initially disconnected lines ?
     do_reco_maintenance_at_t = ~maintenance_df[lines_disconnected_at_start].iloc[timestep]
@@ -58,7 +92,14 @@ def get_lines_disconnected_at_start_to_reconnect(maintenance_df,lines_disconnect
 
     return maintenance_to_reco_at_t
 
-def get_first_obs_on_chronic(date,env,path_thermal_limits=""):
+def get_first_obs_on_chronic(
+    date: datetime.datetime, env: Any, path_thermal_limits: str = ""
+) -> Any:
+    """Reset ``env`` to the chronic matching ``date`` and return the first observation.
+
+    If ``path_thermal_limits`` is non-empty, per-day thermal limits are loaded
+    and applied after the initial reset.
+    """
     list_chronic_names=list_all_chronics(env)
     chronic_dates_str=[chronic.split("_")[0] for chronic in list_chronic_names]
     
@@ -100,7 +141,21 @@ def get_first_obs_on_chronic(date,env,path_thermal_limits=""):
     return obs
 
 
-def run_contingency_on_scenario(obs,defaut,env,id_interesting_lines,reconnectabble_line_in_maintenance_at_start,maintenance_df):
+def run_contingency_on_scenario(
+    obs: Any,
+    defaut: str,
+    env: Any,
+    id_interesting_lines: np.ndarray,
+    reconnectabble_line_in_maintenance_at_start: List[str],
+    maintenance_df: pd.DataFrame,
+) -> List[int]:
+    """Simulate the chronic with ``defaut`` disconnected and return overloaded timesteps.
+
+    The scenario is walked over the first 48 timesteps; at each step the
+    contingency action is combined with any pending maintenance reconnections
+    before calling ``obs.simulate``. Any timestep where an interesting line
+    overloads (``rho >= 1``) is collected.
+    """
     act_deco_defaut = env.action_space({"set_line_status": [(defaut, -1)]})  # + action_topo_init
 
     timesteps = [i for i in range(0, 48)]
@@ -119,7 +174,22 @@ def run_contingency_on_scenario(obs,defaut,env,id_interesting_lines,reconnectabb
             overloaded_timesteps.append(t)
     return overloaded_timesteps
 
-def run_remedial_action(obs,defaut,lines_non_reconnectable,env,id_interesting_lines,overloaded_timesteps,action,reconnectabble_line_in_maintenance_at_start,maintenance_df):
+def run_remedial_action(
+    obs: Any,
+    defaut: str,
+    lines_non_reconnectable: List[str],
+    env: Any,
+    id_interesting_lines: np.ndarray,
+    overloaded_timesteps: List[int],
+    action: Any,
+    reconnectabble_line_in_maintenance_at_start: List[str],
+    maintenance_df: pd.DataFrame,
+) -> List[int]:
+    """Replay a remedial ``action`` against the overloaded timesteps.
+
+    Returns the list of timesteps that still overload after the action is
+    applied. An empty list means the remedy is effective on every timestep.
+    """
     act_deco_defaut = env.action_space({"set_bus": {"lines_ex_id":{defaut:-1}, "lines_or_id":{defaut:-1}}})  # + action_topo_init
 
     for t in overloaded_timesteps:

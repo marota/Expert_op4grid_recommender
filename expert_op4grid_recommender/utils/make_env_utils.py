@@ -1,4 +1,12 @@
-from typing import Dict, Literal, Union
+"""Shared helpers for constructing Grid2Op / pypowsybl environments.
+
+Validates minimum package versions at import time (grid2op, lightsim2grid,
+pypowsybl, pypowsybl2grid) and exposes small factories used by
+:mod:`make_training_env` and :mod:`make_assistant_env` to build consistent
+loader / loadflow / Grid2Op parameter objects.
+"""
+
+from typing import Any, Dict, Literal, Union
 import os
 from packaging import version
 from importlib.metadata import version as version_importlib,PackageNotFoundError
@@ -74,22 +82,33 @@ N_BUSBAR_PER_SUB = 12#7#6
 
 LOADER_KWARGS = {"use_buses_for_sub": False,
                  "use_grid2op_default_names": False,
-                 "reconnect_disco_gen": False,  # TODO
-                 "reconnect_disco_load": False,  # TODO
+                 # reconnect_disco_gen / reconnect_disco_load defaults tracked in
+                 # marota/expert_op4grid_recommender#80.
+                 "reconnect_disco_gen": False,
+                 "reconnect_disco_load": False,
                  "n_busbar_per_sub": N_BUSBAR_PER_SUB,
                 #  "dist_slack_non_renew": True
-                 "gen_slack_id": 'N.SE17GROUP.1'  # TODO consistent with debug_olf_ls.py
+                 # gen_slack_id must stay in sync with debug_olf_ls.py — see
+                 # marota/expert_op4grid_recommender#80.
+                 "gen_slack_id": 'N.SE17GROUP.1'
                  }
 
 
-def make_backend_kwargs_data(loader_kwargs=None, **bk_kwargs) -> Dict[Literal["loader_method", "loader_kwargs"],
-                                                                      Union[str, Dict[Literal['use_buses_for_sub',
-                                                                                              "double_bus_per_sub",
-                                                                                              "use_grid2op_default_names",
-                                                                                              "reconnect_disco_gen",
-                                                                                              "reconnect_disco_load",
-                                                                                              "gen_slack_id"],
-                                                                                      Union[str, bool]]]]:
+def make_backend_kwargs_data(
+    loader_kwargs: Dict[str, Any] | None = None, **bk_kwargs: Any
+) -> Dict[Literal["loader_method", "loader_kwargs"],
+          Union[str, Dict[Literal['use_buses_for_sub',
+                                  "double_bus_per_sub",
+                                  "use_grid2op_default_names",
+                                  "reconnect_disco_gen",
+                                  "reconnect_disco_load",
+                                  "gen_slack_id"],
+                          Union[str, bool]]]]:
+    """Return the ``backend_kwargs`` dict expected by a LightSim/PyPowSyBl backend.
+
+    ``loader_kwargs`` overrides :data:`LOADER_KWARGS` when provided; any extra
+    kwargs are forwarded as-is so callers can toggle Newton-Raphson tunables.
+    """
     if loader_kwargs is None:
         loader_kwargs = LOADER_KWARGS
     backend_kwargs_data = dict(loader_method="pypowsybl",
@@ -101,7 +120,13 @@ def make_backend_kwargs_data(loader_kwargs=None, **bk_kwargs) -> Dict[Literal["l
     return backend_kwargs_data
 
 
-def make_default_params():
+def make_default_params() -> "Parameters":
+    """Build a permissive Grid2Op :class:`Parameters` object used everywhere.
+
+    All safety interlocks (overflow disconnection, cooldowns, min up/down
+    times) are relaxed so the simulation is driven purely by the action the
+    caller proposes. AC load flow is used (``ENV_DC=False``).
+    """
     if not _HAS_GRID2OP:
         raise ImportError("grid2op is required for make_default_params()")
     params = Parameters()
@@ -124,6 +149,7 @@ def make_default_params():
 
 
 def create_olf_rte_parameter() -> pp.loadflow.Parameters:
+    """Return a pypowsybl OpenLoadFlow :class:`Parameters` tuned for RTE."""
     return pp.loadflow.Parameters(read_slack_bus=False,
                                   write_slack_bus=False,
                                   voltage_init_mode=pp.loadflow.VoltageInitMode.DC_VALUES,

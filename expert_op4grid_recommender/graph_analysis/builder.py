@@ -26,7 +26,8 @@ def inhibit_swapped_flows(df_of_g):
 def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected_reconnectable_lines,
                          lines_non_reconnectable, timestep, do_consolidate_graph=True,
                          inhibit_swapped_flow_reversion=True, node_renaming=True,
-                         param_options=PARAM_OPTIONS_EXPERT_OP, use_dc=False):
+                         param_options=PARAM_OPTIONS_EXPERT_OP, use_dc=False,
+                         extra_lines_to_cut_ids=None):
     """
     Constructs and refines an overflow graph based on a Grid2Op simulation state.
 
@@ -72,10 +73,23 @@ def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected
               distribution graph object derived from the refined `g_overflow`.
             - node_name_mapping (dict): A dictionary mapping original node indices to substation names.
     """
+    # ``extra_lines_to_cut_ids`` are operator-supplied line indices that
+    # should be cut in the simulation (so the recommender finds actions
+    # that prevent flow increase on them) but NOT classified as
+    # overloads in the visualization.  ExpertAgent's
+    # ``additionalLinesToCut`` semantic.  They are appended to ``ltc``
+    # for the simulation and forwarded as ``extra_lines_to_cut`` to the
+    # OverFlowGraph so it can stamp ``is_extra_cut`` and skip
+    # ``is_overload`` / ``is_monitored`` for those edges.
+    extras = list(extra_lines_to_cut_ids or [])
+    seen = set(overloaded_line_ids)
+    extras = [idx for idx in extras if idx not in seen]
+    full_ltc = list(overloaded_line_ids) + extras
+
     overflow_sim = Grid2opSimulation(
         obs_overloaded, env.action_space, env.observation_space,
         param_options=param_options, debug=False,
-        ltc=overloaded_line_ids, plot=True, simu_step=timestep
+        ltc=full_ltc, plot=True, simu_step=timestep
     )
     df_of_g = overflow_sim.get_dataframe()
     df_of_g["line_name"] = obs_overloaded.name_line
@@ -83,7 +97,9 @@ def build_overflow_graph(env, obs_overloaded, overloaded_line_ids, non_connected
     if inhibit_swapped_flow_reversion:
         df_of_g = inhibit_swapped_flows(df_of_g)
 
-    g_overflow = OverFlowGraph(overflow_sim.topo, overloaded_line_ids, df_of_g, float_precision="%.0f")
+    g_overflow = OverFlowGraph(overflow_sim.topo, full_ltc, df_of_g,
+                               float_precision="%.0f",
+                               extra_lines_to_cut=extras)
     node_name_mapping = {i: name for i, name in enumerate(obs_overloaded.name_sub)}
 
     if node_renaming:

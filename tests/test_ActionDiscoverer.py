@@ -273,9 +273,13 @@ def mock_edge_names_buses_dict(obs, action_topo_vect, sub_impacted_id): return {
 @pytest.fixture
 def discoverer_instance(monkeypatch):
     """Provides a configured ActionDiscoverer instance with mocks for testing discovery methods."""
-    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery._default_check_rho_reduction", mock_rho_reduction_discovery)
+    # NOTE: discovery was split into a package; `_default_check_rho_reduction` now lives in
+    # the `_base` submodule and `AlphaDeesp_warmStart` in the `_node_splitting` submodule.
+    # Monkeypatching at the package level does not rebind the mixin-module globals that the
+    # method bodies actually resolve against, so we target the submodules directly.
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery._base._default_check_rho_reduction", mock_rho_reduction_discovery)
     monkeypatch.setattr("expert_op4grid_recommender.utils.simulation.create_default_action", lambda *args: MockActionObject())
-    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery.AlphaDeesp_warmStart", lambda *args: MockAlphaDeesp())
+    monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.discovery._node_splitting.AlphaDeesp_warmStart", lambda *args: MockAlphaDeesp())
     #def mock_id(desc, **kwargs): return desc.get("type", "unknown")
     #monkeypatch.setattr("expert_op4grid_recommender.action_evaluation.classifier.identify_action_type", mock_id)
     def mock_sort(map_score):
@@ -848,13 +852,15 @@ class TestComputeDisconnectionFlowBounds:
         assert max_redispatch == float('inf')
 
         # L0: capacity=100, rho_defaut=0.7, rho_linecut=1.2  (newly overloaded)
-        #   ratio = 100 * (1.2 - 1.0) / (1.2 - 0.7) = 100 * 0.2 / 0.5 = 40
+        #   max_overload_flow=100 (overloaded line L0 capacity)
+        #   ratio = max_overload_flow / (rho_after - rho_before) * (1 - rho_before)
+        #         = 100 / (1.2 - 0.7) * (1 - 0.7) = 100 / 0.5 * 0.3 = 60
         # L1: capacity=50, rho_defaut=0.5, rho_linecut=0.8   (NOT overloaded)
         #   does NOT constrain
-        # binding = 40
+        # binding = 60
         d = self._make_discoverer(rho_defaut=[0.7, 0.5], rho_linecut=[1.2, 0.8])
         _, _, max_redispatch = d._compute_disconnection_flow_bounds()
-        assert max_redispatch == pytest.approx(40.0, rel=1e-6)
+        assert max_redispatch == pytest.approx(60.0, rel=1e-6)
 
     def test_constrained_when_existing_overload_not_relieved(self):
         """An existing overload that worsens beyond threshold must constrain by its capacity."""
@@ -888,9 +894,10 @@ class TestComputeDisconnectionFlowBounds:
             line_ex_to_subid=list(range(1, 3)),
         )
         _, _, max_redispatch = d._compute_disconnection_flow_bounds()
-        # Expected: capacity_L0=100, rho_before=0.6 (obs_defaut), rho_after=1.2 (obs_linecut)
-        # ratio = 100 * (1.2 - 1.0) / (1.2 - 0.6) = 100 * 0.2 / 0.6 = 33.33
-        assert max_redispatch == pytest.approx(33.33, rel=1e-3)
+        # Expected: max_overload_flow=100, rho_before=0.6 (obs_defaut), rho_after=1.2 (obs_linecut)
+        # ratio = max_overload_flow / (rho_after - rho_before) * (1 - rho_before)
+        #       = 100 / (1.2 - 0.6) * (1 - 0.6) = 100 / 0.6 * 0.4 = 66.667
+        assert max_redispatch == pytest.approx(66.667, rel=1e-3)
 
     def test_min_redispatch_uses_obs_defaut(self):
         """min_redispatch must reflect the worst overload in obs_defaut."""

@@ -98,7 +98,8 @@ class ActionClassifier:
             if hasattr(actions_desc, "_content_computed") and not actions_desc._content_computed:
                 # IT IS LAZY AND NOT COMPUTED. Try to guess from description instead of triggering it.
                 description = actions_desc.get("description_unitaire", actions_desc.get("description", "")).lower()
-                has_line = ("ligne" in description or "line" in description or "branch" in description)
+                has_line = ("ligne" in description or "line" in description or "branch" in description
+                            or "transformateur" in description or "transformer" in description)
                 has_load = ("charge" in description or "load" in description)
                 return has_line, has_load
             
@@ -110,7 +111,12 @@ class ActionClassifier:
                         ("lines_ex_id" in set_bus and len(set_bus["lines_ex_id"]) != 0))
             return has_line, has_load
         
-        return False, False
+        # Final fallback: guess from description (e.g. raw disco_/reco_ actions without content or switches)
+        description = actions_desc.get("description_unitaire", actions_desc.get("description", "")).lower()
+        has_line = ("ligne" in description or "line" in description or "branch" in description
+                    or "transformateur" in description or "transformer" in description)
+        has_load = ("charge" in description or "load" in description)
+        return has_line, has_load
 
     def _is_nodale_grid2op_action(self, act: Any) -> Tuple[bool, List[int], List[bool]]:
         """
@@ -331,15 +337,15 @@ class ActionClassifier:
                     action_type = "pst_tap"
                 elif "Ouverture" in description or "deconnection" in description:
                     if "generator" in description.lower() or "production" in description.lower() or "centrale" in description.lower():
-                         action_type = "open_gen"
+                        action_type = "open_gen"
                     else:
                         has_line, has_load = self._infer_has_line_load(actions_desc)
-                    if has_load and has_line:
-                        action_type = "open_line_load"
-                    elif has_line:
-                        action_type = "open_line"
-                    elif has_load:
-                        action_type = "open_load"
+                        if has_load and has_line:
+                            action_type = "open_line_load"
+                        elif has_line:
+                            action_type = "open_line"
+                        elif has_load:
+                            action_type = "open_load"
                 elif "Fermeture" in description or "reconnection" in description:
                     has_line, has_load = self._infer_has_line_load(actions_desc)
                     if has_load and has_line:

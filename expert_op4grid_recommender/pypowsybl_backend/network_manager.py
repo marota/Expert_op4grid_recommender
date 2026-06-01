@@ -80,7 +80,17 @@ class NetworkManager:
                 "svcVoltageMonitoring": "false",
                 "voltageRemoteControl": "false",
                 "writeReferenceTerminals": "false",
-                "slackBusSelectionMode": "MOST_MESHED"
+                "slackBusSelectionMode": "MOST_MESHED",
+                # Bumped from default 20 to 100 so that AC LFs with active
+                # transformer / shunt voltage control on a perturbed topology
+                # (e.g. node-merging that closes a coupler with non-trivial
+                # angle gap between the two pre-merge buses) have room for the
+                # IncrementalTransformerVoltageControl outer loop to converge
+                # under DC_VALUES init. Empirically slow + DC_VALUES converges
+                # in 8 outer iterations on PYMONP3 / P.SAOL31RONCI; default 20
+                # was still hitting MAX_ITERATION_REACHED on the tap-changer
+                # outer loop.
+                "maxOuterLoopIterations": "100",
             }
         )
     
@@ -344,40 +354,83 @@ class NetworkManager:
                 self.network.remove_variant(variant_id)
     
     def _run_ac_with_init_fallback(self, params: lf.Parameters):
-        """Helper to run AC load flow, retrying with DC_VALUES if PREVIOUS_VALUES fails."""
+        """Helper to run AC load flow, retrying with DC_VALUES on failure.
+
+        Two failure modes trigger the DC_VALUES retry (both observed on
+        PyPSA-EUR / France grid after a node-merging action):
+        1. ``PowsyblException`` raised synchronously (e.g. "Voltage
+           magnitude is undefined for bus ...").
+        2. A returned ``ComponentResult`` whose ``status`` is not
+           ``CONVERGED`` — covers ``FAILED`` ("Unrealistic state"
+           reached by OpenLoadFlow's voltage-control consistency check),
+           ``MAX_ITERATION_REACHED``, ``SOLVER_FAILED``, etc. On a perturbed
+           topology, NR seeded with stale PREVIOUS_VALUES (the pre-action
+           voltages of two coupler buses 8° apart) diverges in ~13 iters
+           with "Unrealistic state" — only a DC_VALUES seed recovers.
+        """
+        is_previous = (params.voltage_init_mode ==
+                       lf.VoltageInitMode.PREVIOUS_VALUES)
         try:
-            return lf.run_ac(self.network, parameters=params)
+            results = lf.run_ac(self.network, parameters=params)
         except Exception as e:
-            if params.voltage_init_mode == lf.VoltageInitMode.PREVIOUS_VALUES:
+            if is_previous:
                 fallback_params = lf.Parameters.from_json(params.to_json())
                 fallback_params.voltage_init_mode = lf.VoltageInitMode.DC_VALUES
-                print(f"Warning: Load flow with PREVIOUS_VALUES failed ({e}). Retrying with DC_VALUES...")
+                print(f"Warning: Load flow with PREVIOUS_VALUES failed ({e}). "
+                      "Retrying with DC_VALUES...")
                 return lf.run_ac(self.network, parameters=fallback_params)
-            else:
-                raise e
+            raise
 
-    def run_load_flow(self, dc: Optional[bool] = None, fast: bool = False):
+        # Synchronous call succeeded but the LF didn't converge — retry
+        # with DC_VALUES if we used PREVIOUS_VALUES on this attempt.
+        if is_previous and results:
+            first = results[0]
+            if first is not None and first.status != lf.ComponentStatus.CONVERGED:
+                fallback_params = lf.Parameters.from_json(params.to_json())
+                fallback_params.voltage_init_mode = lf.VoltageInitMode.DC_VALUES
+                print(f"Warning: Load flow with PREVIOUS_VALUES did not converge "
+                      f"(status={first.status}). Retrying with DC_VALUES...")
+                return lf.run_ac(self.network, parameters=fallback_params)
+        return results
+
+    def run_load_flow(self, dc: Optional[bool] = None, fast: bool = False,
+                      voltage_init_mode: Optional['lf.VoltageInitMode'] = None):
         """
         Run load flow on the current working variant.
-        
+
         Args:
-            dc: If True, run DC load flow instead of AC. 
+            dc: If True, run DC load flow instead of AC.
                 If None, uses the _default_dc attribute.
             fast: If True, disable voltage control for transformers and shunts.
-            
+            voltage_init_mode: If provided, override the default
+                `voltage_init_mode` in the LF parameters. Most callers should
+                leave this None and let the default `PREVIOUS_VALUES` apply —
+                but the INITIAL LF (at network load time, before any variant
+                has a valid state to read from) MUST use `DC_VALUES` since no
+                previous voltage magnitudes exist. Without this, pypowsybl
+                tries `PREVIOUS_VALUES`, throws, then retries with
+                `DC_VALUES` internally — wasted work + spurious warning in
+                the logs. See `SimulationEnvironment._ensure_valid_state`.
+
         Returns:
             Load flow result object
         """
         # Use default if not specified
         use_dc = dc if dc is not None else self._default_dc
-        
+
         # Prepare parameters
         params = self.lf_parameters
-        if fast and not use_dc:
+        needs_copy = fast and not use_dc
+        if voltage_init_mode is not None and not use_dc:
+            needs_copy = True
+        if needs_copy:
             # Create a shallow copy via JSON to avoid modifying the main lf_parameters
             params = lf.Parameters.from_json(self.lf_parameters.to_json())
-            params.transformer_voltage_control_on = False
-            params.shunt_compensator_voltage_control_on = False
+            if fast:
+                params.transformer_voltage_control_on = False
+                params.shunt_compensator_voltage_control_on = False
+            if voltage_init_mode is not None:
+                params.voltage_init_mode = voltage_init_mode
         
         try:
             if use_dc:

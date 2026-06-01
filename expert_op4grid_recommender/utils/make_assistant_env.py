@@ -1,4 +1,11 @@
-from typing import Any, Dict, Literal, Union
+"""Factory for the *assistant* flavour of the Grid2Op environment.
+
+Used by the evaluation harness; wraps a ``PyPowSyBlBackend`` with the RTE
+loadflow parameters and calls :func:`grid2op.make` against the provided
+environment folder (which may or may not contain chronics).
+"""
+
+from typing import Any
 import os
 import logging
 
@@ -17,8 +24,16 @@ try:
 except (ImportError, Exception):
     _HAS_GRID2OP = False
 
-def create_pypowsybl_backend(n_busbar_per_sub,
-                             check_isolated_and_disconnected_injections) -> Any:
+def create_pypowsybl_backend(
+    n_busbar_per_sub: int,
+    check_isolated_and_disconnected_injections: bool,
+) -> Any:
+    """Return a fully configured ``PyPowSyBlBackend`` instance.
+
+    Silences powsybl/pypowsybl2grid chatter to ``ERROR`` and wires in the RTE
+    OpenLoadFlow parameter set so assistant runs match what the evaluator
+    would do.
+    """
     if not _HAS_GRID2OP:
         raise ImportError("grid2op and pypowsybl2grid are required for create_pypowsybl_backend()")
     logging.basicConfig()
@@ -31,12 +46,20 @@ def create_pypowsybl_backend(n_busbar_per_sub,
                             lf_parameters=lf_parameters)
 
 
-def make_grid2op_assistant_env(path_env,
-                                nm_env,
-                                *,
-                                allow_detachment=True,
-                                params=None,
-                                n_busbar=N_BUSBAR_PER_SUB) -> Any:
+def make_grid2op_assistant_env(
+    path_env: str,
+    nm_env: str,
+    *,
+    allow_detachment: bool = True,
+    params: Any = None,
+    n_busbar: int = N_BUSBAR_PER_SUB,
+) -> Any:
+    """Build the assistant Grid2Op environment rooted at ``path_env/nm_env``.
+
+    Falls back to a bare (chronics-less) environment when the expected
+    ``chronics`` subdirectory is missing, which matches the layout of the
+    snapshot environments shipped with the repository.
+    """
     backend = create_pypowsybl_backend(n_busbar_per_sub=n_busbar,
                                        check_isolated_and_disconnected_injections=False)
     backend._prevent_automatic_disconnection = False
