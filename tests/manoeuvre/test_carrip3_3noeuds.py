@@ -30,8 +30,10 @@ from __future__ import annotations
 import pytest
 
 from expert_op4grid_recommender.manoeuvre.topologie import PosteTopologique
+from expert_op4grid_recommender.manoeuvre.topologie import TopologieNodale
 from expert_op4grid_recommender.manoeuvre.algo import (
     determiner_manoeuvres_avec_sections,
+    determiner_topo_complete_cible,
 )
 
 from .fixture_loader import build_graph_from_fixture, list_available_fixtures
@@ -122,6 +124,38 @@ def test_boucle_courte_avant_sectionnement_longue_apres():
     assert all(m.type_boucle != "LONGUE" for m in avant)
     # Après : on trouve des boucles longues (mise HT / bascule SA / remise ST)
     assert any(m.type_boucle == "LONGUE" for m in apres)
+
+
+def test_point_entree_unique_cree_3eme_noeud_automatiquement():
+    """`determiner_topo_complete_cible` (placement automatique) atteint une
+    cible 3 nœuds en ouvrant un sectionnement, sans placement explicite."""
+    poste = _poste()
+    # Cible exprimée uniquement en topologie nodale (pas de SJB explicite) :
+    # un gros nœud + deux petits nœuds mono-section (un par classe).
+    n1 = ["BARR6L31CARRI"]            # classe A -> section seule
+    n2 = ["CARRI3T312"]              # classe B -> section isolée (sectionnement)
+    autres = sorted((set(CLASSE_A) | set(CLASSE_B)) - set(n1) - set(n2))
+    cible = TopologieNodale.from_node_groups(
+        VL, [autres, n1, n2, ["CARRIINF"], ["CARRIING"]]
+    )
+    res = determiner_topo_complete_cible(poste, cible)
+    assert res.is_verified, res.message
+    sect = [m for m in res.manoeuvres
+            if m.action == "OPEN" and "sectionnement" in m.raison.lower()]
+    assert sect and all("hors tension" in m.raison for m in sect)
+
+
+def test_infaisable_trois_noeuds_mixtes():
+    """Trois nœuds *tous mixtes* (chacun classe A+B) sont impossibles sur ce
+    poste 2 barres : le placement automatique le détecte."""
+    poste = _poste()
+    g = [["BERT L31CARRI", "CARRIL31RANTI"],   # A + B
+         ["BARR6L31CARRI", "CARRIL31PERSA"],   # A + B
+         ["CARRI3T314", "CARRI3T312"]]         # A + B
+    autres = sorted((set(CLASSE_A) | set(CLASSE_B)) - {e for grp in g for e in grp})
+    cible = TopologieNodale.from_node_groups(VL, g + [autres])
+    res = determiner_topo_complete_cible(poste, cible)
+    assert not res.is_verified
 
 
 def test_departs_du_3eme_noeud_en_boucle_longue():

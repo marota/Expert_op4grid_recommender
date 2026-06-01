@@ -9,13 +9,26 @@ et ses sous-routines (``connectAndDeconnectOuvrageHS``, ``evalueEtatCouplage``,
 ``identifySuperTronconnement``, ``getTronconnementBesoinReaiguillage2barres``,
 ``reaiguillage2barres``, ``listeDordre``).
 
+Point d'entrée unique
+~~~~~~~~~~~~~~~~~~~~~~~
+``determiner_topo_complete_cible(poste, topo_cible)`` intègre toute la chaîne :
+faisabilité → **placement automatique** nœud→sections de barres
+(``_placement_automatique``) → séquenceur général
+(``determiner_manoeuvres_avec_sections``) → vérification. Il gère
+indifféremment 1 barre, 2 barres, et la **création de nœuds supplémentaires**
+par ouverture de sectionnement, sans placement explicite.
+
 Couverture
 ~~~~~~~~~~
-- Postes 1 barre (sectionnements ouverts/fermés selon nœuds).            [OK]
-- Postes 2 barres standard (couplage + ré-aiguillage boucle courte/longue). [OK]
-- Création d'un nœud supplémentaire par **ouverture de sectionnement de
-  barre** (dé-énergisation préalable de la section), via
-  ``determiner_manoeuvres_avec_sections``.                              [OK]
+- Postes 1 barre et 2 barres standard (couplage + ré-aiguillage boucle
+  courte/longue).                                                        [OK]
+- Création d'un nœud au-delà du nombre de barres par **ouverture de
+  sectionnement de barre** (dé-énergisation préalable de la section).    [OK]
+- Ordonnancement type ``listeDordre`` : fermeture des couplages d'abord,
+  ré-aiguillages boucle courte, ouverture des sectionnements (hors tension),
+  ouverture des couplages, ré-aiguillages boucle longue, puis suppression
+  des manœuvres sans effet.                                              [OK]
+- Contrôle de court-circuit avant fermeture d'un couplage.               [OK]
 - Vérification post-manœuvre (recalcul de la topologie nodale).          [OK]
 
 Règle du sectionneur de barre
@@ -27,8 +40,10 @@ ouvert, puis les départs du nouveau nœud y sont ré-aiguillés en boucle longu
 
 Limites connues (documentées, cf. doc C++) :
 - Ré-aiguillage d'omnibus complexes (départs multiples scindés)          [partiel]
-- Vérification fine de court-circuit avant fermeture de couplage         [non traité]
-- Postes ≥ 3 barres physiques                                           [partiel]
+- Contrôle de court-circuit : vérifie l'égalité de nœud cible avant
+  fermeture de couplage (pas de calcul de potentiel fin)                 [simplifié]
+- Postes ≥ 3 barres physiques / topologies multi-tronçons non chaînées   [partiel]
+- Nœuds mêlant départs connectés et déconnectés                          [partiel]
 """
 
 from __future__ import annotations
@@ -141,409 +156,195 @@ def determiner_topo_complete_cible(
         res.message = "La topologie courante satisfait déjà la cible (aucune manœuvre)."
         return res
 
-    manoeuvres: list[Manoeuvre] = []
-
-    # --- Phase 2.1 : nettoyage (connect / déconnect) ----------------------
-    if not _nettoyage_ouvrages(poste, topo_cible, G, manoeuvres):
-        res.manoeuvres = manoeuvres
-        res.message = "Échec du nettoyage : un départ cible est absent du poste."
-        return res
-
-    nb_barres = poste.tronconnement.nb_jeux_barres
-
-    if nb_barres <= 1:
-        # --- Postes 1 barre ------------------------------------------------
-        _traiter_1_barre(poste, topo_cible, G, manoeuvres)
-    else:
-        # --- Postes 2 barres (et plus, partiel) ----------------------------
-        reaiguilles = _traiter_2_barres(poste, topo_cible, G, manoeuvres, res)
-        res.departs_reaiguilles = reaiguilles
-
-    res.manoeuvres = manoeuvres
-    res.couplages_modifies = [
-        m.switch_id for m in manoeuvres
-        if "couplage" in m.raison.lower()
-    ]
-
-    # --- Phase 2.5 : vérification ----------------------------------------
-    topo_obtenue = TopologieNodale.from_graph(G, poste.voltage_level_id)
-    res.topo_obtenue = topo_obtenue
-    res.is_verified = topo_cible.meme_topologie(topo_obtenue)
-    res.is_changed = len(manoeuvres) > 0 or res.is_verified
-    if res.is_verified:
-        res.message = "Topologie cible atteinte et vérifiée."
-    else:
-        res.message = (
-            "La topologie obtenue ne correspond pas à la cible "
-            f"(obtenu {topo_obtenue.nb_noeuds} nœud(s), "
-            f"visé {topo_cible.nb_noeuds})."
-        )
-    return res
-
-
-# ---------------------------------------------------------------------------
-# Phase 2.1 — Nettoyage
-# ---------------------------------------------------------------------------
-
-def _nettoyage_ouvrages(
-    poste: PosteTopologique,
-    topo_cible: TopologieNodale,
-    G: nx.Graph,
-    manoeuvres: list[Manoeuvre],
-) -> bool:
-    """
-    Déconnecte les départs présents mais absents de la cible, reconnecte ceux
-    présents dans la cible mais déconnectés.
-
-    Retourne False si un départ cible n'existe pas physiquement.
-    """
+    # --- Phase 2.1 : faisabilité (départs cibles présents) ----------------
     departs_poste = {c.equipment_id for c in poste.cellules.cellules_depart}
     for c in poste.cellules.cellules_depart:
         departs_poste |= set(c.shared_equipment_ids)
-
-    cible_ids = set(topo_cible.noeud_par_depart)
-
-    # Départ cible absent du poste -> échec
-    manquants = cible_ids - departs_poste
+    manquants = set(topo_cible.noeud_par_depart) - departs_poste
     if manquants:
-        logger.warning("Départs cibles absents du poste : %s", manquants)
-        return False
+        res.topo_obtenue = poste.topologie_nodale
+        res.message = f"Départs cibles absents du poste : {sorted(manquants)}"
+        return res
 
-    # Déconnexion des départs hors cible (ouvrir leur DJ)
-    for eq_id in departs_poste - cible_ids:
-        cell = poste.cellules.get_cellule_depart(eq_id)
-        if cell is None:
-            continue
-        for dj in cell.breakers:
-            if not dj.open:
-                _set_switch(G, dj.switch_id, open_=True)
-                manoeuvres.append(Manoeuvre(
-                    switch_id=dj.switch_id, action="OPEN",
-                    raison=f"déconnexion départ hors cible '{eq_id}'",
-                ))
-    return True
+    # --- Phases 2.2-2.4 : placement automatique nœud -> sections de barres -
+    placement, faisable, msg = _placement_automatique(poste, topo_cible)
+    if not faisable:
+        res.topo_obtenue = poste.topologie_nodale
+        res.message = msg
+        return res
 
-
-# ---------------------------------------------------------------------------
-# Phase « postes 1 barre »
-# ---------------------------------------------------------------------------
-
-def _traiter_1_barre(
-    poste: PosteTopologique,
-    topo_cible: TopologieNodale,
-    G: nx.Graph,
-    manoeuvres: list[Manoeuvre],
-) -> None:
-    """
-    Postes 1 barre : un nœud = un potentiel. On (dé)couple les tronçons selon
-    que des départs voisins partagent ou non le même nœud cible.
-
-    Implémentation simple : pour chaque sectionnement reliant deux SJB, fermer
-    si les départs des deux côtés sont sur le même nœud cible, ouvrir sinon.
-    """
-    # Cas mono-tronçon trivial : si la cible n'a qu'un nœud, tout reste fermé.
-    # Sinon, on ne dispose pas (encore) de logique de découpe fine sur 1 barre.
-    if topo_cible.nb_noeuds <= 1:
-        return
-    logger.info(
-        "Poste 1 barre avec %d nœuds cibles : découpe de barre non encore "
-        "implémentée finement (cf. tronconnerSJB).", topo_cible.nb_noeuds,
+    # --- Délégation au séquenceur général (couplage + sectionnement) -------
+    core = determiner_manoeuvres_avec_sections(poste, placement)
+    core.topo_initiale = poste.topologie_nodale
+    core.topo_cible = topo_cible
+    core.is_verified = bool(
+        core.topo_obtenue and topo_cible.meme_topologie(core.topo_obtenue)
     )
+    core.is_changed = bool(core.manoeuvres)
+    core.message = (
+        "Topologie cible atteinte et vérifiée." if core.is_verified
+        else "La topologie obtenue ne correspond pas à la cible "
+             f"(obtenu {core.topo_obtenue.nb_noeuds if core.topo_obtenue else 0} "
+             f"nœud(s), visé {topo_cible.nb_noeuds})."
+    )
+    return core
 
 
 # ---------------------------------------------------------------------------
-# Phase « postes 2 barres »
+# Phases 2.2-2.4 — Placement automatique des nœuds sur les sections de barres
+# ---------------------------------------------------------------------------
+#
+# Généralise ``evalueEtatCouplage`` + ``identifySuperTronconnement`` +
+# ``getTronconnementBesoinReaiguillage2barres`` du C++ : à partir d'une
+# topologie nodale cible, on attribue à chaque nœud un ensemble de SJB.
+#
+# Modèle (double barre RTE) :
+# - chaque départ atteint une « classe de position » = l'ensemble des SJB
+#   qu'il peut rejoindre (une SJB par barre, à sa section) ;
+# - un nœud occupe, pour chacune de ses positions, **une seule barre** (ses SJB
+#   restent ainsi connectées via les sectionnements internes à la barre) ;
+# - deux nœuds différents sur la même barre ⇒ ouverture du sectionnement ;
+# - nb de nœuds « mixtes » (≥ 2 positions) ≤ nb de barres.
+#
+# On choisit l'affectation barre↔nœud qui minimise (ré-aiguillages + pénalité
+# d'ouverture de sectionnement), en respectant les départs fixes.
 # ---------------------------------------------------------------------------
 
-def _traiter_2_barres(
+def _placement_automatique(
     poste: PosteTopologique,
     topo_cible: TopologieNodale,
-    G: nx.Graph,
-    manoeuvres: list[Manoeuvre],
-    res: ResultatManoeuvres,
-) -> set[str]:
+) -> tuple[list[tuple[set[str], set[str]]], bool, str]:
     """
-    Traite le cas standard 2 barres : évaluation des couplages + ré-aiguillage.
+    Calcule un placement ``[(departs, sjb_ids)]`` réalisant ``topo_cible``.
 
-    Retourne l'ensemble des départs ré-aiguillés.
+    Returns
+    -------
+    (placement, faisable, message)
     """
-    tr = poste.tronconnement
-    barre_par_busbar = tr.barre_par_busbar
-    departs_reaiguilles: set[str] = set()
+    import itertools
+    from collections import defaultdict
 
-    # On traite chaque tronçon indépendamment (cas standard : 1 seul tronçon).
-    for troncon in tr.troncons.values():
-        if troncon.nb_jeux_barres < 2:
-            continue
+    G = poste.graph
+    barre_par = poste.tronconnement.barre_par_busbar
+    barres = sorted(set(barre_par.values()))
+    nb_barres = len(barres)
+    sjb_id = {n: G.nodes[n].get("busbar_section_id") for n in barre_par}
 
-        # Nœuds cibles portés par ce tronçon
-        noeuds_cible = _noeuds_cible_du_troncon(troncon, topo_cible)
-        nb_noeuds = len(noeuds_cible)
-        nb_barres = troncon.nb_jeux_barres
+    # Connexité courante **par équipement** (et non par cellule) : pour les
+    # omnibus, chaque départ a son propre disjoncteur ; un groupe isolé ne doit
+    # pas hériter de la connexité de son co-locataire.
+    sjb_nodes = set(barre_par)
+    H = nx.Graph()
+    H.add_nodes_from(G.nodes())
+    for u, v, d in G.edges(data=True):
+        if not d.get("open", False):
+            H.add_edge(u, v)
+    eq_node = {data.get("equipment_id"): n for n, data in G.nodes(data=True)
+               if data.get("equipment_id")}
 
-        # --- 2.2 Évaluation de l'état de couplage --------------------------
-        # nbNoeuds < nbBarres -> fermer ; nbNoeuds >= nbBarres -> ouvrir.
-        couplage_doit_fermer = nb_noeuds < nb_barres
+    # Classe de position (SJB atteignables) + connexité courante par départ
+    R: dict[str, frozenset] = {}
+    connected: dict[str, bool] = {}
+    cur_sjb: dict[str, Optional[int]] = {}
+    for c in poste.cellules.cellules_depart:
+        for eq in {c.equipment_id} | set(c.shared_equipment_ids):
+            R[eq] = frozenset(c.busbar_nodes)
+            en = eq_node.get(eq)
+            reached = ({s for s in sjb_nodes if en is not None and en in H
+                        and nx.has_path(H, en, s)} if en is not None else set())
+            connected[eq] = bool(reached)
+            cur_sjb[eq] = min(reached) if reached else None
 
-        # --- 2.3 Affectation noeud -> barre + départs à ré-aiguiller -------
-        if not couplage_doit_fermer and nb_noeuds >= 2:
-            # On répartit les nœuds sur les barres et on ré-aiguille.
-            affectation = _affecter_noeuds_barres(
-                troncon, noeuds_cible, poste, topo_cible, barre_par_busbar,
-            )
-            reaig = _determiner_reaiguillages(
-                troncon, affectation, poste, topo_cible, barre_par_busbar,
-            )
-            departs_reaiguilles |= reaig
-
-            # --- 2.4 Génération de la séquence -----------------------------
-            couplage_ferme_actuel = _couplage_est_ferme(troncon)
-            _generer_reaiguillages(
-                reaig, affectation, poste, topo_cible, barre_par_busbar,
-                G, manoeuvres, boucle_courte_possible=couplage_ferme_actuel,
-            )
-            # Ouvrir le couplage en fin de séquence
-            _manoeuvrer_couplage(troncon, G, manoeuvres, fermer=False)
-        elif couplage_doit_fermer:
-            _manoeuvrer_couplage(troncon, G, manoeuvres, fermer=True)
-
-    return departs_reaiguilles
-
-
-def _noeuds_cible_du_troncon(
-    troncon: Troncon, topo_cible: TopologieNodale
-) -> list[str]:
-    """Noms des nœuds cibles dont au moins un départ appartient au tronçon."""
-    noeuds = []
-    for nom, noeud in topo_cible.noeuds.items():
-        if noeud.equipment_ids & troncon.departs:
-            noeuds.append(nom)
-    return sorted(noeuds)
-
-
-def _affecter_noeuds_barres(
-    troncon: Troncon,
-    noeuds_cible: list[str],
-    poste: PosteTopologique,
-    topo_cible: TopologieNodale,
-    barre_par_busbar: dict[int, int],
-) -> dict[str, int]:
-    """
-    Affecte chaque nœud cible à une barre, en minimisant les ré-aiguillages.
-
-    Pour 2 nœuds sur 2 barres : essaie les deux configurations et choisit celle
-    qui demande le moins de mouvements tout en respectant les départs fixes.
-    """
-    barres = sorted({barre_par_busbar[n] for n in troncon.busbar_nodes})
-    noeuds = noeuds_cible[:len(barres)]
-
-    if len(noeuds) <= 1:
-        return {noeuds[0]: barres[0]} if noeuds else {}
-
-    # Deux configurations possibles (cas 2 nœuds / 2 barres)
-    configs = [
-        {noeuds[0]: barres[0], noeuds[1]: barres[1]},
-        {noeuds[0]: barres[1], noeuds[1]: barres[0]},
-    ]
-    meilleur, meilleur_cout = None, None
-    for cfg in configs:
-        cout, faisable = _cout_config(cfg, troncon, poste, topo_cible, barre_par_busbar)
-        if not faisable:
-            continue
-        if meilleur_cout is None or cout < meilleur_cout:
-            meilleur, meilleur_cout = cfg, cout
-    if meilleur is None:
-        # Aucune config ne respecte les départs fixes : on prend la 1re.
-        logger.warning("Aucune config 2 barres ne respecte les départs fixes ; "
-                       "config par défaut retenue.")
-        meilleur = configs[0]
-    return meilleur
-
-
-def _cout_config(
-    cfg: dict[str, int],
-    troncon: Troncon,
-    poste: PosteTopologique,
-    topo_cible: TopologieNodale,
-    barre_par_busbar: dict[int, int],
-) -> tuple[int, bool]:
-    """Nombre de ré-aiguillages d'une config + faisabilité (départs fixes)."""
-    cout = 0
-    faisable = True
-    for nom, barre_cible in cfg.items():
-        for eq_id in topo_cible.noeuds[nom].equipment_ids:
-            if eq_id not in troncon.departs:
-                continue
-            barre_actuelle = _barre_actuelle(eq_id, poste, barre_par_busbar)
-            if barre_actuelle is not None and barre_actuelle != barre_cible:
-                cout += 1
-                if eq_id in troncon.departs_fixes:
-                    faisable = False
-    return cout, faisable
-
-
-def _determiner_reaiguillages(
-    troncon: Troncon,
-    affectation: dict[str, int],
-    poste: PosteTopologique,
-    topo_cible: TopologieNodale,
-    barre_par_busbar: dict[int, int],
-) -> set[str]:
-    """Départs dont la barre actuelle ≠ barre cible."""
-    reaig: set[str] = set()
-    for nom, barre_cible in affectation.items():
-        for eq_id in topo_cible.noeuds[nom].equipment_ids:
-            if eq_id not in troncon.departs:
-                continue
-            barre_actuelle = _barre_actuelle(eq_id, poste, barre_par_busbar)
-            if barre_actuelle is not None and barre_actuelle != barre_cible:
-                reaig.add(eq_id)
-    return reaig
-
-
-# ---------------------------------------------------------------------------
-# Génération des manœuvres de ré-aiguillage
-# ---------------------------------------------------------------------------
-
-def _generer_reaiguillages(
-    reaig: set[str],
-    affectation: dict[str, int],
-    poste: PosteTopologique,
-    topo_cible: TopologieNodale,
-    barre_par_busbar: dict[int, int],
-    G: nx.Graph,
-    manoeuvres: list[Manoeuvre],
-    boucle_courte_possible: bool,
-) -> None:
-    """
-    Génère, pour chaque départ à ré-aiguiller, les manœuvres de sectionneurs.
-
-    - **Boucle courte** (couplage fermé) : fermer le SA vers la barre cible,
-      ouvrir le SA vers l'ancienne barre. Le départ reste sous tension.
-    - **Boucle longue** (sinon) : ouvrir le DJ, basculer les SA, refermer le DJ.
-    """
-    barre_cible_par_depart: dict[str, int] = {}
-    for nom, barre in affectation.items():
-        for eq_id in topo_cible.noeuds[nom].equipment_ids:
-            barre_cible_par_depart[eq_id] = barre
-
-    for eq_id in sorted(reaig):
-        cell = poste.cellules.get_cellule_depart(eq_id)
-        if cell is None:
-            continue
-        barre_cible = barre_cible_par_depart[eq_id]
-        barre_old = _barre_actuelle(eq_id, poste, barre_par_busbar)
-
-        sa_vers_cible = _sa_vers_barre(cell, barre_cible, barre_par_busbar)
-        sa_vers_old = _sa_vers_barre(cell, barre_old, barre_par_busbar)
-
-        boucle = "COURTE" if boucle_courte_possible else "LONGUE"
-
-        if not boucle_courte_possible:
-            # Boucle longue : ouvrir le DJ d'abord
-            for dj in cell.breakers:
-                if not dj.open:
-                    _set_switch(G, dj.switch_id, open_=True)
-                    manoeuvres.append(Manoeuvre(
-                        switch_id=dj.switch_id, action="OPEN",
-                        raison=f"mise hors tension départ '{eq_id}' (boucle longue)",
-                        type_boucle=boucle,
-                    ))
-
-        # Fermer le SA vers la barre cible
-        for sa in sa_vers_cible:
-            if sa.open:
-                _set_switch(G, sa.switch_id, open_=False)
-                manoeuvres.append(Manoeuvre(
-                    switch_id=sa.switch_id, action="CLOSE",
-                    raison=f"ré-aiguillage '{eq_id}' vers barre {barre_cible+1}",
-                    type_boucle=boucle,
-                ))
-        # Ouvrir le SA vers l'ancienne barre
-        for sa in sa_vers_old:
-            if not sa.open:
-                _set_switch(G, sa.switch_id, open_=True)
-                manoeuvres.append(Manoeuvre(
-                    switch_id=sa.switch_id, action="OPEN",
-                    raison=f"ré-aiguillage '{eq_id}' depuis barre {barre_old+1}",
-                    type_boucle=boucle,
-                ))
-
-        if not boucle_courte_possible:
-            # Boucle longue : refermer le DJ
-            for dj in cell.breakers:
-                _set_switch(G, dj.switch_id, open_=False)
-                manoeuvres.append(Manoeuvre(
-                    switch_id=dj.switch_id, action="CLOSE",
-                    raison=f"remise sous tension départ '{eq_id}' (boucle longue)",
-                    type_boucle=boucle,
-                ))
-
-
-def _manoeuvrer_couplage(
-    troncon: Troncon,
-    G: nx.Graph,
-    manoeuvres: list[Manoeuvre],
-    fermer: bool,
-) -> None:
-    """Ferme ou ouvre les DJ (et SA) de couplage d'un tronçon."""
-    action = "CLOSE" if fermer else "OPEN"
-    raison = ("fermeture couplage de barres" if fermer
-              else "ouverture couplage de barres")
-    for sw in troncon.switches_couplage:
-        # On ne manœuvre que ce qui doit changer d'état.
-        if fermer and sw.open:
-            _set_switch(G, sw.switch_id, open_=False)
-            manoeuvres.append(Manoeuvre(sw.switch_id, action, raison))
-        elif (not fermer) and sw.is_breaker and not sw.open:
-            # Pour ouvrir, il suffit d'ouvrir le DJ de couplage.
-            _set_switch(G, sw.switch_id, open_=True)
-            manoeuvres.append(Manoeuvre(sw.switch_id, action, raison))
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _couplage_est_ferme(troncon: Troncon) -> bool:
-    """True si tous les DJ de couplage du tronçon sont fermés."""
-    djs = troncon.couplage_breakers
-    if not djs:
-        return False
-    return all(not dj.open for dj in djs)
-
-
-def _barre_actuelle(
-    eq_id: str, poste: PosteTopologique, barre_par_busbar: dict[int, int]
-) -> Optional[int]:
-    """Barre à laquelle le départ est actuellement connecté (via SA fermés)."""
-    cell = poste.cellules.get_cellule_depart(eq_id)
-    if cell is None:
+    def slot(cls: frozenset, barre: int) -> Optional[int]:
+        for s in cls:
+            if barre_par.get(s) == barre:
+                return s
         return None
-    barres = {barre_par_busbar[n] for n in cell.connected_busbars
-              if n in barre_par_busbar}
-    if not barres:
-        return None
-    # Si connecté à plusieurs barres (couplage fermé), on prend la plus petite.
-    return min(barres)
 
-
-def _sa_vers_barre(
-    cell: CelluleDepart, barre: Optional[int], barre_par_busbar: dict[int, int]
-) -> list[SwitchInfo]:
-    """Sectionneurs (SA) de la cellule menant vers une barre donnée."""
-    if barre is None:
-        return []
-    result: list[SwitchInfo] = []
-    seen: set[str] = set()
-    for bb in cell.busbar_nodes:
-        if barre_par_busbar.get(bb) != barre:
+    # Nœuds à placer : ceux ayant ≥ 1 départ actuellement connecté.
+    # Les nœuds entièrement déconnectés (ex. groupes isolés) sont laissés tels
+    # quels (ils restent sur leur nœud courant).
+    nodes: list[dict] = []
+    for noeud in topo_cible.noeuds.values():
+        deps = [e for e in noeud.equipment_ids if e in R and connected[e]]
+        if not deps:
             continue
-        for sa in cell.disconnectors_vers_barre(bb):
-            if sa.switch_id not in seen:
-                seen.add(sa.switch_id)
-                result.append(sa)
-    return result
+        positions = {R[e] for e in deps}
+        fixed: dict[frozenset, int] = {}
+        for e in deps:
+            barres_e = {barre_par[s] for s in R[e] if s in barre_par}
+            if len(barres_e) == 1:
+                fixed[R[e]] = next(iter(barres_e))
+        nodes.append({"departs": deps, "positions": positions, "fixed": fixed})
+
+    if not nodes:
+        return [], True, "Aucun nœud connecté à placer."
+
+    # Faisabilité globale
+    nb_mixtes = sum(1 for nd in nodes if len(nd["positions"]) >= 2)
+    if nb_mixtes > nb_barres:
+        return ([], False,
+                f"{nb_mixtes} nœuds mixtes pour {nb_barres} barre(s) : "
+                "topologie impossible (il faudrait plus de jeux de barres).")
+    demand: dict[frozenset, int] = defaultdict(int)
+    for nd in nodes:
+        for p in nd["positions"]:
+            demand[p] += 1
+    for p, d in demand.items():
+        if d > nb_barres:
+            return ([], False,
+                    f"{d} nœuds requièrent la même section pour {nb_barres} "
+                    "barre(s) : topologie impossible.")
+
+    # Recherche de la meilleure affectation (une barre par nœud)
+    best = None
+    for combo in itertools.product(barres, repeat=len(nodes)):
+        slots_used: dict[tuple, int] = {}
+        ok = True
+        for i, nd in enumerate(nodes):
+            b = combo[i]
+            if any(fb != b for fb in nd["fixed"].values()):
+                ok = False
+                break
+            for p in nd["positions"]:
+                if slot(p, b) is None:
+                    ok = False
+                    break
+                key = (p, b)
+                if key in slots_used:
+                    ok = False
+                    break
+                slots_used[key] = i
+            if not ok:
+                break
+        if not ok:
+            continue
+        # Coût : ré-aiguillages + pénalité ouverture de sectionnement
+        reaig = 0
+        for i, nd in enumerate(nodes):
+            b = combo[i]
+            for e in nd["departs"]:
+                s = slot(R[e], b)
+                if s is not None and cur_sjb.get(e) != s:
+                    reaig += 1
+        per_barre: dict[int, set] = defaultdict(set)
+        for (p, b), i in slots_used.items():
+            per_barre[b].add(i)
+        sect = sum(len(idxs) - 1 for idxs in per_barre.values() if len(idxs) > 1)
+        cost = reaig + 10 * sect
+        if best is None or cost < best[0]:
+            best = (cost, combo)
+
+    if best is None:
+        return [], False, "Aucune affectation de barres réalisable."
+
+    combo = best[1]
+    placement: list[tuple[set[str], set[str]]] = []
+    for i, nd in enumerate(nodes):
+        b = combo[i]
+        sjbs = {sjb_id[slot(p, b)] for p in nd["positions"] if slot(p, b) is not None}
+        placement.append((set(nd["departs"]), sjbs))
+    return placement, True, "OK"
 
 
 def _set_switch(G: nx.Graph, switch_id: str, open_: bool) -> None:
@@ -698,13 +499,20 @@ def determiner_manoeuvres_avec_sections(
                 return res
             target_sjb[eq] = min(reachable)
 
-    # --- couplers à ouvrir (entre SJB de nœuds différents) -----------------
+    # --- couplers à ouvrir / fermer ----------------------------------------
+    # - à ouvrir  : entre SJB de nœuds différents,
+    # - à fermer  : entre SJB d'un même nœud actuellement séparées (fusion).
     couplers = _inter_sjb_couplers(poste)
     to_open: list[_InterSjbCoupler] = []
+    to_close: list[_InterSjbCoupler] = []
     for cp in couplers:
         na, nb = node_de_sjb.get(cp.sjb_a), node_de_sjb.get(cp.sjb_b)
-        if na is not None and nb is not None and na != nb:
+        if na is None or nb is None:
+            continue
+        if na != nb:
             to_open.append(cp)
+        elif any(_is_open(G, sid) for sid in cp.switch_ids):
+            to_close.append(cp)
 
     # --- groupes SJB finaux (couplers gardés fermés) -----------------------
     sjb_graph = nx.Graph()
@@ -752,6 +560,26 @@ def determiner_manoeuvres_avec_sections(
             if bb != target and bb not in sjb_isoles:
                 return bb
         return None
+
+    # --- Phase 0 : fermeture des couplages nécessaires (listeDordre §1) -----
+    # On ferme d'abord les couplages requis (fusion de barres dans un même
+    # nœud) pour préparer les ré-aiguillages en boucle courte. Contrôle de
+    # court-circuit : on ne ferme que si les deux SJB visent le même nœud
+    # (même potentiel cible), sinon on signale le risque et on s'abstient.
+    for cp in to_close:
+        if node_de_sjb.get(cp.sjb_a) != node_de_sjb.get(cp.sjb_b):
+            logger.warning(
+                "Fermeture de couplage %s ignorée : risque de court-circuit "
+                "(SJB de nœuds cibles différents).", cp.switch_ids,
+            )
+            continue
+        for sid in cp.switch_ids:
+            if _is_open(G, sid):
+                _set_switch(G, sid, False)
+                manoeuvres.append(Manoeuvre(
+                    switch_id=sid, action="CLOSE",
+                    raison="fermeture couplage de barres (préparation)",
+                ))
 
     # --- Phase A/B : ré-aiguillages boucle courte (couplage encore fermé) ---
     parkings: dict[str, int] = {}
@@ -803,9 +631,13 @@ def determiner_manoeuvres_avec_sections(
         if _reaiguiller_vers_sjb(G, cells, eq, parkings[eq], "LONGUE", manoeuvres):
             reaiguilles.add(eq)
 
+    # --- Optimisation : suppression des manœuvres sans effet (listeDordre) -
+    manoeuvres = _optimiser_sequence(poste, manoeuvres)
+
     res.manoeuvres = manoeuvres
     res.departs_reaiguilles = reaiguilles
-    res.couplages_modifies = [sid for cp in to_open for sid in cp.switch_ids]
+    res.couplages_modifies = [sid for cp in (to_open + to_close)
+                              for sid in cp.switch_ids]
 
     # --- Vérification ------------------------------------------------------
     topo_obtenue = TopologieNodale.from_graph(G, vl)
@@ -824,6 +656,26 @@ def determiner_manoeuvres_avec_sections(
 # ---------------------------------------------------------------------------
 # Helpers bas niveau opérant sur le graphe « live »
 # ---------------------------------------------------------------------------
+
+def _optimiser_sequence(
+    poste: PosteTopologique, manoeuvres: list[Manoeuvre]
+) -> list[Manoeuvre]:
+    """
+    Supprime les manœuvres sans effet en rejouant la séquence depuis l'état
+    initial : une manœuvre qui place un OC dans l'état où il se trouve déjà est
+    redondante et retirée. Les bascules réelles (ex. ouverture/fermeture d'un DJ
+    en boucle longue) sont conservées.
+    """
+    G = poste.graph.copy()
+    out: list[Manoeuvre] = []
+    for m in manoeuvres:
+        want_open = (m.action == "OPEN")
+        if _is_open(G, m.switch_id) == want_open:
+            continue
+        _set_switch(G, m.switch_id, want_open)
+        out.append(m)
+    return out
+
 
 def _is_open(G: nx.Graph, switch_id: str) -> bool:
     for _, _, d in G.edges(data=True):
