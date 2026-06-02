@@ -164,3 +164,35 @@ def test_delete_indices_ne_mute_pas_l_original():
 def test_delete_indices_ordre_insensible():
     man = _man("a", "b", "c", "d")
     assert ihm._delete_indices(man, [4, 1, 3]) == ihm._delete_indices(man, [1, 3, 4])
+
+
+# ---------------------------------------------------------------------------
+# Construction manuelle de séquence (manual_start) — logique pure
+# ---------------------------------------------------------------------------
+
+def test_construction_manuelle_atteint_la_cible():
+    """Simule la construction manuelle : depuis l'état de départ, chaque clic sur
+    un organe ajoute une manœuvre (bascule depuis l'état courant). On vérifie que
+    la séquence ainsi construite atteint l'état cible voulu."""
+    depart = {"a": False, "b": True, "c": False}
+    cible = {"a": True, "b": False, "c": False}   # ouvrir a, fermer b
+    # L'expert clique a puis b sur le schéma de l'état courant.
+    man = []
+    for sid in ["a", "b"]:
+        etat_courant = ihm._replay_states(depart, man)[-1]
+        m = ihm._manual_manoeuvre(etat_courant, sid)
+        assert m is not None
+        man.append(m)
+    assert [(m["switch_id"], m["action"]) for m in man] == [
+        ("a", "OPEN"), ("b", "CLOSE")]
+    # Toutes les manœuvres sont étiquetées « manuelle ».
+    assert all("manuelle" in m["raison"] for m in man)
+    assert ihm._replay_states(depart, man)[-1] == cible
+
+
+def test_construction_manuelle_demarre_vide_sur_le_depart():
+    """Une séquence manuelle vierge n'a qu'un état (le départ)."""
+    depart = {"x": False, "y": True}
+    states = ihm._replay_states(depart, [])
+    assert len(states) == 1
+    assert states[0] == depart

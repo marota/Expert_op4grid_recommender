@@ -207,21 +207,29 @@ class Session:
                 and nd.get("equipmentId")}
 
     def step_view(self, i: int):
-        """Vue **interactive** de l'étape i : ``(svg_highlighté, switches, nb, i)``.
+        """Vue **interactive** de l'étape i :
+        ``(svg_highlighté, switches, nb, i, reached)``.
 
         Les organes sont renvoyés pour l'état de l'étape afin que l'expert puisse
-        cliquer un organe à n'importe quelle étape (insertion de manœuvre)."""
+        cliquer un organe à n'importe quelle étape (insertion de manœuvre).
+        ``reached`` indique si l'état affiché **est déjà la topologie cible**
+        (même partition nodale) — pour mettre en évidence la vue du poste."""
         if not self.seq_states:
-            return "", [], 0, 0
+            return "", [], 0, 0, False
         i = max(0, min(i, len(self.seq_states) - 1))
         state = self.seq_states[i]
         self.apply(state)
         svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
         meta = json.loads(svg.metadata)
         switches = self._switches_meta(meta, state)
-        nb = TopologieNodale.from_graph(
-            build_vl_graph(self.net, self.vl), self.vl).nb_noeuds
-        return _highlight(svg.svg, self.seq_highlights[i]), switches, nb, i
+        topo_i = TopologieNodale.from_graph(
+            build_vl_graph(self.net, self.vl), self.vl)
+        nb = topo_i.nb_noeuds
+        self.apply(self.current)
+        topo_c = TopologieNodale.from_graph(
+            build_vl_graph(self.net, self.vl), self.vl)
+        reached = topo_c.meme_topologie(topo_i)
+        return _highlight(svg.svg, self.seq_highlights[i]), switches, nb, i, reached
 
     # --- séquence éditable (navigation + édition par l'expert) ------------
     def _rebuild_seq(self):
@@ -373,6 +381,19 @@ class Session:
         }
         return payload
 
+    def manual_start(self):
+        """Démarre une **séquence manuelle vierge** : la liste de manœuvres est
+        vidée et l'état courant repart de l'**état de départ** (étape 0).
+        L'expert construit ensuite la séquence en cliquant les organes du schéma
+        (chaque clic ajoute une manœuvre via ``seq_insert``), en visant la
+        **topologie cible** affichée en référence.
+        Retourne ``(svg_cible, nb_noeuds_cible)`` pour la vue de référence."""
+        self.seq_manoeuvres = []
+        self.seq_edited = True
+        self._rebuild_seq()
+        svg_c, _, nb_c = self.view(self.current)   # cible = référence à atteindre
+        return svg_c, nb_c
+
     def save_sequence(self, name: str) -> str:
         """
         Sauvegarde la séquence **courante** (telle qu'éventuellement éditée par
@@ -523,8 +544,8 @@ def api_save_sequence():
 @app.get("/api/step")
 def api_step():
     i = int(request.args.get("i", 0))
-    svg, switches, nb, i = SESSION.step_view(i)
-    return jsonify(svg=svg, switches=switches, nb_noeuds=nb, i=i)
+    svg, switches, nb, i, reached = SESSION.step_view(i)
+    return jsonify(svg=svg, switches=switches, nb_noeuds=nb, i=i, reached=reached)
 
 
 @app.post("/api/seq_insert")
@@ -543,6 +564,13 @@ def api_seq_delete():
 def api_seq_delete_many():
     goto = SESSION.seq_delete_many(request.json.get("indices", []))
     return jsonify(goto=goto, **SESSION._seq_payload())
+
+
+@app.post("/api/manual_start")
+def api_manual_start():
+    svg_c, nb_c = SESSION.manual_start()
+    return jsonify(cible_svg=_prefix_svg_ids(svg_c, "C_"), cible_nb=nb_c,
+                   goto=0, **SESSION._seq_payload())
 
 
 PAGE = r"""<!DOCTYPE html>
@@ -588,6 +616,9 @@ PAGE = r"""<!DOCTYPE html>
  #anim{display:flex;align-items:center;gap:8px;padding:6px;background:#eef;border-top:1px solid #ccd}
  .badge{font-size:11px;padding:2px 6px;border-radius:6px;background:#ddd}
  .ok{background:#27ae60;color:#fff}.ko{background:#c0392b;color:#fff}
+ .pane.reached{box-shadow:inset 0 0 0 5px #facc15;transition:box-shadow .2s}
+ .pane.reached>.ttl{background:#fef9c3 !important}
+ .pane.reached>.ttl::after{content:" — ✓ topologie cible atteinte";color:#a16207;font-weight:bold}
 </style></head><body>
 <div id="side">
   <h2>Poste</h2>
@@ -601,6 +632,7 @@ PAGE = r"""<!DOCTYPE html>
 
   <h2>2 · Séquence de manœuvres</h2>
   <button id="bcalc" class="primary" onclick="sequence()" disabled>⚙ Calculer la séquence</button>
+  <button id="bmanual" onclick="manualSeq()" disabled title="Construire la séquence à la main : cliquez les organes du schéma (départ → …), la cible s'affiche en référence">✋ Séquence manuelle</button>
   <div id="calchint" style="font-size:11px;color:#b45309">Validez d'abord la cible pour activer le calcul.</div>
 
   <h2>Scénarios sauvegardés</h2>
@@ -617,7 +649,7 @@ PAGE = r"""<!DOCTYPE html>
 <div id="main">
   <div class="pane" id="paneTop">
     <div class="ttl"><button class="cbtn" onclick="togglePane('paneTop')" title="Réduire / agrandir">▾</button>
-      Topologie de départ — <span id="nbA" class="badge">–</span> nœud(s)</div>
+      <span id="ttlA">Topologie de départ</span> — <span id="nbA" class="badge">–</span> nœud(s)</div>
     <div class="diag" id="diagTop">Choisissez un poste…</div>
   </div>
   <div class="pane" id="paneBot">
@@ -652,9 +684,10 @@ PAGE = r"""<!DOCTYPE html>
   </div>
 </div>
 <script>
-let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null};
+let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:false};
 const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
 function setValidated(v){document.getElementById('bcalc').disabled=!v;
+  document.getElementById('bmanual').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
 async function init(){const r=await (await fetch('/api/postes')).json();const sel=document.getElementById('poste');
   r.postes.forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
@@ -696,10 +729,13 @@ async function loadScen(mode){const name=document.getElementById('scenSel').valu
     document.getElementById('savemsg').textContent='Scénario « '+name+' » rechargé (départ + cible).';
     setValidated(true);
   }}
-function hideSeq(){document.getElementById('seqwrap').style.display='none';document.getElementById('anim').style.display='none';}
+function hideSeq(){document.getElementById('seqwrap').style.display='none';document.getElementById('anim').style.display='none';
+  document.getElementById('paneBot').classList.remove('reached');}
 function show(d){
+  document.getElementById('paneBot').classList.remove('reached');
   if(d.initial_svg!==undefined){document.getElementById('diagTop').innerHTML=d.initial_svg;
-    document.getElementById('nbA').textContent=d.nb_initial;}
+    document.getElementById('nbA').textContent=d.nb_initial;
+    document.getElementById('ttlA').textContent='Topologie de départ';S.manual=false;}
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
   document.getElementById('nbn').textContent=d.nb_noeuds;
@@ -712,9 +748,21 @@ function panel(switches){const dj=document.getElementById('djs'),sa=document.get
   switches.forEach(s=>{const row=document.createElement('div');row.className='sw';row.title=s.id;row.style.cursor='pointer';
     row.innerHTML=`<span class="name">${(s.name||s.id).slice(0,30)}</span><span class="pill ${s.open?'open':'closed'}">${s.open?'OUVERT':'FERMÉ'}</span>`;
     row.onclick=()=>toggle(s.id);(s.kind==='BREAKER'?dj:sa).appendChild(row);});}
-async function sequence(){stopAnim();const d=await api('/api/sequence',{});
+async function sequence(){stopAnim();S.manual=false;const d=await api('/api/sequence',{});
   document.getElementById('seqwrap').style.display='block';
   S.algo={message:d.message,ecarts:d.ecarts||[],verified:d.verified,verified_detaillee:d.verified_detaillee};
+  document.getElementById('seqName').value=(document.getElementById('scenName').value||'sequence');
+  document.getElementById('seqsavemsg').textContent='';
+  renderSeq(d);
+  document.getElementById('anim').style.display='flex';
+  await showStep(0);}
+async function manualSeq(){stopAnim();S.manual=true;const d=await api('/api/manual_start',{});
+  document.getElementById('seqwrap').style.display='block';
+  S.algo={message:'Séquence manuelle : cliquez les organes du schéma du bas (état courant) pour ajouter des manœuvres ; la cible à atteindre est affichée en haut.',ecarts:[],verified:false,verified_detaillee:false};
+  // Vue de référence : la CIBLE en haut.
+  document.getElementById('diagTop').innerHTML=d.cible_svg;
+  document.getElementById('nbA').textContent=d.cible_nb;
+  document.getElementById('ttlA').textContent='Cible à atteindre';
   document.getElementById('seqName').value=(document.getElementById('scenName').value||'sequence');
   document.getElementById('seqsavemsg').textContent='';
   renderSeq(d);
@@ -723,7 +771,8 @@ async function sequence(){stopAnim();const d=await api('/api/sequence',{});
 function renderSeq(d){
   S.n=d.n_steps;S.labels=d.labels;S.sel=new Set();S.lastSel=null;
   const st=document.getElementById('seqstatus');
-  if(d.edited){st.innerHTML='<span class="badge" style="background:#7c3aed;color:#fff">ÉDITÉE'+(d.nb_final!=null?' · '+d.nb_final+' nœud(s)':'')+'</span> '+
+  if(d.edited){const lbl=S.manual?'MANUELLE':'ÉDITÉE';
+    st.innerHTML='<span class="badge" style="background:#7c3aed;color:#fff">'+lbl+(d.nb_final!=null?' · '+d.nb_final+' nœud(s)':'')+'</span> '+
       (d.matches_cible?'<span class="badge ok">= cible</span>':'<span class="badge ko">≠ cible</span>');}
   else if(S.algo.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>';}
   else if(S.algo.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">NODALE OK · '+(S.algo.ecarts?S.algo.ecarts.length:'?')+' écart(s) détaillé(s)</span>';}
@@ -783,6 +832,8 @@ async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
   document.getElementById('steplabel').textContent=S.labels[S.idx]||'';
   document.querySelectorAll('#seq .cur').forEach(e=>e.classList.remove('cur'));
   const ln=document.getElementById('ln'+S.idx);if(ln)ln.classList.add('cur');
+  // Halo jaune autour de la vue du poste quand l'état affiché EST la topologie cible.
+  document.getElementById('paneBot').classList.toggle('reached', !!r.reached);
   document.getElementById('bprev').disabled=(S.idx<=0);document.getElementById('bnext').disabled=(S.idx>=S.n-1);}
 function step(d){stopAnim();showStep(S.idx+d);}
 function play(){stopAnim();S.timer=setInterval(async()=>{if(S.idx>=S.n-1){stopAnim();return;}await showStep(S.idx+1);},1000);}

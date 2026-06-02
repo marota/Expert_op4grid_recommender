@@ -119,6 +119,26 @@ La séquence calculée peut être **parcourue et modifiée** directement, sans a
   **sauvegarde** de séquence enregistre alors la liste **éditée telle quelle**
   (aucun re-calcul de l'algorithme).
 
+### Construire une séquence **entièrement manuelle**
+Une fois la cible **validée**, le bouton **✋ Séquence manuelle** démarre une
+séquence **vierge** : l'expert la construit lui-même, organe par organe.
+- Le schéma **du bas** part de l'**état de départ** et est **interactif** :
+  chaque clic sur un organe **ajoute une manœuvre** (bascule depuis l'état
+  courant) et fait avancer la vue d'un cran.
+- Le schéma **du haut** affiche la **cible à atteindre** (référence statique).
+- Le statut indique **MANUELLE · N nœud(s)** avec **= cible** / **≠ cible** ;
+  on suit ainsi la convergence vers la topologie visée.
+- Navigation (clic sur une ligne), suppression (✕ / sélection multiple) et
+  **sauvegarde** fonctionnent comme pour une séquence calculée.
+
+### Mise en évidence « topologie cible atteinte »
+Dès que l'**état affiché** (animation automatique **ou** construction manuelle)
+**est** la topologie **cible** — même partition nodale —, la vue du poste (bas)
+est **encadrée d'un halo jaune** et le bandeau affiche « ✓ topologie cible
+atteinte ». L'indicateur est recalculé **à chaque étape** côté serveur
+(`step_view` renvoie `reached = meme_topologie(état affiché, cible)`), de sorte
+qu'il s'allume exactement lorsque la cible est atteinte et s'éteint sinon.
+
 ### Réutiliser des scénarios
 - **▷ Rejouer** : recharge un scénario (départ **et** cible sauvegardés).
 - **⇧ Comme départ** : la cible sauvegardée devient le **nouvel état de
@@ -141,10 +161,11 @@ navigateur).
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds}` | Bascule un OC (cible) |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds}` | Réinitialise la cible = départ |
 | `POST /api/sequence` | — | `{verified, verified_detaillee, ecarts[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Calcule la séquence (cible **détaillée**) ; initialise la séquence **éditable** |
-| `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** de l'étape |
+| `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i, reached}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** ; `reached` = l'état affiché est la topologie cible |
 | `POST /api/seq_insert` | `{step, id}` | `{goto, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Insère une manœuvre basculant `id` **après** l'étape `step` (conserve la suite) |
 | `POST /api/seq_delete` | `{index}` | idem `seq_insert` | Supprime la manœuvre n°`index` (1-based) |
 | `POST /api/seq_delete_many` | `{indices:[…]}` | idem `seq_insert` | Supprime en une fois plusieurs manœuvres (sélection / bloc) |
+| `POST /api/manual_start` | — | `{cible_svg, cible_nb, goto, manoeuvres[], n_steps, labels[], …}` | Démarre une séquence **manuelle vierge** (départ → cible affichée en référence) |
 | `GET /api/scenarios` | — | `{scenarios:[…]}` | Liste des scénarios sauvegardés |
 | `POST /api/save` | `{name, overwrite?}` | `{path, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible |
 | `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl}` | Recharge (`mode="both"` ou `"as_depart"`) |
@@ -257,6 +278,8 @@ assert res.ecarts == []
 | **Ajouter** une manœuvre depuis l'état affiché (schéma interactif) | Clic sur un organe en mode séquence → `/api/seq_insert` (insertion, suite conservée) |
 | **Supprimer** une manœuvre / **plusieurs** / un **bloc** | ✕ par ligne (`/api/seq_delete`) ; cases à cocher + Maj+clic + 🗑 (`/api/seq_delete_many`) |
 | **Sauvegarder la séquence éditée** telle quelle (sans re-calcul) | `/api/save_sequence` sérialise `seq_manoeuvres` ; champs `edited`, `matches_cible`, `nb_final` |
+| **Construire une séquence entièrement manuelle** (interagir avec le départ, cible en référence) | Bouton ✋ → `/api/manual_start` (séquence vierge) puis clics organe → `/api/seq_insert` |
+| **Signaler visuellement** l'atteinte de la topologie cible | Halo jaune sur la vue du poste + « ✓ topologie cible atteinte » (champ `reached` de `/api/step`) |
 
 ---
 
