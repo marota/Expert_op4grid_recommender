@@ -84,6 +84,38 @@ SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")    # redéfini dans main()
 SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
 
 
+def _replay_states(initial: dict[str, bool],
+                   manoeuvres: list[dict]) -> list[dict[str, bool]]:
+    """États détaillés successifs obtenus en rejouant ``manoeuvres`` depuis
+    ``initial``. ``states[0]`` = départ ; ``states[k]`` = état après la k-ième
+    manœuvre. Fonction pure (testable sans Flask ni pypowsybl)."""
+    states = [dict(initial)]
+    running = dict(initial)
+    for m in manoeuvres:
+        running = dict(running)
+        running[m["switch_id"]] = (m["action"] == "OPEN")
+        states.append(running)
+    return states
+
+
+def _manual_manoeuvre(displayed_state: dict[str, bool], sid: str):
+    """Manœuvre manuelle basculant ``sid`` depuis ``displayed_state`` (l'état
+    affiché) : OUVRE s'il est fermé, FERME s'il est ouvert. ``None`` si l'organe
+    est inconnu. Fonction pure (testable)."""
+    cur = displayed_state.get(sid)
+    if cur is None:
+        return None
+    return {"switch_id": sid, "action": "CLOSE" if cur else "OPEN",
+            "raison": "manœuvre manuelle (expert)", "boucle": None}
+
+
+def _delete_indices(manoeuvres: list[dict], indices) -> list[dict]:
+    """Retourne ``manoeuvres`` privée des positions ``indices`` (1-based).
+    Les indices hors bornes ou en double sont ignorés. Fonction pure."""
+    drop = {int(i) for i in indices if 1 <= int(i) <= len(manoeuvres)}
+    return [m for k, m in enumerate(manoeuvres, 1) if k not in drop]
+
+
 class Session:
     """État serveur (mono-utilisateur)."""
 
@@ -99,9 +131,12 @@ class Session:
         self.initial: dict[str, bool] = {}   # état de départ (A)
         self.current: dict[str, bool] = {}    # état cible édité (B)
         self.scenario_name: str | None = None  # nom du scénario lié à la cible
-        # Cache de la dernière séquence calculée (pour l'animation lazy)
+        # Séquence courante (calculée puis éventuellement éditée par l'expert)
+        self.seq_manoeuvres: list[dict] = []     # [{switch_id, action, raison, boucle}]
         self.seq_states: list[dict[str, bool]] = []
         self.seq_highlights: list[str | None] = []
+        self.seq_labels: list[str] = []
+        self.seq_edited: bool = False
 
     # --- gestion d'état ---------------------------------------------------
     def switches_df(self, vl):
@@ -114,7 +149,9 @@ class Session:
         # Départ = état pristine du poste (et non un état résiduel de session)
         self.initial = {sid: self.pristine[sid] for sid in df.index}
         self.current = dict(self.initial)
-        self.seq_states, self.seq_highlights = [], []
+        self.seq_manoeuvres = []
+        self.seq_states, self.seq_highlights, self.seq_labels = [], [], []
+        self.seq_edited = False
         self.scenario_name = None
 
     def reset(self):
@@ -169,14 +206,90 @@ class Session:
                 if nd.get("componentType") in ("BREAKER", "DISCONNECTOR")
                 and nd.get("equipmentId")}
 
-    def render_step_svg(self, i: int) -> str:
-        """SVG de l'étape d'animation i (avec mise en évidence)."""
+    def step_view(self, i: int):
+        """Vue **interactive** de l'étape i : ``(svg_highlighté, switches, nb, i)``.
+
+        Les organes sont renvoyés pour l'état de l'étape afin que l'expert puisse
+        cliquer un organe à n'importe quelle étape (insertion de manœuvre)."""
         if not self.seq_states:
-            return ""
+            return "", [], 0, 0
         i = max(0, min(i, len(self.seq_states) - 1))
-        self.apply(self.seq_states[i])
-        svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR).svg
-        return _highlight(svg, self.seq_highlights[i])
+        state = self.seq_states[i]
+        self.apply(state)
+        svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
+        meta = json.loads(svg.metadata)
+        switches = self._switches_meta(meta, state)
+        nb = TopologieNodale.from_graph(
+            build_vl_graph(self.net, self.vl), self.vl).nb_noeuds
+        return _highlight(svg.svg, self.seq_highlights[i]), switches, nb, i
+
+    # --- séquence éditable (navigation + édition par l'expert) ------------
+    def _rebuild_seq(self):
+        """Recompose états / surlignages / libellés depuis ``seq_manoeuvres``."""
+        svgid = self.svgid_par_switch()
+        self.seq_states = _replay_states(self.initial, self.seq_manoeuvres)
+        self.seq_highlights = [None] + [
+            svgid.get(m["switch_id"]) for m in self.seq_manoeuvres]
+        self.seq_labels = ["État de départ"] + [
+            f'{i}. {m["action"]} {m["switch_id"]} — {m["raison"]}'
+            for i, m in enumerate(self.seq_manoeuvres, 1)]
+
+    def _seq_payload(self) -> dict:
+        """Charge utile commune (séquence + état final) renvoyée au front."""
+        nb_final, matches = None, None
+        if self.seq_states:
+            self.apply(self.seq_states[-1])
+            topo_f = TopologieNodale.from_graph(
+                build_vl_graph(self.net, self.vl), self.vl)
+            nb_final = topo_f.nb_noeuds
+            self.apply(self.current)
+            topo_c = TopologieNodale.from_graph(
+                build_vl_graph(self.net, self.vl), self.vl)
+            matches = topo_c.meme_topologie(topo_f)
+        self.apply(self.current)  # restaurer l'affichage courant
+        return {
+            "manoeuvres": [dict(m) for m in self.seq_manoeuvres],
+            "nb_manoeuvres": len(self.seq_manoeuvres),
+            "n_steps": len(self.seq_states),
+            "labels": self.seq_labels,
+            "nb_final": nb_final,
+            "matches_cible": matches,
+            "edited": self.seq_edited,
+        }
+
+    def seq_insert(self, step: int, sid: str) -> int:
+        """Insère une manœuvre basculant ``sid`` juste **après** l'étape ``step``
+        (la suite est conservée). Retourne l'index d'étape à afficher."""
+        if not self.seq_states:
+            return 0
+        step = max(0, min(step, len(self.seq_states) - 1))
+        m = _manual_manoeuvre(self.seq_states[step], sid)
+        if m is None:
+            return step
+        self.seq_manoeuvres.insert(step, m)   # position step => nouvel état step+1
+        self.seq_edited = True
+        self._rebuild_seq()
+        return step + 1
+
+    def seq_delete(self, index: int) -> int:
+        """Supprime la manœuvre n°``index`` (1-based). Retourne l'étape à afficher."""
+        if 1 <= index <= len(self.seq_manoeuvres):
+            self.seq_manoeuvres.pop(index - 1)
+            self.seq_edited = True
+            self._rebuild_seq()
+        return max(0, min(index - 1, len(self.seq_states) - 1))
+
+    def seq_delete_many(self, indices) -> int:
+        """Supprime en une fois les manœuvres aux positions ``indices`` (1-based ;
+        sélection multiple ou bloc). Retourne l'étape à afficher."""
+        keep = _delete_indices(self.seq_manoeuvres, indices)
+        if len(keep) != len(self.seq_manoeuvres):
+            self.seq_manoeuvres = keep
+            self.seq_edited = True
+            self._rebuild_seq()
+        valides = [int(i) for i in indices if int(i) >= 1]
+        goto = (min(valides) - 1) if valides else 0
+        return max(0, min(goto, len(self.seq_states) - 1))
 
     # --- scénarios (sauvegarde / rechargement) ----------------------------
     def groups_of(self, state):
@@ -242,64 +355,54 @@ class Session:
         cible_graph = build_vl_graph(self.net, self.vl)
 
         res = determiner_manoeuvres_cible_detaillee(poste, cible_graph)
-        svgid = self.svgid_par_switch()
 
-        # Pré-calcul des états successifs (pour l'animation lazy via /api/step)
-        states = [dict(self.initial)]
-        highlights: list[str | None] = [None]
-        labels = ["État de départ"]
-        running = dict(self.initial)
-        for i, m in enumerate(res.manoeuvres, 1):
-            running = dict(running)
-            running[m.switch_id] = (m.action == "OPEN")
-            states.append(running)
-            highlights.append(svgid.get(m.switch_id))
-            labels.append(f"{i}. {m.action} {m.switch_id} — {m.raison}")
-        self.seq_states, self.seq_highlights = states, highlights
+        # Séquence éditable initialisée depuis le résultat de l'algorithme.
+        self.seq_manoeuvres = [{
+            "switch_id": m.switch_id, "action": m.action,
+            "raison": m.raison, "boucle": m.type_boucle,
+        } for m in res.manoeuvres]
+        self.seq_edited = False
+        self._rebuild_seq()
 
-        # Restaurer l'affichage sur la cible éditée
-        self.apply(self.current)
-
-        return {
+        payload = {
             "verified": res.is_verified,
             "verified_detaillee": res.is_verified_detaillee,
             "ecarts": res.ecarts,
             "message": res.message,
-            "nb_manoeuvres": res.nb_manoeuvres,
-            "manoeuvres": [{
-                "switch_id": m.switch_id, "action": m.action,
-                "raison": m.raison, "boucle": m.type_boucle,
-            } for m in res.manoeuvres],
-            "n_steps": len(states),
-            "labels": labels,
+            **self._seq_payload(),   # manoeuvres / n_steps / labels / nb_final / …
         }
+        return payload
 
     def save_sequence(self, name: str) -> str:
         """
-        Sauvegarde la séquence calculée (départ → cible) dans un JSON autonome,
-        réutilisable pour l'analyse et la création de tests : topologies
-        détaillées et nodales de départ/cible, lien vers le scénario éventuel,
-        et liste ordonnée des manœuvres.
+        Sauvegarde la séquence **courante** (telle qu'éventuellement éditée par
+        l'expert) dans un JSON autonome : topologies détaillées et nodales de
+        départ/cible, lien vers le scénario éventuel, et liste ordonnée des
+        manœuvres. On n'exécute **pas** de re-calcul de l'algorithme : la liste
+        éditée est sérialisée telle quelle ; on recalcule seulement l'état nodal
+        final atteint et la concordance avec la cible.
         """
         import re
-        seq = self.sequence()
+        if not self.seq_states:   # aucune séquence calculée : on en calcule une
+            self.sequence()
+        info = self._seq_payload()
         name = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) \
             or (self.scenario_name or self.vl)
         data = {
             "voltage_level_id": self.vl,
             "name": name,
             "scenario": self.scenario_name,          # lien vers les topologies
-            "verified": seq["verified"],
-            "verified_detaillee": seq.get("verified_detaillee"),
-            "ecarts": seq.get("ecarts", []),
-            "message": seq["message"],
+            "edited": self.seq_edited,
+            "matches_cible": info["matches_cible"],
+            "nb_final": info["nb_final"],
             "depart": self.initial,
             "cible": self.current,
             "depart_nodale": self.groups_of(self.initial),
             "cible_nodale": self.groups_of(self.current),
-            "nb_manoeuvres": seq["nb_manoeuvres"],
+            "nb_manoeuvres": len(self.seq_manoeuvres),
             "manoeuvres": [
-                {"ordre": i + 1, **m} for i, m in enumerate(seq["manoeuvres"])
+                {"ordre": i + 1, **m}
+                for i, m in enumerate(self.seq_manoeuvres)
             ],
         }
         self.apply(self.current)  # restaurer l'affichage courant
@@ -420,7 +523,26 @@ def api_save_sequence():
 @app.get("/api/step")
 def api_step():
     i = int(request.args.get("i", 0))
-    return jsonify(svg=SESSION.render_step_svg(i))
+    svg, switches, nb, i = SESSION.step_view(i)
+    return jsonify(svg=svg, switches=switches, nb_noeuds=nb, i=i)
+
+
+@app.post("/api/seq_insert")
+def api_seq_insert():
+    goto = SESSION.seq_insert(int(request.json["step"]), request.json["id"])
+    return jsonify(goto=goto, **SESSION._seq_payload())
+
+
+@app.post("/api/seq_delete")
+def api_seq_delete():
+    goto = SESSION.seq_delete(int(request.json["index"]))
+    return jsonify(goto=goto, **SESSION._seq_payload())
+
+
+@app.post("/api/seq_delete_many")
+def api_seq_delete_many():
+    goto = SESSION.seq_delete_many(request.json.get("indices", []))
+    return jsonify(goto=goto, **SESSION._seq_payload())
 
 
 PAGE = r"""<!DOCTYPE html>
@@ -449,9 +571,20 @@ PAGE = r"""<!DOCTYPE html>
  .sw .name{font-family:monospace;font-size:11px}
  .pill{font-size:10px;padding:1px 6px;border-radius:8px;color:#fff}
  .open{background:#c0392b}.closed{background:#27ae60}
- #seq{font-family:monospace;font-size:12px;white-space:pre;background:#fff;border:1px solid #ddd;padding:8px;max-height:30vh;overflow:auto}
- #seq .line{padding:0 2px}
+ #seq{font-family:monospace;font-size:12px;background:#fff;border:1px solid #ddd;padding:8px;max-height:30vh;overflow:auto}
+ #seq .head{white-space:pre}
+ #seq .line{padding:0 2px;cursor:pointer;display:flex;justify-content:space-between;gap:6px;white-space:pre}
+ #seq .line:hover{background:#eef2ff}
+ #seq .line .txt{flex:1;overflow:hidden;text-overflow:ellipsis}
  #seq .cur{background:#fde68a}
+ #seq .line.manual .txt{color:#7c3aed}
+ #seq .del{color:#c0392b;font-weight:bold;cursor:pointer;padding:0 4px;border-radius:3px;visibility:hidden}
+ #seq .line:hover .del{visibility:visible}
+ #seq .del:hover{background:#fde2e2}
+ #seq .line .chk{margin:0 4px 0 0;cursor:pointer;flex:0 0 auto}
+ #seq .line.selected{box-shadow:inset 3px 0 0 #6366f1}
+ #seltools{margin:4px 0;font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+ #seltools button{padding:3px 8px;font-size:12px;margin:0}
  #anim{display:flex;align-items:center;gap:8px;padding:6px;background:#eef;border-top:1px solid #ccd}
  .badge{font-size:11px;padding:2px 6px;border-radius:6px;background:#ddd}
  .ok{background:#27ae60;color:#fff}.ko{background:#c0392b;color:#fff}
@@ -499,9 +632,17 @@ PAGE = r"""<!DOCTYPE html>
     <button id="bnext" onclick="step(1)">▶|</button>
     <span id="stepinfo" class="badge"></span>
     <span id="steplabel" style="font-family:monospace;font-size:12px"></span>
+    <span style="flex:1"></span>
+    <span style="font-size:11px;color:#3730a3">✎ Schéma éditable : cliquez un organe pour insérer une manœuvre après l'étape courante.</span>
   </div>
   <div id="seqwrap" style="padding:8px;display:none">
     <b>Séquence <span id="seqstatus"></span></b>
+    <div id="seltools">
+      <span>Sélection : <b id="selcount">0</b></span>
+      <button id="bdelsel" onclick="seqDeleteSelected()" disabled>🗑 Supprimer la sélection</button>
+      <button onclick="clearSel()">Désélectionner</button>
+      <span style="color:#777">case à cocher = sélection · Maj+clic = bloc</span>
+    </div>
     <div id="seq"></div>
     <div style="margin-top:6px">
       <input id="seqName" placeholder="nom de la séquence" style="width:45%;padding:4px">
@@ -511,7 +652,7 @@ PAGE = r"""<!DOCTYPE html>
   </div>
 </div>
 <script>
-let S={n:0,idx:0,timer:null,labels:[]};
+let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null};
 const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
 function setValidated(v){document.getElementById('bcalc').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
@@ -572,29 +713,72 @@ function panel(switches){const dj=document.getElementById('djs'),sa=document.get
     row.innerHTML=`<span class="name">${(s.name||s.id).slice(0,30)}</span><span class="pill ${s.open?'open':'closed'}">${s.open?'OUVERT':'FERMÉ'}</span>`;
     row.onclick=()=>toggle(s.id);(s.kind==='BREAKER'?dj:sa).appendChild(row);});}
 async function sequence(){stopAnim();const d=await api('/api/sequence',{});
-  const w=document.getElementById('seqwrap');w.style.display='block';
-  const st=document.getElementById('seqstatus');
-  if(d.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>';}
-  else if(d.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">NODALE OK · '+(d.ecarts?d.ecarts.length:'?')+' écart(s) détaillé(s)</span>';}
-  else{st.innerHTML='<span class="badge ko">NON VÉRIFIÉE</span>';}
-  const seq=document.getElementById('seq');seq.innerHTML='';
-  let headtxt=d.message+(d.manoeuvres.length?'':'\n(aucune manœuvre)');
-  if(d.ecarts&&d.ecarts.length){headtxt+='\nÉcarts détaillés : '+d.ecarts.join(' ; ');}
-  const head=document.createElement('div');head.textContent=headtxt;seq.appendChild(head);
-  d.manoeuvres.forEach((m,i)=>{const ln=document.createElement('div');ln.className='line';ln.id='ln'+(i+1);
-    ln.textContent=`${String(i+1).padStart(2)}. ${m.action.padEnd(5)} ${m.switch_id}  (${m.raison})${m.boucle?' ['+m.boucle+']':''}`;seq.appendChild(ln);});
-  S.n=d.n_steps;S.labels=d.labels;S.idx=0;
+  document.getElementById('seqwrap').style.display='block';
+  S.algo={message:d.message,ecarts:d.ecarts||[],verified:d.verified,verified_detaillee:d.verified_detaillee};
   document.getElementById('seqName').value=(document.getElementById('scenName').value||'sequence');
   document.getElementById('seqsavemsg').textContent='';
-  if(S.n>0){document.getElementById('anim').style.display='flex';await showStep(0);}}
+  renderSeq(d);
+  document.getElementById('anim').style.display='flex';
+  await showStep(0);}
+function renderSeq(d){
+  S.n=d.n_steps;S.labels=d.labels;S.sel=new Set();S.lastSel=null;
+  const st=document.getElementById('seqstatus');
+  if(d.edited){st.innerHTML='<span class="badge" style="background:#7c3aed;color:#fff">ÉDITÉE'+(d.nb_final!=null?' · '+d.nb_final+' nœud(s)':'')+'</span> '+
+      (d.matches_cible?'<span class="badge ok">= cible</span>':'<span class="badge ko">≠ cible</span>');}
+  else if(S.algo.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>';}
+  else if(S.algo.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">NODALE OK · '+(S.algo.ecarts?S.algo.ecarts.length:'?')+' écart(s) détaillé(s)</span>';}
+  else{st.innerHTML='<span class="badge ko">NON VÉRIFIÉE</span>';}
+  const seq=document.getElementById('seq');seq.innerHTML='';
+  let headtxt=(S.algo.message||'')+(d.manoeuvres.length?'':'\n(aucune manœuvre)');
+  if(S.algo.ecarts&&S.algo.ecarts.length){headtxt+='\nÉcarts détaillés : '+S.algo.ecarts.join(' ; ');}
+  if(d.edited){headtxt+='\n(séquence éditée manuellement)';}
+  const head=document.createElement('div');head.className='head';head.id='ln0';head.textContent=headtxt;
+  head.style.cursor='pointer';head.title="Aller à l'état de départ";head.onclick=()=>stepGoto(0);seq.appendChild(head);
+  d.manoeuvres.forEach((m,i)=>{const k=i+1;const ln=document.createElement('div');
+    ln.className='line'+(/manuelle/.test(m.raison)?' manual':'');ln.id='ln'+k;
+    const chk=document.createElement('input');chk.type='checkbox';chk.className='chk';
+    chk.title='Sélectionner (Maj+clic = bloc)';
+    chk.onclick=(e)=>{e.stopPropagation();onChkClick(k,e.shiftKey);};
+    const txt=document.createElement('span');txt.className='txt';
+    txt.textContent=`${String(k).padStart(2)}. ${m.action.padEnd(5)} ${m.switch_id}  (${m.raison})${m.boucle?' ['+m.boucle+']':''}`;
+    const del=document.createElement('span');del.className='del';del.textContent='✕';del.title='Supprimer cette manœuvre';
+    del.onclick=(e)=>{e.stopPropagation();seqDelete(k);};
+    ln.appendChild(chk);ln.appendChild(txt);ln.appendChild(del);
+    ln.onclick=()=>stepGoto(k);seq.appendChild(ln);});
+  updateSelUI();
+}
+function onChkClick(idx,shift){
+  if(shift&&S.lastSel){const a=Math.min(S.lastSel,idx),b=Math.max(S.lastSel,idx);
+    for(let k=a;k<=b;k++)S.sel.add(k);}
+  else{if(S.sel.has(idx))S.sel.delete(idx);else S.sel.add(idx);}
+  S.lastSel=idx;updateSelUI();}
+function updateSelUI(){
+  document.querySelectorAll('#seq .line').forEach(ln=>{const k=parseInt(ln.id.slice(2));
+    const c=ln.querySelector('.chk');if(c)c.checked=S.sel.has(k);
+    ln.classList.toggle('selected',S.sel.has(k));});
+  const cnt=document.getElementById('selcount');if(cnt)cnt.textContent=S.sel.size;
+  const b=document.getElementById('bdelsel');if(b)b.disabled=(S.sel.size===0);}
+function clearSel(){S.sel.clear();S.lastSel=null;updateSelUI();}
+async function seqDeleteSelected(){if(!S.sel.size)return;
+  stopAnim();const indices=[...S.sel];
+  const r=await api('/api/seq_delete_many',{indices});renderSeq(r);await showStep(r.goto);}
+function stepGoto(i){stopAnim();showStep(i);}
+async function seqInsert(step,id){stopAnim();const r=await api('/api/seq_insert',{step,id});renderSeq(r);await showStep(r.goto);}
+async function seqDelete(k){stopAnim();const r=await api('/api/seq_delete',{index:k});renderSeq(r);await showStep(r.goto);}
 async function saveSeq(){const name=document.getElementById('seqName').value;
   const msg=document.getElementById('seqsavemsg');
   const r=await saveWithConfirm('/api/save_sequence',name,msg);
   if(!r)return;
   msg.textContent='✓ '+r.path;}
+function bindStep(switches){const root=document.getElementById('diagBottom');
+  switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
+    if(el){el.style.cursor='pointer';el.onclick=()=>seqInsert(S.idx,s.id);
+      el.querySelectorAll('*').forEach(c=>c.style.cursor='pointer');}});}
 async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
   const r=await (await fetch('/api/step?i='+S.idx)).json();
   document.getElementById('diagBottom').innerHTML=r.svg;
+  if(r.switches)bindStep(r.switches);
+  if(r.nb_noeuds!=null)document.getElementById('nbB').textContent=r.nb_noeuds;
   document.getElementById('stepinfo').textContent=S.idx+'/'+(S.n-1);
   document.getElementById('steplabel').textContent=S.labels[S.idx]||'';
   document.querySelectorAll('#seq .cur').forEach(e=>e.classList.remove('cur'));

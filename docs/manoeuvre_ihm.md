@@ -99,6 +99,26 @@ des variables CSS).
 > « DÉTAILLÉE VÉRIFIÉE », ou « NODALE OK · N écart(s) détaillé(s) » avec la
 > liste des écarts résiduels.
 
+### Naviguer et éditer la séquence (expert)
+La séquence calculée peut être **parcourue et modifiée** directement, sans avoir
+à balayer toutes les étapes :
+
+- **Aller à un état** : cliquer une **ligne** de la séquence (ou l'en-tête
+  « État de départ ») saute directement à cet état sur le schéma.
+- **Ajouter une manœuvre** : à l'étape affichée, le schéma cible **redevient
+  interactif** ; cliquer un organe **insère** une manœuvre (bascule de l'organe)
+  **juste après** l'étape courante — la suite de la séquence est **conservée**.
+  Les manœuvres ajoutées sont libellées « manœuvre manuelle (expert) »
+  (affichées en violet).
+- **Supprimer une manœuvre** : bouton **✕** au survol d'une ligne.
+- **Supprimer plusieurs manœuvres / un bloc** : **cocher** les cases des lignes
+  voulues (**Maj+clic** sur une case sélectionne un **bloc** contigu), puis
+  **🗑 Supprimer la sélection**.
+- Après toute édition, le statut passe à **ÉDITÉE · N nœud(s)** avec un
+  indicateur **= cible** / **≠ cible** (l'état nodal final est recalculé). La
+  **sauvegarde** de séquence enregistre alors la liste **éditée telle quelle**
+  (aucun re-calcul de l'algorithme).
+
 ### Réutiliser des scénarios
 - **▷ Rejouer** : recharge un scénario (départ **et** cible sauvegardés).
 - **⇧ Comme départ** : la cible sauvegardée devient le **nouvel état de
@@ -120,12 +140,15 @@ navigateur).
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds}` | Charge un poste (départ pristine) |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds}` | Bascule un OC (cible) |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds}` | Réinitialise la cible = départ |
-| `POST /api/sequence` | — | `{verified, verified_detaillee, ecarts[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[]}` | Calcule la séquence (cible **détaillée**) |
-| `GET /api/step?i=k` | — | `{svg}` | Image d'animation de l'étape *k* (surlignée) |
+| `POST /api/sequence` | — | `{verified, verified_detaillee, ecarts[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Calcule la séquence (cible **détaillée**) ; initialise la séquence **éditable** |
+| `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** de l'étape |
+| `POST /api/seq_insert` | `{step, id}` | `{goto, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Insère une manœuvre basculant `id` **après** l'étape `step` (conserve la suite) |
+| `POST /api/seq_delete` | `{index}` | idem `seq_insert` | Supprime la manœuvre n°`index` (1-based) |
+| `POST /api/seq_delete_many` | `{indices:[…]}` | idem `seq_insert` | Supprime en une fois plusieurs manœuvres (sélection / bloc) |
 | `GET /api/scenarios` | — | `{scenarios:[…]}` | Liste des scénarios sauvegardés |
 | `POST /api/save` | `{name, overwrite?}` | `{path, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible |
 | `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl}` | Recharge (`mode="both"` ou `"as_depart"`) |
-| `POST /api/save_sequence` | `{name, overwrite?}` | `{path}` ou `{exists:true, name, path}` | Sauvegarde la séquence générée |
+| `POST /api/save_sequence` | `{name, overwrite?}` | `{path}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** (éditée telle quelle) |
 
 > **Avertissement d'écrasement** : sans `overwrite:true`, si le fichier existe
 > déjà, `/api/save` et `/api/save_sequence` renvoient `{exists:true}` (sans
@@ -153,17 +176,20 @@ Topologie cible validée, réutilisable comme cible (rejeu) ou comme départ.
 ```
 
 ### Séquence (`--sequences-dir/<nom>.json`)
-Séquence générée + topologies + **lien vers le scénario**.
+Séquence **courante** (telle qu'éventuellement éditée par l'expert) + topologies
++ **lien vers le scénario**. La liste de manœuvres est sérialisée telle quelle ;
+seuls l'état nodal final (`nb_final`) et sa concordance avec la cible
+(`matches_cible`) sont recalculés. `edited` vaut `true` si la séquence a été
+modifiée à la main (insertions / suppressions).
 
 ```json
 {
   "voltage_level_id": "CARRIP3",
   "name": "seqA",
   "scenario": "scenA",
-  "verified": true,
-  "verified_detaillee": true,
-  "ecarts": [],
-  "message": "Topologie détaillée cible atteinte et vérifiée.",
+  "edited": false,
+  "matches_cible": true,
+  "nb_final": 2,
   "depart": {"<switch_id>": false},
   "cible":  {"<switch_id>": true},
   "depart_nodale": [["..."]],
@@ -175,6 +201,9 @@ Séquence générée + topologies + **lien vers le scénario**.
   ]
 }
 ```
+
+> Une manœuvre **ajoutée manuellement** a pour `raison` « manœuvre manuelle
+> (expert) » et `boucle: null`.
 
 ### Exploitation pour un test
 Un fichier de séquence (ou de scénario) est **autonome**. Pour rejouer la cible
@@ -224,6 +253,10 @@ assert res.ecarts == []
 | Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | `determiner_manoeuvres_cible_detaillee` ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
 | **Avertissement d'écrasement** d'un fichier de sauvegarde existant | Confirmation / renommage (réponse `{exists:true}`) |
 | **Replier** un schéma pour agrandir l'autre (grands postes) | Bouton ▾/▸ par en-tête de schéma |
+| **Aller directement** à l'état d'une manœuvre (sans balayer) | Clic sur une ligne de séquence → `/api/step` |
+| **Ajouter** une manœuvre depuis l'état affiché (schéma interactif) | Clic sur un organe en mode séquence → `/api/seq_insert` (insertion, suite conservée) |
+| **Supprimer** une manœuvre / **plusieurs** / un **bloc** | ✕ par ligne (`/api/seq_delete`) ; cases à cocher + Maj+clic + 🗑 (`/api/seq_delete_many`) |
+| **Sauvegarder la séquence éditée** telle quelle (sans re-calcul) | `/api/save_sequence` sérialise `seq_manoeuvres` ; champs `edited`, `matches_cible`, `nb_final` |
 
 ---
 
@@ -242,6 +275,12 @@ assert res.ecarts == []
   (états pré-calculés côté serveur). Réponse initiale légère.
 - **État de départ pristine** : capturé à l'initialisation, insensible aux
   modifications de session (pas de fuite d'état entre postes/scénarios).
+- **Séquence éditable côté serveur** : la session conserve une liste
+  `seq_manoeuvres` (manœuvres ordonnées) ; insertions/suppressions la modifient
+  puis `_rebuild_seq` recompose les états successifs (helper pur `_replay_states`)
+  et les surlignages. La dérivation d'une manœuvre manuelle (`_manual_manoeuvre`)
+  et la suppression multiple (`_delete_indices`) sont des **fonctions pures**,
+  testées sans Flask ni pypowsybl (`tests/manoeuvre/test_ihm_sequence_edit.py`).
 
 ---
 
