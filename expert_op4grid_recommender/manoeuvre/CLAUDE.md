@@ -33,7 +33,9 @@ python scripts/extract_test_fixtures.py --xiidm path/to/grid.xiidm
 python scripts/render_carrip3_sld.py --grid path/to/grid.xiidm
 
 # IHM web de test interactif (Flask, dependance optionnelle) :
-#   choisir un poste, modifier DJ/SA, calculer + animer la sequence
+#   choisir un poste, modifier DJ/SA, valider/sauver la cible, calculer +
+#   animer la sequence, sauvegarder scenarios et sequences. Doc complete :
+#   docs/manoeuvre_ihm.md
 pip install -e ".[ihm]"   # guillemets requis sous zsh (sinon: pip install flask)
 python scripts/manoeuvre_ihm.py --grid path/to/grid.xiidm   # http://localhost:8000
 ```
