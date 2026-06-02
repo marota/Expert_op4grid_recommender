@@ -1,0 +1,422 @@
+{
+  "voltage_level_id": "PALUNP3",
+  "name": "PALUNP3_cible_4noeuds",
+  "scenario": "PALUNP3_cible_4noeuds",
+  "verified": true,
+  "verified_detaillee": true,
+  "ecarts": [],
+  "message": "Topologie détaillée cible atteinte et vérifiée.",
+  "depart": {
+    "PALUNP3_PALUN3ENSOL.2 SA.2_OC": true,
+    "PALUNP3_PALUN3SEC..12 SS.2.12_OC": true,
+    "PALUNP3_PALUN3GARDA.1 SA.2_OC": true,
+    "PALUNP3_PALUN3AUXIL.1 SA.2_OC": true,
+    "PALUNP3_PALUN3CHAB5.1 SA.2_OC": true,
+    "PALUNP3_PALUN3ENSOL.1 SA.2_OC": false,
+    "PALUNP3_PALUN3ROUS5.1 SA.2_OC": true,
+    "PALUNP3_PALUN3COUPL.1 SA.1_OC": false,
+    "PALUNP3_PALUN3SSSA6.1 SA.1_OC": false,
+    "PALUNP3_PALUN3SEPTE.1 SA.1_OC": true,
+    "PALUNP3_PALUN3COND.2 SA.1_OC": true,
+    "PALUNP3_PALUN3TR632 SA.1_OC": false,
+    "PALUNP3_PALUN3SSSA6.1 SA.2_OC": true,
+    "PALUNP3_PALUN3AIX.1 SA.2_OC": false,
+    "PALUNP3_PALUN3TR631 SA.2_OC": false,
+    "PALUNP3_PALUN3TR632 SA.2_OC": true,
+    "PALUNP3_PALUN3TR631 SA.1_OC": true,
+    "PALUNP3_PALUN3COUPL.1 SA.2_OC": false,
+    "PALUNP3_PALUN3GARD6.1 SA.2_OC": true,
+    "PALUNP3_PALUN3COND.1 SA.1_OC": false,
+    "PALUNP3_PALUN3ROUS5.1 SA.1_OC": false,
+    "PALUNP3_PALUN3SEC..12 SS.1.12_OC": false,
+    "PALUNP3_PALUN3TR633 SA.2_OC": false,
+    "PALUNP3_PALUN3GARDA.1 SA.1_OC": false,
+    "PALUNP3_PALUN3GARDA.2 SA.2_OC": false,
+    "PALUNP3_PALUN3AIX.1 SA.1_OC": true,
+    "PALUNP3_PALUN3TR633 SA.1_OC": true,
+    "PALUNP3_PALUN3AIX.2 SA.2_OC": true,
+    "PALUNP3_PALUN3GARD6.1 SA.1_OC": false,
+    "PALUNP3_PALUN3SEPTE.1 SA.2_OC": false,
+    "PALUNP3_PALUN3COND.1 SA.2_OC": true,
+    "PALUNP3_PALUN3ROUS5.2 SA.1_OC": true,
+    "PALUNP3_PALUN3COND.2 SA.2_OC": false,
+    "PALUNP3_PALUN3COUPL.2 SA.2_OC": false,
+    "PALUNP3_PALUN3COUPL.2 SA.1_OC": false,
+    "PALUNP3_PALUN3AUXIL.1 SA.1_OC": false,
+    "PALUNP3_PALUN3ROUS5.2 SA.2_OC": false,
+    "PALUNP3_PALUN3GARDA.2 SA.1_OC": true,
+    "PALUNP3_PALUN3ENSOL.1 SA.1_OC": true,
+    "PALUNP3_PALUN3CHAB5.1 SA.1_OC": false,
+    "PALUNP3_PALUN3AIX.2 SA.1_OC": false,
+    "PALUNP3_PALUN3ENSOL.2 SA.1_OC": false,
+    "PALUNP3_PALUN3TR633 DJ_OC": false,
+    "PALUNP3_PALUN3ROUS5.1 DJ_OC": false,
+    "PALUNP3_PALUN3GARD6.1 DJ_OC": false,
+    "PALUNP3_PALUN3COUPL.1 DJ_OC": true,
+    "PALUNP3_PALUN3SSSA6.1 DJ_OC": false,
+    "PALUNP3_PALUN3ENSOL.1 DJ_OC": false,
+    "PALUNP3_PALUN3AUXIL.1 DJ.HT_OC": false,
+    "PALUNP3_PALUN3TR631 DJ_OC": false,
+    "PALUNP3_PALUN3SEPTE.1 DJ_OC": true,
+    "PALUNP3_PALUN3ROUS5.2 DJ_OC": false,
+    "PALUNP3_PALUN3COND.1 DJ.MCOMP_OC": true,
+    "PALUNP3_PALUN3AIX.2 DJ_OC": false,
+    "PALUNP3_PALUN3COND.2 DJ.MCOMP_OC": true,
+    "PALUNP3_PALUN3GARDA.1 DJ_OC": false,
+    "PALUNP3_PALUN3AIX.1 DJ_OC": false,
+    "PALUNP3_PALUN3TR632 DJ_OC": false,
+    "PALUNP3_PALUN3CHAB5.1 DJ_OC": false,
+    "PALUNP3_PALUN3GARDA.2 DJ_OC": false,
+    "PALUNP3_PALUN3COUPL.2 DJ_OC": false,
+    "PALUNP3_PALUN3ENSOL.2 DJ_OC": false,
+    "PALUNP3_Disj fict_PALUNP3_1.1": false,
+    "PALUNP3_Sect 1.1 fict_PALUNP3_1.1": false,
+    "PALUNP3_Sect 2.1 fict_PALUNP3_1.1": true
+  },
+  "cible": {
+    "PALUNP3_PALUN3ENSOL.2 SA.2_OC": true,
+    "PALUNP3_PALUN3SEC..12 SS.2.12_OC": true,
+    "PALUNP3_PALUN3GARDA.1 SA.2_OC": true,
+    "PALUNP3_PALUN3AUXIL.1 SA.2_OC": true,
+    "PALUNP3_PALUN3CHAB5.1 SA.2_OC": true,
+    "PALUNP3_PALUN3ENSOL.1 SA.2_OC": true,
+    "PALUNP3_PALUN3ROUS5.1 SA.2_OC": true,
+    "PALUNP3_PALUN3COUPL.1 SA.1_OC": false,
+    "PALUNP3_PALUN3SSSA6.1 SA.1_OC": false,
+    "PALUNP3_PALUN3SEPTE.1 SA.1_OC": true,
+    "PALUNP3_PALUN3COND.2 SA.1_OC": true,
+    "PALUNP3_PALUN3TR632 SA.1_OC": false,
+    "PALUNP3_PALUN3SSSA6.1 SA.2_OC": true,
+    "PALUNP3_PALUN3AIX.1 SA.2_OC": false,
+    "PALUNP3_PALUN3TR631 SA.2_OC": false,
+    "PALUNP3_PALUN3TR632 SA.2_OC": true,
+    "PALUNP3_PALUN3TR631 SA.1_OC": true,
+    "PALUNP3_PALUN3COUPL.1 SA.2_OC": false,
+    "PALUNP3_PALUN3GARD6.1 SA.2_OC": true,
+    "PALUNP3_PALUN3COND.1 SA.1_OC": false,
+    "PALUNP3_PALUN3ROUS5.1 SA.1_OC": false,
+    "PALUNP3_PALUN3SEC..12 SS.1.12_OC": true,
+    "PALUNP3_PALUN3TR633 SA.2_OC": false,
+    "PALUNP3_PALUN3GARDA.1 SA.1_OC": false,
+    "PALUNP3_PALUN3GARDA.2 SA.2_OC": false,
+    "PALUNP3_PALUN3AIX.1 SA.1_OC": true,
+    "PALUNP3_PALUN3TR633 SA.1_OC": true,
+    "PALUNP3_PALUN3AIX.2 SA.2_OC": true,
+    "PALUNP3_PALUN3GARD6.1 SA.1_OC": false,
+    "PALUNP3_PALUN3SEPTE.1 SA.2_OC": false,
+    "PALUNP3_PALUN3COND.1 SA.2_OC": true,
+    "PALUNP3_PALUN3ROUS5.2 SA.1_OC": true,
+    "PALUNP3_PALUN3COND.2 SA.2_OC": false,
+    "PALUNP3_PALUN3COUPL.2 SA.2_OC": false,
+    "PALUNP3_PALUN3COUPL.2 SA.1_OC": false,
+    "PALUNP3_PALUN3AUXIL.1 SA.1_OC": false,
+    "PALUNP3_PALUN3ROUS5.2 SA.2_OC": false,
+    "PALUNP3_PALUN3GARDA.2 SA.1_OC": true,
+    "PALUNP3_PALUN3ENSOL.1 SA.1_OC": false,
+    "PALUNP3_PALUN3CHAB5.1 SA.1_OC": false,
+    "PALUNP3_PALUN3AIX.2 SA.1_OC": false,
+    "PALUNP3_PALUN3ENSOL.2 SA.1_OC": false,
+    "PALUNP3_PALUN3TR633 DJ_OC": false,
+    "PALUNP3_PALUN3ROUS5.1 DJ_OC": false,
+    "PALUNP3_PALUN3GARD6.1 DJ_OC": false,
+    "PALUNP3_PALUN3COUPL.1 DJ_OC": true,
+    "PALUNP3_PALUN3SSSA6.1 DJ_OC": false,
+    "PALUNP3_PALUN3ENSOL.1 DJ_OC": false,
+    "PALUNP3_PALUN3AUXIL.1 DJ.HT_OC": false,
+    "PALUNP3_PALUN3TR631 DJ_OC": false,
+    "PALUNP3_PALUN3SEPTE.1 DJ_OC": true,
+    "PALUNP3_PALUN3ROUS5.2 DJ_OC": false,
+    "PALUNP3_PALUN3COND.1 DJ.MCOMP_OC": true,
+    "PALUNP3_PALUN3AIX.2 DJ_OC": false,
+    "PALUNP3_PALUN3COND.2 DJ.MCOMP_OC": true,
+    "PALUNP3_PALUN3GARDA.1 DJ_OC": false,
+    "PALUNP3_PALUN3AIX.1 DJ_OC": false,
+    "PALUNP3_PALUN3TR632 DJ_OC": false,
+    "PALUNP3_PALUN3CHAB5.1 DJ_OC": false,
+    "PALUNP3_PALUN3GARDA.2 DJ_OC": false,
+    "PALUNP3_PALUN3COUPL.2 DJ_OC": true,
+    "PALUNP3_PALUN3ENSOL.2 DJ_OC": false,
+    "PALUNP3_Disj fict_PALUNP3_1.1": false,
+    "PALUNP3_Sect 1.1 fict_PALUNP3_1.1": false,
+    "PALUNP3_Sect 2.1 fict_PALUNP3_1.1": true
+  },
+  "depart_nodale": [
+    [
+      "AIX  L31PALUN",
+      "AIX  L32PALUN",
+      "CHAB5L31PALUN",
+      "ENSOLL31PALUN",
+      "ENSOLL32PALUN",
+      "GARD6L31PALUN",
+      "GARDAL31PALUN",
+      "GARDAL32PALUN",
+      "PALUN3PROVESA1",
+      "PALUNL31ROUS5",
+      "PALUNL31SSSA6",
+      "PALUNY631",
+      "PALUNY632",
+      "fict_PALUNP3_1.1"
+    ],
+    [
+      "PALUN3COND.1"
+    ],
+    [
+      "PALUN3COND.2"
+    ],
+    [
+      "PALUNL31SEPTE"
+    ],
+    [
+      "PALUNL32ROUS5",
+      "PALUNY633"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "AIX  L31PALUN",
+      "GARDAL32PALUN",
+      "PALUNY631"
+    ],
+    [
+      "AIX  L32PALUN",
+      "ENSOLL32PALUN",
+      "GARD6L31PALUN",
+      "GARDAL31PALUN",
+      "PALUN3PROVESA1",
+      "PALUNL31ROUS5",
+      "PALUNL31SSSA6",
+      "PALUNY632",
+      "fict_PALUNP3_1.1"
+    ],
+    [
+      "CHAB5L31PALUN",
+      "ENSOLL31PALUN"
+    ],
+    [
+      "PALUN3COND.1"
+    ],
+    [
+      "PALUN3COND.2"
+    ],
+    [
+      "PALUNL31SEPTE"
+    ],
+    [
+      "PALUNL32ROUS5",
+      "PALUNY633"
+    ]
+  ],
+  "nb_manoeuvres": 30,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "PALUNP3_PALUN3AIX.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'AIX  L31PALUN' vers PALUNP3_1.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 2,
+      "switch_id": "PALUNP3_PALUN3AIX.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'AIX  L31PALUN' quitte PALUNP3_2.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 3,
+      "switch_id": "PALUNP3_PALUN3CHAB5.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CHAB5L31PALUN' vers PALUNP3_2.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 4,
+      "switch_id": "PALUNP3_PALUN3CHAB5.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'CHAB5L31PALUN' quitte PALUNP3_1.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 5,
+      "switch_id": "PALUNP3_PALUN3GARDA.2 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'GARDAL32PALUN' vers PALUNP3_1.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 6,
+      "switch_id": "PALUNP3_PALUN3GARDA.2 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'GARDAL32PALUN' quitte PALUNP3_2.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 7,
+      "switch_id": "PALUNP3_PALUN3TR631 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'PALUNY631' vers PALUNP3_1.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 8,
+      "switch_id": "PALUNP3_PALUN3TR631 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'PALUNY631' quitte PALUNP3_2.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 9,
+      "switch_id": "PALUNP3_PALUN3SEC..12 SS.1.12_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (section ATTENTION sous tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "PALUNP3_PALUN3COUPL.2 DJ_OC",
+      "action": "OPEN",
+      "raison": "ouverture couplage de barres",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "PALUNP3_PALUN3AIX.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'AIX  L31PALUN' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 12,
+      "switch_id": "PALUNP3_PALUN3AIX.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'AIX  L31PALUN' quitte PALUNP3_1.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 13,
+      "switch_id": "PALUNP3_PALUN3AIX.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'AIX  L31PALUN' vers PALUNP3_2.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 14,
+      "switch_id": "PALUNP3_PALUN3AIX.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'AIX  L31PALUN' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 15,
+      "switch_id": "PALUNP3_PALUN3CHAB5.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CHAB5L31PALUN' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 16,
+      "switch_id": "PALUNP3_PALUN3CHAB5.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'CHAB5L31PALUN' quitte PALUNP3_2.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 17,
+      "switch_id": "PALUNP3_PALUN3CHAB5.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CHAB5L31PALUN' vers PALUNP3_1.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 18,
+      "switch_id": "PALUNP3_PALUN3CHAB5.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'CHAB5L31PALUN' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 19,
+      "switch_id": "PALUNP3_PALUN3ENSOL.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ENSOLL31PALUN' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 20,
+      "switch_id": "PALUNP3_PALUN3ENSOL.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'ENSOLL31PALUN' quitte PALUNP3_2.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 21,
+      "switch_id": "PALUNP3_PALUN3ENSOL.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'ENSOLL31PALUN' vers PALUNP3_1.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 22,
+      "switch_id": "PALUNP3_PALUN3ENSOL.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'ENSOLL31PALUN' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 23,
+      "switch_id": "PALUNP3_PALUN3GARDA.2 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'GARDAL32PALUN' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 24,
+      "switch_id": "PALUNP3_PALUN3GARDA.2 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'GARDAL32PALUN' quitte PALUNP3_1.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 25,
+      "switch_id": "PALUNP3_PALUN3GARDA.2 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'GARDAL32PALUN' vers PALUNP3_2.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 26,
+      "switch_id": "PALUNP3_PALUN3GARDA.2 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'GARDAL32PALUN' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 27,
+      "switch_id": "PALUNP3_PALUN3TR631 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'PALUNY631' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 28,
+      "switch_id": "PALUNP3_PALUN3TR631 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'PALUNY631' quitte PALUNP3_1.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 29,
+      "switch_id": "PALUNP3_PALUN3TR631 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'PALUNY631' vers PALUNP3_2.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 30,
+      "switch_id": "PALUNP3_PALUN3TR631 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'PALUNY631' (boucle longue)",
+      "boucle": "LONGUE"
+    }
+  ]
+}

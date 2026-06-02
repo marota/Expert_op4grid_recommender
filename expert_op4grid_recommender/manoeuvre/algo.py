@@ -841,6 +841,20 @@ def determiner_manoeuvres_avec_sections(
                  if ref_repr is not None else set())
     sjb_isoles = set(poste.tronconnement.barre_par_busbar) - energises
 
+    # R10bis — « isoler par les disjoncteurs d'abord » : une section n'a besoin
+    # de **parking / dé-énergisation** que si son isolement passe par l'ouverture
+    # d'un **sectionnement fermé** (organe hors charge). Une section isolable par
+    # simple ouverture d'un **couplage (DJ, qui coupe la charge)** — ou par un
+    # sectionnement déjà ouvert — garde ses départs en place. On ne conserve donc
+    # dans ``sjb_isoles`` que les sections **incidentes à un sectionnement fermé
+    # destiné à s'ouvrir**.
+    sect_isol_sjbs: set[int] = set()
+    for cp in to_open:
+        if cp.is_sectionnement and any(not _is_open(G, s) for s in cp.switch_ids):
+            sect_isol_sjbs.add(cp.sjb_a)
+            sect_isol_sjbs.add(cp.sjb_b)
+    sjb_isoles &= sect_isol_sjbs
+
     manoeuvres: list[Manoeuvre] = []
     reaiguilles: set[str] = set()
 
@@ -983,21 +997,42 @@ def determiner_manoeuvres_avec_sections(
             _ouvrir("ouverture sectionnement de barre (section hors tension)")
             continue
 
-        # Deux côtés sous tension : dé-énergiser le plus petit côté dé-énergisable.
-        candidats = []
-        if all(brk for _, brk in liv_a):
-            candidats.append((len(liv_a), liv_a))
-        if all(brk for _, brk in liv_b):
-            candidats.append((len(liv_b), liv_b))
-        if not candidats:
-            # Ouvrage sans DJ propre des deux côtés : dé-énergisation impossible.
+        # Deux côtés sous tension. Côté à isoler = le plus petit (en ouvrages
+        # énergisés). R10bis : on l'**isole d'abord par les disjoncteurs** en
+        # ouvrant les **couplages** (DJ, qui coupent la charge) destinés à
+        # s'ouvrir et reliant cette section à l'extérieur. Cela réduit le résidu
+        # à dé-énergiser ; on ne manœuvre les DJ d'ouvrage qu'en dernier recours.
+        side_isol = side_a if len(liv_a) <= len(liv_b) else side_b
+
+        for cpl in to_open:
+            if cpl.is_sectionnement:
+                continue
+            # couplage touchant la section à isoler (frontière ou interne) :
+            # son ouverture (DJ, hors charge) réduit la section à dé-énergiser.
+            if cpl.sjb_a in side_isol or cpl.sjb_b in side_isol:
+                for sid in cpl.breaker_ids:
+                    if not _is_open(G, sid):
+                        _set_switch(G, sid, True)
+                        manoeuvres.append(Manoeuvre(
+                            sid, "OPEN",
+                            "ouverture couplage de barres (isolement de la section)"))
+
+        # Recalcul du côté à isoler après ouverture des couplages adjacents.
+        H2 = _live_graph_sans(G, cp.switch_ids)
+        a_isol = a if a in side_isol else b
+        side_isol = ((nx.node_connected_component(H2, a_isol)
+                      if a_isol in H2 else {a_isol}) & all_sjb)
+        liv_isol = _ouvrages_energises_sur(G, cells, side_isol, H2)
+        if not liv_isol:
+            _ouvrir("ouverture sectionnement de barre (section hors tension)")
+            continue
+        if not all(brk for _, brk in liv_isol):
+            # Ouvrage sans DJ propre : dé-énergisation impossible.
             _ouvrir("ouverture sectionnement de barre (section ATTENTION sous tension)")
             continue
 
-        candidats.sort(key=lambda c: c[0])
-        _, isol_ouvrages = candidats[0]
         djs_rouverts: list[str] = []
-        for eq, brk in isol_ouvrages:
+        for eq, brk in liv_isol:
             for sid in brk:
                 if not _is_open(G, sid):
                     _set_switch(G, sid, True)

@@ -1,0 +1,755 @@
+{
+  "voltage_level_id": "SSAVOP3",
+  "name": "SSAVOP3_cible_4noeuds_algo",
+  "scenario": "SSAVOP3_cible_4noeuds",
+  "edited": false,
+  "matches_cible": true,
+  "nb_final": 6,
+  "depart": {
+    "SSAVOP3_SSAVO3TRO.2AB SA.2A_OC": false,
+    "SSAVOP3_SSAVO3AUXEH.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3ZCAR8.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3CARLI.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3TR313 SA.2_OC": true,
+    "SSAVOP3_SSAVO3COUPL.B SA.2_OC": false,
+    "SSAVOP3_SSAVO3TR312 SA.1_OC": false,
+    "SSAVOP3_SSAVO3BETTI.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3TR638 SA.2_OC": false,
+    "SSAVOP3_SSAVO3AUXEH.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.2 SA.2_OC": false,
+    "SSAVOP3_SSAVO3LAND5.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3STEAR.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3TRO.1AB SA.1A_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.3 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3NORSR.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3SYNTH.2 SA.1_OC": true,
+    "SSAVOP3_SSAVO3NORSR.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3SEC.A23 SS.2A23_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3TR313 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SEC.A23 SS.1A23_OC": false,
+    "SSAVOP3_SSAVO3PUTTE.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TR638 SA.1_OC": true,
+    "SSAVOP3_SSAVO3SYNTH.3 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TR634 SA.2_OC": true,
+    "SSAVOP3_SSAVO3BETTI.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3BOULA.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3AUXEH.6 SA.1_OC": false,
+    "SSAVOP3_SSAVO3COUPL.A SA.1_OC": false,
+    "SSAVOP3_SSAVO3COUPL.B SA.1_OC": false,
+    "SSAVOP3_SSAVO3TRO.2AB SA.2B_OC": false,
+    "SSAVOP3_SSAVO3TR637 SA.2_OC": false,
+    "SSAVOP3_SSAVO3ATPOR.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3STEAR.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3TR636 SA.1_OC": false,
+    "SSAVOP3_SSAVO3MERBE.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3ANCER.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3SEC.A12 SS.2A12_OC": false,
+    "SSAVOP3_SSAVO3P.ROS.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3CREUT.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3TR636 SA.2_OC": true,
+    "SSAVOP3_SSAVO3AUXEH.6 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TR312 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TR311 SA.1_OC": true,
+    "SSAVOP3_SSAVO3BOULA.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3TR634 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SEC.A12 SS.1A12_OC": false,
+    "SSAVOP3_SSAVO3TR311 SA.2_OC": false,
+    "SSAVOP3_SSAVO3ANCER.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3LAND5.2 SA.2_OC": false,
+    "SSAVOP3_SSAVO3MERBE.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3ATPOR.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3LAND5.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3CREUT.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3LAND5.2 SA.1_OC": true,
+    "SSAVOP3_SSAVO3TR637 SA.1_OC": true,
+    "SSAVOP3_SSAVO3ZCAR8.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3MERBE.2 SA.1_OC": false,
+    "SSAVOP3_SSAVO3COUPL.A SA.2_OC": false,
+    "SSAVOP3_SSAVO3P.ROS.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3MERBE.2 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TRO.1AB SA.1B_OC": false,
+    "SSAVOP3_SSAVO3CARLI.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3PUTTE.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.2 DJ_OC": false,
+    "SSAVOP3_SSAVO3CREUT.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3MERBE.1 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3NORSO.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3ANCER.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3CARLI.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR638 DJ_OC": false,
+    "SSAVOP3_SSAVO3TRO.1AB DJ_OC": false,
+    "SSAVOP3_SSAVO3STEAM.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR634 DJ_OC": false,
+    "SSAVOP3_SSAVO3LAND5.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3P.ROS.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3ATPOL.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3PUTTE.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3BOULA.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3COUPL.B DJ_OC": true,
+    "SSAVOP3_SSAVO3TRO.2AB DJ_OC": false,
+    "SSAVOP3_SSAVO3AUXEH.6 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3MERBE.2 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3COUPL.A DJ_OC": true,
+    "SSAVOP3_SSAVO3SYNTH.3 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR311 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3TR636 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR637 DJ_OC": false,
+    "SSAVOP3_SSAVO3BETTI.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR313 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3ZCAR8.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3LAND5.2 DJ_OC": false,
+    "SSAVOP3_SSAVO3AUXEH.1 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3TR312 DJ.HT_OC": true,
+    "SSAVOP3_SSAVOP3-N1_DJ_F": false,
+    "SSAVOP3_SSAVOP3-N7_DJ_F": false,
+    "SSAVOP3_SSAVOP3-SSAVO3TR311_DJ_F": false,
+    "SSAVOP3_SSAVOP3-N2_DJ_F": false,
+    "SSAVOP3_SSAVOP3-SSAVO3TR312_DJ_F": false,
+    "SSAVOP3_SSAVOP3-N3_DJ_F": false,
+    "SSAVOP3_SSAVOP3-N6_DJ_F": false,
+    "SSAVOP3_SSAVOP3-SSAVO3TR313_DJ_F": false,
+    "SSAVOP3_Disj SSAVOINF": true,
+    "SSAVOP3_Disj SSAVOING": false
+  },
+  "cible": {
+    "SSAVOP3_SSAVO3TRO.2AB SA.2A_OC": false,
+    "SSAVOP3_SSAVO3AUXEH.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3ZCAR8.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3CARLI.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3TR313 SA.2_OC": true,
+    "SSAVOP3_SSAVO3COUPL.B SA.2_OC": false,
+    "SSAVOP3_SSAVO3TR312 SA.1_OC": false,
+    "SSAVOP3_SSAVO3BETTI.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3TR638 SA.2_OC": false,
+    "SSAVOP3_SSAVO3AUXEH.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.2 SA.2_OC": false,
+    "SSAVOP3_SSAVO3LAND5.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3STEAR.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3TRO.1AB SA.1A_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.3 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3NORSR.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3SYNTH.2 SA.1_OC": true,
+    "SSAVOP3_SSAVO3NORSR.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3SEC.A23 SS.2A23_OC": true,
+    "SSAVOP3_SSAVO3SYNTH.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3TR313 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SEC.A23 SS.1A23_OC": true,
+    "SSAVOP3_SSAVO3PUTTE.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TR638 SA.1_OC": true,
+    "SSAVOP3_SSAVO3SYNTH.3 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TR634 SA.2_OC": true,
+    "SSAVOP3_SSAVO3BETTI.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3BOULA.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3AUXEH.6 SA.1_OC": false,
+    "SSAVOP3_SSAVO3COUPL.A SA.1_OC": false,
+    "SSAVOP3_SSAVO3COUPL.B SA.1_OC": false,
+    "SSAVOP3_SSAVO3TRO.2AB SA.2B_OC": false,
+    "SSAVOP3_SSAVO3TR637 SA.2_OC": false,
+    "SSAVOP3_SSAVO3ATPOR.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3STEAR.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3TR636 SA.1_OC": false,
+    "SSAVOP3_SSAVO3MERBE.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3ANCER.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3SEC.A12 SS.2A12_OC": false,
+    "SSAVOP3_SSAVO3P.ROS.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3CREUT.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3TR636 SA.2_OC": true,
+    "SSAVOP3_SSAVO3AUXEH.6 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TR312 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TR311 SA.1_OC": true,
+    "SSAVOP3_SSAVO3BOULA.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3TR634 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SEC.A12 SS.1A12_OC": false,
+    "SSAVOP3_SSAVO3TR311 SA.2_OC": false,
+    "SSAVOP3_SSAVO3ANCER.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3LAND5.2 SA.2_OC": false,
+    "SSAVOP3_SSAVO3MERBE.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3ATPOR.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3LAND5.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3CREUT.1 SA.2_OC": true,
+    "SSAVOP3_SSAVO3LAND5.2 SA.1_OC": true,
+    "SSAVOP3_SSAVO3TR637 SA.1_OC": true,
+    "SSAVOP3_SSAVO3ZCAR8.1 SA.1_OC": true,
+    "SSAVOP3_SSAVO3MERBE.2 SA.1_OC": false,
+    "SSAVOP3_SSAVO3COUPL.A SA.2_OC": false,
+    "SSAVOP3_SSAVO3P.ROS.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3MERBE.2 SA.2_OC": true,
+    "SSAVOP3_SSAVO3TRO.1AB SA.1B_OC": false,
+    "SSAVOP3_SSAVO3CARLI.1 SA.2_OC": false,
+    "SSAVOP3_SSAVO3PUTTE.1 SA.1_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.2 DJ_OC": false,
+    "SSAVOP3_SSAVO3CREUT.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3MERBE.1 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3NORSO.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3ANCER.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3CARLI.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR638 DJ_OC": false,
+    "SSAVOP3_SSAVO3TRO.1AB DJ_OC": false,
+    "SSAVOP3_SSAVO3STEAM.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR634 DJ_OC": false,
+    "SSAVOP3_SSAVO3LAND5.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3P.ROS.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3ATPOL.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3PUTTE.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3BOULA.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3COUPL.B DJ_OC": true,
+    "SSAVOP3_SSAVO3TRO.2AB DJ_OC": false,
+    "SSAVOP3_SSAVO3AUXEH.6 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3SYNTH.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3MERBE.2 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3COUPL.A DJ_OC": true,
+    "SSAVOP3_SSAVO3SYNTH.3 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR311 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3TR636 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR637 DJ_OC": false,
+    "SSAVOP3_SSAVO3BETTI.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3TR313 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3ZCAR8.1 DJ_OC": false,
+    "SSAVOP3_SSAVO3LAND5.2 DJ_OC": false,
+    "SSAVOP3_SSAVO3AUXEH.1 DJ.HT_OC": false,
+    "SSAVOP3_SSAVO3TR312 DJ.HT_OC": true,
+    "SSAVOP3_SSAVOP3-N1_DJ_F": false,
+    "SSAVOP3_SSAVOP3-N7_DJ_F": false,
+    "SSAVOP3_SSAVOP3-SSAVO3TR311_DJ_F": false,
+    "SSAVOP3_SSAVOP3-N2_DJ_F": false,
+    "SSAVOP3_SSAVOP3-SSAVO3TR312_DJ_F": false,
+    "SSAVOP3_SSAVOP3-N3_DJ_F": false,
+    "SSAVOP3_SSAVOP3-N6_DJ_F": false,
+    "SSAVOP3_SSAVOP3-SSAVO3TR313_DJ_F": false,
+    "SSAVOP3_Disj SSAVOINF": true,
+    "SSAVOP3_Disj SSAVOING": false
+  },
+  "depart_nodale": [
+    [
+      "ANCERL31SSAVO",
+      "BETTIL31SSAVO",
+      "LAND5L32SSAVO",
+      "NORSOL31SSAVO",
+      "P.ROSL31SSAVO",
+      "SSAVO3TR311",
+      "SSAVOIN1",
+      "SSAVOIN7",
+      "SSAVOL31STEAM",
+      "SSAVOL31SYNTH",
+      "SSAVOL31ZCAR8",
+      "SSAVOL32SYNTH",
+      "SSAVOY637",
+      "SSAVOY638"
+    ],
+    [
+      "BOULAL31SSAVO",
+      "CARLIL31SSAVO",
+      "CREUTL31SSAVO",
+      "LAND5L31SSAVO",
+      "MERBEL31SSAVO",
+      "MERBEL32SSAVO",
+      "PUTTEL31SSAVO",
+      "SSAVO3ATPOL",
+      "SSAVO3AUEH1",
+      "SSAVO3AUEH6",
+      "SSAVO3TR313",
+      "SSAVOIN3",
+      "SSAVOIN6",
+      "SSAVOL33SYNTH",
+      "SSAVOY634",
+      "SSAVOY636"
+    ],
+    [
+      "SSAVO3TR312",
+      "SSAVOIN2",
+      "SSAVOING"
+    ],
+    [
+      "SSAVOINF"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "ANCERL31SSAVO",
+      "BETTIL31SSAVO",
+      "LAND5L32SSAVO",
+      "SSAVO3TR311",
+      "SSAVOIN1",
+      "SSAVOIN7",
+      "SSAVOY638"
+    ],
+    [
+      "BOULAL31SSAVO",
+      "LAND5L31SSAVO",
+      "PUTTEL31SSAVO",
+      "SSAVOY636"
+    ],
+    [
+      "CARLIL31SSAVO",
+      "NORSOL31SSAVO",
+      "P.ROSL31SSAVO",
+      "SSAVOL31STEAM",
+      "SSAVOL31SYNTH",
+      "SSAVOL31ZCAR8",
+      "SSAVOL32SYNTH",
+      "SSAVOY637"
+    ],
+    [
+      "CREUTL31SSAVO",
+      "MERBEL31SSAVO",
+      "MERBEL32SSAVO",
+      "SSAVO3ATPOL",
+      "SSAVO3AUEH1",
+      "SSAVO3AUEH6",
+      "SSAVO3TR313",
+      "SSAVOIN3",
+      "SSAVOIN6",
+      "SSAVOL33SYNTH",
+      "SSAVOY634"
+    ],
+    [
+      "SSAVO3TR312",
+      "SSAVOIN2",
+      "SSAVOING"
+    ],
+    [
+      "SSAVOINF"
+    ]
+  ],
+  "nb_manoeuvres": 62,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'BETTIL31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 2,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'BETTIL31SSAVO' quitte SSAVOP3_2A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 3,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'BETTIL31SSAVO' vers SSAVOP3_1A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 4,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'BETTIL31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 5,
+      "switch_id": "SSAVOP3_SSAVO3CARLI.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CARLIL31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 6,
+      "switch_id": "SSAVOP3_SSAVO3CARLI.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'CARLIL31SSAVO' quitte SSAVOP3_1A3",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 7,
+      "switch_id": "SSAVOP3_SSAVO3CARLI.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CARLIL31SSAVO' vers SSAVOP3_2A3",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 8,
+      "switch_id": "SSAVOP3_SSAVO3CARLI.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'CARLIL31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 9,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'LAND5L31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 10,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'LAND5L31SSAVO' quitte SSAVOP3_1A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 11,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'LAND5L31SSAVO' vers SSAVOP3_2A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 12,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'LAND5L31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 13,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'LAND5L32SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 14,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'LAND5L32SSAVO' quitte SSAVOP3_2A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 15,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'LAND5L32SSAVO' vers SSAVOP3_1A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 16,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'LAND5L32SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 17,
+      "switch_id": "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'SSAVO3TR311' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 18,
+      "switch_id": "SSAVOP3_SSAVO3TR311 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'SSAVO3TR311' quitte SSAVOP3_2A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 19,
+      "switch_id": "SSAVOP3_SSAVO3TR311 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'SSAVO3TR311' vers SSAVOP3_1A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 20,
+      "switch_id": "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'SSAVO3TR311' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 21,
+      "switch_id": "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'PUTTEL31SSAVO' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 22,
+      "switch_id": "SSAVOP3_SSAVO3BOULA.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'BOULAL31SSAVO' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 23,
+      "switch_id": "SSAVOP3_SSAVO3TR636 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'SSAVOY636' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 24,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'BETTIL31SSAVO' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 25,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'LAND5L32SSAVO' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 26,
+      "switch_id": "SSAVOP3_SSAVOP3-N1_DJ_F",
+      "action": "OPEN",
+      "raison": "mise hors tension 'SSAVOIN7' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 27,
+      "switch_id": "SSAVOP3_SSAVOP3-SSAVO3TR311_DJ_F",
+      "action": "OPEN",
+      "raison": "mise hors tension 'SSAVOIN7' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 28,
+      "switch_id": "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'SSAVOIN7' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 29,
+      "switch_id": "SSAVOP3_SSAVOP3-N7_DJ_F",
+      "action": "OPEN",
+      "raison": "mise hors tension 'SSAVOIN7' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 30,
+      "switch_id": "SSAVOP3_SSAVO3SEC.A23 SS.1A23_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (section hors tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 31,
+      "switch_id": "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 32,
+      "switch_id": "SSAVOP3_SSAVO3BOULA.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 33,
+      "switch_id": "SSAVOP3_SSAVO3TR636 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 34,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 35,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 36,
+      "switch_id": "SSAVOP3_SSAVOP3-N1_DJ_F",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 37,
+      "switch_id": "SSAVOP3_SSAVOP3-SSAVO3TR311_DJ_F",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 38,
+      "switch_id": "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 39,
+      "switch_id": "SSAVOP3_SSAVOP3-N7_DJ_F",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 40,
+      "switch_id": "SSAVOP3_SSAVO3ANCER.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ANCERL31SSAVO' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 41,
+      "switch_id": "SSAVOP3_SSAVO3TR638 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'SSAVOY638' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 42,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'LAND5L31SSAVO' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 43,
+      "switch_id": "SSAVOP3_SSAVO3SEC.A23 SS.2A23_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (section hors tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 44,
+      "switch_id": "SSAVOP3_SSAVO3ANCER.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 45,
+      "switch_id": "SSAVOP3_SSAVO3TR638 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 46,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 47,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'BETTIL31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 48,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'BETTIL31SSAVO' quitte SSAVOP3_1A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 49,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'BETTIL31SSAVO' vers SSAVOP3_2A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 50,
+      "switch_id": "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'BETTIL31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 51,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'LAND5L31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 52,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'LAND5L31SSAVO' quitte SSAVOP3_2A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 53,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'LAND5L31SSAVO' vers SSAVOP3_1A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 54,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'LAND5L31SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 55,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'LAND5L32SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 56,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'LAND5L32SSAVO' quitte SSAVOP3_1A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 57,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'LAND5L32SSAVO' vers SSAVOP3_2A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 58,
+      "switch_id": "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'LAND5L32SSAVO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 59,
+      "switch_id": "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'SSAVO3TR311' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 60,
+      "switch_id": "SSAVOP3_SSAVO3TR311 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'SSAVO3TR311' quitte SSAVOP3_1A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 61,
+      "switch_id": "SSAVOP3_SSAVO3TR311 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'SSAVO3TR311' vers SSAVOP3_2A2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 62,
+      "switch_id": "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'SSAVO3TR311' (boucle longue)",
+      "boucle": "LONGUE"
+    }
+  ]
+}

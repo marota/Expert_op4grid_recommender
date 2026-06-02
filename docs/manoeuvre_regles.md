@@ -180,6 +180,40 @@ fermé).
 - **Test** : `test_carrip3_3noeuds.py::test_sectionnement_ouvert_hors_tension`,
   `::test_3noeuds_atteint_et_verifie`.
 
+### R10bis — Isoler **par les disjoncteurs d'abord** (minimiser les ré-aiguillages)
+Avant de dé-énergiser une section par ré-aiguillage (parking, coûteux), on
+**isole d'abord** cette section autant que possible par **ouverture des
+disjoncteurs de couplage et de tronçonnement environnants** — organes qui
+**coupent la charge** et n'imposent donc aucune contrainte « hors tension ».
+Le ré-aiguillage n'intervient qu'**en dernier recours**, sur le **résidu**.
+
+Conséquences sur l'algorithme :
+1. Une section isolable de la référence par **simple ouverture d'un couplage
+   (DJ)** — ou par un sectionnement **déjà ouvert** — **ne nécessite aucun
+   parking** : ses départs restent en place. Seules les sections **incidentes à
+   un sectionnement fermé destiné à s'ouvrir** sont conservées dans
+   `sjb_isoles` (filtre `sect_isol_sjbs`).
+2. Avant d'ouvrir un **sectionnement** (phase C), on **ouvre d'abord les
+   couplages destinés à s'ouvrir qui touchent la section à isoler** (frontière
+   ou interne). Cela réduit la section à mettre hors tension à son **résidu**
+   minimal, puis :
+   - **0 ouvrage** restant → ouverture directe (section morte) ;
+   - **n ≥ 1 ouvrages** restants → ouverture momentanée de leur **DJ d'ouvrage**
+     (mise hors tension), ouverture du sectionneur, puis refermeture des DJ.
+3. Exemple **PALUNP3 → 4 nœuds** : section 1.2 reliée à 2.2 par `COUPL.2` (DJ).
+   En ouvrant `COUPL.2` **avant** `SS.1.12`, la section 1.2 se réduit à son seul
+   résidu au lieu d'entraîner la dé-énergisation des 5 départs de 2.2 — la
+   séquence passe de **40 à 12 manœuvres** (cf. séquence experte ≈ 9).
+- **Code** : `algo.determiner_manoeuvres_avec_sections` — filtre
+  `sect_isol_sjbs` de `sjb_isoles` ; phase C, ouverture des couplages incidents
+  à `side_isol` avant le sectionneur (`_live_graph_sans`,
+  `_ouvrages_energises_sur`).
+- **Test** : `test_palunp3_isolation_disjoncteurs.py`.
+- **Limite** : le **résidu** restant sur la section après isolement par DJ est
+  encore traité par parking (boucle courte/longue) plutôt que par simple
+  clignotement DJ « tous sauf 1 » ; affinage possible (au prix de coupures
+  momentanées et d'une régénération des séquences de référence).
+
 ### R11 — Ordonnancement de la séquence (`listeDordre`)
 Ordre imposé pour minimiser les risques :
 1. **fermer** les couplages nécessaires (préparation) ;
@@ -187,8 +221,17 @@ Ordre imposé pour minimiser les risques :
 3. **ouvrir les sectionnements** (sections hors tension) ;
 4. **ouvrir les couplages** (DJ) ;
 5. ré-aiguillages **boucle longue** vers les sections isolées.
-- **Code** : `algo.determiner_manoeuvres_avec_sections` (phases 0 → E).
-- **Test** : `test_carrip3_3noeuds.py::test_ordre_sectionnement_avant_couplage`.
+
+**Exception (R10bis)** : un couplage (DJ) touchant la **section à isoler** est
+ouvert **dès la phase C, avant** le sectionnement de cette section, afin de la
+réduire à son résidu (isolement par les disjoncteurs d'abord). Cela ne
+contrevient pas à la sûreté (le DJ coupe la charge) ; l'ordre 3-avant-4 reste la
+règle pour les couplages **non incidents** à une section en cours d'isolement
+(p.ex. CARRIP3, dont la section isolée est une feuille sans couplage adjacent).
+- **Code** : `algo.determiner_manoeuvres_avec_sections` (phases 0 → E ; phase C
+  ouvre les couplages incidents avant le sectionneur).
+- **Test** : `test_carrip3_3noeuds.py::test_ordre_sectionnement_avant_couplage`,
+  `test_palunp3_isolation_disjoncteurs.py`.
 
 ### R12 — Contrôle de court-circuit avant fermeture de couplage
 On ne ferme un couplage que si les deux SJB visent le **même nœud cible**
