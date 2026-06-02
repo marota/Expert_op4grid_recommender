@@ -23,6 +23,10 @@ Fonctionnalités
    la topologie de départ à la cible.
 6. Afficher la séquence **textuellement** et l'**animer** sur le schéma cible,
    manœuvre par manœuvre, l'organe manipulé étant mis en évidence.
+6bis. **Sauvegarder la séquence générée** (``--sequences-dir``, défaut
+   ``tests/manoeuvre/sequences``) : JSON autonome avec topologies détaillées et
+   nodales de départ/cible, lien vers le scénario, et manœuvres ordonnées —
+   réutilisable pour l'analyse et la création de tests.
 7. Recharger un **scénario sauvegardé** : « Rejouer » (départ + cible
    sauvegardés) ou « Comme départ » (la cible sauvegardée devient le nouvel
    état de départ, permettant de chaîner les scénarios depuis une topologie
@@ -73,7 +77,8 @@ POSTES_TEST = [
 ]
 
 SLD_PAR = ppn.SldParameters(topological_coloring=True)
-SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")  # redéfini dans main()
+SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")    # redéfini dans main()
+SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
 
 
 class Session:
@@ -90,6 +95,7 @@ class Session:
         self.vl = None
         self.initial: dict[str, bool] = {}   # état de départ (A)
         self.current: dict[str, bool] = {}    # état cible édité (B)
+        self.scenario_name: str | None = None  # nom du scénario lié à la cible
         # Cache de la dernière séquence calculée (pour l'animation lazy)
         self.seq_states: list[dict[str, bool]] = []
         self.seq_highlights: list[str | None] = []
@@ -106,13 +112,16 @@ class Session:
         self.initial = {sid: self.pristine[sid] for sid in df.index}
         self.current = dict(self.initial)
         self.seq_states, self.seq_highlights = [], []
+        self.scenario_name = None
 
     def reset(self):
         self.current = dict(self.initial)
+        self.scenario_name = None
 
     def toggle(self, sid):
         if sid in self.current:
             self.current[sid] = not self.current[sid]
+            self.scenario_name = None
 
     def apply(self, state: dict[str, bool]):
         if state:
@@ -188,6 +197,7 @@ class Session:
         SCEN_DIR.mkdir(parents=True, exist_ok=True)
         path = SCEN_DIR / f"{name}.json"
         path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        self.scenario_name = name
         return str(path)
 
     def list_scenarios(self):
@@ -211,9 +221,11 @@ class Session:
         if mode == "as_depart":
             self.initial = {k: bool(data["cible"].get(k, base[k])) for k in base}
             self.current = dict(self.initial)
+            self.scenario_name = None   # cible fraîche à redéfinir
         else:
             self.initial = {k: bool(data["depart"].get(k, base[k])) for k in base}
             self.current = {k: bool(data["cible"].get(k, base[k])) for k in base}
+            self.scenario_name = name
         return data["voltage_level_id"]
 
     # --- calcul de séquence ----------------------------------------------
@@ -255,6 +267,38 @@ class Session:
             "n_steps": len(states),
             "labels": labels,
         }
+
+    def save_sequence(self, name: str) -> str:
+        """
+        Sauvegarde la séquence calculée (départ → cible) dans un JSON autonome,
+        réutilisable pour l'analyse et la création de tests : topologies
+        détaillées et nodales de départ/cible, lien vers le scénario éventuel,
+        et liste ordonnée des manœuvres.
+        """
+        import re
+        seq = self.sequence()
+        name = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) \
+            or (self.scenario_name or self.vl)
+        data = {
+            "voltage_level_id": self.vl,
+            "name": name,
+            "scenario": self.scenario_name,          # lien vers les topologies
+            "verified": seq["verified"],
+            "message": seq["message"],
+            "depart": self.initial,
+            "cible": self.current,
+            "depart_nodale": self.groups_of(self.initial),
+            "cible_nodale": self.groups_of(self.current),
+            "nb_manoeuvres": seq["nb_manoeuvres"],
+            "manoeuvres": [
+                {"ordre": i + 1, **m} for i, m in enumerate(seq["manoeuvres"])
+            ],
+        }
+        self.apply(self.current)  # restaurer l'affichage courant
+        SEQ_DIR.mkdir(parents=True, exist_ok=True)
+        path = SEQ_DIR / f"{name}.json"
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        return str(path)
 
 
 def _highlight(svg: str, svg_id: str | None) -> str:
@@ -347,6 +391,12 @@ def api_sequence():
     return jsonify(SESSION.sequence())
 
 
+@app.post("/api/save_sequence")
+def api_save_sequence():
+    path = SESSION.save_sequence(request.json.get("name", ""))
+    return jsonify(path=path)
+
+
 @app.get("/api/step")
 def api_step():
     i = int(request.args.get("i", 0))
@@ -428,6 +478,11 @@ PAGE = r"""<!DOCTYPE html>
   <div id="seqwrap" style="padding:8px;display:none">
     <b>Séquence <span id="seqstatus"></span></b>
     <div id="seq"></div>
+    <div style="margin-top:6px">
+      <input id="seqName" placeholder="nom de la séquence" style="width:45%;padding:4px">
+      <button onclick="saveSeq()">💾 Sauvegarder la séquence</button>
+      <span id="seqsavemsg" style="font-size:11px;color:#1a7f37"></span>
+    </div>
   </div>
 </div>
 <script>
@@ -485,7 +540,12 @@ async function sequence(){stopAnim();const d=await api('/api/sequence',{});
   d.manoeuvres.forEach((m,i)=>{const ln=document.createElement('div');ln.className='line';ln.id='ln'+(i+1);
     ln.textContent=`${String(i+1).padStart(2)}. ${m.action.padEnd(5)} ${m.switch_id}  (${m.raison})${m.boucle?' ['+m.boucle+']':''}`;seq.appendChild(ln);});
   S.n=d.n_steps;S.labels=d.labels;S.idx=0;
+  document.getElementById('seqName').value=(document.getElementById('scenName').value||'sequence');
+  document.getElementById('seqsavemsg').textContent='';
   if(S.n>0){document.getElementById('anim').style.display='flex';await showStep(0);}}
+async function saveSeq(){const name=document.getElementById('seqName').value;
+  const r=await api('/api/save_sequence',{name});
+  document.getElementById('seqsavemsg').textContent='✓ '+r.path;}
 async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
   const r=await (await fetch('/api/step?i='+S.idx)).json();
   document.getElementById('diagBottom').innerHTML=r.svg;
@@ -509,10 +569,13 @@ def main():
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--scenarios-dir", default="tests/manoeuvre/scenarios",
                     help="Dossier de sauvegarde des scénarios cible")
+    ap.add_argument("--sequences-dir", default="tests/manoeuvre/sequences",
+                    help="Dossier de sauvegarde des séquences générées")
     args = ap.parse_args()
 
-    global SCEN_DIR
+    global SCEN_DIR, SEQ_DIR
     SCEN_DIR = pathlib.Path(args.scenarios_dir)
+    SEQ_DIR = pathlib.Path(args.sequences_dir)
 
     print(f"Chargement du réseau {args.grid} …")
     SESSION = Session(pp.network.load(args.grid))
