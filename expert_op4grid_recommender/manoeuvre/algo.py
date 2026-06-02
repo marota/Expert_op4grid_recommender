@@ -196,18 +196,21 @@ def determiner_topo_complete_cible(
 #
 # Généralise ``evalueEtatCouplage`` + ``identifySuperTronconnement`` +
 # ``getTronconnementBesoinReaiguillage2barres`` du C++ : à partir d'une
-# topologie nodale cible, on attribue à chaque nœud un ensemble de SJB.
+# topologie nodale cible, on attribue à chaque nœud un **groupe de SJB**.
 #
-# Modèle (double barre RTE) :
-# - chaque départ atteint une « classe de position » = l'ensemble des SJB
-#   qu'il peut rejoindre (une SJB par barre, à sa section) ;
-# - un nœud occupe, pour chacune de ses positions, **une seule barre** (ses SJB
-#   restent ainsi connectées via les sectionnements internes à la barre) ;
-# - deux nœuds différents sur la même barre ⇒ ouverture du sectionnement ;
-# - nb de nœuds « mixtes » (≥ 2 positions) ≤ nb de barres.
+# Modèle (segments de barres) :
+# - chaque nœud cible se voit attribuer un ensemble **connexe** de SJB (dans le
+#   graphe des couplers). Les couplers internes au groupe sont **fermés** (les
+#   barres du groupe forment un seul potentiel), ceux entre groupes **ouverts** ;
+# - un nœud peut donc **occuper plusieurs barres** (couplage fermé) : c'est le
+#   cas privilégié quand il y a moins de nœuds que de barres (R6) — on referme
+#   le couplage plutôt que de ramener tous les départs sur une seule barre ;
+# - un départ **reste** sur sa barre courante si elle appartient au groupe de
+#   son nœud (ré-aiguillage évité) ;
+# - créer plus de nœuds que de barres impose d'ouvrir des sectionnements (R10).
 #
-# On choisit l'affectation barre↔nœud qui minimise (ré-aiguillages + pénalité
-# d'ouverture de sectionnement), en respectant les départs fixes.
+# On choisit l'affectation SJB→nœud (groupes connexes) qui minimise
+# (ré-aiguillages + manœuvres de couplers, sectionnements pénalisés).
 # ---------------------------------------------------------------------------
 
 def _placement_automatique(
@@ -222,128 +225,120 @@ def _placement_automatique(
     (placement, faisable, message)
     """
     import itertools
-    from collections import defaultdict
 
     G = poste.graph
     barre_par = poste.tronconnement.barre_par_busbar
-    barres = sorted(set(barre_par.values()))
-    nb_barres = len(barres)
-    sjb_id = {n: G.nodes[n].get("busbar_section_id") for n in barre_par}
+    sjb_nodes = sorted(barre_par)
+    sjb_id = {n: G.nodes[n].get("busbar_section_id") for n in sjb_nodes}
 
-    # Connexité courante **par équipement** (et non par cellule) : pour les
-    # omnibus, chaque départ a son propre disjoncteur ; un groupe isolé ne doit
-    # pas hériter de la connexité de son co-locataire.
-    sjb_nodes = set(barre_par)
+    # Connexité / câblage courant **par équipement** : la connexité électrique
+    # est jugée sur un chemin de switches fermés depuis le nœud propre de
+    # l'équipement (gère les omnibus : un groupe isolé, DJ propre ouvert, n'est
+    # pas connecté même si son co-locataire l'est).
+    eq_node = {data.get("equipment_id"): n for n, data in G.nodes(data=True)
+               if data.get("equipment_id")}
     H = nx.Graph()
     H.add_nodes_from(G.nodes())
     for u, v, d in G.edges(data=True):
         if not d.get("open", False):
             H.add_edge(u, v)
-    eq_node = {data.get("equipment_id"): n for n, data in G.nodes(data=True)
-               if data.get("equipment_id")}
 
-    # Classe de position (SJB atteignables) + connexité courante par départ
-    R: dict[str, frozenset] = {}
+    R: dict[str, frozenset] = {}        # SJB atteignables (classe de position)
     connected: dict[str, bool] = {}
-    cur_sjb: dict[str, Optional[int]] = {}
+    wired_sjb: dict[str, Optional[int]] = {}   # SJB où le départ est câblé (SA fermé)
     for c in poste.cellules.cellules_depart:
         for eq in {c.equipment_id} | set(c.shared_equipment_ids):
             R[eq] = frozenset(c.busbar_nodes)
             en = eq_node.get(eq)
-            reached = ({s for s in sjb_nodes if en is not None and en in H
-                        and nx.has_path(H, en, s)} if en is not None else set())
-            connected[eq] = bool(reached)
-            cur_sjb[eq] = min(reached) if reached else None
-
-    def slot(cls: frozenset, barre: int) -> Optional[int]:
-        for s in cls:
-            if barre_par.get(s) == barre:
-                return s
-        return None
+            connected[eq] = bool(
+                en is not None and en in H
+                and any(s in H and nx.has_path(H, en, s) for s in R[eq])
+            )
+            wired = [bb for bb in c.busbar_nodes
+                     if _sa_path_to_sjb(c, bb)
+                     and all(not _is_open(G, s) for s in _sa_path_to_sjb(c, bb))]
+            wired_sjb[eq] = wired[0] if wired else None
 
     # Nœuds à placer : ceux ayant ≥ 1 départ actuellement connecté.
-    # Les nœuds entièrement déconnectés (ex. groupes isolés) sont laissés tels
-    # quels (ils restent sur leur nœud courant).
-    nodes: list[dict] = []
+    nodes: list[list[str]] = []
     for noeud in topo_cible.noeuds.values():
         deps = [e for e in noeud.equipment_ids if e in R and connected[e]]
-        if not deps:
-            continue
-        positions = {R[e] for e in deps}
-        fixed: dict[frozenset, int] = {}
-        for e in deps:
-            barres_e = {barre_par[s] for s in R[e] if s in barre_par}
-            if len(barres_e) == 1:
-                fixed[R[e]] = next(iter(barres_e))
-        nodes.append({"departs": deps, "positions": positions, "fixed": fixed})
+        if deps:
+            nodes.append(deps)
 
     if not nodes:
         return [], True, "Aucun nœud connecté à placer."
 
-    # Faisabilité globale
-    nb_mixtes = sum(1 for nd in nodes if len(nd["positions"]) >= 2)
-    if nb_mixtes > nb_barres:
+    k = len(nodes)
+    if k > len(sjb_nodes):
         return ([], False,
-                f"{nb_mixtes} nœuds mixtes pour {nb_barres} barre(s) : "
-                "topologie impossible (il faudrait plus de jeux de barres).")
-    demand: dict[frozenset, int] = defaultdict(int)
-    for nd in nodes:
-        for p in nd["positions"]:
-            demand[p] += 1
-    for p, d in demand.items():
-        if d > nb_barres:
-            return ([], False,
-                    f"{d} nœuds requièrent la même section pour {nb_barres} "
-                    "barre(s) : topologie impossible.")
+                f"{k} nœuds pour {len(sjb_nodes)} SJB : topologie impossible.")
 
-    # Recherche de la meilleure affectation (une barre par nœud)
-    best = None
-    for combo in itertools.product(barres, repeat=len(nodes)):
-        slots_used: dict[tuple, int] = {}
+    # Graphe des couplers entre SJB (pour la contrainte de connexité des groupes)
+    couplers = _inter_sjb_couplers(poste)
+    CG = nx.Graph()
+    CG.add_nodes_from(sjb_nodes)
+    for cp in couplers:
+        CG.add_edge(cp.sjb_a, cp.sjb_b)
+
+    node_of_dep = {eq: i for i, deps in enumerate(nodes) for eq in deps}
+
+    # Garde-fou combinatoire
+    if k ** len(sjb_nodes) > 500_000:
+        return ([], False, "Espace de placement trop grand (poste non géré).")
+
+    best = None  # (cost, assign tuple)
+    for assign in itertools.product(range(k), repeat=len(sjb_nodes)):
+        node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
+        for j, ni in enumerate(assign):
+            node_sjbs[ni].add(sjb_nodes[j])
+        if any(not s for s in node_sjbs.values()):
+            continue  # chaque nœud doit avoir ≥ 1 SJB
+        # Groupes connexes dans le graphe des couplers
+        if not all(nx.is_connected(CG.subgraph(s)) for s in node_sjbs.values()):
+            continue
+        # Faisabilité : chaque départ atteint une SJB de son nœud
         ok = True
-        for i, nd in enumerate(nodes):
-            b = combo[i]
-            if any(fb != b for fb in nd["fixed"].values()):
+        for i, deps in enumerate(nodes):
+            sset = node_sjbs[i]
+            if any(not (R[eq] & sset) for eq in deps):
                 ok = False
-                break
-            for p in nd["positions"]:
-                if slot(p, b) is None:
-                    ok = False
-                    break
-                key = (p, b)
-                if key in slots_used:
-                    ok = False
-                    break
-                slots_used[key] = i
-            if not ok:
                 break
         if not ok:
             continue
-        # Coût : ré-aiguillages + pénalité ouverture de sectionnement
-        reaig = 0
-        for i, nd in enumerate(nodes):
-            b = combo[i]
-            for e in nd["departs"]:
-                s = slot(R[e], b)
-                if s is not None and cur_sjb.get(e) != s:
-                    reaig += 1
-        per_barre: dict[int, set] = defaultdict(set)
-        for (p, b), i in slots_used.items():
-            per_barre[b].add(i)
-        sect = sum(len(idxs) - 1 for idxs in per_barre.values() if len(idxs) > 1)
-        cost = reaig + 10 * sect
+        # Coût : ré-aiguillages (départ dont la barre câblée n'est pas dans son
+        # groupe) + manœuvres de couplers (sectionnements pénalisés).
+        reaig = sum(
+            1 for i, deps in enumerate(nodes) for eq in deps
+            if wired_sjb.get(eq) not in node_sjbs[i]
+        )
+        node_of_sjb = {sjb_nodes[j]: assign[j] for j in range(len(sjb_nodes))}
+        cpl = 0
+        sect = 0
+        for cp in couplers:
+            same = node_of_sjb[cp.sjb_a] == node_of_sjb[cp.sjb_b]
+            currently_closed = all(not _is_open(G, s) for s in cp.switch_ids)
+            if same and not currently_closed:
+                cpl += 1
+            elif (not same) and currently_closed:
+                cpl += 1
+                if cp.is_sectionnement:
+                    sect += 1
+        cost = 5 * reaig + cpl + 4 * sect
         if best is None or cost < best[0]:
-            best = (cost, combo)
+            best = (cost, assign)
 
     if best is None:
-        return [], False, "Aucune affectation de barres réalisable."
+        return [], False, "Aucune affectation de SJB réalisable (topologie impossible)."
 
-    combo = best[1]
-    placement: list[tuple[set[str], set[str]]] = []
-    for i, nd in enumerate(nodes):
-        b = combo[i]
-        sjbs = {sjb_id[slot(p, b)] for p in nd["positions"] if slot(p, b) is not None}
-        placement.append((set(nd["departs"]), sjbs))
+    assign = best[1]
+    node_sjbs = {i: set() for i in range(k)}
+    for j, ni in enumerate(assign):
+        node_sjbs[ni].add(sjb_nodes[j])
+    placement = [
+        (set(nodes[i]), {sjb_id[s] for s in node_sjbs[i]})
+        for i in range(k)
+    ]
     return placement, True, "OK"
 
 
@@ -497,7 +492,13 @@ def determiner_manoeuvres_avec_sections(
                     f"Départ '{eq}' ne peut atteindre aucune SJB de son nœud."
                 )
                 return res
-            target_sjb[eq] = min(reachable)
+            # On garde le départ sur sa barre actuelle si elle est dans le groupe
+            # du nœud (évite un ré-aiguillage inutile) ; sinon on prend une SJB
+            # du groupe.
+            wired = [bb for bb in reachable
+                     if _sa_path_to_sjb(cell, bb)
+                     and all(not _is_open(G, s) for s in _sa_path_to_sjb(cell, bb))]
+            target_sjb[eq] = wired[0] if wired else min(reachable)
 
     # --- couplers à ouvrir / fermer ----------------------------------------
     # - à ouvrir  : entre SJB de nœuds différents,

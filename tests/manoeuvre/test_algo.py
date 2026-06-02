@@ -35,6 +35,43 @@ def poste_carrip3() -> PosteTopologique:
     return PosteTopologique.from_graph(G, "CARRIP3")
 
 
+def _set_switch_in_graph(G, switch_id, open_):
+    for u, v, d in G.edges(data=True):
+        if d.get("switch_id") == switch_id:
+            d["open"] = open_
+
+
+def test_cible_un_noeud_referme_couplage_sans_reaiguiller():
+    """R6 : pour atteindre une topologie à 1 nœud depuis un départ où les barres
+    sont découplées, on **referme le couplage** (et les sectionnements) plutôt
+    que de ramener tous les départs sur une seule barre. Les départs restent sur
+    leurs barres : aucun ré-aiguillage (boucle)."""
+    G = build_graph_from_fixture("CARRIP3")
+    # Départ : couplage de barres ouvert -> 2 nœuds (barre 1 / barre 2)
+    _set_switch_in_graph(G, "CARRIP3_CARRI3COUPL.1 DJ_OC", True)
+    poste = PosteTopologique.from_graph(G, "CARRIP3")
+    assert poste.topologie_nodale.nb_noeuds >= 2
+
+    # Cible : 1 nœud = tous les départs connectés ensemble (les groupes isolés,
+    # singletons, restent isolés).
+    topo = poste.topologie_nodale
+    connectes, isoles = [], []
+    for noeud in topo.noeuds.values():
+        ids = sorted(noeud.equipment_ids)
+        (connectes if len(ids) > 1 else isoles).append(ids)
+    groupes = [sorted(sum(connectes, []))] + isoles
+    cible = TopologieNodale.from_node_groups("CARRIP3", groupes)
+
+    res = determiner_topo_complete_cible(poste, cible)
+    assert res.is_verified, res.message
+    # Le couplage est refermé, et AUCUN ré-aiguillage (pas de boucle) :
+    assert any(m.action == "CLOSE" and "couplage" in m.raison.lower()
+               for m in res.manoeuvres)
+    assert all(m.type_boucle is None for m in res.manoeuvres), \
+        "Aucun ré-aiguillage ne doit être nécessaire (on referme le couplage)"
+    assert res.nb_manoeuvres <= 2
+
+
 def _split_2_barres(poste_carrip3):
     """Construit une cible 2 barres en scindant le gros nœud connecté en deux."""
     topo = poste_carrip3.topologie_nodale

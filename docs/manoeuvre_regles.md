@@ -57,29 +57,36 @@ Le tronçonnement regroupe les SJB indépendamment de l'état courant des organe
 - **Code** : `troncons.construire_tronconnement`.
 - **Test** : `test_troncons.py` (CARRIP3 : 1 tronçon, 2 barres, DJ de couplage).
 
-### R5 — Placement nœud → sections de barres (faisabilité de partition)
-Chaque départ atteint une **classe de position** (les SJB qu'il peut rejoindre,
-une par barre). Un nœud occupe, pour chacune de ses positions, **une seule
-barre** (ses SJB restent connectées via les sectionnements internes). Contraintes :
-- nombre de nœuds **mixtes** (≥ 2 positions) ≤ nombre de barres ;
-- pour chaque position, nombre de nœuds la requérant ≤ nombre de barres ;
-- les **départs fixes** (atteignant une seule barre) contraignent l'affectation.
-
-On retient l'affectation barre↔nœud de **coût minimal**
-(`ré-aiguillages + 10 × ouvertures de sectionnement`). Une cible demandant plus
-de nœuds que physiquement réalisable est signalée **infaisable**.
+### R5 — Placement nœud → sections de barres (modèle par segments)
+À chaque nœud cible on attribue un **groupe connexe de SJB** (dans le graphe des
+couplers). Un nœud peut donc **occuper plusieurs barres** : les couplers internes
+au groupe sont fermés (un seul potentiel), ceux entre groupes ouverts.
+- un **départ reste sur sa barre courante** si elle appartient au groupe de son
+  nœud (ré-aiguillage évité) ;
+- contrainte de connexité (un groupe = une partie connexe du graphe des
+  couplers) et de faisabilité (chaque départ atteint une SJB de son groupe) ;
+- on retient l'affectation de **coût minimal** :
+  `5 × ré-aiguillages + manœuvres de couplers + 4 × ouvertures de sectionnement`.
+  Les ré-aiguillages étant fortement pénalisés, **fermer un couplage** est
+  privilégié quand cela suffit (cf. R6).
+- une cible demandant plus de nœuds que physiquement réalisable (p.ex. nœuds
+  mixtes > barres) n'a aucune affectation valide → **infaisable**.
 - **Code** : `algo._placement_automatique`.
 - **Test** : `test_carrip3_3noeuds.py::test_point_entree_unique_cree_3eme_noeud_automatiquement`,
   `::test_infaisable_trois_noeuds_mixtes`, `test_algo.py::test_trois_noeuds_sur_deux_barres_infaisable`.
 
-### R6 — Évaluation de l'état de couplage
-Pour un tronçon : si `nbNoeuds < nbBarres` le couplage doit être **fermé**
-(barres en parallèle, départs d'un même nœud répartis sur les barres) ; si
-`nbNoeuds ≥ nbBarres` il doit être **ouvert** (nœuds distincts par barre).
-Implémenté implicitement par le placement R5 : un couplage est ouvert entre SJB
-de nœuds différents, fermé entre SJB d'un même nœud.
-- **Code** : `algo.determiner_manoeuvres_avec_sections` (calcul `to_open` / `to_close`).
-- **Test** : `test_algo.py::test_split_ouvre_le_couplage`, `test_carrip3_manoeuvre.py`.
+### R6 — Évaluation de l'état de couplage (utiliser les barres disponibles)
+Lorsqu'il y a **moins de nœuds que de barres**, on **utilise les barres
+disponibles** : un nœud s'étend sur plusieurs barres en gardant le **couplage
+fermé**, plutôt que de ramener tous les départs sur une seule barre. Concrètement
+(découle de R5) : un couplage est **fermé** entre SJB d'un même nœud, **ouvert**
+entre SJB de nœuds différents. Pour atteindre une topologie à 1 nœud depuis des
+barres découplées, on **referme simplement le couplage** (et les sectionnements)
+— les départs restent sur leurs barres, sans ré-aiguillage.
+- **Code** : `algo._placement_automatique` (groupes multi-barres),
+  `determiner_manoeuvres_avec_sections` (`to_open` / `to_close`).
+- **Test** : `test_algo.py::test_cible_un_noeud_referme_couplage_sans_reaiguiller`,
+  `::test_split_ouvre_le_couplage`.
 
 ### R7 — Ré-aiguillage : DJ d'ensemble de cellule uniquement
 Pour ré-aiguiller un départ en **boucle longue**, on ouvre **uniquement le DJ
