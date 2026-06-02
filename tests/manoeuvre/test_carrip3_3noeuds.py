@@ -158,6 +158,34 @@ def test_infaisable_trois_noeuds_mixtes():
     assert not res.is_verified
 
 
+def test_boucle_longue_ouvre_seulement_le_dj_de_cellule():
+    """R7 : pour ré-aiguiller un départ d'une cellule omnibus, on n'ouvre que
+    le **DJ d'ensemble de la cellule** (côté sélecteurs de barre), jamais les
+    disjoncteurs propres aux équipements en aval (transfo / groupe)."""
+    from expert_op4grid_recommender.manoeuvre.cellules import detecter_cellules
+    from expert_op4grid_recommender.manoeuvre import algo
+    from expert_op4grid_recommender.manoeuvre.models import NodeType
+
+    G = build_graph_from_fixture(VL)
+    cells = detecter_cellules(G, VL)
+    sjb = {G.nodes[n].get("busbar_section_id"): n
+           for n, d in G.nodes(data=True)
+           if d.get("node_type") == NodeType.BUSBAR_SECTION}
+
+    # Cellule omnibus : transfo CARRI3T312 + groupe CARRIINF (DJ de cellule
+    # commun "TR312 DJ.HT_OC", puis DJ propres en aval).
+    cell = cells.get_cellule_depart("CARRI3T312")
+    djs = algo._own_breakers_to_sjb(cell, sjb["CARRIP3_1.2"], "CARRI3T312")
+    assert djs == ["CARRIP3_CARRI3TR312 DJ.HT_OC"]
+    assert not any("DJ.HT_OC.CARRI" in d for d in djs)   # pas le DJ du transfo
+    assert not any("Disj CARRIINF" in d for d in djs)     # pas le DJ du groupe
+
+    # Cellule simple : un seul DJ propre.
+    simple = cells.get_cellule_depart("CARRIL31RANTI")
+    assert algo._own_breakers_to_sjb(simple, sjb["CARRIP3_1.2"], "CARRIL31RANTI") \
+        == ["CARRIP3_CARRI3RANTI.1 DJ_OC"]
+
+
 def test_departs_du_3eme_noeud_en_boucle_longue():
     """Les départs du 3ème nœud (section 2.2 isolée) sont ré-aiguillés en
     boucle longue, donc avec ouverture/fermeture de leur disjoncteur."""

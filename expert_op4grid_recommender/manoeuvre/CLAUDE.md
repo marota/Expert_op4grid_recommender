@@ -107,6 +107,14 @@ Limites connues (cf. docstring `algo.py`) :
 - postes >= 3 barres : partiel (une cible a plus de noeuds que de barres est
   signalee comme non verifiee).
 
+### Specification des regles
+
+Toutes les regles metier du sequencement (R1-R14 : faisabilite, distinction
+sectionnement/couplage, tronconnement, placement noeud->SJB, boucle courte/
+longue, DJ d'ensemble de cellule, regle du sectionneur de barre, ordonnancement
+listeDordre, controle court-circuit, verification) sont tracees avec leurs
+fonctions et tests dans **`docs/manoeuvre_regles.md`**.
+
 ### Convention de detection des barres
 
 `troncons.py` distingue **sectionnement** (SA reliant deux SJB d'une meme barre)

@@ -696,25 +696,59 @@ def _sa_path_to_sjb(cell: CelluleDepart, sjb_node: int) -> list[str]:
     return [s.switch_id for s in cell.disconnectors_vers_barre(sjb_node)]
 
 
-def _own_breakers_to_sjb(cell: CelluleDepart, sjb_node: int) -> list[str]:
-    """DJ propres au départ sur le chemin vers une SJB (exclut branches omnibus)."""
+def _own_breakers_to_sjb(
+    cell: CelluleDepart, sjb_node: int, eq_id: str | None = None
+) -> list[str]:
+    """
+    **Disjoncteur d'ensemble de la cellule** à manœuvrer pour mettre le départ
+    hors tension lors d'un ré-aiguillage en boucle longue.
+
+    Règle (cf. docs/manoeuvre_regles.md, R7) : on n'ouvre que le DJ situé
+    **côté sélecteurs de barre** (entre les sectionneurs d'aiguillage et le
+    reste de la cellule). Ouvrir ce seul disjoncteur dé-énergise la cellule et
+    suffit pour basculer ensuite les sectionneurs ; on n'ouvre **pas** les
+    disjoncteurs propres aux équipements situés en aval (cas omnibus : un même
+    DJ de cellule alimente plusieurs équipements).
+
+    Méthode : on parcourt le chemin équipement → SJB depuis le **côté barre**,
+    on saute les sectionneurs (sélecteurs de barre), puis on collecte le(s)
+    disjoncteur(s) en série jusqu'à un nœud de branchement (degré > 2, signe
+    d'un point omnibus partagé) ou l'équipement.
+    """
     if cell.subgraph is None:
         return [b.switch_id for b in cell.breakers]
     sg = cell.subgraph
+    eq_id = eq_id or cell.equipment_id
     eq_node = next((n for n, d in sg.nodes(data=True)
-                    if d.get("equipment_id") == cell.equipment_id), None)
+                    if d.get("equipment_id") == eq_id), None)
     if eq_node is None:
         return [b.switch_id for b in cell.breakers]
-    out: list[str] = []
     try:
         path = nx.shortest_path(sg, eq_node, sjb_node)
     except (nx.NetworkXNoPath, nx.NodeNotFound):
-        return out
-    for u, v in zip(path, path[1:]):
-        d = sg.edges[u, v]
-        if d.get("kind") == SwitchKind.BREAKER and d.get("switch_id"):
-            out.append(d["switch_id"])
-    return list(dict.fromkeys(out))
+        return []
+
+    res: list[str] = []
+    collecting = False
+    # Parcours depuis le côté barre (path[::-1] = [sjb, …, équipement])
+    rev = path[::-1]
+    for a, b in zip(rev, rev[1:]):
+        d = sg.edges[a, b]
+        kind = d.get("kind")
+        sid = d.get("switch_id")
+        if kind == SwitchKind.BREAKER and sid:
+            res.append(sid)
+            collecting = True
+            # Nœud de branchement omnibus atteint -> DJ de cellule identifié.
+            if b != eq_node and sg.degree(b) > 2:
+                break
+        elif kind == SwitchKind.DISCONNECTOR:
+            if collecting:
+                break          # sectionneur en aval du DJ -> fin
+            continue            # sélecteurs de barre en amont -> on saute
+        elif collecting:
+            break
+    return list(dict.fromkeys(res))
 
 
 def _wired_sjbs(G: nx.Graph, cells, eq_id: str) -> set[int]:
@@ -764,7 +798,7 @@ def _reaiguiller_vers_sjb(
         return False
 
     n_before = len(manoeuvres)
-    djs = _own_breakers_to_sjb(cell, target_sjb)
+    djs = _own_breakers_to_sjb(cell, target_sjb, eq_id)
 
     if boucle == "LONGUE":
         for dj in djs:
