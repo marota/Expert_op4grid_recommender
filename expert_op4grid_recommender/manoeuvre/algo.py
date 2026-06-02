@@ -777,8 +777,13 @@ def _reaiguiller_vers_sjb(
     Ré-aiguille un départ vers une SJB cible. Retourne True si des manœuvres
     ont été générées.
 
-    - COURTE : ferme le SA cible, ouvre les autres SA (départ sous tension).
-    - LONGUE : ouvre le DJ propre, bascule les SA, referme le DJ.
+    - COURTE : ferme le SA cible PUIS ouvre l'ancien SA. Sûr car les deux barres
+      sont au même potentiel (couplage fermé) : le pont temporaire entre les
+      deux SA ne crée pas de court-circuit et le départ reste sous tension.
+    - LONGUE : ouvre le DJ de cellule, **ouvre d'abord l'ancien SA** (la jonction
+      devient morte), **puis ferme le SA cible**, et referme le DJ. On ne ferme
+      jamais le SA cible tant que l'ancien SA est fermé : ponter deux barres de
+      potentiels différents créerait un court-circuit (R8/R9).
     """
     cell = cells.get_cellule_depart(eq_id)
     if cell is None:
@@ -800,7 +805,32 @@ def _reaiguiller_vers_sjb(
     n_before = len(manoeuvres)
     djs = _own_breakers_to_sjb(cell, target_sjb, eq_id)
 
+    def _fermer_sa_cible():
+        for sa in sa_cible:
+            if _is_open(G, sa):
+                _set_switch(G, sa, False)
+                manoeuvres.append(Manoeuvre(
+                    switch_id=sa, action="CLOSE",
+                    raison=f"ré-aiguillage '{eq_id}' vers {sjb_id}",
+                    type_boucle=boucle,
+                ))
+
+    def _ouvrir_sa_anciens():
+        for bb in cell.busbar_nodes:
+            if bb == target_sjb:
+                continue
+            for sa in _sa_path_to_sjb(cell, bb):
+                if not _is_open(G, sa):
+                    _set_switch(G, sa, True)
+                    bb_id = G.nodes[bb].get("busbar_section_id") or str(bb)
+                    manoeuvres.append(Manoeuvre(
+                        switch_id=sa, action="OPEN",
+                        raison=f"'{eq_id}' quitte {bb_id}",
+                        type_boucle=boucle,
+                    ))
+
     if boucle == "LONGUE":
+        # 1) mise hors tension par le DJ de cellule
         for dj in djs:
             if not _is_open(G, dj):
                 _set_switch(G, dj, True)
@@ -809,29 +839,10 @@ def _reaiguiller_vers_sjb(
                     raison=f"mise hors tension '{eq_id}' (boucle longue)",
                     type_boucle="LONGUE",
                 ))
-
-    for sa in sa_cible:
-        if _is_open(G, sa):
-            _set_switch(G, sa, False)
-            manoeuvres.append(Manoeuvre(
-                switch_id=sa, action="CLOSE",
-                raison=f"ré-aiguillage '{eq_id}' vers {sjb_id}",
-                type_boucle=boucle,
-            ))
-    for bb in cell.busbar_nodes:
-        if bb == target_sjb:
-            continue
-        for sa in _sa_path_to_sjb(cell, bb):
-            if not _is_open(G, sa):
-                _set_switch(G, sa, True)
-                bb_id = G.nodes[bb].get("busbar_section_id") or str(bb)
-                manoeuvres.append(Manoeuvre(
-                    switch_id=sa, action="OPEN",
-                    raison=f"'{eq_id}' quitte {bb_id}",
-                    type_boucle=boucle,
-                ))
-
-    if boucle == "LONGUE":
+        # 2) ouvrir l'ancien SA AVANT 3) fermer le SA cible (jamais de pont)
+        _ouvrir_sa_anciens()
+        _fermer_sa_cible()
+        # 4) remise sous tension
         for dj in djs:
             _set_switch(G, dj, False)
             manoeuvres.append(Manoeuvre(
@@ -839,5 +850,8 @@ def _reaiguiller_vers_sjb(
                 raison=f"remise sous tension '{eq_id}' (boucle longue)",
                 type_boucle="LONGUE",
             ))
+    else:  # COURTE : fermer la cible puis ouvrir l'ancien (même potentiel)
+        _fermer_sa_cible()
+        _ouvrir_sa_anciens()
 
     return len(manoeuvres) > n_before

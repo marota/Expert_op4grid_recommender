@@ -92,20 +92,35 @@ d'ouvrir un DJ « le long de la charge »).
   au premier nœud de branchement omnibus).
 - **Test** : `test_carrip3_3noeuds.py::test_boucle_longue_ouvre_seulement_le_dj_de_cellule`.
 
+### Invariant de sécurité des sectionneurs
+Un sectionneur (SA d'aiguillage ou sectionnement de barre) ne se manœuvre que
+s'il **ne ponte pas deux barres de potentiels différents** : soit les deux côtés
+sont au même potentiel, soit l'un des côtés est **hors tension**. Ponter deux
+nœuds (tensions) distincts via un sectionneur = court-circuit, interdit.
+Cet invariant gouverne l'ordre des manœuvres en R8, R9 et R10.
+
 ### R8 — Boucle courte (couplage fermé)
-Quand un chemin parallèle existe (couplage / sectionnement encore fermé entre
-l'ancienne et la nouvelle barre), le ré-aiguillage se fait **sous tension** :
-fermer le SA vers la barre cible, ouvrir le SA vers l'ancienne barre. Aucun DJ
-n'est ouvert.
+Quand un chemin parallèle existe (couplage encore fermé → les deux barres sont
+au **même potentiel**), le ré-aiguillage se fait **sous tension** : fermer le SA
+vers la barre cible **puis** ouvrir le SA vers l'ancienne barre. Le pont
+temporaire entre les deux SA est sûr (même potentiel) ; aucun DJ n'est ouvert.
 - **Code** : `algo._reaiguiller_vers_sjb` (branche `COURTE`).
 - **Test** : `test_algo.py::test_split_boucle_courte`,
   `test_carrip3_3noeuds.py::test_boucle_courte_avant_sectionnement_longue_apres`.
 
 ### R9 — Boucle longue (pas de chemin parallèle)
-Sinon : ouvrir le DJ de cellule (R7) → ouvrir le SA vers l'ancienne barre →
-fermer le SA vers la barre cible → refermer le DJ de cellule.
+Les deux barres étant à des potentiels **différents** (couplage ouvert), l'ordre
+est impératif pour respecter l'invariant ci-dessus :
+1. **ouvrir le DJ de cellule** (R7) → départ hors tension, jonction des SA morte ;
+2. **ouvrir le SA vers l'ancienne barre** (la jonction reste morte) ;
+3. **fermer le SA vers la barre cible** (jamais simultané avec l'ancien SA) ;
+4. **refermer le DJ de cellule** → départ ré-alimenté sur la barre cible.
+On ne ferme **jamais** le SA cible tant que l'ancien SA est fermé (ce serait un
+pont entre deux barres de tensions différentes = court-circuit).
 - **Code** : `algo._reaiguiller_vers_sjb` (branche `LONGUE`).
-- **Test** : `test_carrip3_3noeuds.py::test_departs_du_3eme_noeud_en_boucle_longue`.
+- **Test** : `test_carrip3_3noeuds.py::test_departs_du_3eme_noeud_en_boucle_longue`,
+  `::test_boucle_longue_ouvre_ancien_sa_avant_fermer_nouveau`,
+  `::test_boucle_longue_jamais_deux_sa_fermes_simultanement`.
 
 ### R10 — Règle du sectionneur de barre (dé-énergisation)
 Un sectionneur de barre ne se manœuvre que **hors charge**. Pour scinder une

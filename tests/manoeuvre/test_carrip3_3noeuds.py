@@ -158,6 +158,77 @@ def test_infaisable_trois_noeuds_mixtes():
     assert not res.is_verified
 
 
+def test_boucle_longue_ouvre_ancien_sa_avant_fermer_nouveau():
+    """R9 (sécurité court-circuit) : en boucle longue, l'ancien sectionneur est
+    ouvert AVANT la fermeture du sectionneur cible — jamais de pont entre deux
+    barres de potentiels différents."""
+    res = _run()
+
+    def cell_of(sid):
+        return sid.split(" SA")[0].split(" DJ")[0]
+
+    by_cell = {}
+    for i, m in enumerate(res.manoeuvres):
+        if m.type_boucle == "LONGUE":
+            by_cell.setdefault(cell_of(m.switch_id), []).append((i, m))
+
+    assert by_cell, "Le scénario doit comporter des ré-aiguillages boucle longue"
+    for cell, items in by_cell.items():
+        opens_old = [i for i, m in items
+                     if m.action == "OPEN" and "quitte" in m.raison]
+        closes_new = [i for i, m in items
+                      if m.action == "CLOSE" and "vers" in m.raison]
+        assert opens_old and closes_new
+        assert max(opens_old) < min(closes_new), (
+            f"{cell}: le SA cible est fermé avant l'ouverture de l'ancien SA "
+            "(risque de court-circuit)")
+
+
+def test_jamais_de_pont_court_circuit():
+    """Invariant de sécurité : en rejouant la séquence, aucun sectionneur ne
+    ponte deux barres qui ne seraient pas déjà au même potentiel par ailleurs.
+    Un départ ne « court-circuite » jamais deux barres déconnectées (en boucle
+    courte, le pont temporaire est sûr car les barres sont reliées par le
+    couplage fermé)."""
+    import networkx as nx
+    from expert_op4grid_recommender.manoeuvre import algo
+    poste = _poste()
+    res = determiner_manoeuvres_avec_sections(poste, _placement())
+    G = poste.graph.copy()
+    cells = poste.cellules
+    departs = [c.equipment_id for c in cells.cellules_depart]
+
+    def closed_graph():
+        H = nx.Graph()
+        H.add_nodes_from(G.nodes())
+        for u, v, d in G.edges(data=True):
+            if not d.get("open", False):
+                H.add_edge(u, v)
+        return H
+
+    for m in res.manoeuvres:
+        algo._set_switch(G, m.switch_id, m.action == "OPEN")
+        H = closed_graph()
+        for eq in departs:
+            cell = cells.get_cellule_depart(eq)
+            wired = [bb for bb in cell.busbar_nodes
+                     if algo._sa_path_to_sjb(cell, bb)
+                     and all(not algo._is_open(G, s)
+                             for s in algo._sa_path_to_sjb(cell, bb))]
+            if len(wired) < 2:
+                continue
+            # Les barres pontées doivent rester connectées même si l'on retire
+            # les nœuds internes de la cellule (sinon = pont créé par le départ).
+            internes = [n for n in cell.all_nodes if n not in cell.busbar_nodes]
+            H2 = H.copy()
+            H2.remove_nodes_from(internes)
+            comp = (nx.node_connected_component(H2, wired[0])
+                    if wired[0] in H2 else set())
+            assert all(bb in comp for bb in wired), (
+                f"{eq}: pont entre barres déconnectées {wired} après "
+                f"{m.action} {m.switch_id} (court-circuit)")
+
+
 def test_boucle_longue_ouvre_seulement_le_dj_de_cellule():
     """R7 : pour ré-aiguiller un départ d'une cellule omnibus, on n'ouvre que
     le **DJ d'ensemble de la cellule** (côté sélecteurs de barre), jamais les
