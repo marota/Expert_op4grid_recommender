@@ -196,6 +196,21 @@ def _highlight(svg: str, svg_id: str | None) -> str:
     return svg.replace("</style>", rule + "\n</style>", 1)
 
 
+def _prefix_svg_ids(svg: str, pfx: str) -> str:
+    """
+    Préfixe tous les ids (et leurs références internes) d'un SVG, afin que deux
+    SVG du même poste puissent coexister dans le DOM sans collision d'ids.
+    Appliqué au schéma « départ » (non interactif) ; le schéma « cible » garde
+    ses ids d'origine (cohérents avec le mapping switch → svgId).
+    """
+    import re
+    svg = re.sub(r'id="([^"]+)"', lambda m: f'id="{pfx}{m.group(1)}"', svg)
+    svg = re.sub(r'url\(#([^)]+)\)', lambda m: f'url(#{pfx}{m.group(1)})', svg)
+    svg = re.sub(r'(xlink:href|href)="#([^"]+)"',
+                 lambda m: f'{m.group(1)}="#{pfx}{m.group(2)}"', svg)
+    return svg
+
+
 # ---------------------------------------------------------------------------
 # Application Flask
 # ---------------------------------------------------------------------------
@@ -217,8 +232,10 @@ def api_postes():
 @app.post("/api/load")
 def api_load():
     SESSION.load(request.json["vl"])
-    svg, sw, nb = SESSION.view(SESSION.current)
-    return jsonify(svg=svg, switches=sw, nb_noeuds=nb)
+    svg_i, _, nb_i = SESSION.view(SESSION.initial)
+    svg_c, sw, nb_c = SESSION.view(SESSION.current)
+    return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c)
 
 
 @app.post("/api/toggle")
@@ -252,8 +269,13 @@ PAGE = r"""<!DOCTYPE html>
  body{font-family:system-ui,sans-serif;margin:0;display:flex;height:100vh}
  #side{width:340px;background:#f4f5f7;padding:12px;overflow:auto;border-right:1px solid #ccc}
  #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
- #diagram{flex:1;overflow:auto;padding:8px;background:#fff}
- #diagram svg{max-width:100%;height:auto}
+ .pane{flex:1;display:flex;flex-direction:column;min-height:0}
+ .pane .ttl{font-size:12px;font-weight:bold;padding:4px 10px;border-bottom:1px solid #ccc}
+ .pane .diag{flex:1;overflow:auto;background:#fff}
+ .pane .diag svg{max-width:100%;height:auto}
+ #paneTop .ttl{background:#eef2ff}
+ #paneBot .ttl{background:#fff7ed}
+ #paneTop{border-bottom:3px solid #c7d2fe}
  h2{font-size:15px;margin:10px 0 6px}
  button{cursor:pointer;padding:6px 10px;margin:2px 0;border:1px solid #888;border-radius:5px;background:#fff}
  button.primary{background:#2563eb;color:#fff;border-color:#2563eb}
@@ -284,7 +306,15 @@ PAGE = r"""<!DOCTYPE html>
   <h2>Sectionneurs (SA)</h2><div id="sas"></div>
 </div>
 <div id="main">
-  <div id="diagram">Choisissez un poste…</div>
+  <div class="pane" id="paneTop">
+    <div class="ttl">Topologie de départ — <span id="nbA" class="badge">–</span> nœud(s)</div>
+    <div class="diag" id="diagTop">Choisissez un poste…</div>
+  </div>
+  <div class="pane" id="paneBot">
+    <div class="ttl">Topologie cible (éditable, clic sur un organe) — <span id="nbB" class="badge">–</span> nœud(s)
+        · animation de la séquence ici</div>
+    <div class="diag" id="diagBottom"></div>
+  </div>
   <div id="anim" style="display:none">
     <button id="bprev" onclick="step(-1)">◀</button>
     <button id="bplay" onclick="play()">▶ Lecture</button>
@@ -307,10 +337,17 @@ async function load(vl){stopAnim();show(await api('/api/load',{vl}));hideSeq();}
 async function reset(){stopAnim();show(await api('/api/reset',{}));hideSeq();}
 async function toggle(id){stopAnim();show(await api('/api/toggle',{id}));hideSeq();}
 function hideSeq(){document.getElementById('seqwrap').style.display='none';document.getElementById('anim').style.display='none';}
-function show(d){document.getElementById('diagram').innerHTML=d.svg;
-  document.getElementById('nbn').textContent=d.nb_noeuds;bind(d.switches);panel(d.switches);}
-function bind(switches){switches.forEach(s=>{const el=document.getElementById(s.svgId);
-  if(el){el.style.cursor='pointer';el.onclick=()=>toggle(s.id);el.querySelectorAll('*').forEach(c=>c.style.cursor='pointer');}});}
+function show(d){
+  if(d.initial_svg!==undefined){document.getElementById('diagTop').innerHTML=d.initial_svg;
+    document.getElementById('nbA').textContent=d.nb_initial;}
+  document.getElementById('diagBottom').innerHTML=d.svg;
+  document.getElementById('nbB').textContent=d.nb_noeuds;
+  document.getElementById('nbn').textContent=d.nb_noeuds;
+  bind(d.switches);panel(d.switches);}
+function bind(switches){const root=document.getElementById('diagBottom');
+  switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
+    if(el){el.style.cursor='pointer';el.onclick=()=>toggle(s.id);
+      el.querySelectorAll('*').forEach(c=>c.style.cursor='pointer');}});}
 function panel(switches){const dj=document.getElementById('djs'),sa=document.getElementById('sas');dj.innerHTML='';sa.innerHTML='';
   switches.forEach(s=>{const row=document.createElement('div');row.className='sw';row.title=s.id;row.style.cursor='pointer';
     row.innerHTML=`<span class="name">${(s.name||s.id).slice(0,30)}</span><span class="pill ${s.open?'open':'closed'}">${s.open?'OUVERT':'FERMÉ'}</span>`;
@@ -326,7 +363,7 @@ async function sequence(){stopAnim();const d=await api('/api/sequence',{});
   if(S.n>0){document.getElementById('anim').style.display='flex';await showStep(0);}}
 async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
   const r=await (await fetch('/api/step?i='+S.idx)).json();
-  document.getElementById('diagram').innerHTML=r.svg;
+  document.getElementById('diagBottom').innerHTML=r.svg;
   document.getElementById('stepinfo').textContent=S.idx+'/'+(S.n-1);
   document.getElementById('steplabel').textContent=S.labels[S.idx]||'';
   document.querySelectorAll('#seq .cur').forEach(e=>e.classList.remove('cur'));
