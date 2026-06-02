@@ -430,6 +430,9 @@ PAGE = r"""<!DOCTYPE html>
  #side{width:340px;background:#f4f5f7;padding:12px;overflow:auto;border-right:1px solid #ccc}
  #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
  .pane{flex:1;display:flex;flex-direction:column;min-height:0}
+ .pane.collapsed{flex:0 0 auto !important}
+ .pane.collapsed .diag{display:none}
+ .cbtn{padding:0 7px;margin-right:6px;border:1px solid #999;border-radius:4px;background:#fff;cursor:pointer;font-size:12px}
  .pane .ttl{font-size:12px;font-weight:bold;padding:4px 10px;border-bottom:1px solid #ccc}
  .pane .diag{flex:1;overflow:auto;background:#fff}
  .pane .diag svg{max-width:100%;height:auto}
@@ -480,11 +483,13 @@ PAGE = r"""<!DOCTYPE html>
 </div>
 <div id="main">
   <div class="pane" id="paneTop">
-    <div class="ttl">Topologie de départ — <span id="nbA" class="badge">–</span> nœud(s)</div>
+    <div class="ttl"><button class="cbtn" onclick="togglePane('paneTop')" title="Réduire / agrandir">▾</button>
+      Topologie de départ — <span id="nbA" class="badge">–</span> nœud(s)</div>
     <div class="diag" id="diagTop">Choisissez un poste…</div>
   </div>
   <div class="pane" id="paneBot">
-    <div class="ttl">Topologie cible (éditable, clic sur un organe) — <span id="nbB" class="badge">–</span> nœud(s)
+    <div class="ttl"><button class="cbtn" onclick="togglePane('paneBot')" title="Réduire / agrandir">▾</button>
+      Topologie cible (éditable, clic sur un organe) — <span id="nbB" class="badge">–</span> nœud(s)
         · animation de la séquence ici</div>
     <div class="diag" id="diagBottom"></div>
   </div>
@@ -598,6 +603,8 @@ async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
 function step(d){stopAnim();showStep(S.idx+d);}
 function play(){stopAnim();S.timer=setInterval(async()=>{if(S.idx>=S.n-1){stopAnim();return;}await showStep(S.idx+1);},1000);}
 function stopAnim(){if(S.timer){clearInterval(S.timer);S.timer=null;}}
+function togglePane(id){const p=document.getElementById(id);p.classList.toggle('collapsed');
+  const b=p.querySelector('.cbtn');if(b)b.textContent=p.classList.contains('collapsed')?'▸':'▾';}
 init();
 </script>
 </body></html>"""

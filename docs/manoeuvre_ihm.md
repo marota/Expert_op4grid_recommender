@@ -63,6 +63,9 @@ CORNIP3, GUARBP6, MORBRP6.
   c'est aussi là que se déroule l'animation de la séquence.
 - Le **nombre de nœuds électriques** est affiché par schéma et se met à jour à
   chaque modification.
+- Chaque en-tête porte un bouton **▾ / ▸** pour **replier** son schéma : l'autre
+  schéma occupe alors tout l'espace. Utile sur les grands postes pour observer
+  l'animation de la séquence en plein écran sur la cible.
 
 Les **couleurs** sont celles de pypowsybl (`topological_coloring`) : couleur de
 base par niveau de tension (≈ violet pour le 63 kV), déclinée en teintes
