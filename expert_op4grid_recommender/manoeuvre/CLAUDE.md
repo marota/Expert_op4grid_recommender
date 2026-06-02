@@ -32,8 +32,9 @@ python scripts/extract_test_fixtures.py --xiidm path/to/grid.xiidm
 # Rendu SLD avant/apres d'un scenario CARRIP3 (couleurs natives pypowsybl)
 python scripts/render_carrip3_sld.py --grid path/to/grid.xiidm
 
-# IHM web de test interactif (stdlib, sans dependance) :
+# IHM web de test interactif (Flask, dependance optionnelle) :
 #   choisir un poste, modifier DJ/SA, calculer + animer la sequence
+pip install -e ".[ihm]"   # guillemets requis sous zsh (sinon: pip install flask)
 python scripts/manoeuvre_ihm.py --grid path/to/grid.xiidm   # http://localhost:8000
 ```
 

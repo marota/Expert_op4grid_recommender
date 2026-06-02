@@ -6,7 +6,7 @@ Petite IHM web (Flask) pour tester le module ``manoeuvre`` sur les postes de
 test.
 
 Installation (optionnelle) :
-    pip install -e .[ihm]        # ou : pip install flask
+    pip install -e ".[ihm]"      # guillemets requis sous zsh ; ou : pip install flask
 
 Fonctionnalités
 ---------------
