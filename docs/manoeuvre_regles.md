@@ -231,13 +231,36 @@ partition (`meme_topologie`). Le résultat porte `is_verified`.
 
 ---
 
+### R16 — Dégradation gracieuse
+Si une étape n'est pas réalisable en sécurité (pas de SJB tampon pour isoler une
+section, départ inatteignable…), l'algorithme **ne s'interrompt pas** : il
+consigne l'**écart** (`res.ecarts`) et poursuit ; `topo_obtenue` est toujours
+renseignée. L'IHM affiche alors « NODALE OK · N écart(s) » au lieu d'un échec
+opaque.
+- **Code** : `determiner_manoeuvres_avec_sections` (collecte des écarts au lieu
+  de `return` anticipé), `determiner_manoeuvres_cible_detaillee`.
+- **Test** : `test_scenarios_sauvegardes.py` (postes réels rejoués).
+
+---
+
+## Postes multi-sections
+
+Les postes à plusieurs **sections par barre** (ex. **CARRIP6** : 2 barres × 3
+sections = 6 SJB ; chaîne de couplers
+`1.1–1.2–1.3–(DJ)–2.3–2.2–2.1`) sont gérés : pour ouvrir un sectionnement, les
+départs de la section à isoler sont garés temporairement sur une SJB
+**équipotentielle** accessible (même destinée à être isolée ensuite), puis
+ré-aiguillés en boucle longue/courte. Validé par
+`test_scenarios_sauvegardes.py` (CARRIP6 → 5 nœuds, topologie détaillée
+vérifiée).
+
 ## Limites connues (documentées)
 
 | Cas | Statut |
 |-----|--------|
 | Ré-aiguillage d'omnibus complexes (scission d'un groupe sur deux barres) | partiel |
-| Contrôle de court-circuit fin (calcul de potentiel) | simplifié (R12) |
-| Postes ≥ 3 barres physiques / topologies multi-tronçons non chaînées | partiel |
+| Contrôle de court-circuit fin (potentiel / déphasage) | simplifié (R12) |
+| Topologies de couplers non chaînées (≥ 3 barres en anneau) | partiel |
 | Nœuds mêlant départs connectés et déconnectés | partiel |
 
 ---

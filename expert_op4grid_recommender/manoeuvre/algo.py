@@ -38,11 +38,19 @@ en deux nœuds, la section à isoler est d'abord mise hors tension (ses départs
 ré-aiguillés sur l'autre barre en boucle courte), puis le sectionnement est
 ouvert, puis les départs du nouveau nœud y sont ré-aiguillés en boucle longue.
 
+Postes multi-sections : les postes à plusieurs sections par barre (ex. CARRIP6,
+2 barres × 3 sections = 6 SJB) sont gérés (ouverture de sectionnements avec
+garage temporaire des départs sur une SJB équipotentielle).
+
+Dégradation gracieuse : si une étape n'est pas réalisable en sécurité (pas de
+SJB tampon, départ inatteignable…), l'algorithme **ne s'interrompt pas** : il
+consigne les **écarts** et poursuit ; ``topo_obtenue`` est toujours renseignée.
+
 Limites connues (documentées, cf. doc C++) :
 - Ré-aiguillage d'omnibus complexes (départs multiples scindés)          [partiel]
-- Contrôle de court-circuit : vérifie l'égalité de nœud cible avant
-  fermeture de couplage (pas de calcul de potentiel fin)                 [simplifié]
-- Postes ≥ 3 barres physiques / topologies multi-tronçons non chaînées   [partiel]
+- Contrôle de court-circuit : vérifie l'équipotentialité courante avant
+  manœuvre de sectionneur (pas de calcul de potentiel/déphasage fin)     [simplifié]
+- Topologies de couplers non chaînées (≥ 3 barres en anneau)             [partiel]
 - Nœuds mêlant départs connectés et déconnectés                          [partiel]
 """
 
@@ -607,10 +615,11 @@ def determiner_manoeuvres_avec_sections(
                 continue
             reachable = cell.busbar_nodes & sjb_set
             if not reachable:
-                res.message = (
-                    f"Départ '{eq}' ne peut atteindre aucune SJB de son nœud."
-                )
-                return res
+                # Non bloquant : on consigne l'écart et on laisse le départ en
+                # place (la vérification finale le signalera).
+                res.ecarts.append(
+                    f"'{eq}' ne peut atteindre aucune SJB de son nœud cible")
+                continue
             # On garde le départ sur sa barre actuelle si elle est dans le groupe
             # du nœud (évite un ré-aiguillage inutile) ; sinon on prend une SJB
             # du groupe.
@@ -681,10 +690,21 @@ def determiner_manoeuvres_avec_sections(
                    for eq in deps}
 
     def parking_sjb(eq: str, target: int) -> Optional[int]:
-        """SJB tampon (hors section isolée) accessible par le départ."""
+        """SJB tampon où garer temporairement le départ pendant l'ouverture du
+        sectionnement isolant sa cible. Idéalement hors section isolée ; sinon
+        toute SJB accessible actuellement équipotentielle (parking en boucle
+        courte, même si elle sera isolée ensuite) ; en dernier recours toute SJB
+        accessible distincte de la cible."""
         cell = cells.get_cellule_depart(eq)
-        for bb in cell.busbar_nodes:
+        for bb in cell.busbar_nodes:                       # 1) hors section isolée
             if bb != target and bb not in sjb_isoles:
+                return bb
+        cur = _wired_busbar(cell, G)                       # 2) équipotentielle
+        for bb in cell.busbar_nodes:
+            if bb != target and (cur is None or _equipotentiel(bb, cur)):
+                return bb
+        for bb in cell.busbar_nodes:                       # 3) dernier recours
+            if bb != target:
                 return bb
         return None
 
@@ -751,8 +771,10 @@ def determiner_manoeuvres_avec_sections(
         if tgt in sjb_isoles:
             buf = parking_sjb(eq, tgt)
             if buf is None:
-                res.message = f"Pas de SJB tampon pour '{eq}'."
-                return res
+                # Non bloquant : pas de garage possible, on consigne l'écart.
+                res.ecarts.append(
+                    f"'{eq}' : pas de SJB tampon pour isoler sa section cible")
+                continue
             parkings[eq] = tgt
             if _reaiguiller_vers_sjb(G, cells, eq, buf, manoeuvres):
                 reaiguilles.add(eq)
