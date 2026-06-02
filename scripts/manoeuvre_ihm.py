@@ -137,6 +137,7 @@ class Session:
         self.seq_highlights: list[str | None] = []
         self.seq_labels: list[str] = []
         self.seq_edited: bool = False
+        self.seq_mode: str = "smooth"
 
     # --- gestion d'état ---------------------------------------------------
     def switches_df(self, vl):
@@ -263,6 +264,7 @@ class Session:
             "nb_final": nb_final,
             "matches_cible": matches,
             "edited": self.seq_edited,
+            "mode": self.seq_mode,
         }
 
     def seq_insert(self, step: int, sid: str) -> int:
@@ -353,7 +355,7 @@ class Session:
         return data["voltage_level_id"]
 
     # --- calcul de séquence ----------------------------------------------
-    def sequence(self):
+    def sequence(self, mode: str = "smooth"):
         # Poste à l'état de départ (A)
         self.apply(self.initial)
         poste = PosteTopologique.from_graph(build_vl_graph(self.net, self.vl), self.vl)
@@ -362,7 +364,9 @@ class Session:
         self.apply(self.current)
         cible_graph = build_vl_graph(self.net, self.vl)
 
-        res = determiner_manoeuvres_cible_detaillee(poste, cible_graph)
+        mode = "aggressive" if mode == "aggressive" else "smooth"
+        self.seq_mode = mode
+        res = determiner_manoeuvres_cible_detaillee(poste, cible_graph, mode=mode)
 
         # Séquence éditable initialisée depuis le résultat de l'algorithme.
         self.seq_manoeuvres = [{
@@ -414,6 +418,7 @@ class Session:
             "name": name,
             "scenario": self.scenario_name,          # lien vers les topologies
             "edited": self.seq_edited,
+            "mode": self.seq_mode,
             "matches_cible": info["matches_cible"],
             "nb_final": info["nb_final"],
             "depart": self.initial,
@@ -528,7 +533,7 @@ def api_load_scenario():
 
 @app.post("/api/sequence")
 def api_sequence():
-    return jsonify(SESSION.sequence())
+    return jsonify(SESSION.sequence(request.json.get("mode", "smooth")))
 
 
 @app.post("/api/save_sequence")
@@ -631,6 +636,12 @@ PAGE = r"""<!DOCTYPE html>
   <div id="savemsg" style="font-size:11px;color:#1a7f37;margin-top:3px"></div>
 
   <h2>2 · Séquence de manœuvres</h2>
+  <div style="font-size:12px;margin:2px 0">Mode :
+    <select id="seqMode" style="width:auto;padding:3px" title="Smooth : dé-énergise au plus près, en place (peu d'ouvrages hors tension à la fois). Agressif : dé-énergise en lot (moins de manœuvres, plus d'ouvrages hors tension simultanément).">
+      <option value="smooth">Smooth (sûr, en place)</option>
+      <option value="aggressive">Agressif (batch, plus court)</option>
+    </select>
+  </div>
   <button id="bcalc" class="primary" onclick="sequence()" disabled>⚙ Calculer la séquence</button>
   <button id="bmanual" onclick="manualSeq()" disabled title="Construire la séquence à la main : cliquez les organes du schéma (départ → …), la cible s'affiche en référence">✋ Séquence manuelle</button>
   <div id="calchint" style="font-size:11px;color:#b45309">Validez d'abord la cible pour activer le calcul.</div>
@@ -748,9 +759,10 @@ function panel(switches){const dj=document.getElementById('djs'),sa=document.get
   switches.forEach(s=>{const row=document.createElement('div');row.className='sw';row.title=s.id;row.style.cursor='pointer';
     row.innerHTML=`<span class="name">${(s.name||s.id).slice(0,30)}</span><span class="pill ${s.open?'open':'closed'}">${s.open?'OUVERT':'FERMÉ'}</span>`;
     row.onclick=()=>toggle(s.id);(s.kind==='BREAKER'?dj:sa).appendChild(row);});}
-async function sequence(){stopAnim();S.manual=false;const d=await api('/api/sequence',{});
+async function sequence(){stopAnim();S.manual=false;
+  const d=await api('/api/sequence',{mode:document.getElementById('seqMode').value});
   document.getElementById('seqwrap').style.display='block';
-  S.algo={message:d.message,ecarts:d.ecarts||[],verified:d.verified,verified_detaillee:d.verified_detaillee};
+  S.algo={message:d.message,ecarts:d.ecarts||[],verified:d.verified,verified_detaillee:d.verified_detaillee,mode:d.mode};
   document.getElementById('seqName').value=(document.getElementById('scenName').value||'sequence');
   document.getElementById('seqsavemsg').textContent='';
   renderSeq(d);
@@ -774,7 +786,7 @@ function renderSeq(d){
   if(d.edited){const lbl=S.manual?'MANUELLE':'ÉDITÉE';
     st.innerHTML='<span class="badge" style="background:#7c3aed;color:#fff">'+lbl+(d.nb_final!=null?' · '+d.nb_final+' nœud(s)':'')+'</span> '+
       (d.matches_cible?'<span class="badge ok">= cible</span>':'<span class="badge ko">≠ cible</span>');}
-  else if(S.algo.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>';}
+  else if(S.algo.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>'+(S.algo.mode?' <span class="badge">mode '+(S.algo.mode==='aggressive'?'agressif':'smooth')+'</span>':'');}
   else if(S.algo.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">NODALE OK · '+(S.algo.ecarts?S.algo.ecarts.length:'?')+' écart(s) détaillé(s)</span>';}
   else{st.innerHTML='<span class="badge ko">NON VÉRIFIÉE</span>';}
   const seq=document.getElementById('seq');seq.innerHTML='';

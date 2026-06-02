@@ -209,10 +209,34 @@ Conséquences sur l'algorithme :
   à `side_isol` avant le sectionneur (`_live_graph_sans`,
   `_ouvrages_energises_sur`).
 - **Test** : `test_palunp3_isolation_disjoncteurs.py`.
-- **Limite** : le **résidu** restant sur la section après isolement par DJ est
-  encore traité par parking (boucle courte/longue) plutôt que par simple
-  clignotement DJ « tous sauf 1 » ; affinage possible (au prix de coupures
-  momentanées et d'une régénération des séquences de référence).
+
+### R10ter — Modes de dé-énergisation : **smooth** vs **agressif**
+Le séquenceur détaillé (`determiner_manoeuvres_cible_detaillee(..., mode=)`)
+propose deux stratégies pour ouvrir un sectionnement de barre :
+
+- **smooth** (défaut) — dé-énergiser **au plus près** : un départ qui **reste**
+  sur sa barre cible est **dé-énergisé en place** (clignotement DJ : DJ ouvert
+  avant le sectionneur, refermé après) ; un départ qui **change** de barre n'est
+  ré-aiguillé qu'**une seule fois** (vers sa barre finale). Plus de
+  **double-déplacement** (placer puis ramener) : la phase A/B ne **gare** plus
+  les départs sur une SJB tampon, et `target_sjb` est amorcé avec la **barre
+  cible exacte** (`cible_busbar`) pour que le raffinement R15 soit un no-op.
+- **agressif** (`_sequence_detaillee_aggressive`) — dé-énergiser **en lot** :
+  ouvrir en une fois les DJ de tous les ouvrages concernés (côté le plus petit
+  de chaque sectionnement + ouvrages dont un SA change), commuter
+  couplages/sectionnements et SA **hors tension**, puis ré-alimenter **une seule
+  fois**. Bien moins de manœuvres, au prix de **plusieurs ouvrages momentanément
+  hors tension** simultanément.
+
+Les deux modes atteignent la **même** topologie détaillée cible, sectionneurs
+ouverts hors tension (`_verifier_securite_sectionneurs`). Effet sur SSAVOP3
+→ 4/6 nœuds : smooth **62 → 30**, agressif **≈ 30** ; sur CZTRYP6 → 3 nœuds :
+smooth **20 → 8**.
+- **Code** : `algo.determiner_manoeuvres_cible_detaillee` (param `mode`),
+  `determiner_manoeuvres_avec_sections` (param `cible_busbar`, suppression du
+  parking tampon), `_sequence_detaillee_aggressive`.
+- **Test** : `test_ssavop3_modes.py`, `test_cztryp6_3noeuds.py`.
+- **IHM** : sélecteur « Mode : Smooth / Agressif » avant le calcul.
 
 ### R11 — Ordonnancement de la séquence (`listeDordre`)
 Ordre imposé pour minimiser les risques :

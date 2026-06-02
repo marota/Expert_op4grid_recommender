@@ -6,14 +6,18 @@ Test de la **règle du sectionneur de barre** sur CZTRYP6 : créer un 3ème nœu
 
 Règle métier vérifiée
 ~~~~~~~~~~~~~~~~~~~~~~~
-Un sectionneur de barre ne se manœuvre que **hors charge**. Pour scinder une
-barre en deux nœuds :
-1. ré-aiguiller (boucle courte) tous les départs de la section à isoler sur
-   l'autre barre, afin de la laisser **hors tension** ;
-2. ouvrir le sectionnement de barre (sûr car la section est morte) ;
-3. ouvrir le couplage (DJ) pour séparer les barres ;
-4. ré-aiguiller (boucle longue) les départs du 3ème nœud sur la section
-   désormais isolée.
+Un sectionneur de barre ne se manœuvre que **hors charge**. Les départs du 3ème
+nœud **restent** sur leur section cible (1.4) ; le **mode smooth optimisé** les
+**dé-énergise en place** (clignotement DJ) plutôt que de les déplacer puis les
+ramener :
+1. ouvrir les **DJ d'ouvrage** des départs de la section à isoler (mise hors
+   tension en place) ;
+2. ouvrir le **sectionnement** de barre (sûr car la section est morte) ;
+3. **refermer** ces DJ (ré-alimentation sur la même section) ;
+4. ouvrir le **couplage** (DJ) pour séparer les barres.
+Aucun ré-aiguillage aller-retour (plus de double-déplacement). Le ré-aiguillage
+**boucle longue** (R9) reste démontré par les départs qui **changent** de barre
+(cf. ``test_noviop3_3noeuds.py``).
 
 Cible (réalisable sur ce poste 2 barres / 8 SJB — 4 sections par barre)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -21,7 +25,7 @@ Cible (réalisable sur ce poste 2 barres / 8 SJB — 4 sections par barre)
 - nœud 1 : barre 2 sections 1–4 (CHESNL62CZTRY, CZTRYL61MOISE, CZTRYY632)
 - nœud 2 : barre 1 section 4 isolée (CZTRYL61PLISO, CZTRYL61SENAR, CZTRYY634)
 
-La séquence de référence (20 manœuvres) est sauvegardée dans
+La séquence de référence (8 manœuvres, mode smooth optimisé) est sauvegardée dans
 ``tests/manoeuvre/sequences/CZTRYP6_cible_3noeuds.json``.
 """
 
@@ -124,56 +128,37 @@ def test_ordre_sectionnement_avant_couplage():
     assert idx_sect < idx_coupl
 
 
-def test_boucle_courte_avant_sectionnement_longue_apres():
-    """Avant l'ouverture du sectionnement : uniquement des boucles courtes.
-    Le ré-aiguillage final (vers la section isolée) est en boucle longue."""
+def test_departs_du_3eme_noeud_de_energises_en_place():
+    """Mode smooth optimisé : les départs du 3ème nœud (section 1.4) **restent**
+    sur leur barre cible et sont **dé-énergisés en place** (clignotement DJ : DJ
+    ouvert avant l'ouverture du sectionneur, refermé après) — sans ré-aiguillage
+    aller-retour inutile (plus de double-déplacement)."""
     res = _run()
     idx_sect = next(i for i, m in enumerate(res.manoeuvres)
                     if "sectionnement" in m.raison.lower())
     avant = res.manoeuvres[:idx_sect]
     apres = res.manoeuvres[idx_sect:]
-    # Avant : pas de boucle longue
-    assert all(m.type_boucle != "LONGUE" for m in avant)
-    # Après : on trouve des boucles longues (mise HT / bascule SA / remise ST)
-    assert any(m.type_boucle == "LONGUE" for m in apres)
+    # Avant le sectionneur : ouverture des DJ des départs du 3ème nœud (mise HT).
+    mises_ht = [m for m in avant
+                if m.action == "OPEN" and "hors tension" in m.raison]
+    assert len(mises_ht) >= 1, "Les départs de la section sont dé-énergisés avant"
+    # Après : refermeture de ces mêmes DJ (remise sous tension), même nombre.
+    remises = [m for m in apres
+               if m.action == "CLOSE" and "sous tension" in m.raison]
+    assert len(remises) == len(mises_ht), (
+        "Chaque départ dé-énergisé est ré-alimenté après l'ouverture du sectionneur")
+    # Ce sont bien des DJ d'ouvrage (clignotement), pas des SA.
+    assert all("DJ" in m.switch_id for m in mises_ht + remises)
 
 
-def test_boucle_longue_ouvre_ancien_sa_avant_fermer_nouveau():
-    """R9 (sécurité court-circuit) : en boucle longue, l'ancien sectionneur est
-    ouvert AVANT la fermeture du sectionneur cible — jamais de pont entre deux
-    barres de potentiels différents."""
+def test_pas_de_double_deplacement():
+    """Optimisation smooth : aucun ouvrage n'est déplacé puis ramené — aucun DJ
+    n'est manœuvré plus de deux fois (un clignotement = 1 OPEN + 1 CLOSE)."""
     res = _run()
-
-    def cell_of(sid):
-        return sid.split(" SA")[0].split(" DJ")[0]
-
-    by_cell = {}
-    for i, m in enumerate(res.manoeuvres):
-        if m.type_boucle == "LONGUE":
-            by_cell.setdefault(cell_of(m.switch_id), []).append((i, m))
-
-    assert by_cell, "Le scénario doit comporter des ré-aiguillages boucle longue"
-    for cell, items in by_cell.items():
-        opens_old = [i for i, m in items
-                     if m.action == "OPEN" and "quitte" in m.raison]
-        closes_new = [i for i, m in items
-                      if m.action == "CLOSE" and "vers" in m.raison]
-        assert opens_old and closes_new
-        assert max(opens_old) < min(closes_new), (
-            f"{cell}: le SA cible est fermé avant l'ouverture de l'ancien SA "
-            "(risque de court-circuit)")
-
-
-def test_departs_du_3eme_noeud_en_boucle_longue():
-    """Les départs du 3ème nœud (section 1.4 isolée) sont ré-aiguillés en
-    boucle longue, donc avec ouverture/fermeture de leur disjoncteur."""
-    res = _run()
-    longues = [m for m in res.manoeuvres if m.type_boucle == "LONGUE"]
-    # Au moins un DJ ouvert puis refermé pour les départs du nœud 2
-    opens = [m for m in longues if m.action == "OPEN" and "hors tension" in m.raison]
-    closes = [m for m in longues if m.action == "CLOSE" and "sous tension" in m.raison]
-    assert opens and closes
-    assert len(opens) == len(closes)
+    from collections import Counter
+    dj = Counter(m.switch_id for m in res.manoeuvres if "DJ" in m.switch_id)
+    pires = {k: v for k, v in dj.items() if v > 2}
+    assert not pires, f"DJ manœuvrés plus de 2 fois (double-déplacement) : {pires}"
 
 
 def test_nb_manoeuvres_coherent():

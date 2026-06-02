@@ -82,8 +82,13 @@ des variables CSS).
    nombre de nœuds cible évolue en direct.
 3. **Valider & sauvegarder la cible** (étape 1) : nomme et persiste le scénario
    (départ + cible). **Obligatoire** avant le calcul.
-4. **Calculer la séquence** (étape 2, débloqué après validation) : le module
-   calcule la séquence départ → cible ; statut **VÉRIFIÉE / NON VÉRIFIÉE**.
+4. **Calculer la séquence** (étape 2, débloqué après validation) : choisir le
+   **mode** (Smooth, défaut, ou Agressif) puis lancer le calcul départ → cible ;
+   statut **VÉRIFIÉE / NON VÉRIFIÉE** (+ badge `mode`).
+   - **Smooth** : dé-énergise au plus près, en place (peu d'ouvrages hors
+     tension à la fois) ; séquence plus longue mais douce.
+   - **Agressif** : dé-énergise en lot (moins de manœuvres, mais plusieurs
+     ouvrages momentanément hors tension simultanément).
 5. **Lire / animer** : la séquence s'affiche en texte ; les contrôles
    d'animation rejouent les manœuvres une par une sur le schéma cible, l'organe
    manœuvré **surligné en rouge**, la ligne de séquence courante surlignée.
@@ -160,7 +165,7 @@ navigateur).
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds}` | Charge un poste (départ pristine) |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds}` | Bascule un OC (cible) |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds}` | Réinitialise la cible = départ |
-| `POST /api/sequence` | — | `{verified, verified_detaillee, ecarts[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Calcule la séquence (cible **détaillée**) ; initialise la séquence **éditable** |
+| `POST /api/sequence` | `{mode?}` | `{verified, verified_detaillee, ecarts[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited, mode}` | Calcule la séquence (cible **détaillée**) ; `mode` = `"smooth"` (défaut) ou `"aggressive"` |
 | `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i, reached}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** ; `reached` = l'état affiché est la topologie cible |
 | `POST /api/seq_insert` | `{step, id}` | `{goto, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Insère une manœuvre basculant `id` **après** l'étape `step` (conserve la suite) |
 | `POST /api/seq_delete` | `{index}` | idem `seq_insert` | Supprime la manœuvre n°`index` (1-based) |

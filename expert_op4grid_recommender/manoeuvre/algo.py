@@ -129,6 +129,7 @@ class ResultatManoeuvres:
 def determiner_topo_complete_cible(
     poste: PosteTopologique,
     topo_cible: TopologieNodale,
+    cible_busbar: Optional[dict[str, int]] = None,
 ) -> ResultatManoeuvres:
     """
     Calcule la séquence de manœuvres pour atteindre ``topo_cible`` depuis
@@ -141,6 +142,9 @@ def determiner_topo_complete_cible(
         courante), construite par ``PosteTopologique.from_graph``.
     topo_cible :
         Topologie nodale visée.
+    cible_busbar :
+        Optionnel — barre cible exacte de chaque départ (transmis au séquenceur
+        pour placer chaque départ directement sur sa barre finale).
 
     Returns
     -------
@@ -184,7 +188,7 @@ def determiner_topo_complete_cible(
         return res
 
     # --- Délégation au séquenceur général (couplage + sectionnement) -------
-    core = determiner_manoeuvres_avec_sections(poste, placement)
+    core = determiner_manoeuvres_avec_sections(poste, placement, cible_busbar)
     core.topo_initiale = poste.topologie_nodale
     core.topo_cible = topo_cible
     core.is_verified = bool(
@@ -294,16 +298,195 @@ def _placement_avec_reconnexions(
     return _placement_automatique(poste_virt, topo_cible)
 
 
+def _sequence_detaillee_aggressive(
+    poste: PosteTopologique,
+    cible_graph: nx.Graph,
+    cible_busbar: dict[str, int],
+) -> ResultatManoeuvres:
+    """
+    Mode **agressif** : atteint la topologie détaillée cible par une
+    orchestration « batch » minimisant les bascules de disjoncteurs.
+
+    Au lieu de dé-énergiser/ré-aiguiller **un ouvrage à la fois** (mode smooth,
+    boucle longue, ré-alimentation immédiate), on **cumule** les
+    dé-énergisations : on ouvre en une fois les DJ de tous les ouvrages
+    concernés, on commute couplages/sectionnements et SA **hors tension**, puis
+    on **ré-alimente une seule fois**. Bien moins de manœuvres, au prix de
+    plusieurs ouvrages momentanément hors tension simultanément.
+
+    Ordre (règle du sectionneur respectée : sections mortes avant ouverture) :
+    1. ouvrir les DJ du **lot** (SA à changer ∪ ouvrages énergisés sur une
+       section incidente à un sectionnement fermé à ouvrir) ;
+    2. ouvrir les couplages (DJ) destinés à s'ouvrir ;
+    3. ouvrir les sectionnements destinés à s'ouvrir (sections désormais mortes) ;
+    4. fermer les couplages puis sectionnements destinés à se fermer ;
+    5. positionner tous les SA de départ sur leur état cible (hors tension) ;
+    6. refermer les DJ du lot / appliquer reconnexions-déconnexions (cible).
+    """
+    vl = poste.voltage_level_id
+    cells = poste.cellules
+    G = poste.graph.copy()
+    couplers = _inter_sjb_couplers(poste)
+    coupling_sids = {s for cp in couplers for s in cp.switch_ids}
+    manoeuvres: list[Manoeuvre] = []
+
+    res = ResultatManoeuvres(
+        voltage_level_id=vl,
+        topo_initiale=poste.topologie_nodale,
+        topo_cible=TopologieNodale.from_graph(cible_graph, vl),
+    )
+
+    def setsw(sid: str, open_: bool, raison: str) -> None:
+        if _is_open(G, sid) != open_:
+            _set_switch(G, sid, open_)
+            manoeuvres.append(Manoeuvre(
+                sid, "OPEN" if open_ else "CLOSE", raison))
+
+    all_sjb = set(poste.tronconnement.barre_par_busbar)
+
+    # Sectionnements fermés destinés à s'ouvrir.
+    sect_to_open = [cp for cp in couplers
+                    if cp.is_sectionnement
+                    and any(not _is_open(G, s) for s in cp.switch_ids)
+                    and any(_is_open(cible_graph, s) for s in cp.switch_ids)]
+
+    # --- Lot à dé-énergiser ------------------------------------------------
+    # (a) tout ouvrage dont un SA change (ré-aiguillage hors tension) ;
+    # (b) tout ouvrage **énergisé** (connectivité électrique réelle) sur une
+    #     section isolée par un sectionnement à ouvrir — y compris les ouvrages
+    #     raccordés directement par DJ sans SA (ex. transformateurs).
+    batch: dict[str, list[str]] = {}
+    for c in cells.cellules_depart:
+        eq = c.equipment_id
+        brk = [b.switch_id for b in c.breakers]
+        if not brk or any(_is_open(G, b) for b in brk):
+            continue  # pas de DJ propre, ou déjà hors tension
+        if any(_is_open(G, s.switch_id) != _is_open(cible_graph, s.switch_id)
+               for s in c.disconnectors if s.switch_id not in coupling_sids):
+            batch[eq] = brk
+
+    if sect_to_open:
+        # Graphe avec les couplages destinés à s'ouvrir déjà ouverts, pour
+        # délimiter correctement les sections à isoler.
+        G_cut = G.copy()
+        for cp in couplers:
+            if cp.is_sectionnement:
+                continue
+            for sid in cp.breaker_ids:
+                if _is_open(cible_graph, sid):
+                    _set_switch(G_cut, sid, True)
+        sect_sids = [s for cp in sect_to_open for s in cp.switch_ids]
+        H = _live_graph_sans(G_cut, sect_sids)
+        # Pour chaque sectionnement, ne dé-énergiser que **le plus petit côté**
+        # (un seul côté mort suffit pour ouvrir le sectionneur) — minimise le lot.
+        for cp in sect_to_open:
+            sa = ((nx.node_connected_component(H, cp.sjb_a)
+                   if cp.sjb_a in H else {cp.sjb_a}) & all_sjb)
+            sb = ((nx.node_connected_component(H, cp.sjb_b)
+                   if cp.sjb_b in H else {cp.sjb_b}) & all_sjb)
+            liv_a = _ouvrages_energises_sur(G_cut, cells, sa, H)
+            liv_b = _ouvrages_energises_sur(G_cut, cells, sb, H)
+            petit = liv_a if len(liv_a) <= len(liv_b) else liv_b
+            for eq, brk in petit:
+                if brk and eq not in batch:
+                    batch[eq] = brk
+
+    # 1. Dé-énergiser le lot (ouverture des DJ d'ouvrage, une fois chacun).
+    for eq, brk in batch.items():
+        for sid in brk:
+            setsw(sid, True, f"mise hors tension '{eq}' (dé-énergisation groupée)")
+
+    # 2. Ouvrir les couplages (DJ) destinés à s'ouvrir.
+    for cp in couplers:
+        if cp.is_sectionnement:
+            continue
+        for sid in cp.breaker_ids:
+            if _is_open(cible_graph, sid):
+                setsw(sid, True, "ouverture couplage de barres")
+
+    # 3. Ouvrir les sectionnements destinés à s'ouvrir (sections mortes).
+    for cp in couplers:
+        if not cp.is_sectionnement:
+            continue
+        for sid in cp.switch_ids:
+            if _is_open(cible_graph, sid):
+                setsw(sid, True,
+                      "ouverture sectionnement de barre (section hors tension)")
+
+    # 4. Fermer les couplages (DJ d'abord) puis sectionnements destinés à fermer.
+    for cp in couplers:
+        if cp.is_sectionnement:
+            continue
+        for sid in cp.switch_ids:
+            if not _is_open(cible_graph, sid):
+                setsw(sid, False, "fermeture couplage de barres")
+    for cp in couplers:
+        if not cp.is_sectionnement:
+            continue
+        for sid in cp.switch_ids:
+            if not _is_open(cible_graph, sid):
+                setsw(sid, False,
+                      "fermeture sectionnement de barre (barres équipotentielles)")
+
+    # 5. Positionner tous les SA de départ sur leur état cible (hors tension).
+    for c in cells.cellules_depart:
+        for s in c.disconnectors:
+            if s.switch_id in coupling_sids:
+                continue
+            setsw(s.switch_id, _is_open(cible_graph, s.switch_id),
+                  f"ré-aiguillage '{c.equipment_id}' (hors tension)")
+
+    # 6. Ramener tous les DJ de départ à leur état cible (ré-alimentation /
+    #    mise en service / mise hors service), une fois chacun.
+    for c in cells.cellules_depart:
+        for b in c.breakers:
+            if b.switch_id in coupling_sids:
+                continue
+            setsw(b.switch_id, _is_open(cible_graph, b.switch_id),
+                  f"remise en service '{c.equipment_id}'")
+
+    manoeuvres = _optimiser_sequence(poste, manoeuvres)
+    res.manoeuvres = manoeuvres
+    res.is_changed = bool(manoeuvres)
+
+    # --- Vérification (nodale + détaillée + sûreté des sectionneurs) --------
+    res.topo_obtenue = TopologieNodale.from_graph(G, vl)
+    res.is_verified = res.topo_cible.meme_topologie(res.topo_obtenue)
+    res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
+                  + _verifier_securite_sectionneurs(poste, manoeuvres))
+    res.is_verified_detaillee = res.is_verified and not res.ecarts
+    if not res.is_verified:
+        res.message = (
+            "Topologie nodale cible non atteinte (mode agressif) : obtenu "
+            f"{res.topo_obtenue.nb_noeuds} nœud(s), visé {res.topo_cible.nb_noeuds}.")
+    elif res.is_verified_detaillee:
+        res.message = "Topologie détaillée cible atteinte et vérifiée (mode agressif)."
+    else:
+        res.message = (f"Topologie nodale atteinte ; {len(res.ecarts)} écart(s) : "
+                       + " ; ".join(res.ecarts[:6]))
+    return res
+
+
 def determiner_manoeuvres_cible_detaillee(
     poste: PosteTopologique,
     cible_graph: nx.Graph,
+    mode: str = "smooth",
 ) -> ResultatManoeuvres:
     """
     Atteint une **topologie détaillée cible imposée** (état précis de chaque
     organe, donc de la barre de chaque départ), plus spécifique que la seule
     topologie nodale.
 
-    Démarche :
+    ``mode`` :
+    - ``"smooth"`` (défaut) : dé-énergise **un ouvrage à la fois** (boucle longue,
+      ré-alimentation immédiate) ; chaque départ est placé directement sur sa
+      barre cible (pas de double-déplacement).
+    - ``"aggressive"`` : orchestration **batch** — dé-énergise en une fois tous
+      les ouvrages concernés, commute les SA hors tension, puis ré-alimente une
+      seule fois (bien moins de manœuvres, plus d'ouvrages momentanément hors
+      tension). Voir ``_sequence_detaillee_aggressive``.
+
+    Démarche (mode smooth) :
     1. **séquence nodale** sûre. Si des **DJ de départ changent d'état**
        (reconnexions / déconnexions), le placement nœud→SJB est calculé sur un
        poste virtuel (reconnexions appliquées) mais le **séquenceur tourne sur
@@ -332,6 +515,10 @@ def determiner_manoeuvres_cible_detaillee(
 
     topo_cible = TopologieNodale.from_graph(cible_graph, vl)
 
+    # --- Mode agressif : orchestration batch (dé-énergiser une fois) --------
+    if mode == "aggressive":
+        return _sequence_detaillee_aggressive(poste, cible_graph, cible_busbar)
+
     # --- Phase 1 : séquence nodale sûre ------------------------------------
     if reconnections:
         # Faisabilité : départs cibles présents
@@ -359,11 +546,11 @@ def determiner_manoeuvres_cible_detaillee(
             return res
 
         # Séquenceur sur le poste RÉEL (DJ reconnectés encore ouverts).
-        res = determiner_manoeuvres_avec_sections(poste, placement)
+        res = determiner_manoeuvres_avec_sections(poste, placement, cible_busbar)
         res.topo_initiale = poste.topologie_nodale
         res.topo_cible = topo_cible
     else:
-        res = determiner_topo_complete_cible(poste, topo_cible)
+        res = determiner_topo_complete_cible(poste, topo_cible, cible_busbar)
         if not res.is_verified:
             res.message = "Topologie nodale cible non atteinte : " + res.message
             return res
@@ -719,6 +906,7 @@ def _inter_sjb_couplers(poste: PosteTopologique) -> list[_InterSjbCoupler]:
 def determiner_manoeuvres_avec_sections(
     poste: PosteTopologique,
     placement: list[tuple[set[str], set[str]]],
+    cible_busbar: Optional[dict[str, int]] = None,
 ) -> ResultatManoeuvres:
     """
     Calcule la séquence de manœuvres pour réaliser un **placement explicite**
@@ -733,6 +921,12 @@ def determiner_manoeuvres_avec_sections(
         Liste de ``(departs, sjb_ids)`` : chaque entrée décrit un nœud cible,
         l'ensemble de ses départs et l'ensemble des SJB (``busbar_section_id``)
         qu'il occupe. Les départs non cités restent inchangés.
+    cible_busbar :
+        Optionnel — barre (SJB) **cible exacte** de chaque départ (``eq -> sjb``).
+        Si fournie, ``target_sjb`` est amorcé avec cette barre quand elle est
+        dans le groupe du nœud : chaque départ est alors placé **directement**
+        sur sa barre finale (le raffinement R15 devient un no-op), ce qui évite
+        le **double-déplacement** (placer puis ramener).
 
     Returns
     -------
@@ -781,6 +975,11 @@ def determiner_manoeuvres_avec_sections(
                 # place (la vérification finale le signalera).
                 res.ecarts.append(
                     f"'{eq}' ne peut atteindre aucune SJB de son nœud cible")
+                continue
+            # Barre cible exacte connue (flux détaillé) et dans le groupe : on la
+            # vise directement → placement en une fois, sans retour ultérieur.
+            if cible_busbar and cible_busbar.get(eq) in sjb_set:
+                target_sjb[eq] = cible_busbar[eq]
                 continue
             # On garde le départ sur sa barre actuelle si elle est dans le groupe
             # du nœud (évite un ré-aiguillage inutile) ; sinon on prend une SJB
@@ -865,25 +1064,6 @@ def determiner_manoeuvres_avec_sections(
     node_de_dep = {eq: idx for idx, (deps, _) in enumerate(placement)
                    for eq in deps}
 
-    def parking_sjb(eq: str, target: int) -> Optional[int]:
-        """SJB tampon où garer temporairement le départ pendant l'ouverture du
-        sectionnement isolant sa cible. Idéalement hors section isolée ; sinon
-        toute SJB accessible actuellement équipotentielle (parking en boucle
-        courte, même si elle sera isolée ensuite) ; en dernier recours toute SJB
-        accessible distincte de la cible."""
-        cell = cells.get_cellule_depart(eq)
-        for bb in cell.busbar_nodes:                       # 1) hors section isolée
-            if bb != target and bb not in sjb_isoles:
-                return bb
-        cur = _wired_busbar(cell, G)                       # 2) équipotentielle
-        for bb in cell.busbar_nodes:
-            if bb != target and (cur is None or _equipotentiel(bb, cur)):
-                return bb
-        for bb in cell.busbar_nodes:                       # 3) dernier recours
-            if bb != target:
-                return bb
-        return None
-
     def _equipotentiel(a: int, b: int) -> bool:
         """True si deux SJB sont au même potentiel (chemin de switches fermés)."""
         Hc = nx.Graph()
@@ -945,16 +1125,18 @@ def determiner_manoeuvres_avec_sections(
     parkings: dict[str, int] = {}
     for eq, tgt in sorted(target_sjb.items()):
         if tgt in sjb_isoles:
-            buf = parking_sjb(eq, tgt)
-            if buf is None:
-                # Pas de SJB tampon (ex. poste 1 barre multi-sections) : on ne
-                # gare pas le départ ici. La section sera mise hors tension par
-                # ouverture de ses DJ d'ouvrage en phase C (repli dé-énergisation)
-                # avant d'ouvrir le sectionneur.
+            cell = cells.get_cellule_depart(eq)
+            cur = _wired_busbar(cell, G) if cell is not None else None
+            if cur == tgt:
+                # Le départ **reste** sur sa barre cible (section à isoler) : pas
+                # de garage/retour inutile — la phase C le dé-énergisera **en
+                # place** (clignotement DJ) le temps d'ouvrir le sectionneur.
                 continue
+            # Le départ doit **rejoindre** une section isolée : il n'est pas sur
+            # cette section, donc ne bloque pas l'ouverture. On **défère** son
+            # ré-aiguillage en boucle longue APRÈS l'ouverture du sectionnement
+            # (phase E), sans garage préalable sur une SJB tampon.
             parkings[eq] = tgt
-            if _reaiguiller_vers_sjb(G, cells, eq, buf, manoeuvres):
-                reaiguilles.add(eq)
         else:
             if _reaiguiller_vers_sjb(G, cells, eq, tgt, manoeuvres):
                 reaiguilles.add(eq)
