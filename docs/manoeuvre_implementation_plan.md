@@ -82,22 +82,39 @@ Phase 3 — Integration au recommandeur  (hors scope immediat)
 | 2.4   | `algo.py`      | **Termine** *  | Sequence de manoeuvres              |
 | 2.5   | `algo.py`      | **Termine**    | Verification                        |
 
-> *\* Couverture v1 : postes 1 barre (trivial) et 2 barres standard
-> (couplage + ré-aiguillage boucle courte/longue) entièrement traités et
-> vérifiés. Limites documentées (cf. `algo.py`) : ré-aiguillage d'omnibus
-> complexes (partiel), vérification fine de court-circuit avant fermeture de
-> couplage (non traité), postes ≥ 3 barres (partiel).*
+> *\* Couverture : postes 1 barre, 2 barres standard, et **multi-sections**
+> (ex. CARRIP6, 2 barres × 3 sections) — couplage, ré-aiguillage boucle
+> courte/longue, **règle du sectionneur** (anti court-circuit), création de
+> nœuds par ouverture de sectionnement, **cible détaillée imposée** (barre
+> exacte + vérification détaillée), **dégradation gracieuse** (écarts consignés).
+> Règles détaillées et tracées : `docs/manoeuvre_regles.md` (R1–R16). Limites
+> restantes : omnibus complexes, contrôle de court-circuit fin (déphasage),
+> couplers non chaînés (≥ 3 barres en anneau).*
+
+> **Phase 3 (intégration / outillage), réalisée :**
+> - point d'entrée unique `determiner_topo_complete_cible` (placement
+>   automatique nœud→SJB) et `determiner_manoeuvres_cible_detaillee` (cible
+>   détaillée + vérification + écarts) ;
+> - **IHM web** de test interactif (`scripts/manoeuvre_ihm.py`, Flask) —
+>   cf. `docs/manoeuvre_ihm.md` ;
+> - rendu SLD avant/après (`scripts/render_carrip3_sld.py`).
 
 ### Tests disponibles
 
-| Fichier                    | Cible       | Nb tests |
-|---------------------------|-------------|----------|
-| `test_graph_cellules.py`   | Etapes 1.1-1.2 | 27   |
-| `test_postes_reels.py`     | Etapes 1.1-1.2 | ~105 (15 VL x 7 classes) |
-| `test_troncons.py`         | Etapes 1.3-1.4 | 9    |
-| `test_topologie.py`        | Etapes 1.5-1.6 | 9    |
-| `test_algo.py`             | Phase 2 (CARRIP3) | 6 |
-| `fixtures/` (15 JSON)      | Donnees de test sans pypowsybl |
+| Fichier                          | Cible       | Nb tests |
+|----------------------------------|-------------|----------|
+| `test_graph_cellules.py`         | Etapes 1.1-1.2 | 27   |
+| `test_postes_reels.py`           | Etapes 1.1-1.2 | ~105 (15 VL x 7 classes) |
+| `test_troncons.py`               | Etapes 1.3-1.4 | 10   |
+| `test_topologie.py`              | Etapes 1.5-1.6 | 8    |
+| `test_algo.py`                   | Phase 2, cible détaillée, anti court-circuit | 10 |
+| `test_carrip3_manoeuvre.py`      | CARRIP3 cible 2 nœuds | 5 |
+| `test_carrip3_3noeuds.py`        | Sectionneur de barre, boucle longue, équipotentialité | 11 |
+| `test_scenarios_sauvegardes.py`  | Scénarios IHM (CARRIP3, CARRIP6) — cible détaillée + requinçonçage | 4 |
+| `fixtures/` (15 JSON)            | Données de test sans pypowsybl |
+| `scenarios/` (JSON)              | Scénarios sauvegardés (départ/cible détaillés) |
+
+Total module `manoeuvre` : **382 tests** verts.
 
 ---
 

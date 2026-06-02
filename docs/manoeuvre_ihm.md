@@ -120,12 +120,16 @@ navigateur).
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds}` | Charge un poste (départ pristine) |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds}` | Bascule un OC (cible) |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds}` | Réinitialise la cible = départ |
-| `POST /api/sequence` | — | `{verified, message, nb_manoeuvres, manoeuvres[], n_steps, labels[]}` | Calcule la séquence |
+| `POST /api/sequence` | — | `{verified, verified_detaillee, ecarts[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[]}` | Calcule la séquence (cible **détaillée**) |
 | `GET /api/step?i=k` | — | `{svg}` | Image d'animation de l'étape *k* (surlignée) |
 | `GET /api/scenarios` | — | `{scenarios:[…]}` | Liste des scénarios sauvegardés |
-| `POST /api/save` | `{name}` | `{path, scenarios[]}` | Sauvegarde le scénario cible |
+| `POST /api/save` | `{name, overwrite?}` | `{path, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible |
 | `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl}` | Recharge (`mode="both"` ou `"as_depart"`) |
-| `POST /api/save_sequence` | `{name}` | `{path}` | Sauvegarde la séquence générée |
+| `POST /api/save_sequence` | `{name, overwrite?}` | `{path}` ou `{exists:true, name, path}` | Sauvegarde la séquence générée |
+
+> **Avertissement d'écrasement** : sans `overwrite:true`, si le fichier existe
+> déjà, `/api/save` et `/api/save_sequence` renvoient `{exists:true}` (sans
+> écrire) ; l'IHM demande alors confirmation d'écrasement ou un nouveau nom.
 
 `switches` : liste d'objets `{id, name, svgId, kind, open}` (DJ/SA), où `svgId`
 est l'identifiant de l'élément dans le SVG (clic et surlignage).
@@ -157,7 +161,9 @@ Séquence générée + topologies + **lien vers le scénario**.
   "name": "seqA",
   "scenario": "scenA",
   "verified": true,
-  "message": "Topologie cible atteinte et vérifiée.",
+  "verified_detaillee": true,
+  "ecarts": [],
+  "message": "Topologie détaillée cible atteinte et vérifiée.",
   "depart": {"<switch_id>": false},
   "cible":  {"<switch_id>": true},
   "depart_nodale": [["..."]],
@@ -171,23 +177,32 @@ Séquence générée + topologies + **lien vers le scénario**.
 ```
 
 ### Exploitation pour un test
-Un fichier de séquence est **autonome** :
+Un fichier de séquence (ou de scénario) est **autonome**. Pour rejouer la cible
+**détaillée** (barre exacte de chaque départ) :
 
 ```python
 import pypowsybl as pp, json
 from expert_op4grid_recommender.manoeuvre.graph import build_vl_graph
-from expert_op4grid_recommender.manoeuvre.topologie import PosteTopologique, TopologieNodale
-from expert_op4grid_recommender.manoeuvre.algo import determiner_topo_complete_cible
+from expert_op4grid_recommender.manoeuvre.topologie import PosteTopologique
+from expert_op4grid_recommender.manoeuvre.algo import determiner_manoeuvres_cible_detaillee
 
 d = json.load(open("tests/manoeuvre/sequences/seqA.json"))
 n = pp.network.load("…/grid.xiidm")
+vl = d["voltage_level_id"]
+
 n.update_switches(id=list(d["depart"]), open=list(d["depart"].values()))
-poste = PosteTopologique.from_graph(build_vl_graph(n, d["voltage_level_id"]), d["voltage_level_id"])
-cible = TopologieNodale.from_node_groups(d["voltage_level_id"], d["cible_nodale"])
-res = determiner_topo_complete_cible(poste, cible)
-assert res.is_verified == d["verified"]
-assert res.nb_manoeuvres == d["nb_manoeuvres"]
+poste = PosteTopologique.from_graph(build_vl_graph(n, vl), vl)
+n.update_switches(id=list(d["cible"]),  open=list(d["cible"].values()))
+cible_graph = build_vl_graph(n, vl)
+
+res = determiner_manoeuvres_cible_detaillee(poste, cible_graph)
+assert res.is_verified_detaillee     # topologie détaillée atteinte
+assert res.ecarts == []
 ```
+
+> Les fixtures `tests/manoeuvre/scenarios/*.json` sont rejouées **sans
+> pypowsybl** (via `build_graph_from_fixture`) par
+> `tests/manoeuvre/test_scenarios_sauvegardes.py`.
 
 ---
 
@@ -206,6 +221,9 @@ assert res.nb_manoeuvres == d["nb_manoeuvres"]
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
 | Choisir l'**état de départ** depuis une topologie sauvegardée | « ⇧ Comme départ » |
 | **Sauvegarder la séquence** avec lien vers ses topologies | `/api/save_sequence` (JSON autonome + champ `scenario`) |
+| Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | `determiner_manoeuvres_cible_detaillee` ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
+| **Avertissement d'écrasement** d'un fichier de sauvegarde existant | Confirmation / renommage (réponse `{exists:true}`) |
+| **Replier** un schéma pour agrandir l'autre (grands postes) | Bouton ▾/▸ par en-tête de schéma |
 
 ---
 
@@ -232,5 +250,7 @@ assert res.nb_manoeuvres == d["nb_manoeuvres"]
 - Mono-utilisateur (serveur de développement Flask, mono-thread).
 - `RAN_PP6` (fixture) est absent du réseau France de référence (nommé
   `RAN.PP6`) : 14 des 15 postes de test sont disponibles.
+- Les postes multi-sections (ex. CARRIP6, 2 barres × 3 sections) sont gérés ;
+  les écarts détaillés résiduels éventuels sont affichés (dégradation gracieuse).
 - Les limites de l'algorithme lui-même sont documentées dans
-  `docs/manoeuvre_regles.md` (omnibus complexes, ≥ 3 barres, etc.).
+  `docs/manoeuvre_regles.md` (omnibus complexes, couplers non chaînés, etc.).

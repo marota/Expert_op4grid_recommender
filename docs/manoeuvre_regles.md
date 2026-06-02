@@ -204,6 +204,13 @@ ouverture/fermeture d'un DJ en boucle longue) sont conservées.
 - **Code** : `algo._optimiser_sequence`.
 - **Test** : couvert indirectement (cohérence des séquences vérifiées).
 
+### R14 — Vérification post-manœuvre (nodale)
+Après application de la séquence, la topologie nodale est recalculée
+(`TopologieNodale.from_graph`) et comparée à la cible par isomorphisme de
+partition (`meme_topologie`). Le résultat porte `is_verified`.
+- **Code** : `algo.determiner_topo_complete_cible` / `determiner_manoeuvres_avec_sections`.
+- **Test** : tous les tests `test_carrip3_*` et `test_algo.py` (assertion `is_verified`).
+
 ### R15 — Topologie détaillée imposée (barre exacte + vérification détaillée)
 Quand une **topologie détaillée cible** est imposée (état précis de chaque
 organe, donc la barre exacte de chaque départ — plus spécifique que la seule
@@ -212,24 +219,16 @@ partition nodale), on vise cet état exact :
 2. **raffiner** : ramener chaque départ sur sa **barre imposée** (ré-aiguillage
    boucle courte, sûr car les barres d'un même nœud sont équipotentielles) — par
    défaut les départs reviennent sur leur barre d'origine, au prix de
-   **manœuvres supplémentaires** ;
+   **manœuvres supplémentaires** (« requinçonçage ») ;
 3. **vérifier la topologie détaillée** (barre de chaque départ + état de chaque
    coupler) ; les **écarts** résiduels sont consignés (`ecarts`,
    `is_verified_detaillee`).
 - **Code** : `algo.determiner_manoeuvres_cible_detaillee`, `_ecarts_detailles`.
 - **Test** : `test_algo.py::test_cible_detaillee_atteinte_avec_barres_exactes`,
-  `::test_cible_detaillee_signale_les_ecarts`.
+  `::test_cible_detaillee_signale_les_ecarts`,
+  `test_scenarios_sauvegardes.py::test_carrip3_1noeud_requinconcage`.
 - **IHM** : la cible éditée étant détaillée, l'IHM appelle ce mode et affiche
   « DÉTAILLÉE VÉRIFIÉE » ou « NODALE OK · N écart(s) ».
-
-### R14 — Vérification post-manœuvre
-Après application de la séquence, la topologie nodale est recalculée
-(`TopologieNodale.from_graph`) et comparée à la cible par isomorphisme de
-partition (`meme_topologie`). Le résultat porte `is_verified`.
-- **Code** : `algo.determiner_topo_complete_cible` / `determiner_manoeuvres_avec_sections`.
-- **Test** : tous les tests `test_carrip3_*` et `test_algo.py` (assertion `is_verified`).
-
----
 
 ### R16 — Dégradation gracieuse
 Si une étape n'est pas réalisable en sécurité (pas de SJB tampon pour isoler une
