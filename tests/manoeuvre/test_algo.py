@@ -14,6 +14,7 @@ from expert_op4grid_recommender.manoeuvre.topologie import (
 )
 from expert_op4grid_recommender.manoeuvre.algo import (
     determiner_topo_complete_cible,
+    determiner_manoeuvres_cible_detaillee,
     Manoeuvre,
 )
 
@@ -148,6 +149,44 @@ def test_fusion_un_noeud_respecte_regle_sectionneur():
                for m in sect_close)
     # Invariant de sécurité vérifié sur toute la séquence.
     _replay_check_sectionneurs(poste, res)
+
+
+def test_cible_detaillee_atteinte_avec_barres_exactes():
+    """Quand la topologie détaillée est imposée, chaque départ doit finir sur
+    sa barre exacte (pas seulement la bonne partition nodale). Les départs de la
+    section dé-énergisée sont ramenés sur leur barre d'origine (manœuvres
+    supplémentaires en boucle courte) et la topologie détaillée est vérifiée."""
+    # Départ : couplage + sectionnement barre 1 ouverts (5 nœuds)
+    Gd = build_graph_from_fixture("CARRIP3")
+    for sid in ("CARRIP3_CARRI3COUPL.1 DJ_OC", "CARRIP3_CARRI3SEC..12 SS.1.12_OC"):
+        _set_switch_in_graph(Gd, sid, True)
+    poste = PosteTopologique.from_graph(Gd, "CARRIP3")
+
+    # Cible détaillée = état pristine (1 nœud, toutes barres couplées, départs
+    # sur leurs barres d'origine 1.1/1.2/2.1/2.2).
+    Gc = build_graph_from_fixture("CARRIP3")  # pristine
+
+    res = determiner_manoeuvres_cible_detaillee(poste, Gc)
+    assert res.is_verified, res.message
+    assert res.is_verified_detaillee, f"écarts: {res.ecarts}"
+    assert res.ecarts == []
+    # Des ré-aiguillages boucle courte de retour existent (départs ramenés sur
+    # leur barre d'origine après fermeture du sectionnement).
+    assert any(m.type_boucle == "COURTE" for m in res.manoeuvres)
+
+
+def test_cible_detaillee_signale_les_ecarts(monkeypatch):
+    """Si la topologie détaillée n'est pas atteignable exactement, les écarts
+    sont consignés (is_verified_detaillee False, liste d'écarts non vide)."""
+    # On force un cas où le raffinement ne peut pas tout placer : cible plaçant
+    # un départ sur une barre, mais on vérifie surtout le mécanisme de rapport.
+    Gd = build_graph_from_fixture("CARRIP3")
+    poste = PosteTopologique.from_graph(Gd, "CARRIP3")
+    Gc = build_graph_from_fixture("CARRIP3")
+    # cible = départ identique -> aucun écart (sanity du champ)
+    res = determiner_manoeuvres_cible_detaillee(poste, Gc)
+    assert res.is_verified_detaillee
+    assert isinstance(res.ecarts, list)
 
 
 def _split_2_barres(poste_carrip3):

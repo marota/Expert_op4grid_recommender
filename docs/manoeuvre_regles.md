@@ -204,6 +204,24 @@ ouverture/fermeture d'un DJ en boucle longue) sont conservées.
 - **Code** : `algo._optimiser_sequence`.
 - **Test** : couvert indirectement (cohérence des séquences vérifiées).
 
+### R15 — Topologie détaillée imposée (barre exacte + vérification détaillée)
+Quand une **topologie détaillée cible** est imposée (état précis de chaque
+organe, donc la barre exacte de chaque départ — plus spécifique que la seule
+partition nodale), on vise cet état exact :
+1. atteindre la **topologie nodale** cible de façon sûre (R1-R14) ;
+2. **raffiner** : ramener chaque départ sur sa **barre imposée** (ré-aiguillage
+   boucle courte, sûr car les barres d'un même nœud sont équipotentielles) — par
+   défaut les départs reviennent sur leur barre d'origine, au prix de
+   **manœuvres supplémentaires** ;
+3. **vérifier la topologie détaillée** (barre de chaque départ + état de chaque
+   coupler) ; les **écarts** résiduels sont consignés (`ecarts`,
+   `is_verified_detaillee`).
+- **Code** : `algo.determiner_manoeuvres_cible_detaillee`, `_ecarts_detailles`.
+- **Test** : `test_algo.py::test_cible_detaillee_atteinte_avec_barres_exactes`,
+  `::test_cible_detaillee_signale_les_ecarts`.
+- **IHM** : la cible éditée étant détaillée, l'IHM appelle ce mode et affiche
+  « DÉTAILLÉE VÉRIFIÉE » ou « NODALE OK · N écart(s) ».
+
 ### R14 — Vérification post-manœuvre
 Après application de la séquence, la topologie nodale est recalculée
 (`TopologieNodale.from_graph`) et comparée à la cible par isomorphisme de

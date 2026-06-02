@@ -66,6 +66,7 @@ from .algo import (
     ResultatManoeuvres,
     determiner_topo_complete_cible,
     determiner_manoeuvres_avec_sections,
+    determiner_manoeuvres_cible_detaillee,
 )
 
 __all__ = [
@@ -85,5 +86,5 @@ __all__ = [
     "attribuer_noeuds",
     # algo
     "Manoeuvre", "ResultatManoeuvres", "determiner_topo_complete_cible",
-    "determiner_manoeuvres_avec_sections",
+    "determiner_manoeuvres_avec_sections", "determiner_manoeuvres_cible_detaillee",
 ]

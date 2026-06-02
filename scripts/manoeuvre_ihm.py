@@ -67,7 +67,10 @@ from expert_op4grid_recommender.manoeuvre.topologie import (
     PosteTopologique,
     TopologieNodale,
 )
-from expert_op4grid_recommender.manoeuvre.algo import determiner_topo_complete_cible
+from expert_op4grid_recommender.manoeuvre.algo import (
+    determiner_topo_complete_cible,
+    determiner_manoeuvres_cible_detaillee,
+)
 
 # Postes de test retenus (intersectés avec les VL réellement présents)
 POSTES_TEST = [
@@ -233,11 +236,12 @@ class Session:
         # Poste à l'état de départ (A)
         self.apply(self.initial)
         poste = PosteTopologique.from_graph(build_vl_graph(self.net, self.vl), self.vl)
-        # Topologie nodale cible (B)
+        # Topologie détaillée cible (B) imposée : on vise la barre exacte de
+        # chaque départ, pas seulement la partition nodale.
         self.apply(self.current)
-        topo_cible = TopologieNodale.from_graph(build_vl_graph(self.net, self.vl), self.vl)
+        cible_graph = build_vl_graph(self.net, self.vl)
 
-        res = determiner_topo_complete_cible(poste, topo_cible)
+        res = determiner_manoeuvres_cible_detaillee(poste, cible_graph)
         svgid = self.svgid_par_switch()
 
         # Pré-calcul des états successifs (pour l'animation lazy via /api/step)
@@ -258,6 +262,8 @@ class Session:
 
         return {
             "verified": res.is_verified,
+            "verified_detaillee": res.is_verified_detaillee,
+            "ecarts": res.ecarts,
             "message": res.message,
             "nb_manoeuvres": res.nb_manoeuvres,
             "manoeuvres": [{
@@ -284,6 +290,8 @@ class Session:
             "name": name,
             "scenario": self.scenario_name,          # lien vers les topologies
             "verified": seq["verified"],
+            "verified_detaillee": seq.get("verified_detaillee"),
+            "ecarts": seq.get("ecarts", []),
             "message": seq["message"],
             "depart": self.initial,
             "cible": self.current,
@@ -370,9 +378,17 @@ def api_scenarios():
     return jsonify(scenarios=SESSION.list_scenarios())
 
 
+def _safe_name(name, default):
+    import re
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or default
+
+
 @app.post("/api/save")
 def api_save():
-    path = SESSION.save_scenario(request.json.get("name", ""))
+    name = _safe_name(request.json.get("name", ""), SESSION.vl)
+    if not request.json.get("overwrite") and (SCEN_DIR / f"{name}.json").exists():
+        return jsonify(exists=True, name=name, path=str(SCEN_DIR / f"{name}.json"))
+    path = SESSION.save_scenario(name)
     return jsonify(path=path, scenarios=SESSION.list_scenarios())
 
 
@@ -393,7 +409,11 @@ def api_sequence():
 
 @app.post("/api/save_sequence")
 def api_save_sequence():
-    path = SESSION.save_sequence(request.json.get("name", ""))
+    name = _safe_name(request.json.get("name", ""),
+                      SESSION.scenario_name or SESSION.vl)
+    if not request.json.get("overwrite") and (SEQ_DIR / f"{name}.json").exists():
+        return jsonify(exists=True, name=name, path=str(SEQ_DIR / f"{name}.json"))
+    path = SESSION.save_sequence(name)
     return jsonify(path=path)
 
 
@@ -500,8 +520,22 @@ async function toggle(id){stopAnim();show(await api('/api/toggle',{id}));hideSeq
 async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).json();
   const sel=document.getElementById('scenSel');sel.innerHTML='<option value="">—</option>';
   r.scenarios.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;sel.add(o);});}
+async function saveWithConfirm(url,name,msgEl){
+  let r=await api(url,{name});
+  while(r.exists){
+    if(confirm('Le fichier « '+r.name+' » existe déjà.\n\nOK = écraser, Annuler = renommer.')){
+      r=await api(url,{name:r.name,overwrite:true});
+    }else{
+      const nn=prompt('Nouveau nom :', r.name+'_v2');
+      if(!nn){msgEl.textContent='Sauvegarde annulée.';return null;}
+      r=await api(url,{name:nn});
+    }
+  }
+  return r;
+}
 async function save(){const name=document.getElementById('scenName').value;
-  const r=await api('/api/save',{name});
+  const r=await saveWithConfirm('/api/save',name,document.getElementById('savemsg'));
+  if(!r)return;
   document.getElementById('savemsg').textContent='✓ Sauvegardé : '+r.path;
   setValidated(true);await refreshScenarios();}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
@@ -534,9 +568,14 @@ function panel(switches){const dj=document.getElementById('djs'),sa=document.get
     row.onclick=()=>toggle(s.id);(s.kind==='BREAKER'?dj:sa).appendChild(row);});}
 async function sequence(){stopAnim();const d=await api('/api/sequence',{});
   const w=document.getElementById('seqwrap');w.style.display='block';
-  document.getElementById('seqstatus').innerHTML=d.verified?'<span class="badge ok">VÉRIFIÉE</span>':'<span class="badge ko">NON VÉRIFIÉE</span>';
+  const st=document.getElementById('seqstatus');
+  if(d.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>';}
+  else if(d.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">NODALE OK · '+(d.ecarts?d.ecarts.length:'?')+' écart(s) détaillé(s)</span>';}
+  else{st.innerHTML='<span class="badge ko">NON VÉRIFIÉE</span>';}
   const seq=document.getElementById('seq');seq.innerHTML='';
-  const head=document.createElement('div');head.textContent=d.message+(d.manoeuvres.length?'':'\n(aucune manœuvre)');seq.appendChild(head);
+  let headtxt=d.message+(d.manoeuvres.length?'':'\n(aucune manœuvre)');
+  if(d.ecarts&&d.ecarts.length){headtxt+='\nÉcarts détaillés : '+d.ecarts.join(' ; ');}
+  const head=document.createElement('div');head.textContent=headtxt;seq.appendChild(head);
   d.manoeuvres.forEach((m,i)=>{const ln=document.createElement('div');ln.className='line';ln.id='ln'+(i+1);
     ln.textContent=`${String(i+1).padStart(2)}. ${m.action.padEnd(5)} ${m.switch_id}  (${m.raison})${m.boucle?' ['+m.boucle+']':''}`;seq.appendChild(ln);});
   S.n=d.n_steps;S.labels=d.labels;S.idx=0;
@@ -544,8 +583,10 @@ async function sequence(){stopAnim();const d=await api('/api/sequence',{});
   document.getElementById('seqsavemsg').textContent='';
   if(S.n>0){document.getElementById('anim').style.display='flex';await showStep(0);}}
 async function saveSeq(){const name=document.getElementById('seqName').value;
-  const r=await api('/api/save_sequence',{name});
-  document.getElementById('seqsavemsg').textContent='✓ '+r.path;}
+  const msg=document.getElementById('seqsavemsg');
+  const r=await saveWithConfirm('/api/save_sequence',name,msg);
+  if(!r)return;
+  msg.textContent='✓ '+r.path;}
 async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
   const r=await (await fetch('/api/step?i='+S.idx)).json();
   document.getElementById('diagBottom').innerHTML=r.svg;

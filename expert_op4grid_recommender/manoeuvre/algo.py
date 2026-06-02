@@ -92,7 +92,9 @@ class ResultatManoeuvres:
     departs_reaiguilles: set[str] = field(default_factory=set)
     couplages_modifies: list[str] = field(default_factory=list)
     is_changed: bool = False
-    is_verified: bool = False
+    is_verified: bool = False              # topologie NODALE atteinte
+    is_verified_detaillee: bool = False    # topologie DÉTAILLÉE atteinte
+    ecarts: list[str] = field(default_factory=list)  # écarts détaillés résiduels
     topo_obtenue: Optional[TopologieNodale] = None
     message: str = ""
 
@@ -188,6 +190,123 @@ def determiner_topo_complete_cible(
              f"nœud(s), visé {topo_cible.nb_noeuds})."
     )
     return core
+
+
+def _wired_busbar(cell: CelluleDepart, graph: nx.Graph) -> Optional[int]:
+    """SJB sur laquelle un départ est câblé (chemin de SA fermés) dans ``graph``."""
+    for bb in cell.busbar_nodes:
+        sa = _sa_path_to_sjb(cell, bb)
+        if sa and all(not graph.edges[u, v].get("open", False)
+                      for u, v in _edges_of_switches(graph, sa)):
+            return bb
+    return None
+
+
+def _edges_of_switches(graph: nx.Graph, switch_ids):
+    out = []
+    sset = set(switch_ids)
+    for u, v, d in graph.edges(data=True):
+        if d.get("switch_id") in sset:
+            out.append((u, v))
+    return out
+
+
+def determiner_manoeuvres_cible_detaillee(
+    poste: PosteTopologique,
+    cible_graph: nx.Graph,
+) -> ResultatManoeuvres:
+    """
+    Atteint une **topologie détaillée cible imposée** (état précis de chaque
+    organe, donc de la barre de chaque départ), plus spécifique que la seule
+    topologie nodale.
+
+    Démarche :
+    1. atteindre la **topologie nodale** cible de façon sûre
+       (``determiner_topo_complete_cible``) ;
+    2. **raffiner** : ramener chaque départ sur sa barre exacte imposée par la
+       cible (ré-aiguillage en boucle courte, sûr car les barres d'un même nœud
+       sont équipotentielles) ;
+    3. **vérifier la topologie détaillée** : comparer barre de chaque départ et
+       état de chaque coupler à la cible ; consigner les **écarts** et tenter de
+       les corriger par des manœuvres supplémentaires.
+    """
+    vl = poste.voltage_level_id
+    cells = poste.cellules
+
+    # Barre cible (imposée) de chaque départ
+    cible_busbar: dict[str, int] = {}
+    for c in cells.cellules_depart:
+        for eq in {c.equipment_id} | set(c.shared_equipment_ids):
+            bb = _wired_busbar(c, cible_graph)
+            if bb is not None:
+                cible_busbar[eq] = bb
+
+    # 1. Topologie nodale cible -> séquence sûre
+    topo_cible = TopologieNodale.from_graph(cible_graph, vl)
+    res = determiner_topo_complete_cible(poste, topo_cible)
+    if not res.is_verified:
+        res.message = "Topologie nodale cible non atteinte : " + res.message
+        return res
+
+    # État détaillé atteint après la séquence nodale
+    G = poste.graph.copy()
+    for m in res.manoeuvres:
+        _set_switch(G, m.switch_id, m.action == "OPEN")
+
+    # 2. Raffinement : ramener chaque départ sur sa barre cible (boucle courte,
+    #    équipotentielle puisque le nœud est déjà constitué).
+    extra: list[Manoeuvre] = []
+    for eq, target in sorted(cible_busbar.items()):
+        cell = cells.get_cellule_depart(eq)
+        cur = _wired_busbar(cell, G)
+        if cur is None or cur == target:
+            continue
+        if _reaiguiller_vers_sjb(G, cells, eq, target, extra):
+            res.departs_reaiguilles.add(eq)
+    res.manoeuvres = res.manoeuvres + extra
+
+    # 3. Vérification détaillée + écarts
+    res.ecarts = _ecarts_detailles(poste, G, cible_graph, cible_busbar)
+    res.is_verified_detaillee = not res.ecarts
+    res.topo_obtenue = TopologieNodale.from_graph(G, vl)
+    if res.is_verified_detaillee:
+        res.message = "Topologie détaillée cible atteinte et vérifiée."
+    else:
+        res.message = (
+            f"Topologie nodale atteinte ; {len(res.ecarts)} écart(s) détaillé(s) "
+            "résiduel(s) : " + " ; ".join(res.ecarts[:6])
+        )
+    return res
+
+
+def _ecarts_detailles(
+    poste: PosteTopologique,
+    G: nx.Graph,
+    cible_graph: nx.Graph,
+    cible_busbar: dict[str, int],
+) -> list[str]:
+    """Liste des écarts entre l'état détaillé obtenu ``G`` et la cible."""
+    cells = poste.cellules
+    sjb_id = {n: G.nodes[n].get("busbar_section_id")
+              for n in poste.tronconnement.barre_par_busbar}
+    ecarts: list[str] = []
+    # Barre de chaque départ
+    for eq, target in cible_busbar.items():
+        cell = cells.get_cellule_depart(eq)
+        cur = _wired_busbar(cell, G)
+        if cur != target:
+            ecarts.append(
+                f"'{eq}' sur {sjb_id.get(cur, cur)} au lieu de {sjb_id.get(target, target)}")
+    # État des couplers inter-SJB
+    for cp in _inter_sjb_couplers(poste):
+        for sid in cp.switch_ids:
+            cur = _is_open(G, sid)
+            tgt = any(cible_graph.edges[u, v].get("open", False)
+                      for u, v in _edges_of_switches(cible_graph, [sid]))
+            if cur != tgt:
+                ecarts.append(f"organe {sid} {'ouvert' if cur else 'fermé'} "
+                              f"au lieu de {'ouvert' if tgt else 'fermé'}")
+    return ecarts
 
 
 # ---------------------------------------------------------------------------

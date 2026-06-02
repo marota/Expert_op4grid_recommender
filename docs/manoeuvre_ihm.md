@@ -85,7 +85,16 @@ des variables CSS).
    d'animation rejouent les manœuvres une par une sur le schéma cible, l'organe
    manœuvré **surligné en rouge**, la ligne de séquence courante surlignée.
 6. **Sauvegarder la séquence** : 💾 écrit un JSON autonome (topologies +
-   séquence + lien scénario) pour l'analyse et les tests.
+   séquence + lien scénario) pour l'analyse et les tests. Si le fichier existe
+   déjà, une **confirmation** est demandée (écraser) ou un **nouveau nom** est
+   proposé (idem pour la sauvegarde de scénario).
+
+> La cible éditée étant une **topologie détaillée** (barre exacte de chaque
+> départ), l'IHM vise cet état exact : après avoir atteint la partition nodale,
+> les départs sont ramenés sur leur barre imposée (manœuvres supplémentaires),
+> et la **topologie détaillée est vérifiée**. Le statut affiche
+> « DÉTAILLÉE VÉRIFIÉE », ou « NODALE OK · N écart(s) détaillé(s) » avec la
+> liste des écarts résiduels.
 
 ### Réutiliser des scénarios
 - **▷ Rejouer** : recharge un scénario (départ **et** cible sauvegardés).
