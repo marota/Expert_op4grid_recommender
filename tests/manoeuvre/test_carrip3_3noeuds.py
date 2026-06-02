@@ -229,6 +229,37 @@ def test_jamais_de_pont_court_circuit():
                 f"{m.action} {m.switch_id} (court-circuit)")
 
 
+def test_choix_boucle_automatique_selon_equipotentialite():
+    """La boucle est COURTE si barre actuelle et barre cible sont déjà le même
+    nœud électrique (couplage fermé), LONGUE sinon — décision automatique."""
+    from expert_op4grid_recommender.manoeuvre import algo
+    from expert_op4grid_recommender.manoeuvre.cellules import detecter_cellules
+    from expert_op4grid_recommender.manoeuvre.models import NodeType
+
+    G = build_graph_from_fixture(VL)
+    cells = detecter_cellules(G, VL)
+    sjb = {G.nodes[n].get("busbar_section_id"): n
+           for n, d in G.nodes(data=True)
+           if d.get("node_type") == NodeType.BUSBAR_SECTION}
+    cible = sjb["CARRIP3_1.2"]   # RANTI est actuellement sur 2.2
+
+    # Couplage fermé (état pristine) : 1.2 et 2.2 = même nœud -> COURTE
+    G1 = G.copy()
+    mv1 = []
+    algo._reaiguiller_vers_sjb(G1, cells, "CARRIL31RANTI", cible, mv1)
+    assert mv1 and all(m.type_boucle == "COURTE" for m in mv1)
+
+    # Barres séparées (couplage + sectionnements ouverts) -> LONGUE
+    G2 = G.copy()
+    for sid in ("CARRIP3_CARRI3COUPL.1 DJ_OC",
+                "CARRIP3_CARRI3SEC..12 SS.1.12_OC",
+                "CARRIP3_CARRI3SEC..12 SS.2.12_OC"):
+        algo._set_switch(G2, sid, True)
+    mv2 = []
+    algo._reaiguiller_vers_sjb(G2, cells, "CARRIL31RANTI", cible, mv2)
+    assert mv2 and any(m.type_boucle == "LONGUE" for m in mv2)
+
+
 def test_boucle_longue_ouvre_seulement_le_dj_de_cellule():
     """R7 : pour ré-aiguiller un départ d'une cellule omnibus, on n'ouvre que
     le **DJ d'ensemble de la cellule** (côté sélecteurs de barre), jamais les

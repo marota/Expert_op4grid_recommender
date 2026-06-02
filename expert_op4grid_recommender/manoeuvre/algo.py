@@ -590,10 +590,10 @@ def determiner_manoeuvres_avec_sections(
                 res.message = f"Pas de SJB tampon pour '{eq}'."
                 return res
             parkings[eq] = tgt
-            if _reaiguiller_vers_sjb(G, cells, eq, buf, "COURTE", manoeuvres):
+            if _reaiguiller_vers_sjb(G, cells, eq, buf, manoeuvres):
                 reaiguilles.add(eq)
         else:
-            if _reaiguiller_vers_sjb(G, cells, eq, tgt, "COURTE", manoeuvres):
+            if _reaiguiller_vers_sjb(G, cells, eq, tgt, manoeuvres):
                 reaiguilles.add(eq)
 
     # --- Phase C : ouverture des sectionnements (section hors tension) -----
@@ -628,7 +628,7 @@ def determiner_manoeuvres_avec_sections(
 
     # --- Phase E : ré-aiguillage boucle longue vers sections isolées -------
     for eq in sorted(parkings):
-        if _reaiguiller_vers_sjb(G, cells, eq, parkings[eq], "LONGUE", manoeuvres):
+        if _reaiguiller_vers_sjb(G, cells, eq, parkings[eq], manoeuvres):
             reaiguilles.add(eq)
 
     # --- Optimisation : suppression des manœuvres sans effet (listeDordre) -
@@ -765,25 +765,57 @@ def _wired_sjbs(G: nx.Graph, cells, eq_id: str) -> set[int]:
     return res
 
 
+def _meme_noeud_hors_cellule(
+    G: nx.Graph, cell: CelluleDepart, bb1: int, bb2: int
+) -> bool:
+    """
+    True si les deux SJB sont au **même potentiel** (même nœud électrique) par un
+    chemin **n'empruntant pas** les nœuds internes de la cellule ``cell``.
+
+    Sert à appliquer l'invariant de sécurité des sectionneurs : fermer (ou
+    ouvrir) un SA d'aiguillage qui relie ``bb1`` et ``bb2`` via la cellule n'est
+    sûr que si ``bb1`` et ``bb2`` sont déjà reliés *par ailleurs* (donc déjà au
+    même potentiel) — sinon le départ ponterait deux nœuds distincts.
+    """
+    if bb1 == bb2:
+        return True
+    internes = {n for n in cell.all_nodes if n not in cell.busbar_nodes}
+    H = nx.Graph()
+    H.add_nodes_from(n for n in G.nodes() if n not in internes)
+    for u, v, d in G.edges(data=True):
+        if d.get("open", False) or u in internes or v in internes:
+            continue
+        H.add_edge(u, v)
+    return bb1 in H and bb2 in H and nx.has_path(H, bb1, bb2)
+
+
 def _reaiguiller_vers_sjb(
     G: nx.Graph,
     cells,
     eq_id: str,
     target_sjb: int,
-    boucle: Literal["COURTE", "LONGUE"],
     manoeuvres: list[Manoeuvre],
+    boucle: Optional[Literal["COURTE", "LONGUE"]] = None,
 ) -> bool:
     """
     Ré-aiguille un départ vers une SJB cible. Retourne True si des manœuvres
     ont été générées.
 
-    - COURTE : ferme le SA cible PUIS ouvre l'ancien SA. Sûr car les deux barres
-      sont au même potentiel (couplage fermé) : le pont temporaire entre les
-      deux SA ne crée pas de court-circuit et le départ reste sous tension.
-    - LONGUE : ouvre le DJ de cellule, **ouvre d'abord l'ancien SA** (la jonction
-      devient morte), **puis ferme le SA cible**, et referme le DJ. On ne ferme
-      jamais le SA cible tant que l'ancien SA est fermé : ponter deux barres de
-      potentiels différents créerait un court-circuit (R8/R9).
+    Le **type de boucle est déterminé par l'invariant de sécurité des
+    sectionneurs** (cf. docs/manoeuvre_regles.md) et non par une heuristique de
+    phase :
+
+    - **COURTE** si la barre cible et la (les) barre(s) actuelle(s) du départ
+      sont **déjà le même nœud électrique** (reliées par ailleurs, p.ex. via le
+      couplage fermé). On ferme alors le SA cible PUIS on ouvre l'ancien SA :
+      les deux SA sont brièvement fermés mais entre barres équipotentielles
+      (aucun court-circuit), et le départ reste sous tension.
+    - **LONGUE** sinon (barres de potentiels différents) : ouvrir le DJ de
+      cellule (départ hors tension, jonction morte) → **ouvrir l'ancien SA** →
+      **fermer le SA cible** → refermer le DJ. On ne ferme jamais le SA cible
+      tant que l'ancien SA est fermé (ponter deux potentiels = court-circuit).
+
+    ``boucle`` peut être forcé, sinon il est déduit automatiquement.
     """
     cell = cells.get_cellule_depart(eq_id)
     if cell is None:
@@ -801,6 +833,20 @@ def _reaiguiller_vers_sjb(
     )
     if deja:
         return False
+
+    # Barres actuellement câblées (SA fermés) autres que la cible
+    old_busbars = [
+        bb for bb in cell.busbar_nodes
+        if bb != target_sjb and _sa_path_to_sjb(cell, bb)
+        and all(not _is_open(G, s) for s in _sa_path_to_sjb(cell, bb))
+    ]
+    # Invariant : boucle courte possible ssi toutes les anciennes barres sont
+    # déjà au même potentiel que la cible (hors cellule).
+    if boucle is None:
+        boucle = ("COURTE"
+                  if all(_meme_noeud_hors_cellule(G, cell, bb, target_sjb)
+                         for bb in old_busbars)
+                  else "LONGUE")
 
     n_before = len(manoeuvres)
     djs = _own_breakers_to_sjb(cell, target_sjb, eq_id)

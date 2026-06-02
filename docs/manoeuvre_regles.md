@@ -93,10 +93,25 @@ d'ouvrir un DJ « le long de la charge »).
 - **Test** : `test_carrip3_3noeuds.py::test_boucle_longue_ouvre_seulement_le_dj_de_cellule`.
 
 ### Invariant de sécurité des sectionneurs
-Un sectionneur (SA d'aiguillage ou sectionnement de barre) ne se manœuvre que
-s'il **ne ponte pas deux barres de potentiels différents** : soit les deux côtés
-sont au même potentiel, soit l'un des côtés est **hors tension**. Ponter deux
-nœuds (tensions) distincts via un sectionneur = court-circuit, interdit.
+Un sectionneur (SA d'aiguillage ou sectionnement de barre) ne se manœuvre **hors
+charge** : il ne doit jamais relier ni séparer deux points de **potentiels
+différents**. Concrètement :
+
+- **Fermeture** d'un SA reliant deux barres : autorisée seulement si les deux
+  barres sont **déjà au même potentiel** (déjà le même nœud électrique), ou si
+  l'un des côtés est **hors tension**. Sinon → court-circuit.
+- **Ouverture** d'un SA (alors que les deux barres sont reliées par lui) :
+  autorisée seulement si les deux barres **restent au même potentiel** après
+  (encore reliées par ailleurs → aucun courant coupé), ou si l'un des côtés est
+  **hors tension**.
+
+Conséquence pratique sur le ré-aiguillage : le choix **boucle courte vs longue
+est déduit automatiquement** de ce critère (et non d'une heuristique de phase) —
+courte si la barre actuelle et la barre cible sont déjà le même nœud électrique
+(hors cellule), longue sinon.
+- **Code** : `algo._meme_noeud_hors_cellule` (test d'équipotentialité hors
+  cellule), `algo._reaiguiller_vers_sjb` (décision automatique).
+
 Cet invariant gouverne l'ordre des manœuvres en R8, R9 et R10.
 
 ### R8 — Boucle courte (couplage fermé)
