@@ -16,14 +16,24 @@ Fonctionnalités
 3. Modifier **interactivement** l'état des disjoncteurs / sectionneurs
    (clic sur l'organe dans le schéma, ou via le panneau latéral) pour définir,
    à partir de l'état de **départ**, la topologie détaillée **cible**.
-4. Demander la **séquence de manœuvres** (module ``manoeuvre``) pour passer de
+4. **Valider & sauvegarder** la cible dans un fichier JSON réutilisable en test
+   (départ + cible détaillés + partitions nodales). La validation est requise
+   avant de pouvoir calculer la séquence.
+5. Demander la **séquence de manœuvres** (module ``manoeuvre``) pour passer de
    la topologie de départ à la cible.
-5. Afficher la séquence **textuellement** et l'**animer** sur le SLD, manœuvre
-   par manœuvre, l'organe manipulé étant mis en évidence.
+6. Afficher la séquence **textuellement** et l'**animer** sur le schéma cible,
+   manœuvre par manœuvre, l'organe manipulé étant mis en évidence.
+7. Recharger un **scénario sauvegardé** (menu déroulant) pour le rejouer.
+
+Les scénarios sont écrits dans ``--scenarios-dir`` (défaut
+``tests/manoeuvre/scenarios``) au format :
+``{voltage_level_id, name, depart{sw:open}, cible{sw:open},
+   depart_nodale[[..]], cible_nodale[[..]]}``.
 
 Usage
 -----
-    python scripts/manoeuvre_ihm.py --grid /chemin/vers/grid.xiidm [--port 8000]
+    python scripts/manoeuvre_ihm.py --grid /chemin/vers/grid.xiidm \
+        [--port 8000] [--scenarios-dir tests/manoeuvre/scenarios]
     # puis ouvrir http://localhost:8000
 """
 
@@ -60,6 +70,7 @@ POSTES_TEST = [
 ]
 
 SLD_PAR = ppn.SldParameters(topological_coloring=True)
+SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")  # redéfini dans main()
 
 
 class Session:
@@ -69,6 +80,10 @@ class Session:
         self.net = network
         self.vls = set(network.get_voltage_levels().index)
         self.postes = [p for p in POSTES_TEST if p in self.vls]
+        # État pristine des organes (référence stable pour « état de départ »,
+        # indépendant des modifications appliquées en cours de session).
+        df = network.get_switches(all_attributes=True)
+        self.pristine = {sid: bool(r["open"]) for sid, r in df.iterrows()}
         self.vl = None
         self.initial: dict[str, bool] = {}   # état de départ (A)
         self.current: dict[str, bool] = {}    # état cible édité (B)
@@ -84,7 +99,8 @@ class Session:
     def load(self, vl):
         self.vl = vl
         df = self.switches_df(vl)
-        self.initial = {sid: bool(r["open"]) for sid, r in df.iterrows()}
+        # Départ = état pristine du poste (et non un état résiduel de session)
+        self.initial = {sid: self.pristine[sid] for sid in df.index}
         self.current = dict(self.initial)
         self.seq_states, self.seq_highlights = [], []
 
@@ -146,6 +162,44 @@ class Session:
         self.apply(self.seq_states[i])
         svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR).svg
         return _highlight(svg, self.seq_highlights[i])
+
+    # --- scénarios (sauvegarde / rechargement) ----------------------------
+    def groups_of(self, state):
+        """Partition nodale (liste de groupes de départs) pour un état donné."""
+        self.apply(state)
+        topo = TopologieNodale.from_graph(build_vl_graph(self.net, self.vl), self.vl)
+        return [sorted(n.equipment_ids) for n in topo.noeuds.values()]
+
+    def save_scenario(self, name: str) -> str:
+        import re
+        name = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or self.vl
+        data = {
+            "voltage_level_id": self.vl,
+            "name": name,
+            "depart": self.initial,
+            "cible": self.current,
+            "depart_nodale": self.groups_of(self.initial),
+            "cible_nodale": self.groups_of(self.current),
+        }
+        self.apply(self.current)  # restaurer l'affichage courant
+        SCEN_DIR.mkdir(parents=True, exist_ok=True)
+        path = SCEN_DIR / f"{name}.json"
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        return str(path)
+
+    def list_scenarios(self):
+        if not SCEN_DIR.exists():
+            return []
+        return sorted(p.stem for p in SCEN_DIR.glob("*.json"))
+
+    def load_scenario(self, name: str) -> str:
+        data = json.loads((SCEN_DIR / f"{name}.json").read_text())
+        self.load(data["voltage_level_id"])
+        self.initial = {k: bool(data["depart"].get(k, self.initial[k]))
+                        for k in self.initial}
+        self.current = {k: bool(data["cible"].get(k, self.initial[k]))
+                        for k in self.initial}
+        return data["voltage_level_id"]
 
     # --- calcul de séquence ----------------------------------------------
     def sequence(self):
@@ -252,6 +306,26 @@ def api_reset():
     return jsonify(svg=svg, switches=sw, nb_noeuds=nb)
 
 
+@app.get("/api/scenarios")
+def api_scenarios():
+    return jsonify(scenarios=SESSION.list_scenarios())
+
+
+@app.post("/api/save")
+def api_save():
+    path = SESSION.save_scenario(request.json.get("name", ""))
+    return jsonify(path=path, scenarios=SESSION.list_scenarios())
+
+
+@app.post("/api/load_scenario")
+def api_load_scenario():
+    SESSION.load_scenario(request.json["name"])
+    svg_i, _, nb_i = SESSION.view(SESSION.initial)
+    svg_c, sw, nb_c = SESSION.view(SESSION.current)
+    return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl)
+
+
 @app.post("/api/sequence")
 def api_sequence():
     return jsonify(SESSION.sequence())
@@ -296,9 +370,21 @@ PAGE = r"""<!DOCTYPE html>
 <div id="side">
   <h2>Poste</h2>
   <select id="poste"></select>
-  <div style="margin-top:6px">
-    <button onclick="reset()">↺ État de départ</button>
-    <button class="primary" onclick="sequence()">⚙ Calculer la séquence</button>
+  <div style="margin-top:6px"><button onclick="reset()">↺ État de départ</button></div>
+
+  <h2>1 · Valider la cible</h2>
+  <input id="scenName" placeholder="nom du scénario" style="width:62%;padding:5px">
+  <button onclick="save()">✓ Valider &amp; sauvegarder</button>
+  <div id="savemsg" style="font-size:11px;color:#1a7f37;margin-top:3px"></div>
+
+  <h2>2 · Séquence de manœuvres</h2>
+  <button id="bcalc" class="primary" onclick="sequence()" disabled>⚙ Calculer la séquence</button>
+  <div id="calchint" style="font-size:11px;color:#b45309">Validez d'abord la cible pour activer le calcul.</div>
+
+  <h2>Scénarios sauvegardés</h2>
+  <div style="display:flex;gap:4px">
+    <select id="scenSel" style="flex:1"><option value="">—</option></select>
+    <button onclick="loadScen()">Charger</button>
   </div>
   <h2>Nœuds électriques : <span id="nbn" class="badge">–</span></h2>
   <div style="font-size:11px;color:#555">Clic sur un organe du schéma ou dans la liste pour basculer son état (départ ➜ cible).</div>
@@ -330,12 +416,28 @@ PAGE = r"""<!DOCTYPE html>
 <script>
 let S={n:0,idx:0,timer:null,labels:[]};
 const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
+function setValidated(v){document.getElementById('bcalc').disabled=!v;
+  document.getElementById('calchint').style.display=v?'none':'block';}
 async function init(){const r=await (await fetch('/api/postes')).json();const sel=document.getElementById('poste');
   r.postes.forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
-  sel.onchange=()=>load(sel.value); if(r.postes.length) load(r.postes[0]);}
-async function load(vl){stopAnim();show(await api('/api/load',{vl}));hideSeq();}
-async function reset(){stopAnim();show(await api('/api/reset',{}));hideSeq();}
-async function toggle(id){stopAnim();show(await api('/api/toggle',{id}));hideSeq();}
+  sel.onchange=()=>load(sel.value); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
+async function load(vl){stopAnim();show(await api('/api/load',{vl}));hideSeq();setValidated(false);
+  document.getElementById('scenName').value=vl+'_cible';}
+async function reset(){stopAnim();show(await api('/api/reset',{}));hideSeq();setValidated(false);}
+async function toggle(id){stopAnim();show(await api('/api/toggle',{id}));hideSeq();setValidated(false);}
+async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).json();
+  const sel=document.getElementById('scenSel');sel.innerHTML='<option value="">—</option>';
+  r.scenarios.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;sel.add(o);});}
+async function save(){const name=document.getElementById('scenName').value;
+  const r=await api('/api/save',{name});
+  document.getElementById('savemsg').textContent='✓ Sauvegardé : '+r.path;
+  setValidated(true);await refreshScenarios();}
+async function loadScen(){const name=document.getElementById('scenSel').value;if(!name)return;
+  stopAnim();const d=await api('/api/load_scenario',{name});
+  document.getElementById('poste').value=d.vl;show(d);hideSeq();
+  document.getElementById('scenName').value=name;
+  document.getElementById('savemsg').textContent='Scénario « '+name+' » chargé.';
+  setValidated(true);}
 function hideSeq(){document.getElementById('seqwrap').style.display='none';document.getElementById('anim').style.display='none';}
 function show(d){
   if(d.initial_svg!==undefined){document.getElementById('diagTop').innerHTML=d.initial_svg;
@@ -382,7 +484,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--grid", required=True, help="Chemin du réseau .xiidm")
     ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--scenarios-dir", default="tests/manoeuvre/scenarios",
+                    help="Dossier de sauvegarde des scénarios cible")
     args = ap.parse_args()
+
+    global SCEN_DIR
+    SCEN_DIR = pathlib.Path(args.scenarios_dir)
 
     print(f"Chargement du réseau {args.grid} …")
     SESSION = Session(pp.network.load(args.grid))
