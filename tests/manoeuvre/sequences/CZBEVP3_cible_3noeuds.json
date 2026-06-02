@@ -1,0 +1,132 @@
+{
+  "voltage_level_id": "CZBEVP3",
+  "name": "CZBEVP3_cible_3noeuds",
+  "scenario": "CZBEVP3_cible_3noeuds",
+  "verified": true,
+  "verified_detaillee": true,
+  "ecarts": [],
+  "message": "Topologie détaillée cible atteinte et vérifiée.",
+  "depart": {
+    "CZBEVP3_CZBEV3FALLO.2 SA.1_OC": false,
+    "CZBEVP3_CZBEV3CBO.1 SS.1.23_OC": false,
+    "CZBEVP3_CZBEV3DANT5.1 SA.1_OC": false,
+    "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC": false,
+    "CZBEVP3_CZBEV3FALLO.1 SA.1_OC": false,
+    "CZBEVP3_CZBEV3DANT5.1 DJ_OC": false,
+    "CZBEVP3_CZBEV3FALLO.2 DJ_OC": false,
+    "CZBEVP3_CZBEV3TR311 DJ.HT_OC": false,
+    "CZBEVP3_CZBEV3TR313 DJ.HT_OC": false,
+    "CZBEVP3_CZBEV3FALLO.1 DJ_OC": false,
+    "CZBEVP3_CZBEV3TR312 DJ.HT_OC": false
+  },
+  "cible": {
+    "CZBEVP3_CZBEV3FALLO.2 SA.1_OC": false,
+    "CZBEVP3_CZBEV3CBO.1 SS.1.23_OC": true,
+    "CZBEVP3_CZBEV3DANT5.1 SA.1_OC": false,
+    "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC": true,
+    "CZBEVP3_CZBEV3FALLO.1 SA.1_OC": false,
+    "CZBEVP3_CZBEV3DANT5.1 DJ_OC": false,
+    "CZBEVP3_CZBEV3FALLO.2 DJ_OC": false,
+    "CZBEVP3_CZBEV3TR311 DJ.HT_OC": false,
+    "CZBEVP3_CZBEV3TR313 DJ.HT_OC": false,
+    "CZBEVP3_CZBEV3FALLO.1 DJ_OC": false,
+    "CZBEVP3_CZBEV3TR312 DJ.HT_OC": false
+  },
+  "depart_nodale": [
+    [
+      "CZBEV3T311",
+      "CZBEV3T312",
+      "CZBEV3T313",
+      "CZBEVL31DANT5",
+      "CZBEVL31FALLO",
+      "CZBEVL32FALLO"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "CZBEV3T311",
+      "CZBEVL32FALLO"
+    ],
+    [
+      "CZBEV3T312",
+      "CZBEVL31DANT5"
+    ],
+    [
+      "CZBEV3T313",
+      "CZBEVL31FALLO"
+    ]
+  ],
+  "nb_manoeuvres": 10,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZBEVL32FALLO' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "CZBEVP3_CZBEV3TR311 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZBEV3T311' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (section hors tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "CZBEVP3_CZBEV3TR311 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZBEVL31DANT5' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "CZBEVP3_CZBEV3TR312 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZBEV3T312' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "CZBEVP3_CZBEV3CBO.1 SS.1.23_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (section hors tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "CZBEVP3_CZBEV3TR312 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    }
+  ]
+}
