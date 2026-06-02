@@ -72,6 +72,84 @@ def test_cible_un_noeud_referme_couplage_sans_reaiguiller():
     assert res.nb_manoeuvres <= 2
 
 
+def _replay_check_sectionneurs(poste, res):
+    """Vérifie l'invariant : tout SECTIONNEUR (DISCONNECTOR) n'est manœuvré que
+    si, à l'exclusion de cet organe, ses deux extrémités sont équipotentielles
+    (chemin fermé alternatif) ou si l'un des côtés est hors tension (sa
+    composante ne contient aucun équipement). Les DJ (BREAKER) sont exclus."""
+    import networkx as nx
+    from expert_op4grid_recommender.manoeuvre import algo
+    from expert_op4grid_recommender.manoeuvre.models import SwitchKind
+
+    G = poste.graph.copy()
+    # type & extrémités de chaque switch
+    info = {}
+    for u, v, d in G.edges(data=True):
+        if d.get("switch_id"):
+            info[d["switch_id"]] = (u, v, d.get("kind"))
+
+    def closed_graph_without(edge):
+        H = nx.Graph()
+        H.add_nodes_from(G.nodes())
+        for u, v, d in G.edges(data=True):
+            if d.get("open", False):
+                continue
+            if {u, v} == set(edge):
+                continue
+            H.add_edge(u, v)
+        return H
+
+    def has_equipment(H, start):
+        if start not in H:
+            return False
+        comp = nx.node_connected_component(H, start)
+        return any(G.nodes[n].get("equipment_id") for n in comp)
+
+    for m in res.manoeuvres:
+        u, v, kind = info[m.switch_id]
+        if kind == SwitchKind.DISCONNECTOR:
+            H = closed_graph_without((u, v))
+            equipotentiel = (u in H and v in H and nx.has_path(H, u, v))
+            cote_mort = (not has_equipment(H, u)) or (not has_equipment(H, v))
+            assert equipotentiel or cote_mort, (
+                f"Sectionneur {m.action} {m.switch_id} manœuvré entre deux "
+                "potentiels différents sous tension (court-circuit)")
+        algo._set_switch(G, m.switch_id, m.action == "OPEN")
+
+
+def test_fusion_un_noeud_respecte_regle_sectionneur():
+    """Fusionner des barres découplées vers 1 nœud : un DJ de couplage peut
+    relier des potentiels différents, mais un sectionneur n'est fermé qu'après
+    mise hors tension de la section (jamais entre deux potentiels vifs)."""
+    G = build_graph_from_fixture("CARRIP3")
+    # Départ très fragmenté : couplage ET sectionnement de barre 1 ouverts
+    _set_switch_in_graph(G, "CARRIP3_CARRI3COUPL.1 DJ_OC", True)
+    _set_switch_in_graph(G, "CARRIP3_CARRI3SEC..12 SS.1.12_OC", True)
+    poste = PosteTopologique.from_graph(G, "CARRIP3")
+    assert poste.topologie_nodale.nb_noeuds >= 3
+
+    topo = poste.topologie_nodale
+    connectes, isoles = [], []
+    for noeud in topo.noeuds.values():
+        ids = sorted(noeud.equipment_ids)
+        (connectes if len(ids) > 1 else isoles).append(ids)
+    groupes = [sorted(sum(connectes, []))] + isoles
+    cible = TopologieNodale.from_node_groups("CARRIP3", groupes)
+
+    res = determiner_topo_complete_cible(poste, cible)
+    assert res.is_verified, res.message
+    # Le couplage (DJ) est refermé ; le sectionnement n'est fermé qu'après mise
+    # hors tension de la section.
+    assert any(m.action == "CLOSE" and "couplage" in m.raison.lower()
+               for m in res.manoeuvres)
+    sect_close = [m for m in res.manoeuvres
+                  if m.action == "CLOSE" and "sectionnement" in m.raison.lower()]
+    assert all("hors tension" in m.raison or "équipotentiel" in m.raison
+               for m in sect_close)
+    # Invariant de sécurité vérifié sur toute la séquence.
+    _replay_check_sectionneurs(poste, res)
+
+
 def _split_2_barres(poste_carrip3):
     """Construit une cible 2 barres en scindant le gros nœud connecté en deux."""
     topo = poste_carrip3.topologie_nodale

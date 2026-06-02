@@ -554,6 +554,13 @@ def determiner_manoeuvres_avec_sections(
     manoeuvres: list[Manoeuvre] = []
     reaiguilles: set[str] = set()
 
+    # Index nœud -> SJB et départ -> nœud (pour la dé-énergisation des stubs)
+    node_sjb_sets: dict[int, set[int]] = {}
+    for s, idx in node_de_sjb.items():
+        node_sjb_sets.setdefault(idx, set()).add(s)
+    node_de_dep = {eq: idx for idx, (deps, _) in enumerate(placement)
+                   for eq in deps}
+
     def parking_sjb(eq: str, target: int) -> Optional[int]:
         """SJB tampon (hors section isolée) accessible par le départ."""
         cell = cells.get_cellule_depart(eq)
@@ -562,25 +569,62 @@ def determiner_manoeuvres_avec_sections(
                 return bb
         return None
 
-    # --- Phase 0 : fermeture des couplages nécessaires (listeDordre §1) -----
-    # On ferme d'abord les couplages requis (fusion de barres dans un même
-    # nœud) pour préparer les ré-aiguillages en boucle courte. Contrôle de
-    # court-circuit : on ne ferme que si les deux SJB visent le même nœud
-    # (même potentiel cible), sinon on signale le risque et on s'abstient.
-    for cp in to_close:
-        if node_de_sjb.get(cp.sjb_a) != node_de_sjb.get(cp.sjb_b):
-            logger.warning(
-                "Fermeture de couplage %s ignorée : risque de court-circuit "
-                "(SJB de nœuds cibles différents).", cp.switch_ids,
-            )
-            continue
+    def _equipotentiel(a: int, b: int) -> bool:
+        """True si deux SJB sont au même potentiel (chemin de switches fermés)."""
+        Hc = nx.Graph()
+        Hc.add_nodes_from(G.nodes())
+        for u, v, dd in G.edges(data=True):
+            if not dd.get("open", False):
+                Hc.add_edge(u, v)
+        return a in Hc and b in Hc and nx.has_path(Hc, a, b)
+
+    def _departs_cables(s: int) -> list[str]:
+        return [eq for eq in target_sjb if s in _wired_sjbs(G, cells, eq)]
+
+    def _fermer_coupler(cp: _InterSjbCoupler, raison: str) -> None:
         for sid in cp.switch_ids:
             if _is_open(G, sid):
                 _set_switch(G, sid, False)
-                manoeuvres.append(Manoeuvre(
-                    switch_id=sid, action="CLOSE",
-                    raison="fermeture couplage de barres (préparation)",
-                ))
+                manoeuvres.append(Manoeuvre(sid, "CLOSE", raison))
+
+    # --- Phase 0 : fermeture SÛRE des couplers (règle du sectionneur) -------
+    # Un DJ de couplage peut relier deux potentiels différents (couplage) ; un
+    # sectionneur ne se ferme que si ses deux côtés sont déjà équipotentiels ou
+    # si l'un est hors tension. On ferme donc d'abord les DJ (qui équipotentient
+    # leurs barres), puis les sectionneurs devenus sûrs.
+    restants = [cp for cp in to_close
+                if any(_is_open(G, s) for s in cp.switch_ids)]
+    changed = True
+    while changed and restants:
+        changed = False
+        for cp in list(restants):
+            if cp.breaker_ids:                       # DJ -> couplage sûr
+                _fermer_coupler(cp, "fermeture couplage de barres")
+                restants.remove(cp); changed = True
+            elif (_equipotentiel(cp.sjb_a, cp.sjb_b)
+                  or not _departs_cables(cp.sjb_a)
+                  or not _departs_cables(cp.sjb_b)):  # sectionneur sûr
+                _fermer_coupler(cp, "fermeture sectionnement (barres équipotentielles)")
+                restants.remove(cp); changed = True
+
+    # Sectionneurs encore non sûrs : dé-énergiser le côté « stub » (moins de
+    # départs) en ré-aiguillant ses départs vers une SJB du même nœud déjà
+    # équipotentielle au côté conservé (manœuvre préalable), puis fermer.
+    for cp in restants:
+        a, b = cp.sjb_a, cp.sjb_b
+        wa, wb = _departs_cables(a), _departs_cables(b)
+        stub, keep = (b, a) if len(wb) <= len(wa) else (a, b)
+        for eq in _departs_cables(stub):
+            idx = node_de_dep.get(eq)
+            cell = cells.get_cellule_depart(eq)
+            alts = [bb for bb in cell.busbar_nodes
+                    if idx is not None and bb in node_sjb_sets.get(idx, set())
+                    and bb != stub and _equipotentiel(bb, keep)]
+            if alts and _reaiguiller_vers_sjb(G, cells, eq, alts[0], manoeuvres):
+                reaiguilles.add(eq)
+                target_sjb[eq] = alts[0]   # éviter un retour en phase A/B
+        if not _departs_cables(stub):
+            _fermer_coupler(cp, "fermeture sectionnement (section mise hors tension)")
 
     # --- Phase A/B : ré-aiguillages boucle courte (couplage encore fermé) ---
     parkings: dict[str, int] = {}

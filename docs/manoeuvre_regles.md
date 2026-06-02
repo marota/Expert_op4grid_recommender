@@ -80,13 +80,33 @@ Lorsqu'il y a **moins de nœuds que de barres**, on **utilise les barres
 disponibles** : un nœud s'étend sur plusieurs barres en gardant le **couplage
 fermé**, plutôt que de ramener tous les départs sur une seule barre. Concrètement
 (découle de R5) : un couplage est **fermé** entre SJB d'un même nœud, **ouvert**
-entre SJB de nœuds différents. Pour atteindre une topologie à 1 nœud depuis des
-barres découplées, on **referme simplement le couplage** (et les sectionnements)
-— les départs restent sur leurs barres, sans ré-aiguillage.
+entre SJB de nœuds différents. Les départs restent sur leurs barres, sans
+ré-aiguillage, dans la mesure du possible.
 - **Code** : `algo._placement_automatique` (groupes multi-barres),
   `determiner_manoeuvres_avec_sections` (`to_open` / `to_close`).
 - **Test** : `test_algo.py::test_cible_un_noeud_referme_couplage_sans_reaiguiller`,
   `::test_split_ouvre_le_couplage`.
+
+### R6bis — Fermeture **sûre** des couplers (règle du sectionneur)
+La fermeture d'un coupler respecte l'invariant des sectionneurs :
+- un **DJ de couplage** (BREAKER) peut relier deux barres de **potentiels
+  différents** : c'est l'organe de couplage, fermé en premier — il
+  équipotentialise alors ses barres ;
+- un **sectionneur** (DISCONNECTOR entre deux SJB) n'est fermé que si ses deux
+  côtés sont **déjà équipotentiels** (reliés par ailleurs, p.ex. par un DJ
+  fermé juste avant) **ou** si l'un des côtés est **hors tension** ;
+- si un sectionneur à fermer reste non sûr (deux potentiels vifs, sans pont DJ
+  possible), on **dé-énergise d'abord le côté « stub »** (le moins chargé) en
+  ré-aiguillant ses départs (boucle longue) vers une SJB du même nœud déjà
+  équipotentielle au côté conservé, **puis** on ferme le sectionneur (section
+  morte). C'est une **manœuvre préalable** au sens demandé.
+
+Ordre de fermeture : DJ d'abord, puis sectionneurs devenus sûrs, enfin
+dé-énergisation + fermeture des sectionneurs « stub ».
+- **Code** : `determiner_manoeuvres_avec_sections` (Phase 0 : `_equipotentiel`,
+  `_departs_cables`, dé-énergisation des stubs).
+- **Test** : `test_algo.py::test_fusion_un_noeud_respecte_regle_sectionneur`
+  (rejoue la séquence et vérifie chaque manœuvre de sectionneur).
 
 ### R7 — Ré-aiguillage : DJ d'ensemble de cellule uniquement
 Pour ré-aiguiller un départ en **boucle longue**, on ouvre **uniquement le DJ
