@@ -18,7 +18,6 @@ Les deux modes doivent atteindre la **même** topologie détaillée cible, sans
 from __future__ import annotations
 
 import json
-from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -81,13 +80,16 @@ def test_les_deux_modes_atteignent_la_meme_topologie(smooth, aggressive):
     assert smooth.topo_obtenue.meme_topologie(aggressive.topo_obtenue)
 
 
-def test_smooth_sans_double_deplacement(smooth):
-    """Plus de va-et-vient : aucun DJ n'est manœuvré plus de 2 fois, et la
-    séquence est bien plus courte que les 62 manœuvres d'avant optimisation."""
-    dj = Counter(m.switch_id for m in smooth.manoeuvres if "DJ" in m.switch_id)
-    pires = {k: v for k, v in dj.items() if v > 2}
-    assert not pires, f"DJ manœuvrés plus de 2 fois (double-déplacement) : {pires}"
-    assert smooth.nb_manoeuvres < 50, smooth.nb_manoeuvres
+def test_smooth_un_seul_ouvrage_hors_tension_a_la_fois():
+    """R10ter : le mode smooth ne déconnecte jamais plus d'un ouvrage à la fois
+    par ré-aiguillage (parking un par un) — aucune violation relevée."""
+    from expert_op4grid_recommender.manoeuvre.algo import (
+        _verifier_un_seul_hors_tension)
+    d = json.loads(SCEN.read_text())
+    vl = d["voltage_level_id"]
+    poste = PosteTopologique.from_graph(_graph_from_states(vl, d["depart"]), vl)
+    res = _run("smooth")
+    assert _verifier_un_seul_hors_tension(poste, res.manoeuvres) == []
 
 
 def test_aggressive_plus_court_que_smooth(smooth, aggressive):

@@ -85,8 +85,9 @@ des variables CSS).
 4. **Calculer la séquence** (étape 2, débloqué après validation) : choisir le
    **mode** (Smooth, défaut, ou Agressif) puis lancer le calcul départ → cible ;
    statut **VÉRIFIÉE / NON VÉRIFIÉE** (+ badge `mode`).
-   - **Smooth** : dé-énergise au plus près, en place (peu d'ouvrages hors
-     tension à la fois) ; séquence plus longue mais douce.
+   - **Smooth** : **un seul ouvrage hors tension à la fois** — chaque branche
+     est garée (ré-aiguillée) une par une sur une autre section avant d'ouvrir le
+     sectionneur ; séquence plus longue mais douce.
    - **Agressif** : dé-énergise en lot (moins de manœuvres, mais plusieurs
      ouvrages momentanément hors tension simultanément).
 5. **Lire / animer** : la séquence s'affiche en texte ; les contrôles

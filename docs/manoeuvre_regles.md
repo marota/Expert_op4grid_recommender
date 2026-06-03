@@ -214,13 +214,16 @@ Conséquences sur l'algorithme :
 Le séquenceur détaillé (`determiner_manoeuvres_cible_detaillee(..., mode=)`)
 propose deux stratégies pour ouvrir un sectionnement de barre :
 
-- **smooth** (défaut) — dé-énergiser **au plus près** : un départ qui **reste**
-  sur sa barre cible est **dé-énergisé en place** (clignotement DJ : DJ ouvert
-  avant le sectionneur, refermé après) ; un départ qui **change** de barre n'est
-  ré-aiguillé qu'**une seule fois** (vers sa barre finale). Plus de
-  **double-déplacement** (placer puis ramener) : la phase A/B ne **gare** plus
-  les départs sur une SJB tampon, et `target_sjb` est amorcé avec la **barre
-  cible exacte** (`cible_busbar`) pour que le raffinement R15 soit un no-op.
+- **smooth** (défaut) — **un seul ouvrage hors tension à la fois**. Pour mettre
+  une section hors tension, chaque ouvrage est **garé** (ré-aiguillé), **un par
+  un**, sur une **section de parking** : une SJB atteignable distincte, **hors
+  section isolée** de préférence, et **équipotentielle** si possible — auquel cas
+  le ré-aiguillage est en **boucle courte** et l'ouvrage n'est **pas** déconnecté
+  du tout (`parking_sjb`). Les ouvrages garés sont **ramenés** ensuite (boucle
+  longue) sur la section isolée. **Exception** : si aucun parking n'existe pour
+  un ouvrage, il est dé-énergisé **en place** (les ouvrages sans parking peuvent
+  alors être hors tension simultanément). `target_sjb` est amorcé avec la barre
+  cible exacte (`cible_busbar`) pour éviter les déplacements inutiles.
 - **agressif** (`_sequence_detaillee_aggressive`) — dé-énergiser **en lot** :
   ouvrir en une fois les DJ de tous les ouvrages concernés (côté le plus petit
   de chaque sectionnement + ouvrages dont un SA change), commuter
@@ -229,12 +232,15 @@ propose deux stratégies pour ouvrir un sectionnement de barre :
   hors tension** simultanément.
 
 Les deux modes atteignent la **même** topologie détaillée cible, sectionneurs
-ouverts hors tension (`_verifier_securite_sectionneurs`). Effet sur SSAVOP3
-→ 4/6 nœuds : smooth **62 → 30**, agressif **≈ 30** ; sur CZTRYP6 → 3 nœuds :
-smooth **20 → 8**.
+ouverts hors tension (`_verifier_securite_sectionneurs`). Ordres de grandeur :
+SSAVOP3 → 6 nœuds : smooth **62**, agressif **30** ; CZTRYP6 → 3 nœuds : smooth
+**20**, agressif **8**.
 - **Code** : `algo.determiner_manoeuvres_cible_detaillee` (param `mode`),
-  `determiner_manoeuvres_avec_sections` (param `cible_busbar`, suppression du
-  parking tampon), `_sequence_detaillee_aggressive`.
+  `determiner_manoeuvres_avec_sections` (parking `parking_sjb`, param
+  `cible_busbar`), `_sequence_detaillee_aggressive`.
+- **Vérification** : `_verifier_un_seul_hors_tension` (smooth) rejoue la séquence
+  et signale tout chevauchement de ré-aiguillages (> 1 ouvrage hors tension par
+  parking) — intégré aux `ecarts` du mode smooth.
 - **Test** : `test_ssavop3_modes.py`, `test_cztryp6_3noeuds.py`.
 - **IHM** : sélecteur « Mode : Smooth / Agressif » avant le calcul.
 

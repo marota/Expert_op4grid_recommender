@@ -4,20 +4,15 @@ tests/manoeuvre/test_cztryp6_3noeuds.py
 Test de la **règle du sectionneur de barre** sur CZTRYP6 : créer un 3ème nœud
 électrique en ouvrant un sectionnement de barre sur un poste à **4 sections**.
 
-Règle métier vérifiée
-~~~~~~~~~~~~~~~~~~~~~~~
-Un sectionneur de barre ne se manœuvre que **hors charge**. Les départs du 3ème
-nœud **restent** sur leur section cible (1.4) ; le **mode smooth optimisé** les
-**dé-énergise en place** (clignotement DJ) plutôt que de les déplacer puis les
-ramener :
-1. ouvrir les **DJ d'ouvrage** des départs de la section à isoler (mise hors
-   tension en place) ;
-2. ouvrir le **sectionnement** de barre (sûr car la section est morte) ;
-3. **refermer** ces DJ (ré-alimentation sur la même section) ;
-4. ouvrir le **couplage** (DJ) pour séparer les barres.
-Aucun ré-aiguillage aller-retour (plus de double-déplacement). Le ré-aiguillage
-**boucle longue** (R9) reste démontré par les départs qui **changent** de barre
-(cf. ``test_noviop3_3noeuds.py``).
+Règle métier vérifiée (mode smooth, R10ter)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Un sectionneur de barre ne se manœuvre que **hors charge**, et le mode smooth
+ne déconnecte **qu'un seul ouvrage à la fois** : les départs de la section à
+isoler sont **garés** (ré-aiguillés un par un) sur une autre barre — boucle
+courte si équipotentiel (sans coupure), sinon boucle longue —, puis le
+sectionnement est ouvert (section morte), puis les départs du 3ème nœud y sont
+**ramenés** (boucle longue). C'est l'aller-retour assumé du smooth ; la brièveté
+est l'apanage du mode agressif.
 
 Cible (réalisable sur ce poste 2 barres / 8 SJB — 4 sections par barre)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -25,7 +20,7 @@ Cible (réalisable sur ce poste 2 barres / 8 SJB — 4 sections par barre)
 - nœud 1 : barre 2 sections 1–4 (CHESNL62CZTRY, CZTRYL61MOISE, CZTRYY632)
 - nœud 2 : barre 1 section 4 isolée (CZTRYL61PLISO, CZTRYL61SENAR, CZTRYY634)
 
-La séquence de référence (8 manœuvres, mode smooth optimisé) est sauvegardée dans
+La séquence de référence (mode smooth) est sauvegardée dans
 ``tests/manoeuvre/sequences/CZTRYP6_cible_3noeuds.json``.
 """
 
@@ -128,37 +123,28 @@ def test_ordre_sectionnement_avant_couplage():
     assert idx_sect < idx_coupl
 
 
-def test_departs_du_3eme_noeud_de_energises_en_place():
-    """Mode smooth optimisé : les départs du 3ème nœud (section 1.4) **restent**
-    sur leur barre cible et sont **dé-énergisés en place** (clignotement DJ : DJ
-    ouvert avant l'ouverture du sectionneur, refermé après) — sans ré-aiguillage
-    aller-retour inutile (plus de double-déplacement)."""
+def test_departs_du_3eme_noeud_en_boucle_longue():
+    """Les départs du 3ème nœud (section 1.4 isolée) sont ré-aiguillés en
+    **boucle longue** (ouverture/fermeture de leur DJ d'ouvrage encadrant la
+    bascule des SA)."""
     res = _run()
-    idx_sect = next(i for i, m in enumerate(res.manoeuvres)
-                    if "sectionnement" in m.raison.lower())
-    avant = res.manoeuvres[:idx_sect]
-    apres = res.manoeuvres[idx_sect:]
-    # Avant le sectionneur : ouverture des DJ des départs du 3ème nœud (mise HT).
-    mises_ht = [m for m in avant
-                if m.action == "OPEN" and "hors tension" in m.raison]
-    assert len(mises_ht) >= 1, "Les départs de la section sont dé-énergisés avant"
-    # Après : refermeture de ces mêmes DJ (remise sous tension), même nombre.
-    remises = [m for m in apres
-               if m.action == "CLOSE" and "sous tension" in m.raison]
-    assert len(remises) == len(mises_ht), (
-        "Chaque départ dé-énergisé est ré-alimenté après l'ouverture du sectionneur")
-    # Ce sont bien des DJ d'ouvrage (clignotement), pas des SA.
-    assert all("DJ" in m.switch_id for m in mises_ht + remises)
+    longues = [m for m in res.manoeuvres if m.type_boucle == "LONGUE"]
+    opens = [m for m in longues if m.action == "OPEN" and "hors tension" in m.raison]
+    closes = [m for m in longues if m.action == "CLOSE" and "sous tension" in m.raison]
+    assert opens and closes
+    assert len(opens) == len(closes)
 
 
-def test_pas_de_double_deplacement():
-    """Optimisation smooth : aucun ouvrage n'est déplacé puis ramené — aucun DJ
-    n'est manœuvré plus de deux fois (un clignotement = 1 OPEN + 1 CLOSE)."""
+def test_un_seul_ouvrage_hors_tension_a_la_fois():
+    """R10ter (mode smooth) : la séquence ne déconnecte jamais plus d'un ouvrage
+    à la fois par ré-aiguillage (parking un par un) — `_verifier_un_seul_hors_tension`
+    ne relève aucune violation."""
+    from expert_op4grid_recommender.manoeuvre.algo import (
+        _verifier_un_seul_hors_tension)
+    seq = _load_sequence()
+    poste = PosteTopologique.from_graph(_graph_from_states(seq["depart"]), VL)
     res = _run()
-    from collections import Counter
-    dj = Counter(m.switch_id for m in res.manoeuvres if "DJ" in m.switch_id)
-    pires = {k: v for k, v in dj.items() if v > 2}
-    assert not pires, f"DJ manœuvrés plus de 2 fois (double-déplacement) : {pires}"
+    assert _verifier_un_seul_hors_tension(poste, res.manoeuvres) == []
 
 
 def test_nb_manoeuvres_coherent():

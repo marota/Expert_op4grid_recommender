@@ -605,7 +605,8 @@ def determiner_manoeuvres_cible_detaillee(
     res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
     res.is_changed = bool(res.manoeuvres)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
-                  + _verifier_securite_sectionneurs(poste, res.manoeuvres))
+                  + _verifier_securite_sectionneurs(poste, res.manoeuvres)
+                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if not res.is_verified:
         res.message = (
@@ -1076,6 +1077,31 @@ def determiner_manoeuvres_avec_sections(
     def _departs_cables(s: int) -> list[str]:
         return [eq for eq in target_sjb if s in _wired_sjbs(G, cells, eq)]
 
+    def parking_sjb(eq: str, target: int) -> Optional[int]:
+        """SJB **tampon** où garer temporairement le départ pendant l'ouverture
+        du sectionnement isolant sa cible (règle « un seul ouvrage hors tension à
+        la fois », R10ter). Préférences :
+        1. une SJB **hors section isolée** (et atteignable) ;
+        2. à défaut, une SJB **équipotentielle** (parking en **boucle courte**,
+           donc *sans* coupure — même si elle sera isolée ensuite) ;
+        3. en dernier recours, toute SJB accessible distincte de la cible.
+        Retourne ``None`` si aucune section de parking n'existe (→ exception :
+        dé-énergisation en place en phase C)."""
+        cell = cells.get_cellule_depart(eq)
+        if cell is None:
+            return None
+        for bb in cell.busbar_nodes:                       # 1) hors section isolée
+            if bb != target and bb not in sjb_isoles:
+                return bb
+        cur = _wired_busbar(cell, G)                       # 2) équipotentielle
+        for bb in cell.busbar_nodes:
+            if bb != target and (cur is None or _equipotentiel(bb, cur)):
+                return bb
+        for bb in cell.busbar_nodes:                       # 3) dernier recours
+            if bb != target:
+                return bb
+        return None
+
     def _fermer_coupler(cp: _InterSjbCoupler, raison: str) -> None:
         for sid in cp.switch_ids:
             if _is_open(G, sid):
@@ -1122,21 +1148,21 @@ def determiner_manoeuvres_avec_sections(
             _fermer_coupler(cp, "fermeture sectionnement (section mise hors tension)")
 
     # --- Phase A/B : ré-aiguillages boucle courte (couplage encore fermé) ---
+    # Règle « un seul ouvrage hors tension à la fois » (R10ter, mode smooth) :
+    # un départ dont la barre cible est une section à isoler est **garé** (un par
+    # un) sur une SJB tampon — en **boucle courte** si équipotentielle (sans
+    # coupure), sinon boucle longue (une seule coupure, séquentielle) —, puis
+    # **ramené** en phase E. Faute de tampon (``parking_sjb`` None), il est
+    # dé-énergisé **en place** en phase C (exception assumée).
     parkings: dict[str, int] = {}
     for eq, tgt in sorted(target_sjb.items()):
         if tgt in sjb_isoles:
-            cell = cells.get_cellule_depart(eq)
-            cur = _wired_busbar(cell, G) if cell is not None else None
-            if cur == tgt:
-                # Le départ **reste** sur sa barre cible (section à isoler) : pas
-                # de garage/retour inutile — la phase C le dé-énergisera **en
-                # place** (clignotement DJ) le temps d'ouvrir le sectionneur.
-                continue
-            # Le départ doit **rejoindre** une section isolée : il n'est pas sur
-            # cette section, donc ne bloque pas l'ouverture. On **défère** son
-            # ré-aiguillage en boucle longue APRÈS l'ouverture du sectionnement
-            # (phase E), sans garage préalable sur une SJB tampon.
+            buf = parking_sjb(eq, tgt)
+            if buf is None:
+                continue  # aucun tampon : dé-énergisation en place (phase C)
             parkings[eq] = tgt
+            if _reaiguiller_vers_sjb(G, cells, eq, buf, manoeuvres):
+                reaiguilles.add(eq)
         else:
             if _reaiguiller_vers_sjb(G, cells, eq, tgt, manoeuvres):
                 reaiguilles.add(eq)
@@ -1359,6 +1385,46 @@ def _verifier_securite_sectionneurs(
                         "(deux côtés énergisés)")
         _set_switch(G, m.switch_id, m.action == "OPEN")
     return ecarts
+
+
+def _verifier_un_seul_hors_tension(
+    poste: PosteTopologique, manoeuvres: list[Manoeuvre]
+) -> list[str]:
+    """Règle R10ter (mode smooth) : on ne déconnecte **temporairement** pas plus
+    d'**un** ouvrage à la fois par **ré-aiguillage (boucle longue)**. Les
+    dé-énergisations **en place** (« avant ouverture sectionneur », sans tampon)
+    sont l'**exception** tolérée et ne sont pas comptées.
+
+    Rejoue la séquence : un départ est « temporairement hors tension par
+    parking » entre une ouverture de son DJ en **boucle longue** et la
+    refermeture correspondante. On signale tout moment où **deux** tels ouvrages
+    le sont simultanément (chevauchement de ré-aiguillages)."""
+    cells = poste.cellules
+    coupling_sids = {s for cp in _inter_sjb_couplers(poste) for s in cp.switch_ids}
+    dj_eq: dict[str, str] = {}
+    for c in cells.cellules_depart:
+        for b in c.breakers:
+            if b.switch_id not in coupling_sids:
+                dj_eq[b.switch_id] = c.equipment_id
+    if not dj_eq:
+        return []
+
+    temp_parking: set[str] = set()   # ouvrages hors tension via boucle longue
+    ecarts: list[str] = []
+    for m in manoeuvres:
+        eq = dj_eq.get(m.switch_id)
+        if eq is None:
+            continue
+        longue = (m.type_boucle == "LONGUE" or "boucle longue" in (m.raison or ""))
+        if m.action == "OPEN" and longue:
+            temp_parking.add(eq)
+        elif m.action == "CLOSE":
+            temp_parking.discard(eq)
+        if len(temp_parking) > 1:
+            ecarts.append(
+                "plus d'un ouvrage hors tension simultanément (ré-aiguillage) : "
+                + ", ".join(sorted(temp_parking)))
+    return list(dict.fromkeys(ecarts))
 
 
 def _optimiser_sequence(
