@@ -313,6 +313,50 @@ opaque.
   de `return` anticipé), `determiner_manoeuvres_cible_detaillee`.
 - **Test** : `test_scenarios_sauvegardes.py` (postes réels rejoués).
 
+### R17 — Postes à > 2 jeux de barres (placement par composantes)
+Le placement nodal combinatoire (R5) est conçu pour le **double jeu de barres**.
+Sur un poste à **plus de 2 jeux de barres** (niveaux supplémentaires — ex. `3B`,
+`4B` —, organes internes à 2 bornes, nœuds à 0 barre), `determiner_manoeuvres_
+cible_detaillee` route vers `_sequence_detaillee_multibarres`, qui **dérive le
+placement directement des composantes connexes du graphe cible** : chaque nœud =
+ses équipements + les sections de barre qu'il occupe. Cela donne les groupes
+exacts, y compris les nœuds multi-barres et ceux à 0 barre.
+
+Trois mécanismes complètent ce chemin :
+- **Organes internes à 2 bornes** (self/réactance `LINE_SIDE1`+`LINE_SIDE2`,
+  `_organes_internes_2bornes`) : passés en `organes_fixes` au séquenceur, ils ne
+  sont **ni ré-aiguillés ni signalés en écart** (chaque côté reste sur sa barre).
+- **Nœud à 0 barre** (départ isolé sur son DJ, SA ouverts) : **isolé** en
+  ouvrant ses sectionneurs de barre pour atteindre l'état cible.
+- **Couplages parallèles** (`_inter_sjb_couplers`) : *tous* les couplages entre
+  deux barres sont détectés (retrait itératif des arêtes du chemin), pas
+  seulement le plus court. Indispensable quand un couplage **fermé** (ex.
+  `COUPL.B`) est masqué par un couplage **parallèle ouvert** (ex. liaison
+  `SELF.1` via un nœud de couplage commun à trois barres) : sinon les deux barres
+  resteraient reliées → fusion de nœuds erronée.
+
+Correctif associé du séquenceur : un couplage n'est mis en `to_open` que s'il est
+**réellement fermé** (conducteur), pour ne pas ouvrir un organe partagé avec un
+couplage à garder fermé (DJ commun sur trois barres).
+
+Si la cible n'est pas atteinte en totalité, dégradation gracieuse (R16) : nodale
+partielle + écarts pour complétion manuelle.
+- **Code** : `_sequence_detaillee_multibarres`, `_organes_internes_2bornes`,
+  `_inter_sjb_couplers` (couplages parallèles), `determiner_manoeuvres_avec_
+  sections` (`organes_fixes`, garde `to_open` conducteur).
+- **Tests** : `test_scenarios_sauvegardes.py::test_morbrp6_multibarres` (MORBRP6,
+  poste 4 JdB, cible atteinte en 8 manœuvres ; réf. séquence experte
+  `sequences/MORBRP6_cible_4noeuds_expert.json`) et
+  `::test_morbrp6_degradation_gracieuse` (cible exigeant des manœuvres sur la
+  self des JdB 3/4 → non atteignable → dégradation gracieuse : nœuds à compléter
+  manuellement signalés).
+
+> Fallback nodal-only : `_placement_automatique` conserve un **scoping aux 2 JdB
+> principaux** + diagnostic explicite + placement partiel best-effort
+> (`_main_busbar_sjb`, `_scoping_raison`, `_diagnostic_infaisabilite`,
+> `_placement_best_effort`) pour l'API purement nodale `determiner_topo_complete_
+> cible`, qui ne dispose pas de la cible détaillée.
+
 ---
 
 ## Postes multi-sections
@@ -334,6 +378,7 @@ vérifiée).
 | Contrôle de court-circuit fin (potentiel / déphasage) | simplifié (R12) |
 | Topologies de couplers non chaînées (≥ 3 barres en anneau) | partiel |
 | Nœuds mêlant départs connectés et déconnectés | partiel |
+| Postes > 2 jeux de barres (niveaux 3B/4B, organes internes à 2 bornes, nœuds à 0 barre) | géré via placement par composantes (R17) ; fallback nodal-only : scoping 2 JdB |
 
 ---
 

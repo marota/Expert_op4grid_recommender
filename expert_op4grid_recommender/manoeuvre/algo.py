@@ -46,12 +46,25 @@ Dégradation gracieuse : si une étape n'est pas réalisable en sécurité (pas 
 SJB tampon, départ inatteignable…), l'algorithme **ne s'interrompt pas** : il
 consigne les **écarts** et poursuit ; ``topo_obtenue`` est toujours renseignée.
 
+Postes à > 2 jeux de barres : le placement nodal combinatoire est conçu pour le
+double jeu de barres. Sur un poste à plus de 2 jeux de barres (niveaux
+supplémentaires 3B/4B, organes internes à 2 bornes type self/réactance, nœuds à
+0 barre), ``determiner_manoeuvres_cible_detaillee`` route vers
+``_sequence_detaillee_multibarres`` qui **dérive le placement des composantes
+connexes du graphe cible** (groupes exacts), laisse en place les organes à 2
+bornes (``organes_fixes``), **isole** les nœuds à 0 barre, et détecte **tous les
+couplages parallèles** (``_inter_sjb_couplers``). L'API nodale-only
+``determiner_topo_complete_cible`` conserve un fallback : scoping aux 2 JdB
+principaux + diagnostic + placement partiel best-effort.
+
 Limites connues (documentées, cf. doc C++) :
 - Ré-aiguillage d'omnibus complexes (départs multiples scindés)          [partiel]
 - Contrôle de court-circuit : vérifie l'équipotentialité courante avant
   manœuvre de sectionneur (pas de calcul de potentiel/déphasage fin)     [simplifié]
 - Topologies de couplers non chaînées (≥ 3 barres en anneau)             [partiel]
 - Nœuds mêlant départs connectés et déconnectés                          [partiel]
+- Postes > 2 jeux de barres : placement par composantes du graphe cible
+  (chemin détaillé) ; fallback nodal-only = scoping aux 2 JdB            [OK/partiel]
 """
 
 from __future__ import annotations
@@ -105,6 +118,9 @@ class ResultatManoeuvres:
     ecarts: list[str] = field(default_factory=list)  # écarts détaillés résiduels
     topo_obtenue: Optional[TopologieNodale] = None
     message: str = ""
+    # Dégradation gracieuse : départs des nœuds cibles **non réalisables** sur ce
+    # poste (cible partiellement atteinte, à compléter manuellement par l'opérateur).
+    noeuds_non_realisables: list[list[str]] = field(default_factory=list)
 
     @property
     def nb_manoeuvres(self) -> int:
@@ -181,10 +197,12 @@ def determiner_topo_complete_cible(
         return res
 
     # --- Phases 2.2-2.4 : placement automatique nœud -> sections de barres -
-    placement, faisable, msg = _placement_automatique(poste, topo_cible)
-    if not faisable:
+    placement, faisable, msg, non_places = _placement_automatique(poste, topo_cible)
+    if not placement:
+        # Rien de plaçable, même en best-effort : aucune manœuvre possible.
         res.topo_obtenue = poste.topologie_nodale
         res.message = msg
+        res.noeuds_non_realisables = non_places
         return res
 
     # --- Délégation au séquenceur général (couplage + sectionnement) -------
@@ -195,12 +213,17 @@ def determiner_topo_complete_cible(
         core.topo_obtenue and topo_cible.meme_topologie(core.topo_obtenue)
     )
     core.is_changed = bool(core.manoeuvres)
-    core.message = (
-        "Topologie cible atteinte et vérifiée." if core.is_verified
-        else "La topologie obtenue ne correspond pas à la cible "
-             f"(obtenu {core.topo_obtenue.nb_noeuds if core.topo_obtenue else 0} "
-             f"nœud(s), visé {topo_cible.nb_noeuds})."
-    )
+    if faisable:
+        core.message = (
+            "Topologie cible atteinte et vérifiée." if core.is_verified
+            else "La topologie obtenue ne correspond pas à la cible "
+                 f"(obtenu {core.topo_obtenue.nb_noeuds if core.topo_obtenue else 0} "
+                 f"nœud(s), visé {topo_cible.nb_noeuds})."
+        )
+    else:
+        # Dégradation gracieuse (option 4) : placement partiel + diagnostic.
+        core.noeuds_non_realisables = non_places
+        core.message = msg
     return core
 
 
@@ -269,7 +292,7 @@ def _placement_avec_reconnexions(
     cible_graph: nx.Graph,
     topo_cible: TopologieNodale,
     reconnections: list[tuple[CelluleDepart, SwitchInfo]],
-) -> tuple[list[tuple[set[str], set[str]]], bool, str]:
+) -> tuple[list[tuple[set[str], set[str]]], bool, str, list[list[str]]]:
     """
     Calcule le placement nœud→SJB en tenant compte des **reconnexions** de
     départ (DJ ouvert → fermé dans la cible).
@@ -467,6 +490,191 @@ def _sequence_detaillee_aggressive(
     return res
 
 
+def _organes_internes_2bornes(poste: PosteTopologique) -> set[str]:
+    """Équipements présents dans **plusieurs cellules de départ**.
+
+    Détection **structurelle** (pas par identifiant) : un organe interne à 2
+    bornes (typiquement une self/réactance dont les deux côtés sont câblés chacun
+    sur une barre) apparaît dans deux cellules de départ. Ces organes sont laissés
+    en place (ni ré-aiguillés ni signalés en écart)."""
+    from collections import Counter
+    occ: Counter = Counter()
+    for c in poste.cellules.cellules_depart:
+        for eq in {c.equipment_id} | set(c.shared_equipment_ids):
+            occ[eq] += 1
+    return {eq for eq, n in occ.items() if n > 1}
+
+
+def _appliquer_changements_dj(
+    G: nx.Graph,
+    reconnections: list[tuple[CelluleDepart, SwitchInfo]],
+    disconnections: list[tuple[CelluleDepart, SwitchInfo]],
+    skip: Optional[set[str]] = None,
+) -> list[Manoeuvre]:
+    """Applique sur ``G`` les changements d'état des **DJ de départ** (mise en
+    service / hors service) et retourne les manœuvres correspondantes.
+
+    ``skip`` : équipements à ignorer (ex. nœuds laissés à l'opérateur)."""
+    skip = skip or set()
+    out: list[Manoeuvre] = []
+    for cell, dj in reconnections:
+        if cell.equipment_id in skip:
+            continue
+        if _is_open(G, dj.switch_id):
+            _set_switch(G, dj.switch_id, False)
+            out.append(Manoeuvre(dj.switch_id, "CLOSE",
+                                 f"mise en service départ {cell.equipment_id}"))
+    for cell, dj in disconnections:
+        if cell.equipment_id in skip:
+            continue
+        if not _is_open(G, dj.switch_id):
+            _set_switch(G, dj.switch_id, True)
+            out.append(Manoeuvre(dj.switch_id, "OPEN",
+                                 f"mise hors service départ {cell.equipment_id}"))
+    return out
+
+
+def _consigner_non_realisables(
+    res: ResultatManoeuvres, non_places: list[list[str]]
+) -> None:
+    """Renseigne la dégradation gracieuse : nœuds laissés à l'opérateur +
+    écarts « nœud à compléter manuellement » (format unifié)."""
+    res.noeuds_non_realisables = non_places
+    for grp in non_places:
+        res.ecarts.append(
+            "nœud à compléter manuellement : {" + ", ".join(sorted(grp)) + "}")
+
+
+def _sequence_detaillee_multibarres(
+    poste: PosteTopologique,
+    cible_graph: nx.Graph,
+    topo_cible: TopologieNodale,
+) -> ResultatManoeuvres:
+    """
+    Séquence pour un poste à **> 2 jeux de barres**.
+
+    Le placement nodal classique (recherche combinatoire) ne couvre pas ces
+    postes (nœuds à 0 barre, organes internes à 2 bornes, barres multiples). On
+    dérive ici le placement **directement des composantes connexes du graphe
+    cible** (chaque nœud = ses équipements + les sections de barre qu'il occupe),
+    ce qui donne les groupes exacts, y compris :
+    - les **nœuds à 0 barre** (départ isolé sur son DJ, SA ouverts) → isolés ;
+    - les **organes internes à 2 bornes** (self/réactance) → laissés en place.
+
+    Les départs/sections que l'algorithme ne sait pas réaliser sont consignés en
+    écart (dégradation gracieuse) pour complétion manuelle.
+    """
+    vl = poste.voltage_level_id
+    cells = poste.cellules
+    G0 = poste.graph
+    organes_fixes = _organes_internes_2bornes(poste)
+
+    # Barre cible exacte de chaque départ (hors organes 2 bornes, ambigus).
+    cible_busbar: dict[str, int] = {}
+    for c in cells.cellules_depart:
+        for eq in {c.equipment_id} | set(c.shared_equipment_ids):
+            if eq in organes_fixes:
+                continue
+            bb = _wired_busbar(c, cible_graph)
+            if bb is not None:
+                cible_busbar[eq] = bb
+
+    dep_eqs = {c.equipment_id for c in cells.cellules_depart}
+    for c in cells.cellules_depart:
+        dep_eqs |= set(c.shared_equipment_ids)
+    sjb_nodes = set(poste.tronconnement.barre_par_busbar)
+    sjb_id = {n: G0.nodes[n].get("busbar_section_id") for n in sjb_nodes}
+
+    # Placement depuis les composantes connexes (switches fermés) du graphe cible.
+    closed = nx.Graph()
+    closed.add_nodes_from(cible_graph.nodes(data=True))
+    for u, v, d in cible_graph.edges(data=True):
+        if not d.get("open", False):
+            closed.add_edge(u, v)
+
+    placement: list[tuple[set[str], set[str]]] = []
+    noeuds_isoles: list[set[str]] = []
+    for comp in nx.connected_components(closed):
+        eqs = {cible_graph.nodes[n].get("equipment_id") for n in comp} & dep_eqs
+        if not eqs:
+            continue
+        sjbs = {sjb_id[n] for n in comp if n in sjb_nodes}
+        if sjbs:
+            placement.append((eqs, sjbs))
+        else:
+            noeuds_isoles.append(eqs)
+
+    res = determiner_manoeuvres_avec_sections(
+        poste, placement, cible_busbar, organes_fixes=organes_fixes)
+    res.topo_initiale = poste.topologie_nodale
+    res.topo_cible = topo_cible
+
+    # État détaillé après la séquence de placement.
+    G = poste.graph.copy()
+    for m in res.manoeuvres:
+        _set_switch(G, m.switch_id, m.action == "OPEN")
+
+    extra: list[Manoeuvre] = []
+    # Isolation des nœuds à 0 barre : amener les SA de barre à leur état cible
+    # (ouvrir ceux qui doivent l'être) pour détacher le départ des barres.
+    for eqs in noeuds_isoles:
+        for eq in sorted(eqs):
+            if eq in organes_fixes:
+                continue
+            cell = cells.get_cellule_depart(eq)
+            if cell is None:
+                continue
+            for sw in cell.disconnectors:
+                if (not _is_open(G, sw.switch_id)
+                        and _is_open(cible_graph, sw.switch_id)):
+                    _set_switch(G, sw.switch_id, True)
+                    extra.append(Manoeuvre(
+                        sw.switch_id, "OPEN",
+                        f"isolement départ {eq} (nœud sans barre)"))
+
+    # Changements de DJ de départ (mise en service / hors service).
+    reconnections, disconnections = _departure_dj_changes(poste, cible_graph)
+    extra += _appliquer_changements_dj(G, reconnections, disconnections)
+
+    res.manoeuvres = res.manoeuvres + extra
+
+    # Vérification nodale + détaillée.
+    res.topo_obtenue = TopologieNodale.from_graph(G, vl)
+    res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
+    res.is_changed = bool(res.manoeuvres)
+    res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
+                  + _verifier_securite_sectionneurs(poste, res.manoeuvres)
+                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres))
+    res.is_verified_detaillee = res.is_verified and not res.ecarts
+    if res.is_verified_detaillee:
+        res.message = ("Topologie détaillée cible atteinte et vérifiée "
+                       "(poste multi-barres).")
+    elif res.is_verified:
+        res.message = (f"Topologie nodale atteinte (poste multi-barres) ; "
+                       f"{len(res.ecarts)} écart(s) détaillé(s) résiduel(s) : "
+                       + " ; ".join(res.ecarts[:6]))
+    else:
+        # Dégradation gracieuse : nœuds cibles non réalisés (typiquement ceux qui
+        # exigent des manœuvres sur les niveaux de barres supplémentaires — self/
+        # réactance des JdB 3/4 — hors de portée de l'algorithme).
+        obtenu = {frozenset(n.equipment_ids)
+                  for n in res.topo_obtenue.noeuds.values()}
+        non_realises: list[list[str]] = []
+        seen: set[frozenset] = set()
+        for n in topo_cible.noeuds.values():
+            g = frozenset(n.equipment_ids)
+            if g not in obtenu and g not in seen:
+                seen.add(g)
+                non_realises.append(sorted(g))
+        _consigner_non_realisables(res, non_realises)
+        res.message = (
+            "Topologie cible partiellement atteinte (poste multi-barres) : "
+            f"{res.topo_obtenue.nb_noeuds}/{topo_cible.nb_noeuds} nœuds atteints ; "
+            f"{len(non_realises)} nœud(s) à compléter manuellement — manœuvres sur "
+            "les niveaux de barres supplémentaires (self/réactance) non gérées.")
+    return res
+
+
 def determiner_manoeuvres_cible_detaillee(
     poste: PosteTopologique,
     cible_graph: nx.Graph,
@@ -515,9 +723,17 @@ def determiner_manoeuvres_cible_detaillee(
 
     topo_cible = TopologieNodale.from_graph(cible_graph, vl)
 
+    # Dégradation gracieuse : diagnostic + nœuds non réalisés (placement partiel).
+    degradation: Optional[str] = None
+    non_places: list[list[str]] = []
+
     # --- Mode agressif : orchestration batch (dé-énergiser une fois) --------
     if mode == "aggressive":
         return _sequence_detaillee_aggressive(poste, cible_graph, cible_busbar)
+
+    # --- Poste à > 2 jeux de barres : placement par composantes ------------
+    if len(set(poste.tronconnement.barre_par_busbar.values())) > 2:
+        return _sequence_detaillee_multibarres(poste, cible_graph, topo_cible)
 
     # --- Phase 1 : séquence nodale sûre ------------------------------------
     if reconnections:
@@ -538,22 +754,27 @@ def determiner_manoeuvres_cible_detaillee(
                            f"absents du poste : {sorted(manquants)}")
             return res
 
-        placement, faisable, msg = _placement_avec_reconnexions(
+        placement, faisable, msg, np_ = _placement_avec_reconnexions(
             poste, cible_graph, topo_cible, reconnections)
-        if not faisable:
+        if not placement:
             res.topo_obtenue = poste.topologie_nodale
             res.message = "Topologie nodale cible non atteinte : " + msg
+            res.noeuds_non_realisables = np_
             return res
 
         # Séquenceur sur le poste RÉEL (DJ reconnectés encore ouverts).
         res = determiner_manoeuvres_avec_sections(poste, placement, cible_busbar)
         res.topo_initiale = poste.topologie_nodale
         res.topo_cible = topo_cible
+        if not faisable:
+            degradation, non_places = msg, np_
     else:
         res = determiner_topo_complete_cible(poste, topo_cible, cible_busbar)
-        if not res.is_verified:
+        if not res.is_verified and not res.noeuds_non_realisables:
             res.message = "Topologie nodale cible non atteinte : " + res.message
             return res
+        if res.noeuds_non_realisables:
+            degradation, non_places = res.message, res.noeuds_non_realisables
 
     # État détaillé atteint après la séquence nodale
     G = poste.graph.copy()
@@ -564,7 +785,12 @@ def determiner_manoeuvres_cible_detaillee(
     #    équipotentielle puisque le nœud est déjà constitué). Pour un départ
     #    reconnecté, le DJ est encore ouvert : le ré-aiguillage SA reste sûr.
     extra: list[Manoeuvre] = []
+    # Départs des nœuds non réalisés : laissés strictement en place (l'opérateur
+    # complètera la séquence) — on ne les raffine ni ne touche leurs DJ.
+    non_places_eqs = {eq for grp in non_places for eq in grp}
     for eq, target in sorted(cible_busbar.items()):
+        if eq in non_places_eqs:
+            continue
         cell = cells.get_cellule_depart(eq)
         cur = _wired_busbar(cell, G)
         if cur == target:
@@ -578,25 +804,10 @@ def determiner_manoeuvres_cible_detaillee(
         if _reaiguiller_vers_sjb(G, cells, eq, target, extra):
             res.departs_reaiguilles.add(eq)
 
-    # 3. Changements de DJ de départ
-    post_manoeuvres: list[Manoeuvre] = []
-    for cell, dj_sw in reconnections:
-        # La barre cible est désormais au bon potentiel : fermeture sûre.
-        if _is_open(G, dj_sw.switch_id):
-            post_manoeuvres.append(Manoeuvre(
-                switch_id=dj_sw.switch_id,
-                action="CLOSE",
-                raison=f"mise en service départ {cell.equipment_id}",
-            ))
-            _set_switch(G, dj_sw.switch_id, False)
-    for cell, dj_sw in disconnections:
-        if not _is_open(G, dj_sw.switch_id):
-            post_manoeuvres.append(Manoeuvre(
-                switch_id=dj_sw.switch_id,
-                action="OPEN",
-                raison=f"mise hors service départ {cell.equipment_id}",
-            ))
-            _set_switch(G, dj_sw.switch_id, True)
+    # 3. Changements de DJ de départ (la barre cible est désormais au bon
+    #    potentiel : fermeture/ouverture sûres ; nœuds non réalisés ignorés).
+    post_manoeuvres = _appliquer_changements_dj(
+        G, reconnections, disconnections, skip=non_places_eqs)
 
     res.manoeuvres = res.manoeuvres + extra + post_manoeuvres
 
@@ -608,7 +819,16 @@ def determiner_manoeuvres_cible_detaillee(
                   + _verifier_securite_sectionneurs(poste, res.manoeuvres)
                   + _verifier_un_seul_hors_tension(poste, res.manoeuvres))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
-    if not res.is_verified:
+    if degradation:
+        # Dégradation gracieuse (option 4) : cible partiellement atteinte.
+        _consigner_non_realisables(res, non_places)
+        res.message = (
+            degradation
+            + f" Placement partiel : {len(non_places)} nœud(s) non réalisé(s) "
+            f"laissé(s) à l'opérateur ; {res.nb_manoeuvres} manœuvre(s) "
+            "partielle(s) générée(s) — complétez la séquence manuellement."
+        )
+    elif not res.is_verified:
         res.message = (
             "Topologie nodale cible non atteinte : la topologie obtenue ne "
             f"correspond pas à la cible (obtenu {res.topo_obtenue.nb_noeuds} "
@@ -693,13 +913,19 @@ def _ecarts_detailles(
 def _placement_automatique(
     poste: PosteTopologique,
     topo_cible: TopologieNodale,
-) -> tuple[list[tuple[set[str], set[str]]], bool, str]:
+) -> tuple[list[tuple[set[str], set[str]]], bool, str, list[list[str]]]:
     """
     Calcule un placement ``[(departs, sjb_ids)]`` réalisant ``topo_cible``.
 
+    Si la cible est **réalisable**, retourne le placement complet
+    (``faisable=True``). Sinon (option 2/4) : retourne un **diagnostic explicite**
+    de l'infaisabilité dans ``message`` et un **placement partiel** « best-effort »
+    plaçant le plus de nœuds possible, ``noeuds_non_places`` listant les départs
+    des nœuds laissés à l'opérateur.
+
     Returns
     -------
-    (placement, faisable, message)
+    (placement, faisable, message, noeuds_non_places)
     """
     import itertools
 
@@ -725,16 +951,19 @@ def _placement_automatique(
     wired_sjb: dict[str, Optional[int]] = {}   # SJB où le départ est câblé (SA fermé)
     for c in poste.cellules.cellules_depart:
         for eq in {c.equipment_id} | set(c.shared_equipment_ids):
-            R[eq] = frozenset(c.busbar_nodes)
+            # Union : un organe interne à 2 bornes (self/réactance) possède deux
+            # cellules — on cumule les SJB atteignables des deux côtés.
+            R[eq] = R.get(eq, frozenset()) | frozenset(c.busbar_nodes)
             en = eq_node.get(eq)
-            connected[eq] = bool(
+            connected[eq] = connected.get(eq, False) or bool(
                 en is not None and en in H
                 and any(s in H and nx.has_path(H, en, s) for s in R[eq])
             )
-            wired = [bb for bb in c.busbar_nodes
-                     if _sa_path_to_sjb(c, bb)
-                     and all(not _is_open(G, s) for s in _sa_path_to_sjb(c, bb))]
-            wired_sjb[eq] = wired[0] if wired else None
+            if wired_sjb.get(eq) is None:
+                wired = [bb for bb in c.busbar_nodes
+                         if _sa_path_to_sjb(c, bb)
+                         and all(not _is_open(G, s) for s in _sa_path_to_sjb(c, bb))]
+                wired_sjb[eq] = wired[0] if wired else None
 
     # Nœuds à placer : ceux ayant ≥ 1 départ actuellement connecté.
     nodes: list[list[str]] = []
@@ -744,79 +973,305 @@ def _placement_automatique(
             nodes.append(deps)
 
     if not nodes:
-        return [], True, "Aucun nœud connecté à placer."
+        return [], True, "Aucun nœud connecté à placer.", []
 
-    k = len(nodes)
-    if k > len(sjb_nodes):
-        return ([], False,
-                f"{k} nœuds pour {len(sjb_nodes)} SJB : topologie impossible.")
+    # --- Scoping > 2 jeux de barres -----------------------------------------
+    # L'algorithme de placement est conçu pour le double jeu de barres classique.
+    # Sur un poste à > 2 jeux de barres (ex. niveaux supplémentaires 3B/4B), on se
+    # restreint aux **2 jeux de barres principaux** ; les nœuds dont au moins un
+    # départ n'atteint que les niveaux supplémentaires sont laissés à l'opérateur.
+    forced_non_places: list[list[str]] = []
+    extra_sjb: set[int] = set()
+    if len(set(barre_par.values())) > 2:
+        main_sjb, extra_sjb = _main_busbar_sjb(poste)
+        sjb_nodes = [s for s in sjb_nodes if s in main_sjb]
+        R = {eq: (rs & main_sjb) for eq, rs in R.items()}
+        wired_sjb = {eq: (b if b in main_sjb else None)
+                     for eq, b in wired_sjb.items()}
+        kept: list[list[str]] = []
+        for nd in nodes:
+            if all(R.get(eq) for eq in nd):
+                kept.append(nd)              # nœud entièrement sur le 2-JdB
+            else:
+                forced_non_places.append(nd)  # touche un niveau supplémentaire
+        nodes = kept
 
-    # Graphe des couplers entre SJB (pour la contrainte de connexité des groupes)
-    couplers = _inter_sjb_couplers(poste)
+    # Graphe des couplers entre SJB (pour la contrainte de connexité des groupes),
+    # restreint aux SJB retenues (2 jeux de barres principaux si scoping).
+    main_set = set(sjb_nodes)
+    couplers = [cp for cp in _inter_sjb_couplers(poste)
+                if cp.sjb_a in main_set and cp.sjb_b in main_set]
     CG = nx.Graph()
     CG.add_nodes_from(sjb_nodes)
     for cp in couplers:
         CG.add_edge(cp.sjb_a, cp.sjb_b)
 
-    node_of_dep = {eq: i for i, deps in enumerate(nodes) for eq in deps}
+    k = len(nodes)
 
-    # Garde-fou combinatoire
-    if k ** len(sjb_nodes) > 500_000:
-        return ([], False, "Espace de placement trop grand (poste non géré).")
-
+    # Recherche exhaustive d'une affectation **complète** (tous les nœuds placés),
+    # uniquement si elle est possible (k ≤ nb SJB) et tient dans le garde-fou.
     best = None  # (cost, assign tuple)
-    for assign in itertools.product(range(k), repeat=len(sjb_nodes)):
-        node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
+    if k <= len(sjb_nodes) and k ** len(sjb_nodes) <= 500_000:
+        for assign in itertools.product(range(k), repeat=len(sjb_nodes)):
+            node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
+            for j, ni in enumerate(assign):
+                node_sjbs[ni].add(sjb_nodes[j])
+            if any(not s for s in node_sjbs.values()):
+                continue  # chaque nœud doit avoir ≥ 1 SJB
+            # Groupes connexes dans le graphe des couplers
+            if not all(nx.is_connected(CG.subgraph(s)) for s in node_sjbs.values()):
+                continue
+            # Faisabilité : chaque départ atteint une SJB de son nœud
+            ok = True
+            for i, deps in enumerate(nodes):
+                sset = node_sjbs[i]
+                if any(not (R[eq] & sset) for eq in deps):
+                    ok = False
+                    break
+            if not ok:
+                continue
+            # Coût : ré-aiguillages (départ dont la barre câblée n'est pas dans son
+            # groupe) + manœuvres de couplers (sectionnements pénalisés).
+            reaig = sum(
+                1 for i, deps in enumerate(nodes) for eq in deps
+                if wired_sjb.get(eq) not in node_sjbs[i]
+            )
+            node_of_sjb = {sjb_nodes[j]: assign[j] for j in range(len(sjb_nodes))}
+            cpl = 0
+            sect = 0
+            for cp in couplers:
+                same = node_of_sjb[cp.sjb_a] == node_of_sjb[cp.sjb_b]
+                currently_closed = all(not _is_open(G, s) for s in cp.switch_ids)
+                if same and not currently_closed:
+                    cpl += 1
+                elif (not same) and currently_closed:
+                    cpl += 1
+                    if cp.is_sectionnement:
+                        sect += 1
+            cost = 5 * reaig + cpl + 4 * sect
+            if best is None or cost < best[0]:
+                best = (cost, assign)
+
+    full_placement = None
+    if best is not None:
+        assign = best[1]
+        node_sjbs = {i: set() for i in range(k)}
         for j, ni in enumerate(assign):
             node_sjbs[ni].add(sjb_nodes[j])
-        if any(not s for s in node_sjbs.values()):
-            continue  # chaque nœud doit avoir ≥ 1 SJB
-        # Groupes connexes dans le graphe des couplers
-        if not all(nx.is_connected(CG.subgraph(s)) for s in node_sjbs.values()):
-            continue
-        # Faisabilité : chaque départ atteint une SJB de son nœud
-        ok = True
-        for i, deps in enumerate(nodes):
-            sset = node_sjbs[i]
-            if any(not (R[eq] & sset) for eq in deps):
-                ok = False
+        full_placement = [
+            (set(nodes[i]), {sjb_id[s] for s in node_sjbs[i]})
+            for i in range(k)
+        ]
+
+    # Cas nominal : affectation complète ET aucun niveau supplémentaire écarté.
+    if full_placement is not None and not forced_non_places:
+        return full_placement, True, "OK", []
+
+    # --- Dégradation : placement partiel + diagnostic explicite -------------
+    raisons: list[str] = []
+    if forced_non_places:
+        raisons.append(_scoping_raison(sjb_id, extra_sjb, forced_non_places))
+    if full_placement is not None:
+        placement, partial_non_places = full_placement, []
+    elif nodes:
+        raisons.extend(_diagnostic_infaisabilite(nodes, R, sjb_id))
+        placement, partial_non_places = _placement_best_effort(
+            nodes, R, sjb_nodes, sjb_id, CG, wired_sjb)
+    else:
+        placement, partial_non_places = [], []
+    non_places = partial_non_places + forced_non_places
+    return placement, False, _message_non_realisable(raisons), non_places
+
+
+def _main_busbar_sjb(poste: PosteTopologique) -> tuple[set[int], set[int]]:
+    """
+    Pour un poste à > 2 jeux de barres, identifie les **2 jeux de barres
+    principaux** (système double-barre classique) et les niveaux supplémentaires.
+
+    Heuristique : on regroupe les SJB par jeu de barres (``barre_par_busbar``) et
+    on retient les **2 jeux de barres portant le plus de sections** (départage par
+    index croissant). Les SJB des autres jeux de barres (typiquement des niveaux à
+    section unique, ex. 3B/4B) sont « supplémentaires » et laissés à l'opérateur.
+
+    Returns
+    -------
+    (main_sjb, extra_sjb)  ensembles de nœuds SJB.
+    """
+    barre_par = poste.tronconnement.barre_par_busbar
+    by_barre: dict[int, set[int]] = {}
+    for s, b in barre_par.items():
+        by_barre.setdefault(b, set()).add(s)
+    ordered = sorted(by_barre, key=lambda b: (-len(by_barre[b]), b))
+    main_barres = set(ordered[:2])
+    main_sjb = {s for b in main_barres for s in by_barre[b]}
+    extra_sjb = set(barre_par) - main_sjb
+    return main_sjb, extra_sjb
+
+
+def _scoping_raison(
+    sjb_id: dict[int, Optional[str]],
+    extra_sjb: set[int],
+    forced_non_places: list[list[str]],
+) -> str:
+    """Raison de dégradation liée au scoping > 2 jeux de barres."""
+    noms = ", ".join(str(sjb_id.get(s, s)) for s in sorted(extra_sjb))
+    return (f"niveaux de barres supplémentaires ({noms}) non gérés par "
+            f"l'algorithme 2 jeux de barres : {len(forced_non_places)} nœud(s) "
+            "laissé(s) à l'opérateur")
+
+
+def _message_non_realisable(raisons: list[str]) -> str:
+    """Assemble le message de dégradation à partir des raisons collectées."""
+    if not raisons:
+        return "Aucune affectation de SJB réalisable (topologie impossible)."
+    return "Topologie cible non réalisable sur ce poste : " + " ; ".join(raisons) + "."
+
+
+def _diagnostic_infaisabilite(
+    nodes: list[list[str]],
+    R: dict[str, frozenset],
+    sjb_id: dict[int, Optional[str]],
+) -> list[str]:
+    """
+    Explique **pourquoi** aucune affectation SJB complète n'existe (option 2).
+
+    Retourne une **liste de raisons** (sans préfixe), parmi les deux modes
+    d'échec réels :
+    1. *Sur-réservation d'une classe d'aiguillage* (condition de Hall) : plus de
+       nœuds confinés à un ensemble de sections que de sections disponibles ;
+    2. *Organe interne à 2 bornes* (self/réactance ``LINE_SIDE1``+``LINE_SIDE2``)
+       présent sur plusieurs nœuds alors qu'il n'atteint qu'une seule section.
+    """
+    from collections import Counter
+
+    def _names(sset) -> str:
+        return "{" + ", ".join(str(sjb_id.get(s, s)) for s in sorted(sset)) + "}"
+
+    raisons: list[str] = []
+
+    # 1. Sur-réservation (Hall) : pour chaque ensemble de sections T atteignable
+    #    par un départ, compter les nœuds *forcés* d'utiliser une section de T
+    #    (un de leurs départs n'atteint que des sections de T).
+    classes = {R[eq] for node in nodes for eq in node if R.get(eq)}
+    vus: set[frozenset] = set()
+    for T in sorted(classes, key=lambda t: (len(t), sorted(t))):
+        forces = [node for node in nodes
+                  if any(R.get(eq, frozenset()) <= T for eq in node)]
+        if len(forces) > len(T) and T not in vus:
+            vus.add(T)
+            raisons.append(
+                f"{len(forces)} nœuds nécessitent une section parmi {_names(T)} "
+                f"({len(T)} disponible(s))")
+
+    # 2. Organe interne à 2 bornes éclaté sur plusieurs nœuds
+    occurrences = Counter(eq for node in nodes for eq in node)
+    for eq, nb in sorted(occurrences.items()):
+        atteignables = R.get(eq, frozenset())
+        if nb >= 2 and len(atteignables) < nb:
+            raisons.append(
+                f"organe interne '{eq}' présent sur {nb} nœuds mais seulement "
+                f"{len(atteignables)} section(s) atteignable(s) {_names(atteignables)} "
+                "— selfs/réactances à 2 bornes non gérées côté par côté")
+
+    return raisons
+
+
+def _placement_best_effort(
+    nodes: list[list[str]],
+    R: dict[str, frozenset],
+    sjb_nodes: list[int],
+    sjb_id: dict[int, Optional[str]],
+    CG: nx.Graph,
+    wired_sjb: dict[str, Optional[int]],
+) -> tuple[list[tuple[set[str], set[str]]], list[list[str]]]:
+    """
+    Placement **partiel** « best-effort » (option 4 — dégradation gracieuse).
+
+    Quand aucune affectation complète n'existe, place le **plus grand nombre
+    possible** de nœuds cibles (chacun entièrement satisfait : sections connexes
+    + tous ses départs atteignant une section de leur groupe) et laisse les
+    nœuds restants à compléter par l'opérateur.
+
+    Returns
+    -------
+    (placement, noeuds_non_places)
+        ``placement`` = ``[(departs, sjb_ids)]`` des nœuds réalisés ;
+        ``noeuds_non_places`` = liste des départs des nœuds non réalisés.
+    """
+    import itertools
+
+    k = len(nodes)
+    n_sjb = len(sjb_nodes)
+    if k == 0:
+        return [], []
+
+    # Garde-fou : chaque SJB → un nœud OU « inutilisée » (k+1 choix par SJB).
+    if (k + 1) ** n_sjb > 2_000_000:
+        return _placement_greedy(nodes, R, sjb_nodes, sjb_id)
+
+    best = None  # (score, placement, non_places)
+    for assign in itertools.product(range(k + 1), repeat=n_sjb):
+        node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
+        for j, ni in enumerate(assign):
+            if ni < k:
+                node_sjbs[ni].add(sjb_nodes[j])
+        places: list[int] = []
+        valide = True
+        for i in range(k):
+            s = node_sjbs[i]
+            if not s:
+                continue  # nœud abandonné (laissé à l'opérateur)
+            if not nx.is_connected(CG.subgraph(s)):
+                valide = False
                 break
-        if not ok:
+            if any(not (R.get(eq, frozenset()) & s) for eq in nodes[i]):
+                valide = False
+                break
+            places.append(i)
+        if not valide or not places:
             continue
-        # Coût : ré-aiguillages (départ dont la barre câblée n'est pas dans son
-        # groupe) + manœuvres de couplers (sectionnements pénalisés).
         reaig = sum(
-            1 for i, deps in enumerate(nodes) for eq in deps
+            1 for i in places for eq in nodes[i]
             if wired_sjb.get(eq) not in node_sjbs[i]
         )
-        node_of_sjb = {sjb_nodes[j]: assign[j] for j in range(len(sjb_nodes))}
-        cpl = 0
-        sect = 0
-        for cp in couplers:
-            same = node_of_sjb[cp.sjb_a] == node_of_sjb[cp.sjb_b]
-            currently_closed = all(not _is_open(G, s) for s in cp.switch_ids)
-            if same and not currently_closed:
-                cpl += 1
-            elif (not same) and currently_closed:
-                cpl += 1
-                if cp.is_sectionnement:
-                    sect += 1
-        cost = 5 * reaig + cpl + 4 * sect
-        if best is None or cost < best[0]:
-            best = (cost, assign)
+        score = (len(places), -reaig)
+        if best is None or score > best[0]:
+            placement = [
+                (set(nodes[i]), {sjb_id[s] for s in node_sjbs[i]}) for i in places
+            ]
+            non_places = [list(nodes[i]) for i in range(k) if i not in places]
+            best = (score, placement, non_places)
 
     if best is None:
-        return [], False, "Aucune affectation de SJB réalisable (topologie impossible)."
+        return [], [list(n) for n in nodes]
+    return best[1], best[2]
 
-    assign = best[1]
-    node_sjbs = {i: set() for i in range(k)}
-    for j, ni in enumerate(assign):
-        node_sjbs[ni].add(sjb_nodes[j])
-    placement = [
-        (set(nodes[i]), {sjb_id[s] for s in node_sjbs[i]})
-        for i in range(k)
-    ]
-    return placement, True, "OK"
+
+def _placement_greedy(
+    nodes: list[list[str]],
+    R: dict[str, frozenset],
+    sjb_nodes: list[int],
+    sjb_id: dict[int, Optional[str]],
+) -> tuple[list[tuple[set[str], set[str]]], list[list[str]]]:
+    """Repli glouton (postes très volumineux) : une SJB simple par nœud, les
+    nœuds les plus contraints d'abord."""
+    libres = set(sjb_nodes)
+    placement: list[tuple[set[str], set[str]]] = []
+    places: set[int] = set()
+    ordre = sorted(
+        range(len(nodes)),
+        key=lambda i: min((len(R.get(eq, ())) for eq in nodes[i]), default=99),
+    )
+    for i in ordre:
+        cand = [s for s in libres
+                if all(s in R.get(eq, frozenset()) for eq in nodes[i])]
+        if cand:
+            s = min(cand)
+            libres.discard(s)
+            places.add(i)
+            placement.append((set(nodes[i]), {sjb_id[s]}))
+    non_places = [list(nodes[i]) for i in range(len(nodes)) if i not in places]
+    return placement, non_places
 
 
 def _set_switch(G: nx.Graph, switch_id: str, open_: bool) -> None:
@@ -875,32 +1330,36 @@ def _inter_sjb_couplers(poste: PosteTopologique) -> list[_InterSjbCoupler]:
     coupler_G = G.subgraph(coupler_nodes)
 
     couplers: list[_InterSjbCoupler] = []
-    seen: set[frozenset] = set()
     bb_list = sorted(bb_nodes)
     for i, a in enumerate(bb_list):
         for b in bb_list[i + 1:]:
-            key = frozenset((a, b))
-            if key in seen:
-                continue
-            # Chemin entre a et b ne traversant aucune autre SJB
+            # Chemins entre a et b ne traversant aucune autre SJB. On détecte
+            # **tous les couplages parallèles** (ex. un couplage DJ direct ET une
+            # liaison via un nœud de couplage commun à plusieurs barres) en
+            # retirant itérativement les arêtes du chemin trouvé jusqu'à
+            # épuisement. Sans cela, un couplage fermé masqué par un couplage
+            # parallèle ouvert resterait fermé → fusion de nœuds erronée.
             others = bb_nodes - {a, b}
-            H = coupler_G.subgraph(coupler_nodes - others)
-            try:
-                path = nx.shortest_path(H, a, b)
-            except (nx.NetworkXNoPath, nx.NodeNotFound):
-                continue
-            sw_ids, brk_ids = [], []
-            for u, v in zip(path, path[1:]):
-                d = H.edges[u, v]
-                sid = d.get("switch_id")
-                if sid is None:
-                    continue
-                sw_ids.append(sid)
-                if d.get("kind") == SwitchKind.BREAKER:
-                    brk_ids.append(sid)
-            if sw_ids:
-                couplers.append(_InterSjbCoupler(a, b, sw_ids, brk_ids))
-                seen.add(key)
+            H = coupler_G.subgraph(coupler_nodes - others).copy()
+            while True:
+                try:
+                    path = nx.shortest_path(H, a, b)
+                except (nx.NetworkXNoPath, nx.NodeNotFound):
+                    break
+                sw_ids, brk_ids = [], []
+                edges = list(zip(path, path[1:]))
+                for u, v in edges:
+                    d = H.edges[u, v]
+                    sid = d.get("switch_id")
+                    if sid is None:
+                        continue
+                    sw_ids.append(sid)
+                    if d.get("kind") == SwitchKind.BREAKER:
+                        brk_ids.append(sid)
+                if sw_ids:
+                    couplers.append(_InterSjbCoupler(a, b, sw_ids, brk_ids))
+                # Retirer les arêtes du chemin pour révéler un couplage parallèle.
+                H.remove_edges_from(edges)
     return couplers
 
 
@@ -908,11 +1367,16 @@ def determiner_manoeuvres_avec_sections(
     poste: PosteTopologique,
     placement: list[tuple[set[str], set[str]]],
     cible_busbar: Optional[dict[str, int]] = None,
+    organes_fixes: Optional[set[str]] = None,
 ) -> ResultatManoeuvres:
     """
     Calcule la séquence de manœuvres pour réaliser un **placement explicite**
     de nœuds sur des sections de jeux de barres, en respectant la règle du
     sectionnement de barre (dé-énergisation avant ouverture).
+
+    ``organes_fixes`` (optionnel) : équipements à **laisser en place** (ni
+    ré-aiguillage ni écart) — typiquement les organes internes à 2 bornes
+    (self/réactance) déjà câblés sur leurs barres cibles.
 
     Parameters
     ----------
@@ -967,6 +1431,8 @@ def determiner_manoeuvres_avec_sections(
         for s in sjb_set:
             node_de_sjb[s] = idx
         for eq in departs:
+            if organes_fixes and eq in organes_fixes:
+                continue  # organe interne à 2 bornes : laissé en place
             cell = cells.get_cellule_depart(eq)
             if cell is None:
                 continue
@@ -1000,9 +1466,15 @@ def determiner_manoeuvres_avec_sections(
         na, nb = node_de_sjb.get(cp.sjb_a), node_de_sjb.get(cp.sjb_b)
         if na is None or nb is None:
             continue
+        currently_closed = all(not _is_open(G, sid) for sid in cp.switch_ids)
         if na != nb:
-            to_open.append(cp)
-        elif any(_is_open(G, sid) for sid in cp.switch_ids):
+            # On n'ouvre un couplage que s'il est **réellement fermé** (conducteur).
+            # Sinon les deux barres sont déjà séparées : ne pas toucher (évite
+            # d'ouvrir un organe partagé avec un couplage à garder fermé — ex.
+            # DJ commun à deux liaisons sur trois barres).
+            if currently_closed:
+                to_open.append(cp)
+        elif not currently_closed:
             to_close.append(cp)
 
     # --- groupes SJB finaux (couplers gardés fermés) -----------------------
