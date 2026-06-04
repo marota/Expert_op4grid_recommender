@@ -53,7 +53,7 @@ CORNIP3, GUARBP6, MORBRP6.
 │ 1 · Valider la cible │ clic organe = bascule ; anim.   ├────────────────────┤
 │ 2 · Calculer séq.    ├─────────────────────────────────┤ Topo nodale CIBLE  │
 │ • Scénarios          │ Contrôles ◀ ▶ Lecture ▶|        │ (éditable : chips) │
-│ • Liste DJ / SA      │ Séquence (texte) + 💾           │ ⚙ Calculer la      │
+│ • Nœuds électriques  │ Séquence (texte) + 💾           │ ⚙ Calculer la      │
 │                      │                                 │ topo détaillée     │
 └──────────────────────┴─────────────────────────────────┴────────────────────┘
 ```
@@ -84,8 +84,8 @@ des variables CSS).
 
 1. **Choisir un poste** → les deux schémas affichent l'état de départ (pristine).
 2. **Éditer la cible** : cliquer un disjoncteur/sectionneur dans le schéma du
-   bas (ou dans la liste latérale) pour basculer son état (ouvert/fermé). Le
-   nombre de nœuds cible évolue en direct.
+   bas pour basculer son état (ouvert/fermé). Le nombre de nœuds cible évolue en
+   direct.
 3. **Valider & sauvegarder la cible** (étape 1) : nomme et persiste le scénario
    (départ + cible). **Obligatoire** avant le calcul.
 4. **Calculer la séquence** (étape 2, débloqué après validation) : choisir le
@@ -351,7 +351,7 @@ assert res.ecarts == []
 
 | Spécification | Couverture |
 |---------------|-----------|
-| Modifier **manuellement et interactivement** l'état des DJ/SA depuis une topologie de départ | Clic sur l'organe (schéma cible) ou liste latérale → `/api/toggle` |
+| Modifier **manuellement et interactivement** l'état des DJ/SA depuis une topologie de départ | Clic sur l'organe du schéma cible → `/api/toggle` |
 | **Valider** la topologie cible avant de calculer | Étape 1 « Valider & sauvegarder » ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
 | **Sauvegarder** la cible pour des tests par ailleurs | Scénario JSON (`/api/save`) avec topologies détaillées + nodales |
 | Demander la **séquence de manœuvres** départ → cible | `/api/sequence` (module `determiner_topo_complete_cible`) |

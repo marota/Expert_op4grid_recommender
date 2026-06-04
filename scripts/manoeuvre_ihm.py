@@ -987,11 +987,6 @@ PAGE = r"""<!DOCTYPE html>
  button.primary{background:#2563eb;color:#fff;border-color:#2563eb}
  button:disabled{opacity:.5;cursor:default}
  select{width:100%;padding:6px}
- .sw{display:flex;justify-content:space-between;align-items:center;padding:2px 4px;font-size:12px;border-bottom:1px solid #e3e3e3}
- .sw:hover{background:#e8eefc}
- .sw .name{font-family:monospace;font-size:11px}
- .pill{font-size:10px;padding:1px 6px;border-radius:8px;color:#fff}
- .open{background:#c0392b}.closed{background:#27ae60}
  #seq{font-family:monospace;font-size:12px;background:#fff;border:1px solid #ddd;padding:8px;max-height:30vh;overflow:auto}
  #seq .head{white-space:pre}
  #seq .line{padding:0 2px;cursor:pointer;display:flex;justify-content:space-between;gap:6px;white-space:pre}
@@ -1091,9 +1086,7 @@ PAGE = r"""<!DOCTYPE html>
     <button onclick="loadScen('as_depart')" title="la cible sauvegardée devient le nouvel état de départ">⇧ Comme départ</button>
   </div>
   <h2>Nœuds électriques : <span id="nbn" class="badge">–</span></h2>
-  <div style="font-size:11px;color:#555">Clic sur un organe du schéma ou dans la liste pour basculer son état (départ ➜ cible).</div>
-  <h2>Disjoncteurs (DJ)</h2><div id="djs"></div>
-  <h2>Sectionneurs (SA)</h2><div id="sas"></div>
+  <div style="font-size:11px;color:#555">Clic sur un organe du schéma pour basculer son état (départ ➜ cible).</div>
 </div>
 <div id="main">
   <div class="pane" id="paneTop">
@@ -1192,7 +1185,7 @@ async function toggleEditTarget(){
     document.getElementById('diagBottom').innerHTML=d.svg;
     document.getElementById('nbB').textContent=d.nb_noeuds;
     document.getElementById('nbn').textContent=d.nb_noeuds;
-    bind(d.switches);panel(d.switches);syncNodalCible(d.nodale);
+    bind(d.switches);syncNodalCible(d.nodale);
     document.getElementById('paneBot').classList.remove('reached');
     b.textContent='▶ Revenir à la séquence';b.classList.add('primary');
     ['bprev','bplay','bnext'].forEach(id=>document.getElementById(id).disabled=true);
@@ -1263,15 +1256,11 @@ function show(d){
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
   document.getElementById('nbn').textContent=d.nb_noeuds;
-  bind(d.switches);panel(d.switches);}
+  bind(d.switches);}
 function bind(switches){const root=document.getElementById('diagBottom');
   switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
     if(el){el.style.cursor='pointer';el.onclick=()=>toggle(s.id);
       el.querySelectorAll('*').forEach(c=>c.style.cursor='pointer');}});}
-function panel(switches){const dj=document.getElementById('djs'),sa=document.getElementById('sas');dj.innerHTML='';sa.innerHTML='';
-  switches.forEach(s=>{const row=document.createElement('div');row.className='sw';row.title=s.id;row.style.cursor='pointer';
-    row.innerHTML=`<span class="name">${(s.name||s.id).slice(0,30)}</span><span class="pill ${s.open?'open':'closed'}">${s.open?'OUVERT':'FERMÉ'}</span>`;
-    row.onclick=()=>toggle(s.id);(s.kind==='BREAKER'?dj:sa).appendChild(row);});}
 async function sequence(){stopAnim();S.manual=false;resetEditTarget();clearSeqStale();
   const d=await api('/api/sequence',{mode:document.getElementById('seqMode').value});
   document.getElementById('seqwrap').style.display='block';
@@ -1571,7 +1560,7 @@ async function nodCompute(){
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
   document.getElementById('nbn').textContent=d.nb_noeuds;
-  bind(d.switches);panel(d.switches);hideSeq();setValidated(false);
+  bind(d.switches);hideSeq();setValidated(false);
   // Resynchroniser la cible nodale sur la topologie détaillée RÉALISÉE
   // (partition + couleurs + isolés des nœuds obtenus).
   syncNodalCible(d.nodale);
