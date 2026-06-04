@@ -157,6 +157,42 @@ def test_morbrp6_multibarres():
         "le DJ d'ARRIG.1 doit être refermé après l'ouverture de son sectionneur"
 
 
+def _manoeuvres_from_sequence(name: str):
+    """Charge (poste, manoeuvres) depuis une séquence sauvegardée MORBRP6."""
+    path = Path(__file__).parent / "sequences" / name
+    if not path.exists() or "MORBRP6" not in list_available_fixtures():
+        pytest.skip(f"Séquence/fixture absente : {name}")
+    d = json.loads(path.read_text())
+    poste = PosteTopologique.from_graph(
+        _graph_from_states(d["voltage_level_id"], d["depart"]),
+        d["voltage_level_id"])
+    manoeuvres = [Manoeuvre(m["switch_id"], m["action"], m.get("raison", ""))
+                  for m in d["manoeuvres"]]
+    return poste, manoeuvres
+
+
+def test_verifier_mauvaise_manoeuvre_finale():
+    """Séquence manuelle dont la **dernière manœuvre** est fautive : on ouvre le
+    sectionneur de barre ``AT761 SA.1`` du départ sans dé-énergiser d'abord par
+    son disjoncteur. Le vérificateur doit signaler **uniquement** cette manœuvre.
+    """
+    poste, manoeuvres = _manoeuvres_from_sequence(
+        "MORBRP6_cible_4noeuds_mauvaise_manoeuvre.json")
+    par_man = _sectionneurs_sous_charge_par_manoeuvre(poste, manoeuvres)
+
+    # Seule la dernière manœuvre enfreint la règle.
+    assert par_man[-1] is not None, "la mauvaise manœuvre finale n'est pas détectée"
+    assert all(msg is None for msg in par_man[:-1]), \
+        f"manœuvres valides signalées à tort : {par_man[:-1]}"
+    assert "AT761 SA.1" in manoeuvres[-1].switch_id
+    # Sélecteur de barre de départ → parade « par son disjoncteur ».
+    assert "disjoncteur" in par_man[-1]
+
+    ecarts = _verifier_sectionneurs_hors_charge(poste, manoeuvres)
+    assert any("AT761 SA.1" in e for e in ecarts)
+    assert len(ecarts) == 1
+
+
 def test_verifier_sectionneur_sous_charge_detecte():
     """Le vérificateur générique signale un **sectionneur manœuvré sous charge**
     (séquence experte fautive : on ouvre directement ``ARRIG.1 SA.1`` sans
