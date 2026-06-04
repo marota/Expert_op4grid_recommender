@@ -634,6 +634,8 @@ PAGE = r"""<!DOCTYPE html>
  #seq .line.violation .txt{color:#b91c1c}
  #seq .warn{color:#dc2626;font-weight:bold;padding:0 4px;cursor:help}
  #seq .head.hasviol{color:#b91c1c}
+ #seq .violmsg{color:#b91c1c;background:#fef2f2;border-left:3px solid #dc2626;
+   padding:2px 6px 4px 24px;white-space:normal;font-size:11px;cursor:pointer}
  #seq .del{color:#c0392b;font-weight:bold;cursor:pointer;padding:0 4px;border-radius:3px;visibility:hidden}
  #seq .line:hover .del{visibility:visible}
  #seq .del:hover{background:#fde2e2}
@@ -834,7 +836,9 @@ function renderSeq(d){
     const del=document.createElement('span');del.className='del';del.textContent='✕';del.title='Supprimer cette manœuvre';
     del.onclick=(e)=>{e.stopPropagation();seqDelete(k);};
     ln.appendChild(chk);ln.appendChild(txt);ln.appendChild(del);
-    ln.onclick=()=>stepGoto(k);seq.appendChild(ln);});
+    ln.onclick=()=>stepGoto(k);seq.appendChild(ln);
+    if(viol){const vm=document.createElement('div');vm.className='violmsg';vm.id='viol'+k;
+      vm.textContent='⚠ '+viol;vm.onclick=()=>stepGoto(k);seq.appendChild(vm);}});
   updateSelUI();
 }
 function onChkClick(idx,shift){
