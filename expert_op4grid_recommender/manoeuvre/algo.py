@@ -1957,6 +1957,13 @@ def _sectionneurs_sous_charge_par_manoeuvre(
         sid = d.get("switch_id")
         if sid and d.get("kind") == SwitchKind.DISCONNECTOR:
             disc[sid] = (u, v)
+    # Sectionnements de barre (sectionneurs SA reliant deux SJB) : le message de
+    # parade diffère d'un sélecteur de barre de départ (on dé-énergise une
+    # **section de barre**, pas une branche par son disjoncteur).
+    sect_ids: set[str] = set()
+    for cp in _inter_sjb_couplers(poste):
+        if cp.is_sectionnement:
+            sect_ids.update(cp.switch_ids)
     equip = {n for n, d in poste.graph.nodes(data=True) if d.get("equipment_id")}
     G = poste.graph.copy()
     out: list[Optional[str]] = []
@@ -1971,9 +1978,15 @@ def _sectionneurs_sous_charge_par_manoeuvre(
                 cu = nx.node_connected_component(H, u) if u in H else {u}
                 cv = nx.node_connected_component(H, v) if v in H else {v}
                 if (cu & equip) and (cv & equip):
-                    msg = ("sectionneur manœuvré sous charge — dé-énergiser la "
-                           "branche par son disjoncteur avant d'ouvrir ce "
-                           "sectionneur")
+                    if m.switch_id in sect_ids:
+                        msg = ("sectionneur de barre manœuvré sous charge — mettre "
+                               "la section de barre hors tension (ré-aiguiller ses "
+                               "départs sur l'autre section) avant d'ouvrir ce "
+                               "sectionnement")
+                    else:
+                        msg = ("sectionneur manœuvré sous charge — dé-énergiser la "
+                               "branche par son disjoncteur avant d'ouvrir ce "
+                               "sectionneur")
         out.append(msg)
         _set_switch(G, m.switch_id, m.action == "OPEN")
     return out
@@ -1987,7 +2000,7 @@ def _verifier_sectionneurs_hors_charge(
     Retourne les écarts agrégés (sectionneurs manœuvrés sous charge), pour
     **tous** les sectionneurs (sélecteurs de barre comme sectionnements)."""
     par_man = _sectionneurs_sous_charge_par_manoeuvre(poste, manoeuvres)
-    ecarts = [f"sectionneur {m.switch_id} {msg}"
+    ecarts = [f"{m.switch_id} : {msg}"
               for m, msg in zip(manoeuvres, par_man) if msg]
     return list(dict.fromkeys(ecarts))
 

@@ -372,13 +372,19 @@ sectionneur, puis ré-alimenter.
   la séquence **manœuvre par manœuvre** (rejeu + connexité « live ») ;
   `_verifier_sectionneurs_hors_charge` agrège les écarts. Intégrée à la
   vérification de toutes les séquences (`determiner_manoeuvres_avec_sections`,
-  chemins détaillé / multi-barres / agressif).
+  chemins détaillé / multi-barres / agressif). Le message de parade est
+  **contextuel** : sélecteur de barre de départ → « dé-énergiser la branche par
+  son disjoncteur » ; **sectionnement de barre** (sectionneur entre deux
+  sections) → « mettre la **section de barre** hors tension (ré-aiguiller ses
+  départs) ».
 - **Alerte IHM** : en séquence **manuelle/éditée**, l'IHM (`manoeuvre_ihm.py`)
-  affiche un ⚠ sur chaque manœuvre fautive (info-bulle = règle enfreinte) via
-  `Session._violations_regles` → payload `violations`.
-- **Tests** : `test_verifier_sectionneur_sous_charge_detecte` (détection sur la
-  séquence fautive `MORBRP6_cible_4noeuds_wrong_last_step.json`) et
-  `test_morbrp6_multibarres` (ordre DJ→SA→DJ vérifié).
+  affiche un ⚠ sur chaque manœuvre fautive **et le texte explicite de la règle
+  enfreinte sous la ligne** (bandeau rouge), via `Session._violations_regles` →
+  payload `violations`.
+- **Tests** : `test_verifier_sectionneur_sous_charge_detecte` (sélecteur de
+  départ, séquence fautive `MORBRP6_cible_4noeuds_wrong_last_step.json`),
+  `test_message_sectionnement_de_barre_specifique` (message « section de barre »
+  sur CZBEVP3) et `test_morbrp6_multibarres` (ordre DJ→SA→DJ vérifié).
 
 ---
 

@@ -21,6 +21,7 @@ from expert_op4grid_recommender.manoeuvre.topologie import PosteTopologique
 from expert_op4grid_recommender.manoeuvre.algo import (
     Manoeuvre,
     determiner_manoeuvres_cible_detaillee,
+    _sectionneurs_sous_charge_par_manoeuvre,
     _verifier_sectionneurs_hors_charge,
 )
 
@@ -172,6 +173,27 @@ def test_verifier_sectionneur_sous_charge_detecte():
     ecarts = _verifier_sectionneurs_hors_charge(poste, manoeuvres)
     assert any("ARRIG.1 SA.1" in e for e in ecarts), \
         f"sectionneur sous charge non détecté ; écarts={ecarts}"
+    # Sélecteur de barre de départ → parade « par son disjoncteur ».
+    assert any("ARRIG.1 SA.1" in e and "disjoncteur" in e for e in ecarts)
+
+
+def test_message_sectionnement_de_barre_specifique():
+    """Pour un **sectionnement de barre** (sectionneur reliant deux sections), le
+    message de parade parle de **section de barre** (pas de disjoncteur de
+    branche). Cf. CZBEVP3, sectionneur de section ``SS.1.12`` ouvert sous charge."""
+    VL = "CZBEVP3"
+    if VL not in list_available_fixtures():
+        pytest.skip("Fixture CZBEVP3 absente")
+    G = build_graph_from_fixture(VL)
+    poste = PosteTopologique.from_graph(G, VL)
+    sid = "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC"
+    if not any(d.get("switch_id") == sid for _u, _v, d in G.edges(data=True)):
+        pytest.skip("Sectionneur de section CZBEVP3 absent de la fixture")
+    msgs = _sectionneurs_sous_charge_par_manoeuvre(
+        poste, [Manoeuvre(sid, "OPEN", "manœuvre manuelle (expert)")])
+    assert msgs[0] is not None, "sectionnement sous charge non détecté"
+    assert "section de barre" in msgs[0]
+    assert "disjoncteur" not in msgs[0]
 
 
 def test_morbrp6_degradation_gracieuse():
