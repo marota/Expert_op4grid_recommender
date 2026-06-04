@@ -19,7 +19,9 @@ import pytest
 
 from expert_op4grid_recommender.manoeuvre.topologie import PosteTopologique
 from expert_op4grid_recommender.manoeuvre.algo import (
+    Manoeuvre,
     determiner_manoeuvres_cible_detaillee,
+    _verifier_sectionneurs_hors_charge,
 )
 
 from .fixture_loader import build_graph_from_fixture, list_available_fixtures
@@ -142,6 +144,34 @@ def test_morbrp6_multibarres():
     # L'organe interne à 2 bornes (réactance) n'est PAS manœuvré (laissé en place).
     assert not any("REAC" in s for s in touched), \
         "La réactance interne à 2 bornes ne doit pas être manœuvrée"
+
+    # Règle du sectionneur : le SA d'ARRIG.1 est ouvert HORS CHARGE — le DJ est
+    # ouvert AVANT puis refermé APRÈS (ordre DJ open → SA open → DJ close).
+    seq = [(m.switch_id, m.action) for m in res.manoeuvres]
+    i_sa = next(i for i, (s, a) in enumerate(seq)
+                if "ARRIG.1 SA.1" in s and a == "OPEN")
+    assert ("MORBRP6_MORBR6ARRIG.1 DJ_OC", "OPEN") in seq[:i_sa], \
+        "le DJ d'ARRIG.1 doit être ouvert avant l'ouverture de son sectionneur"
+    assert ("MORBRP6_MORBR6ARRIG.1 DJ_OC", "CLOSE") in seq[i_sa + 1:], \
+        "le DJ d'ARRIG.1 doit être refermé après l'ouverture de son sectionneur"
+
+
+def test_verifier_sectionneur_sous_charge_detecte():
+    """Le vérificateur générique signale un **sectionneur manœuvré sous charge**
+    (séquence experte fautive : on ouvre directement ``ARRIG.1 SA.1`` sans
+    dé-énergiser la branche par son disjoncteur d'abord)."""
+    path = (Path(__file__).parent / "sequences"
+            / "MORBRP6_cible_4noeuds_wrong_last_step.json")
+    if not path.exists() or "MORBRP6" not in list_available_fixtures():
+        pytest.skip("Séquence/fixture MORBRP6 absente")
+    d = json.loads(path.read_text())
+    poste = PosteTopologique.from_graph(
+        _graph_from_states("MORBRP6", d["depart"]), "MORBRP6")
+    manoeuvres = [Manoeuvre(m["switch_id"], m["action"], m.get("raison", ""))
+                  for m in d["manoeuvres"]]
+    ecarts = _verifier_sectionneurs_hors_charge(poste, manoeuvres)
+    assert any("ARRIG.1 SA.1" in e for e in ecarts), \
+        f"sectionneur sous charge non détecté ; écarts={ecarts}"
 
 
 def test_morbrp6_degradation_gracieuse():

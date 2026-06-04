@@ -357,6 +357,29 @@ partielle + écarts pour complétion manuelle.
 > `_placement_best_effort`) pour l'API purement nodale `determiner_topo_complete_
 > cible`, qui ne dispose pas de la cible détaillée.
 
+### R18 — Sectionneur manœuvré hors charge (règle générale + vérification + alerte IHM)
+Un **sectionneur** (DISCONNECTOR) ne se manœuvre que **hors charge** : on ne peut
+pas ouvrir un sectionneur qui **coupe un courant** (qui déconnecte, sans chemin
+parallèle, deux parties **toutes deux porteuses d'un ouvrage** énergisé). La
+parade : **dé-énergiser d'abord la branche par son disjoncteur**, manœuvrer le
+sectionneur, puis ré-alimenter.
+
+- **Application** (isolation d'un nœud à 0 barre, R17) :
+  `_isoler_depart_hors_barre` ouvre le DJ → ouvre le(s) SA → referme le DJ à son
+  état cible (la ligne reste sur son DJ, isolée des barres). Ex. MORBRP6 : la
+  séquence finit par `OPEN ARRIG.1 DJ → OPEN ARRIG.1 SA.1 → CLOSE ARRIG.1 DJ`.
+- **Vérification générique** : `_sectionneurs_sous_charge_par_manoeuvre` analyse
+  la séquence **manœuvre par manœuvre** (rejeu + connexité « live ») ;
+  `_verifier_sectionneurs_hors_charge` agrège les écarts. Intégrée à la
+  vérification de toutes les séquences (`determiner_manoeuvres_avec_sections`,
+  chemins détaillé / multi-barres / agressif).
+- **Alerte IHM** : en séquence **manuelle/éditée**, l'IHM (`manoeuvre_ihm.py`)
+  affiche un ⚠ sur chaque manœuvre fautive (info-bulle = règle enfreinte) via
+  `Session._violations_regles` → payload `violations`.
+- **Tests** : `test_verifier_sectionneur_sous_charge_detecte` (détection sur la
+  séquence fautive `MORBRP6_cible_4noeuds_wrong_last_step.json`) et
+  `test_morbrp6_multibarres` (ordre DJ→SA→DJ vérifié).
+
 ---
 
 ## Postes multi-sections

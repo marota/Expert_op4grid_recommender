@@ -476,7 +476,8 @@ def _sequence_detaillee_aggressive(
     res.topo_obtenue = TopologieNodale.from_graph(G, vl)
     res.is_verified = res.topo_cible.meme_topologie(res.topo_obtenue)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
-                  + _verifier_securite_sectionneurs(poste, manoeuvres))
+                  + _verifier_securite_sectionneurs(poste, manoeuvres)
+                  + _verifier_sectionneurs_hors_charge(poste, manoeuvres))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if not res.is_verified:
         res.message = (
@@ -543,6 +544,47 @@ def _consigner_non_realisables(
     for grp in non_places:
         res.ecarts.append(
             "nœud à compléter manuellement : {" + ", ".join(sorted(grp)) + "}")
+
+
+def _isoler_depart_hors_barre(
+    G: nx.Graph, cell: CelluleDepart, cible_graph: nx.Graph
+) -> list[Manoeuvre]:
+    """Isole un départ de ses barres (nœud à **0 barre** : ligne laissée sur son
+    DJ) en respectant la **règle du sectionneur** — un sectionneur ne se manœuvre
+    que hors charge :
+
+    1. **dé-énergiser** : ouvrir le(s) DJ propre(s) encore fermé(s) ;
+    2. **ouvrir les sectionneurs** de barre à ouvrir (désormais hors charge) ;
+    3. **remettre le(s) DJ** à leur état cible (refermer si la cible les veut
+       fermés — la ligne reste alors sur son DJ, isolée des barres).
+
+    Ne fait rien (et n'ouvre aucun DJ) s'il n'y a aucun sectionneur à ouvrir.
+    """
+    sas = [sw for sw in cell.disconnectors
+           if not _is_open(G, sw.switch_id) and _is_open(cible_graph, sw.switch_id)]
+    if not sas:
+        return []
+    manos: list[Manoeuvre] = []
+    djs_ouverts: list[str] = []
+    for dj in cell.breakers:
+        if not _is_open(G, dj.switch_id):
+            _set_switch(G, dj.switch_id, True)
+            manos.append(Manoeuvre(
+                dj.switch_id, "OPEN",
+                f"mise hors tension '{cell.equipment_id}' (avant ouverture sectionneur)"))
+            djs_ouverts.append(dj.switch_id)
+    for sw in sas:
+        _set_switch(G, sw.switch_id, True)
+        manos.append(Manoeuvre(
+            sw.switch_id, "OPEN",
+            f"isolement départ {cell.equipment_id} (nœud sans barre)"))
+    for djid in djs_ouverts:
+        if not _is_open(cible_graph, djid):
+            _set_switch(G, djid, False)
+            manos.append(Manoeuvre(
+                djid, "CLOSE",
+                f"remise sous tension '{cell.equipment_id}' (après ouverture sectionneur)"))
+    return manos
 
 
 def _sequence_detaillee_multibarres(
@@ -615,8 +657,8 @@ def _sequence_detaillee_multibarres(
         _set_switch(G, m.switch_id, m.action == "OPEN")
 
     extra: list[Manoeuvre] = []
-    # Isolation des nœuds à 0 barre : amener les SA de barre à leur état cible
-    # (ouvrir ceux qui doivent l'être) pour détacher le départ des barres.
+    # Isolation des nœuds à 0 barre : détacher le départ de ses barres en
+    # respectant la **règle du sectionneur** (dé-énergiser par le DJ d'abord).
     for eqs in noeuds_isoles:
         for eq in sorted(eqs):
             if eq in organes_fixes:
@@ -624,13 +666,7 @@ def _sequence_detaillee_multibarres(
             cell = cells.get_cellule_depart(eq)
             if cell is None:
                 continue
-            for sw in cell.disconnectors:
-                if (not _is_open(G, sw.switch_id)
-                        and _is_open(cible_graph, sw.switch_id)):
-                    _set_switch(G, sw.switch_id, True)
-                    extra.append(Manoeuvre(
-                        sw.switch_id, "OPEN",
-                        f"isolement départ {eq} (nœud sans barre)"))
+            extra += _isoler_depart_hors_barre(G, cell, cible_graph)
 
     # Changements de DJ de départ (mise en service / hors service).
     reconnections, disconnections = _departure_dj_changes(poste, cible_graph)
@@ -644,7 +680,8 @@ def _sequence_detaillee_multibarres(
     res.is_changed = bool(res.manoeuvres)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
                   + _verifier_securite_sectionneurs(poste, res.manoeuvres)
-                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres))
+                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres)
+                  + _verifier_sectionneurs_hors_charge(poste, res.manoeuvres))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if res.is_verified_detaillee:
         res.message = ("Topologie détaillée cible atteinte et vérifiée "
@@ -817,7 +854,8 @@ def determiner_manoeuvres_cible_detaillee(
     res.is_changed = bool(res.manoeuvres)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
                   + _verifier_securite_sectionneurs(poste, res.manoeuvres)
-                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres))
+                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres)
+                  + _verifier_sectionneurs_hors_charge(poste, res.manoeuvres))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if degradation:
         # Dégradation gracieuse (option 4) : cible partiellement atteinte.
@@ -1756,8 +1794,10 @@ def determiner_manoeuvres_avec_sections(
     res.topo_obtenue = topo_obtenue
     res.is_verified = topo_cible.meme_topologie(topo_obtenue)
     res.is_changed = bool(manoeuvres)
-    # Sûreté des sectionneurs : signaler toute ouverture restée sous tension.
+    # Sûreté des sectionneurs : signaler toute ouverture restée sous tension
+    # (sectionnements de barre) ou tout sectionneur manœuvré sous charge.
     res.ecarts += _verifier_securite_sectionneurs(poste, manoeuvres)
+    res.ecarts += _verifier_sectionneurs_hors_charge(poste, manoeuvres)
     res.message = (
         "Topologie cible atteinte et vérifiée."
         if res.is_verified
@@ -1896,6 +1936,59 @@ def _verifier_un_seul_hors_tension(
             ecarts.append(
                 "plus d'un ouvrage hors tension simultanément (ré-aiguillage) : "
                 + ", ".join(sorted(temp_parking)))
+    return list(dict.fromkeys(ecarts))
+
+
+def _sectionneurs_sous_charge_par_manoeuvre(
+    poste: PosteTopologique, manoeuvres: list[Manoeuvre]
+) -> list[Optional[str]]:
+    """Analyse, **manœuvre par manœuvre**, la règle du sectionneur (hors charge).
+
+    Retourne une liste **alignée sur ``manoeuvres``** : pour chaque manœuvre, un
+    message d'infraction si elle ouvre un **sectionneur** (DISCONNECTOR) **sous
+    charge** — i.e. elle déconnecte, sans chemin parallèle, deux parties **toutes
+    deux porteuses d'un ouvrage** énergisé — sinon ``None``.
+
+    Un sectionneur ne se manœuvre que hors charge : la parade est de dé-énergiser
+    la branche par son **disjoncteur** avant d'ouvrir le sectionneur.
+    """
+    disc: dict[str, tuple[int, int]] = {}
+    for u, v, d in poste.graph.edges(data=True):
+        sid = d.get("switch_id")
+        if sid and d.get("kind") == SwitchKind.DISCONNECTOR:
+            disc[sid] = (u, v)
+    equip = {n for n, d in poste.graph.nodes(data=True) if d.get("equipment_id")}
+    G = poste.graph.copy()
+    out: list[Optional[str]] = []
+    for m in manoeuvres:
+        msg: Optional[str] = None
+        if (m.action == "OPEN" and m.switch_id in disc
+                and not _is_open(G, m.switch_id)):
+            u, v = disc[m.switch_id]
+            H = _live_graph_sans(G, [m.switch_id])
+            relies = u in H and v in H and nx.has_path(H, u, v)
+            if not relies:
+                cu = nx.node_connected_component(H, u) if u in H else {u}
+                cv = nx.node_connected_component(H, v) if v in H else {v}
+                if (cu & equip) and (cv & equip):
+                    msg = ("sectionneur manœuvré sous charge — dé-énergiser la "
+                           "branche par son disjoncteur avant d'ouvrir ce "
+                           "sectionneur")
+        out.append(msg)
+        _set_switch(G, m.switch_id, m.action == "OPEN")
+    return out
+
+
+def _verifier_sectionneurs_hors_charge(
+    poste: PosteTopologique, manoeuvres: list[Manoeuvre]
+) -> list[str]:
+    """Règle générale du sectionneur : un **sectionneur** (DISCONNECTOR) ne se
+    manœuvre que **hors charge** (cf. ``_sectionneurs_sous_charge_par_manoeuvre``).
+    Retourne les écarts agrégés (sectionneurs manœuvrés sous charge), pour
+    **tous** les sectionneurs (sélecteurs de barre comme sectionnements)."""
+    par_man = _sectionneurs_sous_charge_par_manoeuvre(poste, manoeuvres)
+    ecarts = [f"sectionneur {m.switch_id} {msg}"
+              for m, msg in zip(manoeuvres, par_man) if msg]
     return list(dict.fromkeys(ecarts))
 
 

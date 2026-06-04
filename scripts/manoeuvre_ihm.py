@@ -68,8 +68,10 @@ from expert_op4grid_recommender.manoeuvre.topologie import (
     TopologieNodale,
 )
 from expert_op4grid_recommender.manoeuvre.algo import (
+    Manoeuvre,
     determiner_topo_complete_cible,
     determiner_manoeuvres_cible_detaillee,
+    _sectionneurs_sous_charge_par_manoeuvre,
 )
 
 # Postes de test retenus (intersectés avec les VL réellement présents)
@@ -243,6 +245,22 @@ class Session:
             f'{i}. {m["action"]} {m["switch_id"]} — {m["raison"]}'
             for i, m in enumerate(self.seq_manoeuvres, 1)]
 
+    def _violations_regles(self) -> list[str | None]:
+        """Pour chaque manœuvre de la séquence, un message d'infraction d'une
+        règle de sûreté (sectionneur manœuvré sous charge…) ou ``None``. Aligné
+        sur ``seq_manoeuvres``. Permet d'alerter l'expert sur une manœuvre
+        manuelle invalide."""
+        if not self.seq_manoeuvres or not self.vl:
+            return [None] * len(self.seq_manoeuvres)
+        self.apply(self.initial)
+        poste = PosteTopologique.from_graph(
+            build_vl_graph(self.net, self.vl), self.vl)
+        manos = [Manoeuvre(m["switch_id"], m["action"], m.get("raison", ""))
+                 for m in self.seq_manoeuvres]
+        viol = _sectionneurs_sous_charge_par_manoeuvre(poste, manos)
+        self.apply(self.current)  # restaurer l'affichage courant
+        return viol
+
     def _seq_payload(self) -> dict:
         """Charge utile commune (séquence + état final) renvoyée au front."""
         nb_final, matches = None, None
@@ -265,6 +283,7 @@ class Session:
             "matches_cible": matches,
             "edited": self.seq_edited,
             "mode": self.seq_mode,
+            "violations": self._violations_regles(),
         }
 
     def seq_insert(self, step: int, sid: str) -> int:
@@ -611,6 +630,10 @@ PAGE = r"""<!DOCTYPE html>
  #seq .line .txt{flex:1;overflow:hidden;text-overflow:ellipsis}
  #seq .cur{background:#fde68a}
  #seq .line.manual .txt{color:#7c3aed}
+ #seq .line.violation{background:#fef2f2}
+ #seq .line.violation .txt{color:#b91c1c}
+ #seq .warn{color:#dc2626;font-weight:bold;padding:0 4px;cursor:help}
+ #seq .head.hasviol{color:#b91c1c}
  #seq .del{color:#c0392b;font-weight:bold;cursor:pointer;padding:0 4px;border-radius:3px;visibility:hidden}
  #seq .line:hover .del{visibility:visible}
  #seq .del:hover{background:#fde2e2}
@@ -793,15 +816,21 @@ function renderSeq(d){
   let headtxt=(S.algo.message||'')+(d.manoeuvres.length?'':'\n(aucune manœuvre)');
   if(S.algo.ecarts&&S.algo.ecarts.length){headtxt+='\nÉcarts détaillés : '+S.algo.ecarts.join(' ; ');}
   if(d.edited){headtxt+='\n(séquence éditée manuellement)';}
-  const head=document.createElement('div');head.className='head';head.id='ln0';head.textContent=headtxt;
+  const viols=d.violations||[];
+  const nbViol=viols.filter(Boolean).length;
+  if(nbViol){headtxt+='\n⚠ '+nbViol+' manœuvre(s) enfreignant une règle de sûreté — voir ⚠ dans la liste.';}
+  const head=document.createElement('div');head.className='head'+(nbViol?' hasviol':'');head.id='ln0';head.textContent=headtxt;
   head.style.cursor='pointer';head.title="Aller à l'état de départ";head.onclick=()=>stepGoto(0);seq.appendChild(head);
   d.manoeuvres.forEach((m,i)=>{const k=i+1;const ln=document.createElement('div');
-    ln.className='line'+(/manuelle/.test(m.raison)?' manual':'');ln.id='ln'+k;
+    const viol=viols[i];
+    ln.className='line'+(/manuelle/.test(m.raison)?' manual':'')+(viol?' violation':'');ln.id='ln'+k;
     const chk=document.createElement('input');chk.type='checkbox';chk.className='chk';
     chk.title='Sélectionner (Maj+clic = bloc)';
     chk.onclick=(e)=>{e.stopPropagation();onChkClick(k,e.shiftKey);};
     const txt=document.createElement('span');txt.className='txt';
     txt.textContent=`${String(k).padStart(2)}. ${m.action.padEnd(5)} ${m.switch_id}  (${m.raison})${m.boucle?' ['+m.boucle+']':''}`;
+    if(viol){const w=document.createElement('span');w.className='warn';w.textContent='⚠';
+      w.title=viol;ln.title=viol;ln.appendChild(w);}
     const del=document.createElement('span');del.className='del';del.textContent='✕';del.title='Supprimer cette manœuvre';
     del.onclick=(e)=>{e.stopPropagation();seqDelete(k);};
     ln.appendChild(chk);ln.appendChild(txt);ln.appendChild(del);
