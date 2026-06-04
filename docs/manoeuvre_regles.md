@@ -383,6 +383,9 @@ sectionneur, puis ré-alimenter.
   payload `violations`.
 - **Tests** : `test_verifier_sectionneur_sous_charge_detecte` (sélecteur de
   départ, séquence fautive `MORBRP6_cible_4noeuds_wrong_last_step.json`),
+  `test_verifier_mauvaise_manoeuvre_finale` (séquence manuelle dont **seule la
+  dernière** manœuvre `OPEN AT761 SA.1` est fautive,
+  `MORBRP6_cible_4noeuds_mauvaise_manoeuvre.json`),
   `test_message_sectionnement_de_barre_specifique` (message « section de barre »
   sur CZBEVP3) et `test_morbrp6_multibarres` (ordre DJ→SA→DJ vérifié).
 
