@@ -45,22 +45,28 @@ CORNIP3, GUARBP6, MORBRP6.
 ## 2. Disposition de l'interface
 
 ```
-┌───────────────────────────┬───────────────────────────────────────────────┐
-│ PANNEAU LATÉRAL            │  SCHÉMA — TOPOLOGIE DE DÉPART (fixe)           │
-│                            │  (SLD pypowsybl, couleurs natives par nœud)   │
-│ • Poste (sélecteur)        ├───────────────────────────────────────────────┤
-│ • ↺ État de départ         │  SCHÉMA — TOPOLOGIE CIBLE (éditable)           │
-│ 1 · Valider la cible       │  clic sur un organe = bascule ; animation ici │
-│ 2 · Calculer la séquence   ├───────────────────────────────────────────────┤
-│ • Scénarios sauvegardés    │  Contrôles d'animation ◀ ▶ Lecture ▶|         │
-│ • Liste DJ / SA + états    │  Séquence (texte) + 💾 Sauvegarder la séquence │
-└───────────────────────────┴───────────────────────────────────────────────┘
+┌──────────────────────┬─────────────────────────────────┬────────────────────┐
+│ PANNEAU LATÉRAL      │ SCHÉMA — TOPOLOGIE DE DÉPART     │ VOLET NODAL        │
+│                      │ (SLD pypowsybl, couleurs nœud)  │                    │
+│ • Poste (sélecteur)  ├─────────────────────────────────┤ Topo nodale DÉPART │
+│ • ↺ État de départ   │ SCHÉMA — TOPOLOGIE CIBLE        │ (lecture seule)    │
+│ 1 · Valider la cible │ clic organe = bascule ; anim.   ├────────────────────┤
+│ 2 · Calculer séq.    ├─────────────────────────────────┤ Topo nodale CIBLE  │
+│ • Scénarios          │ Contrôles ◀ ▶ Lecture ▶|        │ (éditable : chips) │
+│ • Liste DJ / SA      │ Séquence (texte) + 💾           │ ⚙ Calculer la      │
+│                      │                                 │ topo détaillée     │
+└──────────────────────┴─────────────────────────────────┴────────────────────┘
 ```
 
-- **Schéma de départ** (haut, bandeau bleu) : topologie détaillée initiale,
-  **non modifiable** ; sert de référence.
-- **Schéma cible** (bas, bandeau orange) : topologie détaillée **éditable** ;
-  c'est aussi là que se déroule l'animation de la séquence.
+- **Schéma de départ** (centre haut, bandeau bleu) : topologie détaillée
+  initiale, **non modifiable** ; sert de référence.
+- **Schéma cible** (centre bas, bandeau orange) : topologie détaillée
+  **éditable** ; c'est aussi là que se déroule l'animation de la séquence.
+- **Volet nodal** (droite) : représentation **schématique en « vue bus »** (un
+  **nœud** = barre horizontale colorée ; chaque **branche** = départ vertical
+  portant son **libellé** détaillé et sa **valeur de flux** en MW) de la topologie
+  nodale de départ et d'une **cible nodale éditable par glisser-déposer**. Voir §3
+  *Éditer une topologie nodale cible*. Repliable via ◂.
 - Le **nombre de nœuds électriques** est affiché par schéma et se met à jour à
   chaque modification.
 - Chaque en-tête porte un bouton **▾ / ▸** pour **replier** son schéma : l'autre
@@ -105,6 +111,71 @@ des variables CSS).
 > « DÉTAILLÉE VÉRIFIÉE », ou « NODALE OK · N écart(s) détaillé(s) » avec la
 > liste des écarts résiduels.
 
+### Éditer une topologie nodale cible (étape intermédiaire)
+Plutôt que de basculer les organes un à un, l'expert peut raisonner au niveau
+**nodal** (quelles branches sur quel nœud électrique) dans le **volet de droite**,
+puis demander un **calcul de la topologie détaillée d'intérêt** réalisant cette
+partition. Le pont nodal → détaillé s'appuie sur l'algorithme
+`determiner_topo_complete_cible(poste, topo_cible)`.
+
+- **Représentation** : rendu **schématique en SVG, en « vue bus »** comparable au
+  schéma détaillé. Chaque nœud électrique est une **barre horizontale** dont la
+  **couleur est celle utilisée par la vue détaillée** (`topological_coloring` du
+  SLD : même nœud électrique ⇒ même couleur), repérée par un badge `N0`, `N1`… Ses
+  branches sont des **départs verticaux** — *du haut* au-dessus de la barre, *du
+  bas* en dessous, comme dans la vue détaillée — **triés de gauche à droite** par
+  leur abscisse SLD. Chaque branche porte son **libellé** (extrait du SLD, donc
+  **strictement identique** au schéma détaillé : `C.REG1`, `AT762`, `TR634`…) et sa
+  **valeur de flux** (P en MW, état de départ). Les nœuds sont **empilés
+  verticalement**. Le volet montre la topologie nodale de **départ** (lecture
+  seule) et une **cible nodale éditable** initialisée **avec la topologie de départ**.
+- **Élargir le volet** : un **séparateur déplaçable** (entre le schéma détaillé et
+  le volet nodal) permet d'élargir la 3ᵉ colonne en réduisant la 2ᵉ, afin
+  d'afficher tous les nœuds de la partition dans la largeur.
+
+L'édition se fait par **glisser-déposer** :
+- **Réaiguiller des départs** : glisser une branche sur une autre barre l'y
+  déplace. Pour en déplacer plusieurs d'un coup, **cliquer** d'abord les branches
+  voulues (sélection surlignée, inter-nœuds) puis glisser l'une d'elles.
+- **Fusionner des nœuds** : glisser une **barre** sur une autre barre (fusion).
+- **Créer un nœud** : bouton **＋ Nœud** (nœud vide, ou contenant la sélection
+  courante) — puis y glisser des départs.
+- **Réinitialiser** : **= départ** ramène la cible à la partition de départ ;
+  **∅ Désélectionner** vide la sélection.
+
+Les **ouvrages déconnectés** (organe ouvert → non raccordés à une barre) ne sont
+**pas** des nœuds électriques : ils sont listés à part (chips **⚠ Ouvrages
+isolés**, sous chaque schéma) et n'occupent pas d'espace en barre. Pour en
+**reconnecter** un, le **glisser sur une barre** (il rejoint ce nœud) ; côté
+serveur, les isolés restants sont **laissés déconnectés** (hors partition cible).
+Le compteur de nœuds exclut les isolés.
+- **⚙ Calculer la topologie détaillée d'intérêt** : envoie la partition nodale
+  (`/api/nodale_to_detaillee`) ; l'IHM **charge l'état détaillé réalisant** cette
+  cible dans le schéma du bas (devient la nouvelle cible détaillée, à **valider**
+  avant calcul de séquence). Le statut indique **✓** si la cible nodale est
+  intégralement réalisable, ou un message de **réalisation partielle** (nœuds non
+  réalisables, écarts) en cas de dégradation gracieuse de l'algorithme.
+  Le volet nodal cible est alors **resynchronisé sur la topologie réalisée**
+  (partition, **couleurs** topological_coloring et ouvrages isolés renvoyés dans
+  `nodale` par `/api/nodale_to_detaillee`) : il prend les mêmes nœuds et couleurs
+  que le schéma détaillé obtenu.
+
+> Les nœuds vides sont automatiquement retirés et la partition renumérotée
+> `N0…Nk` après chaque opération ; le nombre de nœuds cible est affiché en direct.
+
+**Synchronisation détaillé ↔ nodal.** La topologie **détaillée** fait foi : le
+volet nodal cible **reflète** la partition de l'état détaillé courant. Toute
+**édition du détail** (bascule d'un organe, `↺ État de départ`) **ou rechargement
+de scénario** (`▷ Rejouer`) **resynchronise** la cible nodale (partition, couleurs,
+ouvrages isolés) — par ex. ouvrir le DJ d'un départ le fait passer en *ouvrage
+isolé* dans le volet nodal, et recharger un scénario à N nœuds affiche bien ces N
+nœuds côté nodal. Le
+glisser-déposer nodal et `= départ` sont des **propositions** de partition
+(le détail n'est pas encore modifié) ; **⚙ Calculer…** les réalise, charge la
+cible détaillée et resynchronise le volet nodal sur la topologie **obtenue**
+(d'où, en cas de réalisation partielle, un volet nodal qui correspond bien au
+détail réalisé et non à la proposition).
+
 ### Naviguer et éditer la séquence (expert)
 La séquence calculée peut être **parcourue et modifiée** directement, sans avoir
 à balayer toutes les étapes :
@@ -124,6 +195,17 @@ La séquence calculée peut être **parcourue et modifiée** directement, sans a
   indicateur **= cible** / **≠ cible** (l'état nodal final est recalculé). La
   **sauvegarde** de séquence enregistre alors la liste **éditée telle quelle**
   (aucun re-calcul de l'algorithme).
+
+### Re-éditer la cible détaillée après calcul
+Une séquence calculée met le schéma du bas en mode **animation** (clic = insertion
+de manœuvre). Pour **revenir éditer la cible détaillée** sans repartir de zéro, le
+bouton **✎ Modifier la cible** (barre d'animation) bascule le schéma en mode
+**édition** : les contrôles d'animation sont désactivés et chaque clic sur un
+organe modifie de nouveau la cible. Dès qu'un organe est modifié, un **bandeau
+rouge** signale que *« la séquence ci-dessous n'atteint plus cet état cible »* et
+la liste de séquence est grisée. Il faut alors **re-valider** la cible puis
+**recalculer la séquence** (qui efface l'obsolescence). Le bouton **▶ Revenir à la
+séquence** ré-affiche l'animation de la séquence (obsolète) sans rien recalculer.
 
 ### Construire une séquence **entièrement manuelle**
 Une fois la cible **validée**, le bouton **✋ Séquence manuelle** démarre une
@@ -163,9 +245,12 @@ navigateur).
 |-----------------|-------|---------|------|
 | `GET /` | — | HTML | Page de l'IHM |
 | `GET /api/postes` | — | `{postes:[…]}` | Liste des postes de test |
-| `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds}` | Charge un poste (départ pristine) |
-| `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds}` | Bascule un OC (cible) |
-| `POST /api/reset` | — | `{svg, switches, nb_noeuds}` | Réinitialise la cible = départ |
+| `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) ; inclut les partitions nodales |
+| `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds, nodale}` | Bascule un OC (cible) ; `nodale` = vue nodale resynchronisée |
+| `POST /api/reset` | — | `{svg, switches, nb_noeuds, nodale}` | Réinitialise la cible = départ |
+| `POST /api/cible` | — | `{svg, switches, nb_noeuds, nodale}` | Vue de la cible détaillée **courante** (sans la modifier) — pour revenir l'éditer alors qu'une séquence est calculée |
+| `POST /api/nodale` | — | `{nodale_depart, nodale_cible}` | Partitions nodales (cible initialisée = départ) ; `nodale_*` = `{groups[[…]], labels{id:nom}, types{id:type}, flows{id:MW}, dirs{id:TOP\|BOTTOM}, order{id:x}, colors{id:#hex}, isolated[…]}`. `labels`/`dirs`/`order`/`colors` sont **extraits du SLD** (libellés, côté, ordre horizontal et **couleur du nœud `topological_coloring`** identiques à la vue détaillée) ; `flows` provient d'une charge de réseau ; `isolated` liste les départs **déconnectés** (composante sans barre) |
+| `POST /api/nodale_to_detaillee` | `{groups, isolated?}` | `{svg, switches, nb_noeuds, is_verified, message, ecarts[], noeuds_non_realisables[[…]], nb_obtenu, nb_vise, nodale}` | Calcule la **topologie détaillée d'intérêt** réalisant la cible nodale `groups` (les `isolated` sont laissés hors partition) et la charge comme cible détaillée ; `nodale` = `{groups, colors, isolated}` de la topologie **réalisée** (resynchronise le volet nodal) |
 | `POST /api/sequence` | `{mode?}` | `{verified, verified_detaillee, ecarts[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited, mode}` | Calcule la séquence (cible **détaillée**) ; `mode` = `"smooth"` (défaut) ou `"aggressive"` |
 | `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i, reached}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** ; `reached` = l'état affiché est la topologie cible |
 | `POST /api/seq_insert` | `{step, id}` | `{goto, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Insère une manœuvre basculant `id` **après** l'étape `step` (conserve la suite) |
@@ -174,7 +259,7 @@ navigateur).
 | `POST /api/manual_start` | — | `{cible_svg, cible_nb, goto, manoeuvres[], n_steps, labels[], …}` | Démarre une séquence **manuelle vierge** (départ → cible affichée en référence) |
 | `GET /api/scenarios` | — | `{scenarios:[…]}` | Liste des scénarios sauvegardés |
 | `POST /api/save` | `{name, overwrite?}` | `{path, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible |
-| `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl}` | Recharge (`mode="both"` ou `"as_depart"`) |
+| `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, nodale_depart, nodale_cible}` | Recharge (`mode="both"` ou `"as_depart"`) ; `nodale_cible` = vue nodale de la cible chargée |
 | `POST /api/save_sequence` | `{name, overwrite?}` | `{path}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** (éditée telle quelle) |
 
 > **Avertissement d'écrasement** : sans `overwrite:true`, si le fichier existe
@@ -286,6 +371,11 @@ assert res.ecarts == []
 | **Sauvegarder la séquence éditée** telle quelle (sans re-calcul) | `/api/save_sequence` sérialise `seq_manoeuvres` ; champs `edited`, `matches_cible`, `nb_final` |
 | **Construire une séquence entièrement manuelle** (interagir avec le départ, cible en référence) | Bouton ✋ → `/api/manual_start` (séquence vierge) puis clics organe → `/api/seq_insert` |
 | **Signaler visuellement** l'atteinte de la topologie cible | Halo jaune sur la vue du poste + « ✓ topologie cible atteinte » (champ `reached` de `/api/step`) |
+| **Éditer une topologie nodale cible** (réaiguillage / fusion / nouveau nœud) | Volet nodal SVG « vue bus » (barre + départs verticaux, libellés SLD + flux MW) ; **glisser-déposer** (départ→barre = réaiguillage, barre→barre = fusion) côté client |
+| **Élargir** le volet nodal pour afficher tous les nœuds | Séparateur déplaçable entre colonnes 2 et 3 (`#ndresize`) |
+| **Ouvrages déconnectés** présentés en liste (pas en nœud), reconnectables | Liste « ⚠ Ouvrages isolés » (chips) ; glisser sur une barre = reconnexion ; `isolated` dans `/api/nodale*` |
+| **Re-éditer la cible détaillée** après calcul de séquence + signaler l'obsolescence | Bouton **✎ Modifier la cible** (`/api/cible`) ; bandeau « la séquence n'atteint plus cet état cible » |
+| Demander un **calcul de topologie détaillée d'intérêt** depuis la cible nodale | `/api/nodale_to_detaillee` → `determiner_topo_complete_cible` + rejeu, chargé comme cible détaillée |
 
 ---
 
@@ -310,6 +400,15 @@ assert res.ecarts == []
   et les surlignages. La dérivation d'une manœuvre manuelle (`_manual_manoeuvre`)
   et la suppression multiple (`_delete_indices`) sont des **fonctions pures**,
   testées sans Flask ni pypowsybl (`tests/manoeuvre/test_ihm_sequence_edit.py`).
+- **Vue nodale — logique pure testable** : le parsing du SLD (`_parse_feeder_meta`
+  pour libellés/direction/abscisse, `_parse_node_colors` pour les couleurs
+  topologiques, `_decode_svg_id`), la détection des ouvrages isolés
+  (`_isolated_assets`, sur graphe NX) et la normalisation de partition
+  (`_normalize_groups`) sont des **fonctions de module pures**, testées sans réseau
+  (`tests/manoeuvre/test_ihm_nodale_edit.py`). Le pipeline complet
+  (`nodale_payload` / `nodale_state` / `nodale_to_detaillee`, cohérence détaillé ↔
+  nodal, isolés, rechargement de scénario) est couvert en **intégration** sur le
+  réseau `four_substations` (`tests/manoeuvre/test_ihm_nodale_integration.py`).
 
 ---
 

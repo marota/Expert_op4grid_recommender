@@ -59,10 +59,15 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit("Flask est requis pour l'IHM : pip install -e .[ihm]  (ou pip install flask)")
 
+import networkx as nx
 import pypowsybl as pp
 import pypowsybl.network as ppn
 
-from expert_op4grid_recommender.manoeuvre.graph import build_vl_graph
+from expert_op4grid_recommender.manoeuvre.graph import (
+    build_vl_graph,
+    busbar_nodes,
+    equipment_nodes,
+)
 from expert_op4grid_recommender.manoeuvre.topologie import (
     PosteTopologique,
     TopologieNodale,
@@ -116,6 +121,123 @@ def _delete_indices(manoeuvres: list[dict], indices) -> list[dict]:
     Les indices hors bornes ou en double sont ignorés. Fonction pure."""
     drop = {int(i) for i in indices if 1 <= int(i) <= len(manoeuvres)}
     return [m for k, m in enumerate(manoeuvres, 1) if k not in drop]
+
+
+def _normalize_groups(all_branches, groups) -> list[list[str]]:
+    """Normalise une partition nodale éditée par l'expert en une partition
+    **complète et disjointe** des ``all_branches`` (univers des départs).
+
+    - une branche présente dans plusieurs groupes est conservée dans le
+      **dernier** groupe où elle apparaît (la dernière affectation gagne) ;
+    - les branches inconnues (hors ``all_branches``) sont ignorées ;
+    - les groupes vides sont retirés ;
+    - toute branche de ``all_branches`` absente des groupes est réinjectée dans
+      un nœud propre regroupant ces orphelines.
+
+    Fonction pure (testable sans Flask ni pypowsybl)."""
+    universe = list(dict.fromkeys(all_branches))   # ordre stable, dédupliqué
+    allowed = set(universe)
+
+    # Dernière affectation gagnante : on parcourt les groupes dans l'ordre.
+    assign: dict[str, int] = {}
+    for gi, grp in enumerate(groups):
+        for eq in grp:
+            if eq in allowed:
+                assign[eq] = gi
+
+    # Reconstituer les groupes en respectant l'ordre des branches de l'univers.
+    buckets: dict[int, list[str]] = {}
+    for eq in universe:
+        gi = assign.get(eq)
+        if gi is not None:
+            buckets.setdefault(gi, []).append(eq)
+
+    result = [buckets[gi] for gi in sorted(buckets)]
+
+    # Branches orphelines (jamais affectées) -> un nœud dédié.
+    orphans = [eq for eq in universe if eq not in assign]
+    if orphans:
+        result.append(orphans)
+    return result
+
+
+def _decode_svg_id(s: str) -> str:
+    """Décode un identifiant SVG pypowsybl (``_46_`` → ``.``, ``_95_`` → ``_``,
+    ``_45_`` → ``-``…). Fonction pure."""
+    import re
+    return re.sub(r"_(\d+)_", lambda m: chr(int(m.group(1))), s)
+
+
+def _parse_feeder_meta(svg: str) -> dict:
+    """Extrait du SVG du SLD, **par départ** (clé = id décodé sans le préfixe
+    ``id``), son ``label`` (libellé court), sa ``dir`` (``TOP``/``BOTTOM``) et son
+    abscisse ``x`` (ordre gauche → droite).
+
+    - direction & abscisse : groupe ``<g class="… sld-(top|bottom)-feeder …"
+      id="id…" transform="translate(x, y)">`` (la classe peut être combinée, ex.
+      ``sld-load sld-top-feeder``) ;
+    - libellé : ``<text class="sld-label" id="id…_N_LABEL">`` (haut) ou ``_S_LABEL``
+      (bas) ; ``_NW_LABEL`` (barres) est exclu.
+
+    Fonction pure (testable sans pypowsybl)."""
+    import re
+    groups = re.findall(
+        r'<g class="[^"]*sld-(top|bottom)-feeder[^"]*" id="(id[^"]+?)"'
+        r'[^>]*transform="translate\(([0-9.]+),[0-9.]+\)"', svg)
+    labs = dict(re.findall(
+        r'<text class="sld-label" id="(id[^"]+?)_95_[NS]_95_LABEL"[^>]*>'
+        r'([^<]*)</text>', svg))
+    meta = {}
+    for direction, gid, x in groups:
+        core = _decode_svg_id(gid)[2:]   # retire le préfixe 'id'
+        meta[core] = {"label": (labs.get(gid) or "").strip(),
+                      "dir": direction.upper(), "x": float(x)}
+    return meta
+
+
+def _parse_node_colors(svg: str) -> dict:
+    """Extrait du SVG du SLD la couleur (#hex) du **nœud électrique** de chaque
+    élément (clé = id décodé sans le préfixe ``id``), via la palette
+    ``.sld-vlXtoY.sld-bus-N {--sld-vl-color: #hex}`` et les classes
+    ``sld-vl… sld-bus-N`` portées par les éléments. Fonction pure."""
+    import re
+    palette = {}
+    for vlc, busc, hexc in re.findall(
+            r"\.(sld-vl\w+)\.(sld-bus-\d+)\s*\{\s*--sld-vl-color:\s*"
+            r"(#[0-9A-Fa-f]+)", svg):
+        palette[(vlc, busc)] = hexc
+    colors = {}
+    for cls, gid in re.findall(r'<g class="([^"]*)" id="(id[^"]+)"', svg):
+        if "sld-bus-" not in cls or "sld-vl" not in cls:
+            continue
+        vlm = re.search(r"sld-vl\w+", cls)
+        bsm = re.search(r"sld-bus-\d+", cls)
+        hexc = palette.get((vlm.group(0), bsm.group(0))) if vlm and bsm else None
+        if hexc:
+            colors[_decode_svg_id(gid)[2:]] = hexc
+    return colors
+
+
+def _isolated_assets(G: nx.Graph) -> list[str]:
+    """Équipements **déconnectés** : ceux dont la composante connexe (en ne suivant
+    que les switches **fermés**) ne contient **aucune barre**. Fonction pure
+    (graphe NetworkX ; ni Flask ni pypowsybl)."""
+    closed = nx.Graph()
+    closed.add_nodes_from(G.nodes())
+    for u, v, d in G.edges(data=True):
+        if not d.get("open", False):
+            closed.add_edge(u, v)
+    barres = set(busbar_nodes(G))
+    eqset = set(equipment_nodes(G))
+    iso = []
+    for comp in nx.connected_components(closed):
+        if comp & barres:
+            continue   # composante reliée à une barre = nœud électrique
+        for n in comp & eqset:
+            eq = G.nodes[n].get("equipment_id")
+            if eq:
+                iso.append(eq)
+    return iso
 
 
 class Session:
@@ -327,6 +449,223 @@ class Session:
         topo = TopologieNodale.from_graph(build_vl_graph(self.net, self.vl), self.vl)
         return [sorted(n.equipment_ids) for n in topo.noeuds.values()]
 
+    # --- topologie nodale (édition de la cible nodale d'intérêt) -----------
+    def _short_name(self, eq: str) -> str:
+        """Nom court d'un départ (préfixe VL retiré), pour l'affichage des chips."""
+        name = eq
+        if self.vl and name.startswith(self.vl + "_"):
+            name = name[len(self.vl) + 1:]
+        return name
+
+    def _branch_flows(self, types: dict[str, str | None]) -> dict[str, float]:
+        """Flux actif (MW) au terminal de chaque branche du poste, dans l'état
+        **déjà appliqué** au réseau. Une charge de réseau (AC, repli DC) est
+        exécutée ; le côté lu (``p1``/``p2``/``p``) est déduit du type de départ
+        (``LINE_SIDE2`` → ``p2``…). Best-effort : ``{}`` si le calcul échoue."""
+        try:
+            res = pp.loadflow.run_ac(self.net)
+            if not (res and str(res[0].status).endswith("CONVERGED")):
+                pp.loadflow.run_dc(self.net)
+        except Exception:
+            try:
+                pp.loadflow.run_dc(self.net)
+            except Exception:
+                return {}
+
+        def _tbl(getter):
+            try:
+                return getter(all_attributes=True)
+            except Exception:
+                return None
+        lines = _tbl(self.net.get_lines)
+        twt = _tbl(self.net.get_2_windings_transformers)
+        loads = _tbl(self.net.get_loads)
+        gens = _tbl(self.net.get_generators)
+        dls = _tbl(self.net.get_dangling_lines)
+
+        def _val(df, eq, col):
+            if df is None or eq not in df.index:
+                return None
+            v = df.loc[eq].get(col)
+            try:
+                return None if v is None or v != v else round(float(v), 1)  # NaN-safe
+            except Exception:
+                return None
+
+        flows: dict[str, float] = {}
+        for eq, t in types.items():
+            t = t or ""
+            v = None
+            if t.startswith("LINE"):
+                v = _val(lines, eq, "p2" if t.endswith("2") else "p1")
+            elif t.startswith("TRANSFORMER"):
+                v = _val(twt, eq, "p2" if t.endswith("2") else "p1")
+            elif t == "LOAD":
+                v = _val(loads, eq, "p")
+            elif t == "GENERATOR":
+                v = _val(gens, eq, "p")
+            elif t == "DANGLING_LINE":
+                v = _val(dls, eq, "p")
+            if v is not None:
+                flows[eq] = v
+        return flows
+
+    def _sld_feeder_meta(self) -> dict:
+        """Libellé court, direction (TOP/BOTTOM) et abscisse de chaque départ,
+        **extraits du SLD pypowsybl lui-même** — donc strictement identiques aux
+        libellés de la vue détaillée. État réseau supposé **déjà appliqué**.
+
+        Le SLD encode l'``equipmentId`` dans l'``id`` du groupe de départ
+        (``id<equipmentId>`` avec ``_46_`` = ``.``, ``_95_`` = ``_``…) ; la classe
+        ``sld-(top|bottom)-feeder`` donne la direction et ``translate(x, y)``
+        l'ordre horizontal (gauche → droite)."""
+        svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR).svg
+        return _parse_feeder_meta(svg)
+
+    def _sld_node_colors(self) -> dict:
+        """Couleur du nœud électrique de chaque branche, **telle qu'utilisée par le
+        SLD** (``topological_coloring``). État réseau supposé **déjà appliqué**.
+
+        Le SLD définit une palette ``.sld-vlXtoY.sld-bus-N {--sld-vl-color: #hex}``
+        (par classe de tension et indice de nœud) ; chaque élément porte les classes
+        ``sld-vl… sld-bus-N``. Toutes les branches d'un même nœud électrique
+        partagent la même ``sld-bus-N`` → même couleur."""
+        svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR).svg
+        return _parse_node_colors(svg)
+
+    def _branch_colors(self, branch_ids) -> dict:
+        """Couleur SLD (topological) résolue **par equipment_id**, dans l'état
+        réseau **déjà appliqué**."""
+        ncolors = self._sld_node_colors()
+
+        def _color(eq):
+            if eq in ncolors:
+                return ncolors[eq]
+            for core, c in ncolors.items():   # id interne de ligne contient l'eq
+                if eq in core:
+                    return c
+            return None
+        return {eq: _color(eq) for eq in branch_ids}
+
+    def _branch_isolated(self, G: nx.Graph) -> list[str]:
+        """Départs **déconnectés** : équipements dont la composante connexe (en ne
+        suivant que les switches **fermés**) ne contient **aucune barre**. Ce ne
+        sont pas des nœuds électriques — l'IHM les présente en liste compacte.
+
+        (En NODE_BREAKER, la connectivité vient des switches : se baser sur la
+        composante, pas sur les drapeaux ``connected`` de pypowsybl.)"""
+        return _isolated_assets(G)
+
+    def nodale_payload(self, state: dict[str, bool]) -> dict:
+        """Partition nodale d'un état + métadonnées d'affichage des branches :
+        ``{groups, labels, types, flows, dirs, order, colors, isolated}``.
+
+        - ``labels`` : libellé court **identique au SLD** (cf. ``_sld_feeder_meta``) ;
+        - ``flows``  : flux actif (MW) au terminal de la branche dans cet état ;
+        - ``dirs``   : ``TOP``/``BOTTOM`` (côté du départ dans la vue détaillée) ;
+        - ``order``  : abscisse SLD (ordre gauche → droite) ;
+        - ``colors`` : couleur SLD du nœud électrique de la branche (topological) ;
+        - ``isolated``: départs déconnectés (présentés en liste, non comme nœuds)."""
+        self.apply(state)
+        G = build_vl_graph(self.net, self.vl)
+        topo = TopologieNodale.from_graph(G, self.vl)
+        fmeta = self._sld_feeder_meta()
+        ncolors = self._sld_node_colors()
+
+        def _resolve(eq: str):
+            if eq in fmeta:
+                return fmeta[eq]
+            for core, m in fmeta.items():   # repli : id + suffixe de côté (_TWO…)
+                if core == eq or core.startswith(eq + "_"):
+                    return m
+            return None
+
+        def _color(eq: str):
+            if eq in ncolors:
+                return ncolors[eq]
+            for core, c in ncolors.items():   # id interne de ligne contient l'eq
+                if eq in core:
+                    return c
+            return None
+
+        groups, labels, types, dirs, order, colors = [], {}, {}, {}, {}, {}
+        for noeud in topo.noeuds.values():
+            grp = sorted(noeud.equipment_ids)
+            groups.append(grp)
+            for dep in noeud.departs:
+                eq = dep.equipment_id
+                m = _resolve(eq)
+                labels[eq] = (m["label"] if m and m["label"]
+                              else self._short_name(eq))
+                dirs[eq] = m["dir"] if m else "BOTTOM"
+                order[eq] = m["x"] if m else 0.0
+                types[eq] = dep.equipment_type.name if dep.equipment_type else None
+                colors[eq] = _color(eq)
+        isolated = self._branch_isolated(G)
+        flows = self._branch_flows(types)
+        self.apply(self.current)  # restaurer l'affichage courant
+        return {"groups": groups, "labels": labels, "types": types,
+                "flows": flows, "dirs": dirs, "order": order, "colors": colors,
+                "isolated": isolated}
+
+    def nodale_state(self, state: dict[str, bool]) -> dict:
+        """Vue nodale **légère** d'un état détaillé : ``{groups, colors, isolated}``
+        (partition + couleurs SLD topologiques + ouvrages déconnectés), **sans**
+        recalcul de flux. Sert à resynchroniser le volet nodal cible lorsque la
+        topologie **détaillée** est éditée (bascule d'organes) ou recalculée."""
+        self.apply(state)
+        G = build_vl_graph(self.net, self.vl)
+        topo = TopologieNodale.from_graph(G, self.vl)
+        groups = [sorted(n.equipment_ids) for n in topo.noeuds.values()]
+        isolated = self._branch_isolated(G)
+        self.apply(state)
+        colors = self._branch_colors([eq for g in groups for eq in g])
+        self.apply(self.current)   # restaurer l'affichage courant
+        return {"groups": groups, "colors": colors, "isolated": isolated}
+
+    def nodale_to_detaillee(self, groups, isolated=None) -> dict:
+        """Pont **nodal → détaillé** : calcule une topologie détaillée d'intérêt
+        réalisant la partition nodale cible ``groups`` (éditée par l'expert) et la
+        charge comme **cible détaillée** courante (volet du bas).
+
+        ``isolated`` liste les départs à **laisser déconnectés** (hors partition
+        cible : non placés sur un nœud ; ils conservent leur état de départ).
+
+        Renvoie la vue détaillée mise à jour + un statut de réalisabilité
+        (dégradation gracieuse de l'algorithme remontée à l'IHM)."""
+        # Poste à l'état de départ.
+        self.apply(self.initial)
+        poste = PosteTopologique.from_graph(build_vl_graph(self.net, self.vl), self.vl)
+
+        iso = set(isolated or [])
+        univers = [eq for grp in self.groups_of(self.initial)
+                   for eq in grp if eq not in iso]
+        groups = _normalize_groups(
+            univers, [[e for e in g if e not in iso] for g in (groups or [])])
+        topo_cible = TopologieNodale.from_node_groups(self.vl, groups)
+
+        res = determiner_topo_complete_cible(poste, topo_cible)
+
+        # État détaillé final = rejeu des manœuvres depuis l'état de départ.
+        manos = [{"switch_id": m.switch_id, "action": m.action}
+                 for m in res.manoeuvres]
+        self.current = _replay_states(self.initial, manos)[-1]
+        self.scenario_name = None   # cible à revalider avant calcul de séquence
+
+        svg, switches, nb = self.view(self.current)
+        return {
+            "svg": svg, "switches": switches, "nb_noeuds": nb,
+            "is_verified": res.is_verified,
+            "message": res.message,
+            "ecarts": res.ecarts,
+            "noeuds_non_realisables": res.noeuds_non_realisables,
+            "nb_obtenu": res.topo_obtenue.nb_noeuds if res.topo_obtenue else nb,
+            "nb_vise": topo_cible.nb_noeuds,
+            # Vue nodale **réalisée** (partition + couleurs + isolés) pour
+            # resynchroniser le volet nodal cible avec le détail obtenu.
+            "nodale": self.nodale_state(self.current),
+        }
+
     def save_scenario(self, name: str) -> str:
         import re
         name = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or self.vl
@@ -504,21 +843,49 @@ def api_load():
     svg_i, _, nb_i = SESSION.view(SESSION.initial)
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
-                   svg=svg_c, switches=sw, nb_noeuds=nb_c)
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c,
+                   nodale_depart=SESSION.nodale_payload(SESSION.initial),
+                   nodale_cible=SESSION.nodale_state(SESSION.current))
 
 
 @app.post("/api/toggle")
 def api_toggle():
     SESSION.toggle(request.json["id"])
     svg, sw, nb = SESSION.view(SESSION.current)
-    return jsonify(svg=svg, switches=sw, nb_noeuds=nb)
+    return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   nodale=SESSION.nodale_state(SESSION.current))
 
 
 @app.post("/api/reset")
 def api_reset():
     SESSION.reset()
     svg, sw, nb = SESSION.view(SESSION.current)
-    return jsonify(svg=svg, switches=sw, nb_noeuds=nb)
+    return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   nodale=SESSION.nodale_state(SESSION.current))
+
+
+@app.post("/api/cible")
+def api_cible():
+    """Vue détaillée **cible courante** (sans la modifier) + vue nodale — pour
+    revenir en édition de la cible alors qu'une séquence est déjà calculée."""
+    svg, sw, nb = SESSION.view(SESSION.current)
+    return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   nodale=SESSION.nodale_state(SESSION.current))
+
+
+@app.post("/api/nodale")
+def api_nodale():
+    """Partitions nodales de départ et cible (cible initialisée = départ)."""
+    nodale = SESSION.nodale_payload(SESSION.initial)
+    return jsonify(nodale_depart=nodale, nodale_cible=nodale)
+
+
+@app.post("/api/nodale_to_detaillee")
+def api_nodale_to_detaillee():
+    """Calcule la topologie détaillée d'intérêt réalisant la cible nodale éditée
+    et la charge comme cible détaillée courante (volet du bas)."""
+    return jsonify(SESSION.nodale_to_detaillee(
+        request.json.get("groups", []), request.json.get("isolated", [])))
 
 
 @app.get("/api/scenarios")
@@ -547,7 +914,9 @@ def api_load_scenario():
     svg_i, _, nb_i = SESSION.view(SESSION.initial)
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
-                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl)
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl,
+                   nodale_depart=SESSION.nodale_payload(SESSION.initial),
+                   nodale_cible=SESSION.nodale_state(SESSION.current))
 
 
 @app.post("/api/sequence")
@@ -636,6 +1005,9 @@ PAGE = r"""<!DOCTYPE html>
  #seq .head.hasviol{color:#b91c1c}
  #seq .violmsg{color:#b91c1c;background:#fef2f2;border-left:3px solid #dc2626;
    padding:2px 6px 4px 24px;white-space:normal;font-size:11px;cursor:pointer}
+ #seqstale{background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;font-size:12px;padding:6px 8px;border-radius:5px;margin-bottom:6px}
+ #seq.stale{opacity:.5}
+ #bedit.primary{background:#7c3aed;color:#fff;border-color:#7c3aed}
  #seq .del{color:#c0392b;font-weight:bold;cursor:pointer;padding:0 4px;border-radius:3px;visibility:hidden}
  #seq .line:hover .del{visibility:visible}
  #seq .del:hover{background:#fde2e2}
@@ -649,6 +1021,47 @@ PAGE = r"""<!DOCTYPE html>
  .pane.reached{box-shadow:inset 0 0 0 5px #facc15;transition:box-shadow .2s}
  .pane.reached>.ttl{background:#fef9c3 !important}
  .pane.reached>.ttl::after{content:" — ✓ topologie cible atteinte";color:#a16207;font-weight:bold}
+ /* Séparateur déplaçable entre le schéma détaillé (col. 2) et le volet nodal */
+ #ndresize{flex:0 0 auto;width:6px;cursor:col-resize;background:#d1d5db}
+ #ndresize:hover,#ndresize.drag{background:#6366f1}
+ /* Volet nodal (3e colonne) */
+ #nodal{width:330px;background:#f4f5f7;border-left:1px solid #ccc;display:flex;flex-direction:column;overflow:hidden}
+ #nodal.collapsed{width:30px}
+ #nodal.collapsed .nbody{display:none}
+ #nodal .nhead{font-size:12px;font-weight:bold;padding:6px 8px;background:#ecfdf5;border-bottom:1px solid #ccc;display:flex;align-items:center;gap:6px}
+ #nodal .nsec{display:flex;flex-direction:column;min-height:0;border-bottom:2px solid #d1fae5}
+ #nodal .nsec .stitle{font-size:11px;font-weight:bold;padding:4px 8px;color:#065f46;display:flex;justify-content:space-between}
+ #nodal .nbody{flex:1;overflow:auto;padding:4px}
+ #nodal .ntools{padding:4px 8px;display:flex;flex-wrap:wrap;gap:4px;background:#fff;border-bottom:1px solid #e5e7eb}
+ #nodal .ntools button{padding:3px 7px;font-size:11px;margin:0}
+ /* Vue nodale : SVG « nœud + branches rayonnantes » */
+ svg.nodalsvg{display:block;background:#fff}
+ .nbranch line{stroke:#94a3b8;stroke-width:1.5}
+ .nbranch .blabel{font:10px monospace;fill:#334155}
+ .nbranch .bflow{font:9px sans-serif;fill:#0f766e;font-weight:bold}
+ .nbranch.ed{cursor:grab}
+ .nbranch.ed:hover line{stroke:#6366f1}
+ .nbranch.sel line{stroke:#4f46e5;stroke-width:3}
+ .nbranch.sel .blabel{fill:#4338ca;font-weight:bold}
+ .nbushit{fill:transparent}
+ .nbusbar{stroke-width:6;stroke-linecap:round}
+ .nbus.ed .nbusbar,.nbus.ed .nbadge{cursor:grab}
+ .nbadge text{font:bold 11px sans-serif;text-anchor:middle}
+ .nbus.droptarget .nbushit{fill:rgba(99,102,241,.13)}
+ .nbus.droptarget .nbusbar{stroke-dasharray:5 3}
+ body.ndndrag,body.ndndrag *{cursor:grabbing !important}
+ /* Ouvrages isolés (déconnectés) : liste compacte, pas de nœud électrique */
+ .nodiso{flex:0 0 auto;padding:3px 8px 6px;border-top:1px dashed #e2e8f0;background:#fffdf7}
+ .nodiso .isohd{font-size:10px;color:#b45309;font-weight:bold;margin:2px 0}
+ .nodiso.ro{background:#f8fafc}
+ .nodiso.ro .isohd{color:#64748b}
+ .isochips{display:flex;flex-wrap:wrap;gap:4px}
+ .isochip{font-family:monospace;font-size:10px;padding:2px 7px;border:1px dashed #f59e0b;border-radius:10px;background:#fffbeb;color:#92400e;cursor:grab;user-select:none}
+ .nodiso.ro .isochip{cursor:default;border-color:#cbd5e1;background:#f1f5f9;color:#475569}
+ .isochip.sel{background:#6366f1;color:#fff;border-color:#4f46e5;border-style:solid}
+ #nodstatus{font-size:11px;padding:4px 8px;white-space:normal}
+ #nodstatus.okv{color:#065f46;background:#ecfdf5}
+ #nodstatus.kov{color:#92400e;background:#fffbeb}
 </style></head><body>
 <div id="side">
   <h2>Poste</h2>
@@ -698,12 +1111,14 @@ PAGE = r"""<!DOCTYPE html>
     <button id="bprev" onclick="step(-1)">◀</button>
     <button id="bplay" onclick="play()">▶ Lecture</button>
     <button id="bnext" onclick="step(1)">▶|</button>
+    <button id="bedit" onclick="toggleEditTarget()" title="Revenir éditer la cible détaillée (la séquence calculée deviendra obsolète)">✎ Modifier la cible</button>
     <span id="stepinfo" class="badge"></span>
     <span id="steplabel" style="font-family:monospace;font-size:12px"></span>
     <span style="flex:1"></span>
-    <span style="font-size:11px;color:#3730a3">✎ Schéma éditable : cliquez un organe pour insérer une manœuvre après l'étape courante.</span>
+    <span id="animhint" style="font-size:11px;color:#3730a3">✎ Schéma éditable : cliquez un organe pour insérer une manœuvre après l'étape courante.</span>
   </div>
   <div id="seqwrap" style="padding:8px;display:none">
+    <div id="seqstale" style="display:none">⚠ La cible détaillée a été modifiée : la séquence ci-dessous <b>n'atteint plus</b> cet état cible. Re-validez puis <b>recalculez la séquence</b>.</div>
     <b>Séquence <span id="seqstatus"></span></b>
     <div id="seltools">
       <span>Sélection : <b id="selcount">0</b></span>
@@ -719,19 +1134,91 @@ PAGE = r"""<!DOCTYPE html>
     </div>
   </div>
 </div>
+<div id="ndresize" title="Glisser pour élargir / réduire le volet nodal"></div>
+<div id="nodal">
+  <div class="nhead"><button class="cbtn" onclick="toggleNodal()" title="Réduire / agrandir">◂</button>
+    Topologie nodale</div>
+  <div class="nbody" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
+    <div class="nsec" style="flex:1">
+      <div class="stitle"><span>Départ</span><span class="badge" id="ndDepN">–</span></div>
+      <div class="nbody" id="ndDepart"></div>
+      <div class="nodiso ro" id="ndDepartIso" style="display:none"></div>
+    </div>
+    <div class="nsec" style="flex:2">
+      <div class="stitle"><span>Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
+      <div class="ntools">
+        <button onclick="nodNewNode()" title="Créer un nœud vide (puis y glisser des départs ; ou avec la sélection courante)">＋ Nœud</button>
+        <button onclick="nodReset()" title="Réinitialiser la cible nodale = départ">= départ</button>
+        <button onclick="nodClearSel()" title="Vider la sélection">∅ Désélectionner</button>
+      </div>
+      <div style="font-size:10px;color:#64748b;padding:0 8px">Glisser un <b>départ</b> (ou une sélection : clic pour (dé)sélectionner) sur une autre barre = réaiguillage. Glisser une <b>barre</b> sur une autre = fusion. Flux en MW (état de départ).</div>
+      <div class="nbody" id="ndCible"></div>
+      <div class="nodiso ed" id="ndCibleIso" style="display:none"></div>
+    </div>
+    <button class="primary" style="margin:6px 8px" onclick="nodCompute()">⚙ Calculer la topologie détaillée d'intérêt</button>
+    <div id="nodstatus"></div>
+  </div>
+</div>
 <script>
-let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:false};
+let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:false,
+  editTarget:false,stale:false};
+// État de l'éditeur de topologie nodale (volet de droite).
+let NOD={depart:{groups:[]},departIso:[],labels:{},types:{},flows:{},dirs:{},order:{},
+  colors:{},colorsCible:{},groups:[],isolated:[],selBranches:new Set(),selNodes:new Set()};
+const NODE_COLORS=['#16a34a','#2563eb','#15803d','#9333ea','#db2777','#d97706','#0891b2','#65a30d','#dc2626','#0d9488'];
 const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
 function setValidated(v){document.getElementById('bcalc').disabled=!v;
   document.getElementById('bmanual').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
 async function init(){const r=await (await fetch('/api/postes')).json();const sel=document.getElementById('poste');
   r.postes.forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
-  sel.onchange=()=>load(sel.value); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
-async function load(vl){stopAnim();show(await api('/api/load',{vl}));hideSeq();setValidated(false);
+  sel.onchange=()=>load(sel.value); initNodalResize(); initNodalDnD(); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
+async function load(vl){stopAnim();const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
   document.getElementById('scenName').value=vl+'_cible';}
-async function reset(){stopAnim();show(await api('/api/reset',{}));hideSeq();setValidated(false);}
-async function toggle(id){stopAnim();show(await api('/api/toggle',{id}));hideSeq();setValidated(false);}
+async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
+  syncNodalCible(d.nodale);hideSeq();setValidated(false);}
+async function toggle(id){stopAnim();const d=await api('/api/toggle',{id});show(d);
+  syncNodalCible(d.nodale);setValidated(false);
+  // Si une séquence existe déjà, l'éditer de la cible la rend obsolète (au lieu
+  // de masquer la séquence) : on la conserve affichée mais signalée.
+  if(S.n>0){markSeqStale();}else{hideSeq();}}
+// Bascule : revenir éditer la cible détaillée alors qu'une séquence est calculée.
+async function toggleEditTarget(){
+  S.editTarget=!S.editTarget;
+  const b=document.getElementById('bedit'),hint=document.getElementById('animhint');
+  if(S.editTarget){
+    stopAnim();
+    const d=await api('/api/cible',{});
+    document.getElementById('diagBottom').innerHTML=d.svg;
+    document.getElementById('nbB').textContent=d.nb_noeuds;
+    document.getElementById('nbn').textContent=d.nb_noeuds;
+    bind(d.switches);panel(d.switches);syncNodalCible(d.nodale);
+    document.getElementById('paneBot').classList.remove('reached');
+    b.textContent='▶ Revenir à la séquence';b.classList.add('primary');
+    ['bprev','bplay','bnext'].forEach(id=>document.getElementById(id).disabled=true);
+    hint.textContent='✎ Édition de la cible détaillée : cliquez un organe pour la modifier (la séquence deviendra obsolète).';
+  }else{
+    b.textContent='✎ Modifier la cible';b.classList.remove('primary');
+    document.getElementById('bplay').disabled=false;
+    hint.textContent="✎ Schéma éditable : cliquez un organe pour insérer une manœuvre après l'étape courante.";
+    await showStep(S.idx);
+  }}
+function markSeqStale(){S.stale=true;
+  const el=document.getElementById('seqstale');if(el)el.style.display='block';
+  const seq=document.getElementById('seq');if(seq)seq.classList.add('stale');}
+function clearSeqStale(){S.stale=false;
+  const el=document.getElementById('seqstale');if(el)el.style.display='none';
+  const seq=document.getElementById('seq');if(seq)seq.classList.remove('stale');}
+function resetEditTarget(){S.editTarget=false;
+  const b=document.getElementById('bedit');
+  if(b){b.textContent='✎ Modifier la cible';b.classList.remove('primary');}}
+// Resynchronise le volet nodal CIBLE depuis l'état détaillé courant
+// ({groups, colors, isolated}) : la topologie détaillée fait foi.
+function syncNodalCible(n){if(!n)return;
+  NOD.isolated=(n.isolated||[]).slice();
+  NOD.groups=dropIso(n.groups||[],NOD.isolated);
+  NOD.colorsCible=Object.assign({},NOD.colors,n.colors||{});
+  NOD.selBranches=new Set();renderNodaleCible();}
 async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).json();
   const sel=document.getElementById('scenSel');sel.innerHTML='<option value="">—</option>';
   r.scenarios.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;sel.add(o);});}
@@ -755,7 +1242,7 @@ async function save(){const name=document.getElementById('scenName').value;
   setValidated(true);await refreshScenarios();}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
   stopAnim();const d=await api('/api/load_scenario',{name,mode});
-  document.getElementById('poste').value=d.vl;show(d);hideSeq();
+  document.getElementById('poste').value=d.vl;show(d);initNodale(d);hideSeq();
   if(mode==='as_depart'){
     document.getElementById('scenName').value=name+'_suite';
     document.getElementById('savemsg').textContent='« '+name+' » chargé comme état de départ — éditez puis validez une nouvelle cible.';
@@ -766,7 +1253,8 @@ async function loadScen(mode){const name=document.getElementById('scenSel').valu
     setValidated(true);
   }}
 function hideSeq(){document.getElementById('seqwrap').style.display='none';document.getElementById('anim').style.display='none';
-  document.getElementById('paneBot').classList.remove('reached');}
+  document.getElementById('paneBot').classList.remove('reached');
+  clearSeqStale();resetEditTarget();}
 function show(d){
   document.getElementById('paneBot').classList.remove('reached');
   if(d.initial_svg!==undefined){document.getElementById('diagTop').innerHTML=d.initial_svg;
@@ -784,7 +1272,7 @@ function panel(switches){const dj=document.getElementById('djs'),sa=document.get
   switches.forEach(s=>{const row=document.createElement('div');row.className='sw';row.title=s.id;row.style.cursor='pointer';
     row.innerHTML=`<span class="name">${(s.name||s.id).slice(0,30)}</span><span class="pill ${s.open?'open':'closed'}">${s.open?'OUVERT':'FERMÉ'}</span>`;
     row.onclick=()=>toggle(s.id);(s.kind==='BREAKER'?dj:sa).appendChild(row);});}
-async function sequence(){stopAnim();S.manual=false;
+async function sequence(){stopAnim();S.manual=false;resetEditTarget();clearSeqStale();
   const d=await api('/api/sequence',{mode:document.getElementById('seqMode').value});
   document.getElementById('seqwrap').style.display='block';
   S.algo={message:d.message,ecarts:d.ecarts||[],verified:d.verified,verified_detaillee:d.verified_detaillee,mode:d.mode};
@@ -793,7 +1281,8 @@ async function sequence(){stopAnim();S.manual=false;
   renderSeq(d);
   document.getElementById('anim').style.display='flex';
   await showStep(0);}
-async function manualSeq(){stopAnim();S.manual=true;const d=await api('/api/manual_start',{});
+async function manualSeq(){stopAnim();S.manual=true;resetEditTarget();clearSeqStale();
+  const d=await api('/api/manual_start',{});
   document.getElementById('seqwrap').style.display='block';
   S.algo={message:'Séquence manuelle : cliquez les organes du schéma du bas (état courant) pour ajouter des manœuvres ; la cible à atteindre est affichée en haut.',ecarts:[],verified:false,verified_detaillee:false};
   // Vue de référence : la CIBLE en haut.
@@ -885,6 +1374,213 @@ function play(){stopAnim();S.timer=setInterval(async()=>{if(S.idx>=S.n-1){stopAn
 function stopAnim(){if(S.timer){clearInterval(S.timer);S.timer=null;}}
 function togglePane(id){const p=document.getElementById(id);p.classList.toggle('collapsed');
   const b=p.querySelector('.cbtn');if(b)b.textContent=p.classList.contains('collapsed')?'▸':'▾';}
+function toggleNodal(){const p=document.getElementById('nodal');
+  if(p.classList.toggle('collapsed')){p.dataset.w=p.style.width||'';p.style.width='';}
+  else if(p.dataset.w){p.style.width=p.dataset.w;}
+  const b=p.querySelector('.cbtn');if(b)b.textContent=p.classList.contains('collapsed')?'▸':'◂';}
+function initNodalResize(){const rz=document.getElementById('ndresize');
+  const nod=document.getElementById('nodal');let drag=false;
+  rz.addEventListener('mousedown',e=>{if(nod.classList.contains('collapsed'))return;
+    drag=true;rz.classList.add('drag');document.body.style.userSelect='none';e.preventDefault();});
+  window.addEventListener('mousemove',e=>{if(!drag)return;
+    const w=Math.max(220,Math.min(window.innerWidth-360,window.innerWidth-e.clientX));
+    nod.style.width=w+'px';});
+  window.addEventListener('mouseup',()=>{if(drag){drag=false;rz.classList.remove('drag');
+    document.body.style.userSelect='';}});}
+
+// ---- Éditeur de topologie nodale (volet de droite) ----
+function cloneGroups(gs){return gs.map(g=>g.slice());}
+// Retire les ouvrages isolés des groupes et supprime les groupes vides : un isolé
+// n'est pas un nœud électrique (il est listé à part).
+function dropIso(groups,iso){const s=new Set(iso||[]);
+  return groups.map(g=>g.filter(eq=>!s.has(eq))).filter(g=>g.length);}
+function initNodale(d){
+  if(!d||!d.nodale_depart)return;
+  const dep=d.nodale_depart, cib=d.nodale_cible||dep;
+  // Champs partagés (identité SLD, flux de référence départ) : depuis le départ.
+  NOD.labels=dep.labels||{};NOD.types=dep.types||{};NOD.flows=dep.flows||{};
+  NOD.dirs=dep.dirs||{};NOD.order=dep.order||{};NOD.colors=dep.colors||{};
+  NOD.departIso=(dep.isolated||[]).slice();
+  NOD.depart={groups:dropIso(dep.groups||[],NOD.departIso)};
+  // Cible : partition / couleurs / isolés de l'état détaillé courant (cib).
+  NOD.isolated=(cib.isolated||[]).slice();
+  NOD.groups=dropIso(cloneGroups(cib.groups||[]),NOD.isolated);
+  NOD.colorsCible=Object.assign({},NOD.colors,cib.colors||{});
+  NOD.selBranches=new Set();NOD.selNodes=new Set();
+  document.getElementById('nodstatus').textContent='';
+  document.getElementById('nodstatus').className='';
+  renderNodaleDepart();renderNodaleCible();}
+function nodReset(){NOD.groups=cloneGroups(NOD.depart.groups||[]);
+  NOD.isolated=(NOD.departIso||[]).slice();
+  NOD.colorsCible=Object.assign({},NOD.colors);  // recouleurs = départ
+  NOD.selBranches=new Set();NOD.selNodes=new Set();renderNodaleCible();}
+function nodNormalize(){NOD.groups=NOD.groups.filter(g=>g.length>0);}
+function nodeColor(i){return NODE_COLORS[i%NODE_COLORS.length];}
+// Couleur de la barre = couleur SLD du nœud (via une branche), sinon palette de repli.
+function nodeFill(g,ni,colors){colors=colors||{};
+  for(const eq of g){if(colors[eq])return colors[eq];}
+  return nodeColor(ni);}
+// Texte noir ou blanc selon la luminance du fond (lisibilité sur pastels).
+function textOn(hex){const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#fff';
+  const n=parseInt(m[1],16),r=(n>>16)&255,gg=(n>>8)&255,b=n&255;
+  return (0.299*r+0.587*gg+0.114*b)>150?'#111':'#fff';}
+function xesc(s){return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtFlow(v){if(v==null||isNaN(v))return '';const r=Math.round(v);return (r>0?'+':'')+r;}
+function labLen(eqs){let m=3;eqs.forEach(eq=>{const l=(NOD.labels[eq]||eq).length;
+  if(l>m)m=l;});return m;}
+function isTop(eq){return (NOD.dirs[eq]||'BOTTOM')==='TOP';}
+function byOrder(a,b){return (NOD.order[a]||0)-(NOD.order[b]||0);}
+function allByDir(top){const out=[];
+  [NOD.groups,(NOD.depart.groups||[])].forEach(gs=>gs.forEach(g=>g.forEach(eq=>{
+    if(isTop(eq)===top&&out.indexOf(eq)<0)out.push(eq);})));return out;}
+// Rendu « bus par nœud » : chaque nœud = une barre horizontale (couleur SLD) ;
+// ses départs sont des branches VERTICALES (haut au-dessus, bas en dessous, comme
+// la vue détaillée), triées gauche → droite par abscisse SLD, avec libellé (identique
+// au SLD) et flux. Les nœuds sont empilés verticalement.
+function buildNodaleSVG(groups, editable, colors){
+  const BW=30, BUSH=6, STUB=24, PADX=14, PADY=10, GAPY=22, CW=6.1, BADGE=22;
+  const topH=labLen(allByDir(true))*CW+6, botH=labLen(allByDir(false))*CW+6;
+  const place=(x0,len,j,cnt)=>cnt>1?x0+(j*(len-BW)/(cnt-1))+BW/2:x0+len/2;
+  let y=PADY, maxX=0; const segs=[];
+  groups.forEach((g,ni)=>{
+    const top=g.filter(isTop).sort(byOrder);
+    const bot=g.filter(eq=>!isTop(eq)).sort(byOrder);
+    const cols=Math.max(top.length,bot.length,1), busLen=Math.max(46,cols*BW);
+    const x0=PADX+BADGE+6, x1=x0+busLen, busY=y+topH+STUB+BUSH/2;
+    const blockH=topH+STUB+BUSH+STUB+botH;
+    const col=nodeFill(g,ni,colors), tcol=textOn(col);
+    let blk=`<g class="nbus${editable?' ed':''}" data-node="${ni}">`;
+    blk+=`<rect class="nbushit" x="${(PADX-4).toFixed(1)}" y="${(y-PADY/2).toFixed(1)}" `
+       +`width="${(x1-PADX+10).toFixed(1)}" height="${(blockH+PADY).toFixed(1)}"/>`;
+    blk+=`<line class="nbusbar" x1="${x0.toFixed(1)}" y1="${busY.toFixed(1)}" `
+       +`x2="${x1.toFixed(1)}" y2="${busY.toFixed(1)}" stroke="${col}"/>`;
+    blk+=`<g class="nbadge"><rect x="${PADX}" y="${(busY-BADGE/2).toFixed(1)}" rx="4" `
+       +`width="${BADGE}" height="${BADGE}" fill="${col}"/>`
+       +`<text x="${(PADX+BADGE/2).toFixed(1)}" y="${(busY+3.8).toFixed(1)}" fill="${tcol}">N${ni}</text></g>`;
+    blk+=`<title>N${ni} · ${g.length} branche(s)</title>`;
+    top.forEach((eq,j)=>blk+=branchSeg(eq,place(x0,busLen,j,top.length),
+      busY-BUSH/2,busY-BUSH/2-STUB,true,editable));
+    bot.forEach((eq,j)=>blk+=branchSeg(eq,place(x0,busLen,j,bot.length),
+      busY+BUSH/2,busY+BUSH/2+STUB,false,editable));
+    blk+=`</g>`;
+    segs.push(blk); maxX=Math.max(maxX,x1); y+=blockH+GAPY;});
+  const width=Math.max(maxX+PADX,80), height=Math.max(y,40);
+  return `<svg class="nodalsvg" width="${width}" height="${height}" `
+    +`viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${segs.join('')}</svg>`;
+}
+// Une branche verticale sur la barre : tronc bus → extrémité (tip), tick, flux près
+// du bus, libellé pivoté à l'extrémité (vers le haut/bas selon le côté).
+function branchSeg(eq,bx,y0,tipY,top,editable){
+  const sel=editable&&NOD.selBranches.has(eq);
+  const lbl=NOD.labels[eq]||eq, fl=fmtFlow(NOD.flows[eq]);
+  let s=`<g class="nbranch${editable?' ed':''}${sel?' sel':''}" data-br="${xesc(eq)}">`;
+  s+=`<line x1="${bx.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${tipY.toFixed(1)}"/>`;
+  s+=`<line x1="${(bx-4).toFixed(1)}" y1="${tipY.toFixed(1)}" x2="${(bx+4).toFixed(1)}" y2="${tipY.toFixed(1)}"/>`;
+  if(fl!==''){const fy=top?y0-3:y0+10;
+    s+=`<text class="bflow" x="${(bx+4).toFixed(1)}" y="${fy.toFixed(1)}">${fl}</text>`;}
+  const ly=top?tipY-4:tipY+4, rot=top?-90:90;
+  s+=`<text class="blabel" x="${(bx+3).toFixed(1)}" y="${ly.toFixed(1)}" `
+    +`transform="rotate(${rot} ${(bx+3).toFixed(1)} ${ly.toFixed(1)})">${xesc(lbl)}</text>`;
+  s+=`<title>${xesc(eq)} · ${xesc(NOD.types[eq]||'')}${fl!==''?' · '+fl+' MW':''}</title></g>`;
+  return s;
+}
+function renderNodaleSVG(rootId,groups,editable,colors){
+  const root=document.getElementById(rootId);
+  root.innerHTML=buildNodaleSVG(groups,editable,colors);
+  if(editable)attachNodalDnD(root);
+}
+function renderNodaleDepart(){const gs=NOD.depart.groups||[];
+  document.getElementById('ndDepN').textContent=gs.length;
+  renderNodaleSVG('ndDepart',gs,false,NOD.colors);
+  renderIso('ndDepartIso',NOD.departIso,false);}
+function renderNodaleCible(){nodNormalize();
+  document.getElementById('ndCibN').textContent=NOD.groups.length;
+  renderNodaleSVG('ndCible',NOD.groups,true,NOD.colorsCible);
+  renderIso('ndCibleIso',NOD.isolated,true);}
+// Liste compacte des ouvrages isolés (déconnectés). Éditable : chips glissables
+// sur un nœud pour reconnecter (clic = (dé)sélection pour glisser un lot).
+function renderIso(rootId,list,editable){
+  const root=document.getElementById(rootId);
+  if(!list||!list.length){root.style.display='none';root.innerHTML='';return;}
+  root.style.display='block';
+  let h=`<div class="isohd">⚠ Ouvrages isolés (${list.length})`
+    +(editable?' — glisser sur un nœud pour reconnecter':' — déconnectés')+`</div><div class="isochips">`;
+  list.slice().sort().forEach(eq=>{const sel=editable&&NOD.selBranches.has(eq);
+    h+=`<span class="isochip${sel?' sel':''}" data-br="${xesc(eq)}" `
+      +`title="${xesc(eq)}${NOD.flows[eq]!=null?' · '+fmtFlow(NOD.flows[eq])+' MW':''}">`
+      +`${xesc(NOD.labels[eq]||eq)}</span>`;});
+  h+=`</div>`; root.innerHTML=h;
+  if(editable)root.querySelectorAll('.isochip').forEach(c=>c.addEventListener('mousedown',e=>{
+    e.stopPropagation();ndStart(e,{type:'feeder',eq:c.getAttribute('data-br')});}));
+}
+// --- Drag & drop : départ(s) sur un nœud = réaiguillage ; nœud sur nœud = fusion ---
+function attachNodalDnD(root){
+  root.querySelectorAll('.nbranch').forEach(g=>g.addEventListener('mousedown',e=>{
+    e.stopPropagation();ndStart(e,{type:'feeder',eq:g.getAttribute('data-br')});}));
+  root.querySelectorAll('.nbus').forEach(g=>g.addEventListener('mousedown',e=>{
+    ndStart(e,{type:'node',node:+g.getAttribute('data-node')});}));
+}
+function ndStart(e,info){e.preventDefault();
+  NOD.dnd=Object.assign({x0:e.clientX,y0:e.clientY,moved:false},info);}
+function ndNodeUnder(e){const el=document.elementFromPoint(e.clientX,e.clientY);
+  const g=el&&el.closest?el.closest('#ndCible .nbus'):null;
+  return g?+g.getAttribute('data-node'):null;}
+function ndMove(e){const d=NOD.dnd;if(!d)return;
+  if(!d.moved&&Math.hypot(e.clientX-d.x0,e.clientY-d.y0)<5)return;
+  d.moved=true;document.body.classList.add('ndndrag');
+  const tgt=ndNodeUnder(e);
+  document.querySelectorAll('#ndCible .nbus').forEach(g=>
+    g.classList.toggle('droptarget',tgt!=null&&+g.getAttribute('data-node')===tgt));
+}
+function ndUp(e){const d=NOD.dnd;NOD.dnd=null;
+  document.body.classList.remove('ndndrag');
+  document.querySelectorAll('.nbus.droptarget').forEach(g=>g.classList.remove('droptarget'));
+  if(!d)return;
+  if(!d.moved){   // simple clic = (dé)sélection d'un départ
+    if(d.type==='feeder'){if(NOD.selBranches.has(d.eq))NOD.selBranches.delete(d.eq);
+      else NOD.selBranches.add(d.eq);renderNodaleCible();}
+    return;}
+  const tgt=ndNodeUnder(e);
+  if(tgt==null)return;
+  if(d.type==='node'){if(tgt!==d.node)nodMergeNodes(d.node,tgt);}
+  else{const items=NOD.selBranches.has(d.eq)?[...NOD.selBranches]:[d.eq];
+    nodMoveBranchesTo(items,tgt);}
+}
+function initNodalDnD(){window.addEventListener('mousemove',ndMove);
+  window.addEventListener('mouseup',ndUp);}
+function nodMoveSelTo(target){nodMoveBranchesTo([...NOD.selBranches],target);}
+function nodMoveBranchesTo(eqs,target){
+  if(!eqs.length||target<0||target>=NOD.groups.length)return;
+  NOD.isolated=NOD.isolated.filter(eq=>eqs.indexOf(eq)<0);   // reconnecte les isolés
+  NOD.groups=NOD.groups.map(g=>g.filter(eq=>eqs.indexOf(eq)<0));
+  eqs.forEach(eq=>{if(!NOD.groups[target].includes(eq))NOD.groups[target].push(eq);});
+  NOD.selBranches=new Set();renderNodaleCible();}
+function nodMergeNodes(src,dst){
+  if(src===dst||src<0||dst<0||src>=NOD.groups.length||dst>=NOD.groups.length)return;
+  NOD.groups[dst]=NOD.groups[dst].concat(
+    NOD.groups[src].filter(eq=>NOD.groups[dst].indexOf(eq)<0));
+  NOD.groups[src]=[];NOD.selBranches=new Set();renderNodaleCible();}
+function nodNewNode(){NOD.groups.push([]);const idx=NOD.groups.length-1;
+  if(NOD.selBranches.size)nodMoveSelTo(idx);else renderNodaleCible();}
+function nodClearSel(){NOD.selBranches=new Set();renderNodaleCible();}
+async function nodCompute(){
+  const st=document.getElementById('nodstatus');st.className='';st.textContent='Calcul en cours…';
+  const d=await api('/api/nodale_to_detaillee',{groups:NOD.groups,isolated:NOD.isolated});
+  stopAnim();S.manual=false;
+  // Charger la topologie détaillée d'intérêt comme cible (volet du bas).
+  document.getElementById('diagBottom').innerHTML=d.svg;
+  document.getElementById('nbB').textContent=d.nb_noeuds;
+  document.getElementById('nbn').textContent=d.nb_noeuds;
+  bind(d.switches);panel(d.switches);hideSeq();setValidated(false);
+  // Resynchroniser la cible nodale sur la topologie détaillée RÉALISÉE
+  // (partition + couleurs + isolés des nœuds obtenus).
+  syncNodalCible(d.nodale);
+  let msg='';
+  if(d.is_verified){st.className='okv';msg='✓ Topologie détaillée d\'intérêt chargée comme cible ('+d.nb_obtenu+' nœud(s)). Validez puis calculez la séquence.';}
+  else{st.className='kov';msg='⚠ Cible partiellement réalisable (obtenu '+d.nb_obtenu+' / visé '+d.nb_vise+' nœud(s)). '+(d.message||'');
+    if(d.noeuds_non_realisables&&d.noeuds_non_realisables.length)msg+=' Nœuds non réalisables : '+d.noeuds_non_realisables.map(g=>g.join(',')).join(' | ')+'.';}
+  if(d.ecarts&&d.ecarts.length)msg+=' Écarts : '+d.ecarts.join(' ; ')+'.';
+  st.textContent=msg;}
 init();
 </script>
 </body></html>"""
