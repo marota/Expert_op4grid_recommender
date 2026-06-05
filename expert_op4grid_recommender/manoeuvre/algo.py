@@ -1312,12 +1312,51 @@ def _placement_greedy(
     return placement, non_places
 
 
+def _switch_edge_index(G: nx.Graph) -> dict[str, tuple[int, int]]:
+    """Index ``switch_id -> (u, v)`` mémoïsé sur le graphe (``G.graph``).
+
+    Construit en une passe au premier accès, puis réutilisé en O(1) — il
+    remplace les anciens scans linéaires de ``_is_open`` / ``_set_switch``.
+
+    Validité : la coordonnée ``(u, v)`` d'un switch est **topologique**, donc
+    stable tant que la structure du graphe ne change pas. Le séquenceur ne fait
+    que basculer l'attribut ``open`` (jamais ajouter/retirer d'arête), et
+    ``G.copy()`` préserve nœuds et arêtes : l'index reste valide sur les graphes
+    dérivés (copies de travail, ``cible_graph`` du même réseau). Le nombre
+    d'arêtes sert de garde-fou : toute modification structurelle force une
+    reconstruction.
+    """
+    cache = G.graph.get("_switch_edge_index")
+    if cache is None or cache[0] != G.number_of_edges():
+        mapping = {d["switch_id"]: (u, v)
+                   for u, v, d in G.edges(data=True)
+                   if d.get("switch_id") is not None}
+        cache = (G.number_of_edges(), mapping)
+        G.graph["_switch_edge_index"] = cache
+    return cache[1]
+
+
+def _equipment_node_index(G: nx.Graph) -> dict[str, int]:
+    """Index ``equipment_id -> node`` mémoïsé sur le graphe (cf.
+    ``_switch_edge_index`` ; garde-fou sur le nombre de nœuds)."""
+    cache = G.graph.get("_equipment_node_index")
+    if cache is None or cache[0] != G.number_of_nodes():
+        mapping = {d["equipment_id"]: n
+                   for n, d in G.nodes(data=True)
+                   if d.get("equipment_id") is not None}
+        cache = (G.number_of_nodes(), mapping)
+        G.graph["_equipment_node_index"] = cache
+    return cache[1]
+
+
 def _set_switch(G: nx.Graph, switch_id: str, open_: bool) -> None:
-    """Modifie l'état d'un switch (par son id) dans le graphe simulé."""
-    for u, v, d in G.edges(data=True):
-        if d.get("switch_id") == switch_id:
-            d["open"] = open_
-            return
+    """Modifie l'état d'un switch (par son id) dans le graphe simulé.
+
+    No-op silencieux si l'id est inconnu (contrat historique, cf.
+    ``tests/manoeuvre/test_lookup_helpers.py``)."""
+    edge = _switch_edge_index(G).get(switch_id)
+    if edge is not None:
+        G.edges[edge]["open"] = open_
 
 
 # ===========================================================================
@@ -2031,17 +2070,17 @@ def _optimiser_sequence(
 
 
 def _is_open(G: nx.Graph, switch_id: str) -> bool:
-    for _, _, d in G.edges(data=True):
-        if d.get("switch_id") == switch_id:
-            return bool(d.get("open", False))
-    return True
+    """État d'un switch (True = ouvert). Un id inconnu est considéré **ouvert**
+    (contrat historique)."""
+    edge = _switch_edge_index(G).get(switch_id)
+    if edge is None:
+        return True
+    return bool(G.edges[edge].get("open", False))
 
 
 def _eq_node(G: nx.Graph, eq_id: str) -> Optional[int]:
-    for n, d in G.nodes(data=True):
-        if d.get("equipment_id") == eq_id:
-            return n
-    return None
+    """Nœud de connectivité d'un équipement (ou ``None`` si inconnu)."""
+    return _equipment_node_index(G).get(eq_id)
 
 
 def _sa_path_to_sjb(cell: CelluleDepart, sjb_node: int) -> list[str]:
