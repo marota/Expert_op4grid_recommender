@@ -1041,6 +1041,23 @@ def _placement_automatique(
 
     k = len(nodes)
 
+    # Connexité d'un groupe de SJB dans CG : **mémoïsée**. Le même sous-ensemble
+    # réapparaît dans des milliers d'affectations ; on passe de ~k^n appels à
+    # ``nx.is_connected`` à ≤ 2^(nb SJB) calculs distincts.
+    _conn: dict[frozenset, bool] = {}
+
+    def _groupe_connexe(sjb_set: set[int]) -> bool:
+        key = frozenset(sjb_set)
+        r = _conn.get(key)
+        if r is None:
+            r = nx.is_connected(CG.subgraph(key))
+            _conn[key] = r
+        return r
+
+    # État courant (fermé ?) de chaque coupler : **invariant** de la recherche,
+    # calculé une seule fois (au lieu d'être recalculé à chaque itération).
+    cp_closed = [all(not _is_open(G, s) for s in cp.switch_ids) for cp in couplers]
+
     # Recherche exhaustive d'une affectation **complète** (tous les nœuds placés),
     # uniquement si elle est possible (k ≤ nb SJB) et tient dans le garde-fou.
     best = None  # (cost, assign tuple)
@@ -1052,7 +1069,7 @@ def _placement_automatique(
             if any(not s for s in node_sjbs.values()):
                 continue  # chaque nœud doit avoir ≥ 1 SJB
             # Groupes connexes dans le graphe des couplers
-            if not all(nx.is_connected(CG.subgraph(s)) for s in node_sjbs.values()):
+            if not all(_groupe_connexe(s) for s in node_sjbs.values()):
                 continue
             # Faisabilité : chaque départ atteint une SJB de son nœud
             ok = True
@@ -1072,9 +1089,8 @@ def _placement_automatique(
             node_of_sjb = {sjb_nodes[j]: assign[j] for j in range(len(sjb_nodes))}
             cpl = 0
             sect = 0
-            for cp in couplers:
+            for cp, currently_closed in zip(couplers, cp_closed):
                 same = node_of_sjb[cp.sjb_a] == node_of_sjb[cp.sjb_b]
-                currently_closed = all(not _is_open(G, s) for s in cp.switch_ids)
                 if same and not currently_closed:
                     cpl += 1
                 elif (not same) and currently_closed:
@@ -1242,6 +1258,17 @@ def _placement_best_effort(
     if (k + 1) ** n_sjb > 2_000_000:
         return _placement_greedy(nodes, R, sjb_nodes, sjb_id)
 
+    # Connexité d'un groupe de SJB : **mémoïsée** (cf. ``_placement_automatique``).
+    _conn: dict[frozenset, bool] = {}
+
+    def _groupe_connexe(sjb_set: set[int]) -> bool:
+        key = frozenset(sjb_set)
+        r = _conn.get(key)
+        if r is None:
+            r = nx.is_connected(CG.subgraph(key))
+            _conn[key] = r
+        return r
+
     best = None  # (score, placement, non_places)
     for assign in itertools.product(range(k + 1), repeat=n_sjb):
         node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
@@ -1254,7 +1281,7 @@ def _placement_best_effort(
             s = node_sjbs[i]
             if not s:
                 continue  # nœud abandonné (laissé à l'opérateur)
-            if not nx.is_connected(CG.subgraph(s)):
+            if not _groupe_connexe(s):
                 valide = False
                 break
             if any(not (R.get(eq, frozenset()) & s) for eq in nodes[i]):
