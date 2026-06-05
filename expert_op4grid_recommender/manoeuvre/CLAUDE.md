@@ -94,6 +94,47 @@ Le `fixture_loader.py` contient les fonctions de chargement :
 Les tests unitaires (`test_graph_cellules.py`) utilisent le reseau standard
 `pp.network.create_four_substations_node_breaker_network()`, cible `S1VL2`.
 
+### Filets de regression (refactors a iso-comportement)
+
+Poses avant la campagne d'optimisation (cf. `docs/manoeuvre_optimisations.md`),
+ces tests garantissent l'invariance du comportement :
+
+- `test_golden_sequences.py` — **golden** de bout en bout : sequence ordonnee
+  exacte + verifications + ecarts + partition, pour chaque `scenarios/*.json` x
+  {smooth, aggressive}. Reference dans `tests/manoeuvre/goldens/`.
+  **Regenerer consciemment** apres un changement de comportement assume :
+  `UPDATE_GOLDENS=1 pytest tests/manoeuvre/test_golden_sequences.py`.
+- `test_verificateurs_exact.py` — sorties exactes des verificateurs du
+  sectionneur (alignement, indices, dedup, idempotence, non-mutation).
+- `test_lookup_helpers.py` — contrat de `_is_open`/`_set_switch`/`_eq_node`
+  (id inconnu, validite sur copie de graphe).
+- `test_couplers_memoisation.py` — invariance a l'etat des couplers, purete,
+  non-mutation de `poste.graph` par le pipeline.
+
+## Performance & invariants internes
+
+Plusieurs chemins chauds sont **memoises** ; toute modification doit preserver
+ces invariants (sinon les goldens cassent). Detail et gains :
+`docs/manoeuvre_optimisations.md`.
+
+- **Index lookups** (`_switch_edge_index`, `_equipment_node_index`) : caches
+  `G.graph` construits en une passe ; coordonnees **topologiques** (valides sur
+  les copies). Garde-fou **O(1)** sur `number_of_nodes()` — ne **jamais**
+  rebrancher sur `number_of_edges()` (O(aretes), annule le gain).
+- **Couplers** (`_inter_sjb_couplers`) : memoise sur le poste — invariant a
+  l'etat ouvert/ferme des organes (ne lit que la topologie + le tronconnement).
+- **Verificateurs** : une **passe de rejeu unique** (`_rejeu_securite`) ; les
+  fonctions publiques sont de minces delegateurs.
+- **Placement** (`_placement_automatique`) : enumeration par **partitions
+  connexes** (`_assignations_connexes`) + connexite memoisee + tie-break
+  **lex-min** reproduisant l'ancienne enumeration `itertools.product`.
+- **Chemins SA** (`CelluleDepart.disconnectors_vers_barre`) : memoise par SJB
+  (sous-graphe de cellule fige -> resultat structurel invariant).
+
+Invariant cle exploite partout : **`poste.graph` n'est jamais mute
+structurellement** ; le sequenceur travaille sur des **copies** et ne bascule
+que l'attribut `open`.
+
 ## Etat algo (phase 2)
 
 `determiner_topo_complete_cible(poste, topo_cible)` traite :
