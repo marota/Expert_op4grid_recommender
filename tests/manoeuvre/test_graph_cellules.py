@@ -39,8 +39,6 @@ from expert_op4grid_recommender.manoeuvre.graph import (
 from expert_op4grid_recommender.manoeuvre.cellules import (
     detecter_cellules,
     calculer_connected_busbars,
-    CelluleDepart,
-    CelluleCouplage,
 )
 from expert_op4grid_recommender.manoeuvre.models import (
     NodeType,

@@ -47,7 +47,7 @@ from typing import Optional
 
 import networkx as nx
 
-from .models import NodeType, SwitchKind
+from .models import SwitchKind
 from .graph import busbar_nodes
 from .cellules import CellulesVL, SwitchInfo
 

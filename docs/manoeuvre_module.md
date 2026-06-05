@@ -3,7 +3,9 @@
 > **Package** : `expert_op4grid_recommender.manoeuvre`
 > **Origine** : Portage Python de la bibliothèque C++ `libTOPO` (projet TOPO Apogee, RTE)
 > **Backend reseau** : pypowsybl (topologie NODE_BREAKER)
-> **Statut** : Etapes 1.1 et 1.2 implementees ; etapes 1.3+ a venir
+> **Statut** : Etapes 1.1 a 1.6 + phase 2 (sequencement) implementees ; IHM de test
+> disponible. Campagne d'optimisation a iso-comportement : voir
+> [`manoeuvre_optimisations.md`](manoeuvre_optimisations.md).
 
 ---
 

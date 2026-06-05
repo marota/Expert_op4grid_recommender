@@ -11,7 +11,6 @@ import pytest
 from expert_op4grid_recommender.manoeuvre.topologie import (
     TopologieNodale,
     PosteTopologique,
-    attribuer_noeuds,
 )
 
 from .fixture_loader import build_graph_from_fixture, list_available_fixtures

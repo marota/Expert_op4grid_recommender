@@ -16,8 +16,8 @@ from typing import Optional
 
 import networkx as nx
 
-from .models import NodeType, EquipmentType, SwitchKind
-from .graph import busbar_nodes, equipment_nodes, get_node_attrs
+from .models import EquipmentType
+from .graph import equipment_nodes, get_node_attrs
 from .cellules import CellulesVL, detecter_cellules
 from .troncons import Tronconnement, construire_tronconnement
 

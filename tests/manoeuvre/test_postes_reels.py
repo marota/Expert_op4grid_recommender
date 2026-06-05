@@ -34,30 +34,24 @@ Usage :
 
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
 
 import networkx as nx
 import pytest
 
 from expert_op4grid_recommender.manoeuvre.models import (
     NodeType,
-    EquipmentType,
     SwitchKind,
 )
 from expert_op4grid_recommender.manoeuvre.graph import busbar_nodes, equipment_nodes
 from expert_op4grid_recommender.manoeuvre.cellules import (
     detecter_cellules,
     calculer_connected_busbars,
-    CellulesVL,
 )
 
 from .fixture_loader import (
-    FIXTURES_DIR,
     list_available_fixtures,
     load_fixture_index,
-    load_fixture_json,
     build_graph_from_fixture,
     get_fixture_metadata,
 )

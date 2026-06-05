@@ -49,8 +49,8 @@ from typing import Optional
 
 import networkx as nx
 
-from .models import NodeType, EquipmentType, SwitchKind, EdgeAttrs, NodeAttrs
-from .graph import get_node_attrs, get_edge_attrs, busbar_nodes, equipment_nodes
+from .models import EquipmentType, SwitchKind
+from .graph import get_node_attrs, busbar_nodes, equipment_nodes
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,11 @@ class CelluleDepart:
     connected_busbars: set[int] = field(default_factory=set)
     shared_equipment_ids: set[str] = field(default_factory=set)
     subgraph: Optional[nx.Graph] = field(default=None, repr=False)
+    # Cache des chemins SA (équipement -> SJB) : structurel donc **indépendant de
+    # l'état ouvert/fermé** des organes (le sous-graphe de la cellule est figé).
+    # Voir ``disconnectors_vers_barre`` (appelé des dizaines de milliers de fois).
+    _path_cache: dict = field(default_factory=dict, init=False, repr=False,
+                              compare=False)
 
     # ------------------------------------------------------------------
     # Propriétés utilitaires
@@ -195,11 +200,20 @@ class CelluleDepart:
         Utilisé dans le ré-aiguillage (step 2.4.4) pour identifier les OC
         à manœuvrer afin de changer de barre.
 
+        **Mémoïsé** par ``bbs_node`` : le chemin est structurel (sous-graphe de
+        cellule figé), donc invariant ; la méthode est appelée en très grand
+        nombre (``_sa_path_to_sjb``) lors du placement et du séquencement.
+
         Parameters
         ----------
         bbs_node :
             Nœud de connectivité de la SJB cible.
         """
+        if bbs_node not in self._path_cache:
+            self._path_cache[bbs_node] = self._compute_disconnectors_vers_barre(bbs_node)
+        return self._path_cache[bbs_node]
+
+    def _compute_disconnectors_vers_barre(self, bbs_node: int) -> list[SwitchInfo]:
         if self.subgraph is None or bbs_node not in self.subgraph:
             return []
 

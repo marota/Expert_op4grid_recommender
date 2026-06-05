@@ -1,0 +1,36 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "CARRIP6_CARRI6COUPL.3 DJ_OC",
+      "OPEN",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 1,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "CARRI6CREI5.1",
+      "CARRIL61TERRI",
+      "CARRIL61VALES",
+      "CARRIL61ZB.FR",
+      "CARRIY631"
+    ],
+    [
+      "CARRI6CREI5.2",
+      "CARRI6T611",
+      "CARRIL61GOUVI",
+      "CARRIL61MORU",
+      "CARRIY632",
+      "CARRIY633"
+    ],
+    [
+      "CARRIL62TERRI"
+    ]
+  ],
+  "voltage_level_id": "CARRIP6"
+}

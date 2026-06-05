@@ -29,7 +29,29 @@ jobs:
           # Modify the pytest command here
           command: pytest -m "not slow" # This tells pytest to exclude tests marked 'slow'
 
+  quality:
+    # Analyse statique (sans dépendances lourdes : ruff/interrogate/radon
+    # parsent le code, ne l'importent pas). Scopé au module `manoeuvre`, maintenu
+    # propre ; le reste du dépôt n'est pas encore couvert (dette à résorber).
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: Install quality tools
+          command: pip install ruff interrogate radon
+      - run:
+          name: Lint (ruff) — module manoeuvre
+          command: ruff check expert_op4grid_recommender/manoeuvre scripts/manoeuvre_ihm.py tests/manoeuvre
+      - run:
+          name: Docstrings (interrogate) — module manoeuvre
+          command: interrogate expert_op4grid_recommender/manoeuvre
+      - run:
+          name: Complexité (radon, indicatif — non bloquant)
+          command: radon cc expert_op4grid_recommender/manoeuvre -a -s
+
 workflows:
   sample:
     jobs:
       - build-and-test
+      - quality

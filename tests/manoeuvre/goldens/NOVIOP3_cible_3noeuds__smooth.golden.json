@@ -1,0 +1,54 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 SA.2_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "NOVIOP3_NOVIO3COUPL.A DJ_OC",
+      "OPEN",
+      null
+    ]
+  ],
+  "mode": "smooth",
+  "n_manoeuvres": 5,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "ASNIEL31NOVIO",
+      "FALLOL32NOVIO",
+      "FALLOL34NOVIO",
+      "LAMARL31NOVIO",
+      "NOVIO3TR0312"
+    ],
+    [
+      "ASNIEL32NOVIO",
+      "NOVIOY631",
+      "NOVIOY632"
+    ],
+    [
+      "FALLOL33NOVIO",
+      "NOVIO3TR0314"
+    ]
+  ],
+  "voltage_level_id": "NOVIOP3"
+}

@@ -1,0 +1,120 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "CARRIP6_CARRI6MORU.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6TR611 DJ.HT_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6VALES.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6TR631 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6TR632 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6COUPL.3 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6SEC..12 SS.1.12_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6SEC..23 SS.2.23_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6MORU.1 SA.1_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6MORU.1 SA.2_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6TR611 SA.2_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6TR611 SA.1_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6VALES.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6TR631 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6TR632 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6MORU.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6TR611 DJ.HT_OC",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 17,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "CARRI6CREI5.1",
+      "CARRI6T611",
+      "CARRIL61TERRI",
+      "CARRIL61ZB.FR"
+    ],
+    [
+      "CARRI6CREI5.2",
+      "CARRIL61GOUVI",
+      "CARRIY633"
+    ],
+    [
+      "CARRIL61MORU",
+      "CARRIL61VALES",
+      "CARRIY631"
+    ],
+    [
+      "CARRIL62TERRI"
+    ],
+    [
+      "CARRIY632"
+    ]
+  ],
+  "voltage_level_id": "CARRIP6"
+}

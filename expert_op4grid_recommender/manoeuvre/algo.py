@@ -69,7 +69,9 @@ Limites connues (documentées, cf. doc C++) :
 
 from __future__ import annotations
 
+import itertools
 import logging
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
@@ -81,9 +83,24 @@ from .topologie import (
     TopologieNodale,
     PosteTopologique,
 )
-from .troncons import Troncon
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Paramètres de la recherche de placement (phases 2.2-2.4)
+# ---------------------------------------------------------------------------
+# Poids du coût d'une affectation nœud -> SJB. Un **ré-aiguillage** (déplacer un
+# départ d'une barre à l'autre, manœuvre lourde) est plus cher qu'une simple
+# manœuvre de **coupler** ; **ouvrir un sectionnement** (organe hors charge,
+# dé-énergisation préalable) est pénalisé plus qu'ouvrir un couplage (DJ).
+POIDS_REAIGUILLAGE = 5
+POIDS_MANOEUVRE_COUPLER = 1
+POIDS_OUVERTURE_SECTIONNEMENT = 4
+
+# Garde-fous combinatoires : au-delà, on bascule sur une heuristique (placement
+# best-effort borné, puis glouton) plutôt que d'énumérer toutes les affectations.
+MAX_COMBINAISONS_PLACEMENT = 500_000        # affectation complète (~k^nb_SJB)
+MAX_COMBINAISONS_BEST_EFFORT = 2_000_000    # placement partiel (~(k+1)^nb_SJB)
 
 
 # ---------------------------------------------------------------------------
@@ -238,12 +255,10 @@ def _wired_busbar(cell: CelluleDepart, graph: nx.Graph) -> Optional[int]:
 
 
 def _edges_of_switches(graph: nx.Graph, switch_ids):
-    out = []
-    sset = set(switch_ids)
-    for u, v, d in graph.edges(data=True):
-        if d.get("switch_id") in sset:
-            out.append((u, v))
-    return out
+    """Arêtes (u, v) des switches donnés, via l'index O(1) (un id inconnu est
+    simplement omis — même sémantique que l'ancien scan linéaire)."""
+    idx = _switch_edge_index(graph)
+    return [idx[sid] for sid in switch_ids if sid in idx]
 
 
 def _departure_dj_changes(
@@ -476,8 +491,7 @@ def _sequence_detaillee_aggressive(
     res.topo_obtenue = TopologieNodale.from_graph(G, vl)
     res.is_verified = res.topo_cible.meme_topologie(res.topo_obtenue)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
-                  + _verifier_securite_sectionneurs(poste, manoeuvres)
-                  + _verifier_sectionneurs_hors_charge(poste, manoeuvres))
+                  + _verifier_regles(poste, manoeuvres, un_seul=False))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if not res.is_verified:
         res.message = (
@@ -498,7 +512,6 @@ def _organes_internes_2bornes(poste: PosteTopologique) -> set[str]:
     bornes (typiquement une self/réactance dont les deux côtés sont câblés chacun
     sur une barre) apparaît dans deux cellules de départ. Ces organes sont laissés
     en place (ni ré-aiguillés ni signalés en écart)."""
-    from collections import Counter
     occ: Counter = Counter()
     for c in poste.cellules.cellules_depart:
         for eq in {c.equipment_id} | set(c.shared_equipment_ids):
@@ -679,9 +692,7 @@ def _sequence_detaillee_multibarres(
     res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
     res.is_changed = bool(res.manoeuvres)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
-                  + _verifier_securite_sectionneurs(poste, res.manoeuvres)
-                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres)
-                  + _verifier_sectionneurs_hors_charge(poste, res.manoeuvres))
+                  + _verifier_regles(poste, res.manoeuvres, un_seul=True))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if res.is_verified_detaillee:
         res.message = ("Topologie détaillée cible atteinte et vérifiée "
@@ -853,9 +864,7 @@ def determiner_manoeuvres_cible_detaillee(
     res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
     res.is_changed = bool(res.manoeuvres)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
-                  + _verifier_securite_sectionneurs(poste, res.manoeuvres)
-                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres)
-                  + _verifier_sectionneurs_hors_charge(poste, res.manoeuvres))
+                  + _verifier_regles(poste, res.manoeuvres, un_seul=True))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if degradation:
         # Dégradation gracieuse (option 4) : cible partiellement atteinte.
@@ -948,6 +957,60 @@ def _ecarts_detailles(
 # (ré-aiguillages + manœuvres de couplers, sectionnements pénalisés).
 # ---------------------------------------------------------------------------
 
+def _assignations_connexes(sjb_nodes, k, est_connexe):
+    """Génère les affectations SJB->nœud (tuples de longueur n) où **chaque nœud
+    reçoit un groupe de SJB connexe non vide**, couvrant toutes les SJB.
+
+    Équivalent **en ensemble** à ``itertools.product(range(k), repeat=n)`` filtré
+    sur « tous les nœuds non vides et connexes », mais généré **par construction**
+    (partitions en k blocs connexes × bijections bloc->nœud) plutôt qu'en filtrant
+    k^n affectations. Le coût minimal exploré est donc identique ; seul l'ordre
+    d'énumération (et donc le tie-breaking en cas d'égalité) diffère.
+
+    ``est_connexe(frozenset[int]) -> bool`` : prédicat de connexité (mémoïsé).
+    """
+    n = len(sjb_nodes)
+    pos = {s: i for i, s in enumerate(sjb_nodes)}
+
+    # Sous-ensembles connexes non vides, groupés par leur plus petite SJB (indice).
+    connexes_par_ancre: dict[int, list[frozenset]] = {}
+    for r in range(1, n + 1):
+        for combo in itertools.combinations(sjb_nodes, r):
+            fs = frozenset(combo)
+            if est_connexe(fs):
+                ancre = min(pos[s] for s in fs)
+                connexes_par_ancre.setdefault(ancre, []).append(fs)
+
+    # Partitions en exactement k blocs connexes, ancrées sur la plus petite SJB
+    # non couverte -> chaque partition (non ordonnée) générée une seule fois.
+    partitions: list[list[frozenset]] = []
+
+    def _rec(remaining: frozenset, blocks: list):
+        if not remaining:
+            if len(blocks) == k:
+                partitions.append(blocks)
+            return
+        if len(blocks) >= k:
+            return
+        ancre = min(pos[s] for s in remaining)
+        for block in connexes_par_ancre.get(ancre, ()):
+            if (block <= remaining
+                    and len(remaining) - len(block) >= (k - len(blocks) - 1)):
+                _rec(remaining - block, blocks + [block])
+
+    _rec(frozenset(sjb_nodes), [])
+
+    # Affectation des blocs aux nœuds : toutes les bijections (nœuds distinguables
+    # — départs distincts, donc coûts distincts selon le nœud porteur du bloc).
+    for blocks in partitions:
+        for perm in itertools.permutations(range(k)):
+            assign = [0] * n
+            for block, node in zip(blocks, perm):
+                for s in block:
+                    assign[pos[s]] = node
+            yield tuple(assign)
+
+
 def _placement_automatique(
     poste: PosteTopologique,
     topo_cible: TopologieNodale,
@@ -965,8 +1028,6 @@ def _placement_automatique(
     -------
     (placement, faisable, message, noeuds_non_places)
     """
-    import itertools
-
     G = poste.graph
     barre_par = poste.tronconnement.barre_par_busbar
     sjb_nodes = sorted(barre_par)
@@ -1046,18 +1107,35 @@ def _placement_automatique(
 
     k = len(nodes)
 
+    # Connexité d'un groupe de SJB dans CG : **mémoïsée**. Le même sous-ensemble
+    # réapparaît dans des milliers d'affectations ; on passe de ~k^n appels à
+    # ``nx.is_connected`` à ≤ 2^(nb SJB) calculs distincts.
+    _conn: dict[frozenset, bool] = {}
+
+    def _groupe_connexe(sjb_set: set[int]) -> bool:
+        key = frozenset(sjb_set)
+        r = _conn.get(key)
+        if r is None:
+            r = nx.is_connected(CG.subgraph(key))
+            _conn[key] = r
+        return r
+
+    # État courant (fermé ?) de chaque coupler : **invariant** de la recherche,
+    # calculé une seule fois (au lieu d'être recalculé à chaque itération).
+    cp_closed = [all(not _is_open(G, s) for s in cp.switch_ids) for cp in couplers]
+
     # Recherche exhaustive d'une affectation **complète** (tous les nœuds placés),
     # uniquement si elle est possible (k ≤ nb SJB) et tient dans le garde-fou.
     best = None  # (cost, assign tuple)
-    if k <= len(sjb_nodes) and k ** len(sjb_nodes) <= 500_000:
-        for assign in itertools.product(range(k), repeat=len(sjb_nodes)):
+    if k <= len(sjb_nodes) and k ** len(sjb_nodes) <= MAX_COMBINAISONS_PLACEMENT:
+        for assign in _assignations_connexes(sjb_nodes, k, _groupe_connexe):
             node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
             for j, ni in enumerate(assign):
                 node_sjbs[ni].add(sjb_nodes[j])
             if any(not s for s in node_sjbs.values()):
                 continue  # chaque nœud doit avoir ≥ 1 SJB
             # Groupes connexes dans le graphe des couplers
-            if not all(nx.is_connected(CG.subgraph(s)) for s in node_sjbs.values()):
+            if not all(_groupe_connexe(s) for s in node_sjbs.values()):
                 continue
             # Faisabilité : chaque départ atteint une SJB de son nœud
             ok = True
@@ -1077,17 +1155,23 @@ def _placement_automatique(
             node_of_sjb = {sjb_nodes[j]: assign[j] for j in range(len(sjb_nodes))}
             cpl = 0
             sect = 0
-            for cp in couplers:
+            for cp, currently_closed in zip(couplers, cp_closed):
                 same = node_of_sjb[cp.sjb_a] == node_of_sjb[cp.sjb_b]
-                currently_closed = all(not _is_open(G, s) for s in cp.switch_ids)
                 if same and not currently_closed:
                     cpl += 1
                 elif (not same) and currently_closed:
                     cpl += 1
                     if cp.is_sectionnement:
                         sect += 1
-            cost = 5 * reaig + cpl + 4 * sect
-            if best is None or cost < best[0]:
+            cost = (POIDS_REAIGUILLAGE * reaig
+                    + POIDS_MANOEUVRE_COUPLER * cpl
+                    + POIDS_OUVERTURE_SECTIONNEMENT * sect)
+            # Tie-break **lex-min** sur ``assign`` : reproduit exactement le choix
+            # de l'ancienne énumération ``itertools.product`` (premier min-coût en
+            # ordre lexicographique). La sortie est donc strictement identique,
+            # quel que soit l'ordre d'énumération des partitions connexes.
+            if (best is None or cost < best[0]
+                    or (cost == best[0] and assign < best[1])):
                 best = (cost, assign)
 
     full_placement = None
@@ -1180,8 +1264,6 @@ def _diagnostic_infaisabilite(
     2. *Organe interne à 2 bornes* (self/réactance ``LINE_SIDE1``+``LINE_SIDE2``)
        présent sur plusieurs nœuds alors qu'il n'atteint qu'une seule section.
     """
-    from collections import Counter
-
     def _names(sset) -> str:
         return "{" + ", ".join(str(sjb_id.get(s, s)) for s in sorted(sset)) + "}"
 
@@ -1236,16 +1318,25 @@ def _placement_best_effort(
         ``placement`` = ``[(departs, sjb_ids)]`` des nœuds réalisés ;
         ``noeuds_non_places`` = liste des départs des nœuds non réalisés.
     """
-    import itertools
-
     k = len(nodes)
     n_sjb = len(sjb_nodes)
     if k == 0:
         return [], []
 
     # Garde-fou : chaque SJB → un nœud OU « inutilisée » (k+1 choix par SJB).
-    if (k + 1) ** n_sjb > 2_000_000:
+    if (k + 1) ** n_sjb > MAX_COMBINAISONS_BEST_EFFORT:
         return _placement_greedy(nodes, R, sjb_nodes, sjb_id)
+
+    # Connexité d'un groupe de SJB : **mémoïsée** (cf. ``_placement_automatique``).
+    _conn: dict[frozenset, bool] = {}
+
+    def _groupe_connexe(sjb_set: set[int]) -> bool:
+        key = frozenset(sjb_set)
+        r = _conn.get(key)
+        if r is None:
+            r = nx.is_connected(CG.subgraph(key))
+            _conn[key] = r
+        return r
 
     best = None  # (score, placement, non_places)
     for assign in itertools.product(range(k + 1), repeat=n_sjb):
@@ -1259,7 +1350,7 @@ def _placement_best_effort(
             s = node_sjbs[i]
             if not s:
                 continue  # nœud abandonné (laissé à l'opérateur)
-            if not nx.is_connected(CG.subgraph(s)):
+            if not _groupe_connexe(s):
                 valide = False
                 break
             if any(not (R.get(eq, frozenset()) & s) for eq in nodes[i]):
@@ -1312,12 +1403,55 @@ def _placement_greedy(
     return placement, non_places
 
 
+def _switch_edge_index(G: nx.Graph) -> dict[str, tuple[int, int]]:
+    """Index ``switch_id -> (u, v)`` mémoïsé sur le graphe (``G.graph``).
+
+    Construit en une passe au premier accès, puis réutilisé en **O(1)** — il
+    remplace les anciens scans linéaires de ``_is_open`` / ``_set_switch``.
+
+    Validité : la coordonnée ``(u, v)`` d'un switch est **topologique**, donc
+    stable tant que la structure du graphe ne change pas. Le séquenceur ne fait
+    que basculer l'attribut ``open`` (jamais ajouter/retirer d'arête), et
+    ``G.copy()`` préserve nœuds et arêtes : l'index reste valide sur les graphes
+    dérivés (copies de travail, ``cible_graph`` du même réseau).
+
+    Garde-fou **O(1)** : le nombre de *nœuds* (``len(G)``, immédiat) sert de
+    canari. ``number_of_edges()`` serait O(arêtes) (somme des degrés) et, appelé
+    à chaque lookup, annulerait le bénéfice de l'index. Dans ce module la
+    structure (nœuds **et** arêtes) est figée après construction ; une variation
+    du nombre de nœuds (sous-graphe, vue) force la reconstruction.
+    """
+    cache = G.graph.get("_switch_edge_index")
+    if cache is None or cache[0] != G.number_of_nodes():
+        mapping = {d["switch_id"]: (u, v)
+                   for u, v, d in G.edges(data=True)
+                   if d.get("switch_id") is not None}
+        cache = (G.number_of_nodes(), mapping)
+        G.graph["_switch_edge_index"] = cache
+    return cache[1]
+
+
+def _equipment_node_index(G: nx.Graph) -> dict[str, int]:
+    """Index ``equipment_id -> node`` mémoïsé sur le graphe (cf.
+    ``_switch_edge_index`` ; garde-fou O(1) sur le nombre de nœuds)."""
+    cache = G.graph.get("_equipment_node_index")
+    if cache is None or cache[0] != G.number_of_nodes():
+        mapping = {d["equipment_id"]: n
+                   for n, d in G.nodes(data=True)
+                   if d.get("equipment_id") is not None}
+        cache = (G.number_of_nodes(), mapping)
+        G.graph["_equipment_node_index"] = cache
+    return cache[1]
+
+
 def _set_switch(G: nx.Graph, switch_id: str, open_: bool) -> None:
-    """Modifie l'état d'un switch (par son id) dans le graphe simulé."""
-    for u, v, d in G.edges(data=True):
-        if d.get("switch_id") == switch_id:
-            d["open"] = open_
-            return
+    """Modifie l'état d'un switch (par son id) dans le graphe simulé.
+
+    No-op silencieux si l'id est inconnu (contrat historique, cf.
+    ``tests/manoeuvre/test_lookup_helpers.py``)."""
+    edge = _switch_edge_index(G).get(switch_id)
+    if edge is not None:
+        G.edges[edge]["open"] = open_
 
 
 # ===========================================================================
@@ -1356,7 +1490,17 @@ def _inter_sjb_couplers(poste: PosteTopologique) -> list[_InterSjbCoupler]:
     """
     Recense les liaisons inter-SJB (sectionnements et couplages) d'un poste,
     en contractant les nœuds intermédiaires du sous-graphe de couplage.
+
+    **Mémoïsé sur le poste** (auparavant recalculé ~10×/analyse). Le résultat ne
+    dépend que de la **topologie** (graphe + tronçonnement), pas de l'état
+    ouvert/fermé des organes — propriété vérifiée par
+    ``tests/manoeuvre/test_couplers_memoisation.py``. Le poste n'étant jamais
+    muté structurellement, le cache reste valide toute sa durée de vie.
     """
+    cached = getattr(poste, "_inter_sjb_couplers_cache", None)
+    if cached is not None:
+        return cached
+
     G = poste.graph
     bb_nodes = set(poste.tronconnement.barre_par_busbar)
 
@@ -1398,6 +1542,8 @@ def _inter_sjb_couplers(poste: PosteTopologique) -> list[_InterSjbCoupler]:
                     couplers.append(_InterSjbCoupler(a, b, sw_ids, brk_ids))
                 # Retirer les arêtes du chemin pour révéler un couplage parallèle.
                 H.remove_edges_from(edges)
+
+    poste._inter_sjb_couplers_cache = couplers
     return couplers
 
 
@@ -1468,7 +1614,10 @@ def determiner_manoeuvres_avec_sections(
         sjb_set = {sjb_node_par_id[s] for s in sjb_ids if s in sjb_node_par_id}
         for s in sjb_set:
             node_de_sjb[s] = idx
-        for eq in departs:
+        # ``departs`` est un ensemble : on l'itère **trié** pour que l'ordre
+        # d'insertion dans ``target_sjb`` (donc l'ordre des manœuvres qui en
+        # découlent) soit reproductible d'un process à l'autre (PYTHONHASHSEED).
+        for eq in sorted(departs):
             if organes_fixes and eq in organes_fixes:
                 continue  # organe interne à 2 bornes : laissé en place
             cell = cells.get_cellule_depart(eq)
@@ -1518,7 +1667,6 @@ def determiner_manoeuvres_avec_sections(
     # --- groupes SJB finaux (couplers gardés fermés) -----------------------
     sjb_graph = nx.Graph()
     sjb_graph.add_nodes_from(poste.tronconnement.barre_par_busbar)
-    open_ids = {sid for cp in to_open for sid in cp.switch_ids}
     for cp in couplers:
         if cp not in to_open:
             sjb_graph.add_edge(cp.sjb_a, cp.sjb_b)
@@ -1528,7 +1676,6 @@ def determiner_manoeuvres_avec_sections(
             groupe_sjb[s] = gid
 
     # Référence = groupe portant le plus de départs cibles (le « tronc »)
-    from collections import Counter
     poids = Counter(groupe_sjb[s] for s in target_sjb.values() if s in groupe_sjb)
     ref_group = poids.most_common(1)[0][0] if poids else None
     ref_sjbs = {s for s, g in groupe_sjb.items() if g == ref_group}
@@ -1585,7 +1732,9 @@ def determiner_manoeuvres_avec_sections(
         return a in Hc and b in Hc and nx.has_path(Hc, a, b)
 
     def _departs_cables(s: int) -> list[str]:
-        return [eq for eq in target_sjb if s in _wired_sjbs(G, cells, eq)]
+        # Tri explicite : la séquence de dé-énergisation ne doit pas dépendre de
+        # l'ordre d'itération de ``target_sjb`` (cf. construction triée ci-dessus).
+        return sorted(eq for eq in target_sjb if s in _wired_sjbs(G, cells, eq))
 
     def parking_sjb(eq: str, target: int) -> Optional[int]:
         """SJB **tampon** où garer temporairement le départ pendant l'ouverture
@@ -1631,12 +1780,14 @@ def determiner_manoeuvres_avec_sections(
         for cp in list(restants):
             if cp.breaker_ids:                       # DJ -> couplage sûr
                 _fermer_coupler(cp, "fermeture couplage de barres")
-                restants.remove(cp); changed = True
+                restants.remove(cp)
+                changed = True
             elif (_equipotentiel(cp.sjb_a, cp.sjb_b)
                   or not _departs_cables(cp.sjb_a)
                   or not _departs_cables(cp.sjb_b)):  # sectionneur sûr
                 _fermer_coupler(cp, "fermeture sectionnement (barres équipotentielles)")
-                restants.remove(cp); changed = True
+                restants.remove(cp)
+                changed = True
 
     # Sectionneurs encore non sûrs : dé-énergiser le côté « stub » (moins de
     # départs) en ré-aiguillant ses départs vers une SJB du même nœud déjà
@@ -1796,8 +1947,7 @@ def determiner_manoeuvres_avec_sections(
     res.is_changed = bool(manoeuvres)
     # Sûreté des sectionneurs : signaler toute ouverture restée sous tension
     # (sectionnements de barre) ou tout sectionneur manœuvré sous charge.
-    res.ecarts += _verifier_securite_sectionneurs(poste, manoeuvres)
-    res.ecarts += _verifier_sectionneurs_hors_charge(poste, manoeuvres)
+    res.ecarts += _verifier_regles(poste, manoeuvres, un_seul=False)
     res.message = (
         "Topologie cible atteinte et vérifiée."
         if res.is_verified
@@ -1860,83 +2010,131 @@ def _ouvrages_energises_sur(
     return out
 
 
-def _verifier_securite_sectionneurs(
+def _rejeu_securite(
     poste: PosteTopologique, manoeuvres: list[Manoeuvre]
-) -> list[str]:
-    """Rejoue la séquence depuis l'état initial et vérifie la **règle du
-    sectionneur** : à chaque ouverture d'un sectionnement de barre, au moins un
-    côté doit être hors tension (ou les deux côtés rester reliés par un chemin
-    parallèle). Retourne la liste des écarts (sectionneurs ouverts sous tension)."""
-    sect_ids: dict[str, tuple[int, int]] = {}
-    for cp in _inter_sjb_couplers(poste):
-        if cp.is_sectionnement:
-            for sid in cp.switch_ids:
-                sect_ids[sid] = (cp.sjb_a, cp.sjb_b)
-    if not sect_ids:
-        return []
+) -> tuple[list[str], list[Optional[str]], list[str]]:
+    """**Passe de rejeu unique** des règles du sectionneur (au lieu de trois
+    rejeux séparés). Rejoue la séquence une seule fois depuis l'état initial et
+    calcule en parallèle les trois diagnostics, en partageant le graphe « live »
+    construit au plus une fois par étape.
 
+    Returns
+    -------
+    (securite, sous_charge_par_man, un_seul)
+        - ``securite`` : sectionnements de barre ouverts **sous tension** (deux
+          côtés énergisés) — règle stricte du sectionneur de barre ;
+        - ``sous_charge_par_man`` : liste **alignée** sur ``manoeuvres`` ; message
+          d'infraction si la manœuvre ouvre un sectionneur (DISCONNECTOR) sous
+          charge, sinon ``None`` ;
+        - ``un_seul`` : moments où **plus d'un** ouvrage est hors tension par
+          ré-aiguillage (boucle longue) simultanément (R10ter, mode smooth).
+    """
+    couplers = _inter_sjb_couplers(poste)
     cells = poste.cellules
     all_sjb = set(poste.tronconnement.barre_par_busbar)
+
+    # Sectionnements de barre : sid -> (SJB a, SJB b) (règle stricte).
+    sect_pairs: dict[str, tuple[int, int]] = {}
+    for cp in couplers:
+        if cp.is_sectionnement:
+            for sid in cp.switch_ids:
+                sect_pairs[sid] = (cp.sjb_a, cp.sjb_b)
+    sect_id_set = set(sect_pairs)
+
+    # Tous les sectionneurs (DISCONNECTOR) : sid -> arête (« sous charge »).
+    disc: dict[str, tuple[int, int]] = {}
+    for u, v, d in poste.graph.edges(data=True):
+        sid = d.get("switch_id")
+        if sid and d.get("kind") == SwitchKind.DISCONNECTOR:
+            disc[sid] = (u, v)
+    equip = {n for n, d in poste.graph.nodes(data=True) if d.get("equipment_id")}
+
+    # DJ de départ (hors couplage) : sid -> équipement (« un seul HS »).
+    coupling_sids = {s for cp in couplers for s in cp.switch_ids}
+    dj_eq: dict[str, str] = {}
+    for c in cells.cellules_depart:
+        for b in c.breakers:
+            if b.switch_id not in coupling_sids:
+                dj_eq[b.switch_id] = c.equipment_id
+
+    securite: list[str] = []
+    sous_charge: list[Optional[str]] = []
+    un_seul: list[str] = []
+    temp_parking: set[str] = set()
+
     G = poste.graph.copy()
-    ecarts: list[str] = []
     for m in manoeuvres:
-        if (m.action == "OPEN" and m.switch_id in sect_ids
-                and not _is_open(G, m.switch_id)):
-            a, b = sect_ids[m.switch_id]
+        opening = (m.action == "OPEN" and not _is_open(G, m.switch_id))
+        H = None  # graphe « live » privé du switch, construit au plus une fois
+
+        # --- sectionneur sous charge (tout DISCONNECTOR), aligné sur la séquence
+        msg: Optional[str] = None
+        if opening and m.switch_id in disc:
             H = _live_graph_sans(G, [m.switch_id])
-            relies = a in H and b in H and nx.has_path(H, a, b)
-            if not relies:
+            u, v = disc[m.switch_id]
+            if not (u in H and v in H and nx.has_path(H, u, v)):
+                cu = nx.node_connected_component(H, u) if u in H else {u}
+                cv = nx.node_connected_component(H, v) if v in H else {v}
+                if (cu & equip) and (cv & equip):
+                    if m.switch_id in sect_id_set:
+                        msg = ("sectionneur de barre manœuvré sous charge — mettre "
+                               "la section de barre hors tension (ré-aiguiller ses "
+                               "départs sur l'autre section) avant d'ouvrir ce "
+                               "sectionnement")
+                    else:
+                        msg = ("sectionneur manœuvré sous charge — dé-énergiser la "
+                               "branche par son disjoncteur avant d'ouvrir ce "
+                               "sectionneur")
+        sous_charge.append(msg)
+
+        # --- sectionnement de barre ouvert sous tension (règle stricte) --------
+        if opening and m.switch_id in sect_pairs:
+            if H is None:
+                H = _live_graph_sans(G, [m.switch_id])
+            a, b = sect_pairs[m.switch_id]
+            if not (a in H and b in H and nx.has_path(H, a, b)):
                 side_a = (nx.node_connected_component(H, a)
                           if a in H else {a}) & all_sjb
                 side_b = (nx.node_connected_component(H, b)
                           if b in H else {b}) & all_sjb
                 if (_ouvrages_energises_sur(G, cells, side_a, H)
                         and _ouvrages_energises_sur(G, cells, side_b, H)):
-                    ecarts.append(
+                    securite.append(
                         f"sectionneur {m.switch_id} ouvert sous tension "
                         "(deux côtés énergisés)")
+
+        # --- un seul ouvrage hors tension par ré-aiguillage (boucle longue) ----
+        eq = dj_eq.get(m.switch_id)
+        if eq is not None:
+            longue = (m.type_boucle == "LONGUE"
+                      or "boucle longue" in (m.raison or ""))
+            if m.action == "OPEN" and longue:
+                temp_parking.add(eq)
+            elif m.action == "CLOSE":
+                temp_parking.discard(eq)
+            if len(temp_parking) > 1:
+                un_seul.append(
+                    "plus d'un ouvrage hors tension simultanément (ré-aiguillage) : "
+                    + ", ".join(sorted(temp_parking)))
+
         _set_switch(G, m.switch_id, m.action == "OPEN")
-    return ecarts
+
+    return securite, sous_charge, list(dict.fromkeys(un_seul))
+
+
+def _verifier_securite_sectionneurs(
+    poste: PosteTopologique, manoeuvres: list[Manoeuvre]
+) -> list[str]:
+    """Sectionnements de barre ouverts sous tension (cf. ``_rejeu_securite``)."""
+    return _rejeu_securite(poste, manoeuvres)[0]
 
 
 def _verifier_un_seul_hors_tension(
     poste: PosteTopologique, manoeuvres: list[Manoeuvre]
 ) -> list[str]:
-    """Règle R10ter (mode smooth) : on ne déconnecte **temporairement** pas plus
-    d'**un** ouvrage à la fois par **ré-aiguillage (boucle longue)**. Les
-    dé-énergisations **en place** (« avant ouverture sectionneur », sans tampon)
-    sont l'**exception** tolérée et ne sont pas comptées.
-
-    Rejoue la séquence : un départ est « temporairement hors tension par
-    parking » entre une ouverture de son DJ en **boucle longue** et la
-    refermeture correspondante. On signale tout moment où **deux** tels ouvrages
-    le sont simultanément (chevauchement de ré-aiguillages)."""
-    cells = poste.cellules
-    coupling_sids = {s for cp in _inter_sjb_couplers(poste) for s in cp.switch_ids}
-    dj_eq: dict[str, str] = {}
-    for c in cells.cellules_depart:
-        for b in c.breakers:
-            if b.switch_id not in coupling_sids:
-                dj_eq[b.switch_id] = c.equipment_id
-    if not dj_eq:
-        return []
-
-    temp_parking: set[str] = set()   # ouvrages hors tension via boucle longue
-    ecarts: list[str] = []
-    for m in manoeuvres:
-        eq = dj_eq.get(m.switch_id)
-        if eq is None:
-            continue
-        longue = (m.type_boucle == "LONGUE" or "boucle longue" in (m.raison or ""))
-        if m.action == "OPEN" and longue:
-            temp_parking.add(eq)
-        elif m.action == "CLOSE":
-            temp_parking.discard(eq)
-        if len(temp_parking) > 1:
-            ecarts.append(
-                "plus d'un ouvrage hors tension simultanément (ré-aiguillage) : "
-                + ", ".join(sorted(temp_parking)))
-    return list(dict.fromkeys(ecarts))
+    """Règle R10ter : pas plus d'**un** ouvrage hors tension par ré-aiguillage
+    (boucle longue) simultanément (cf. ``_rejeu_securite``)."""
+    return _rejeu_securite(poste, manoeuvres)[2]
 
 
 def _sectionneurs_sous_charge_par_manoeuvre(
@@ -1952,43 +2150,29 @@ def _sectionneurs_sous_charge_par_manoeuvre(
     Un sectionneur ne se manœuvre que hors charge : la parade est de dé-énergiser
     la branche par son **disjoncteur** avant d'ouvrir le sectionneur.
     """
-    disc: dict[str, tuple[int, int]] = {}
-    for u, v, d in poste.graph.edges(data=True):
-        sid = d.get("switch_id")
-        if sid and d.get("kind") == SwitchKind.DISCONNECTOR:
-            disc[sid] = (u, v)
-    # Sectionnements de barre (sectionneurs SA reliant deux SJB) : le message de
-    # parade diffère d'un sélecteur de barre de départ (on dé-énergise une
-    # **section de barre**, pas une branche par son disjoncteur).
-    sect_ids: set[str] = set()
-    for cp in _inter_sjb_couplers(poste):
-        if cp.is_sectionnement:
-            sect_ids.update(cp.switch_ids)
-    equip = {n for n, d in poste.graph.nodes(data=True) if d.get("equipment_id")}
-    G = poste.graph.copy()
-    out: list[Optional[str]] = []
-    for m in manoeuvres:
-        msg: Optional[str] = None
-        if (m.action == "OPEN" and m.switch_id in disc
-                and not _is_open(G, m.switch_id)):
-            u, v = disc[m.switch_id]
-            H = _live_graph_sans(G, [m.switch_id])
-            relies = u in H and v in H and nx.has_path(H, u, v)
-            if not relies:
-                cu = nx.node_connected_component(H, u) if u in H else {u}
-                cv = nx.node_connected_component(H, v) if v in H else {v}
-                if (cu & equip) and (cv & equip):
-                    if m.switch_id in sect_ids:
-                        msg = ("sectionneur de barre manœuvré sous charge — mettre "
-                               "la section de barre hors tension (ré-aiguiller ses "
-                               "départs sur l'autre section) avant d'ouvrir ce "
-                               "sectionnement")
-                    else:
-                        msg = ("sectionneur manœuvré sous charge — dé-énergiser la "
-                               "branche par son disjoncteur avant d'ouvrir ce "
-                               "sectionneur")
-        out.append(msg)
-        _set_switch(G, m.switch_id, m.action == "OPEN")
+    return _rejeu_securite(poste, manoeuvres)[1]
+
+
+def _verifier_regles(
+    poste: PosteTopologique,
+    manoeuvres: list[Manoeuvre],
+    un_seul: bool = True,
+) -> list[str]:
+    """Agrège, en **une seule passe de rejeu** (``_rejeu_securite``), les écarts
+    des règles du sectionneur dans l'ordre historique : sécurité des
+    sectionnements, [un seul ouvrage hors tension,] sectionneurs hors charge.
+
+    ``un_seul`` : inclure la règle R10ter (modes smooth / multi-barres) ; les
+    orchestrations « batch » (agressif, séquenceur à sections) l'omettent.
+    """
+    securite, sous_charge, un = _rejeu_securite(poste, manoeuvres)
+    hors_charge = list(dict.fromkeys(
+        f"{m.switch_id} : {msg}"
+        for m, msg in zip(manoeuvres, sous_charge) if msg))
+    out = list(securite)
+    if un_seul:
+        out += un
+    out += hors_charge
     return out
 
 
@@ -2026,17 +2210,17 @@ def _optimiser_sequence(
 
 
 def _is_open(G: nx.Graph, switch_id: str) -> bool:
-    for _, _, d in G.edges(data=True):
-        if d.get("switch_id") == switch_id:
-            return bool(d.get("open", False))
-    return True
+    """État d'un switch (True = ouvert). Un id inconnu est considéré **ouvert**
+    (contrat historique)."""
+    edge = _switch_edge_index(G).get(switch_id)
+    if edge is None:
+        return True
+    return bool(G.edges[edge].get("open", False))
 
 
 def _eq_node(G: nx.Graph, eq_id: str) -> Optional[int]:
-    for n, d in G.nodes(data=True):
-        if d.get("equipment_id") == eq_id:
-            return n
-    return None
+    """Nœud de connectivité d'un équipement (ou ``None`` si inconnu)."""
+    return _equipment_node_index(G).get(eq_id)
 
 
 def _sa_path_to_sjb(cell: CelluleDepart, sjb_node: int) -> list[str]:

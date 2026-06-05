@@ -1,0 +1,75 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3TR311 DJ.HT_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3TR311 DJ.HT_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3TR312 DJ.HT_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3CBO.1 SS.1.23_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CZBEVP3_CZBEV3TR312 DJ.HT_OC",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "smooth",
+  "n_manoeuvres": 10,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "CZBEV3T311",
+      "CZBEVL32FALLO"
+    ],
+    [
+      "CZBEV3T312",
+      "CZBEVL31DANT5"
+    ],
+    [
+      "CZBEV3T313",
+      "CZBEVL31FALLO"
+    ]
+  ],
+  "voltage_level_id": "CZBEVP3"
+}

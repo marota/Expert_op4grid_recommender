@@ -293,7 +293,6 @@ def test_departs_du_3eme_noeud_en_boucle_longue():
     boucle longue, donc avec ouverture/fermeture de leur disjoncteur."""
     res = _run()
     longues = [m for m in res.manoeuvres if m.type_boucle == "LONGUE"]
-    eqs = {m.switch_id.split()[0] for m in longues}  # préfixe ~ cellule
     # Au moins un DJ ouvert puis refermé pour les départs du nœud 2
     opens = [m for m in longues if m.action == "OPEN" and "hors tension" in m.raison]
     closes = [m for m in longues if m.action == "CLOSE" and "sous tension" in m.raison]
