@@ -6,9 +6,8 @@ Provides a grid2op-compatible interface for creating actions that modify
 the network topology (line switching, bus reconfigurations).
 """
 
-import numpy as np
 import pandas as pd
-from typing import Dict, List, Any, Optional, Union, TYPE_CHECKING
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 from .observation import PypowsyblAction
 
 if TYPE_CHECKING:

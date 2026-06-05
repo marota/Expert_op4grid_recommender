@@ -10,7 +10,6 @@ Verifies:
 - Integration with NetworkTopologyCache
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 
@@ -347,7 +346,7 @@ class TestEnrichActionsLazy:
 
     def test_shared_cache_across_actions(self):
         """All actions should share the same NetworkTopologyCache instance."""
-        from expert_op4grid_recommender.data_loader import enrich_actions_lazy, LazyActionDict
+        from expert_op4grid_recommender.data_loader import enrich_actions_lazy
 
         mock_network = MagicMock()
         with patch('expert_op4grid_recommender.utils.conversion_actions_repas.NetworkTopologyCache') as MockCache:

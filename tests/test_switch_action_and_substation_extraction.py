@@ -22,7 +22,7 @@ These tests verify the new features for pypowsybl backend topology simulation:
 import pytest
 import os
 import sys
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock
 import pandas as pd
 import numpy as np
 

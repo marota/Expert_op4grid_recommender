@@ -1,5 +1,4 @@
 import pytest
-import numpy as np
 import pypowsybl
 from pathlib import Path
 from expert_op4grid_recommender.pypowsybl_backend import NetworkManager, ActionSpace, PypowsyblObservation

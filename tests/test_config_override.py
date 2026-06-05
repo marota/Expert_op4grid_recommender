@@ -46,7 +46,6 @@ def test_config_in_sys_modules():
 def test_main_uses_test_config():
     """Verify that when we import main, it gets the test config."""
     # Import main (this will trigger its config import)
-    from expert_op4grid_recommender import main
     
     # Now check what config main is using
     # Main imports config at the module level, so we need to check what it got
@@ -189,7 +188,7 @@ def test_lines_monitoring_file_defaults_to_none():
     assert value is None, \
         f"FAIL: LINES_MONITORING_FILE should be None (or absent), got {value!r}"
 
-    print(f"\n✓ LINES_MONITORING_FILE resolves to None as expected")
+    print("\n✓ LINES_MONITORING_FILE resolves to None as expected")
 
 
 def test_ignore_lines_monitoring_exists_in_test_config():

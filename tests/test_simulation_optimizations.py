@@ -17,7 +17,7 @@ import pytest
 import os
 import sys
 import numpy as np
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, List, Tuple
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -26,7 +26,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 def _check_simulation_import():
     """Check if simulation functions can be imported."""
     try:
-        from expert_op4grid_recommender.utils.simulation import compute_baseline_simulation
         return True
     except Exception:
         return False

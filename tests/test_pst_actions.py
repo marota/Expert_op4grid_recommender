@@ -345,8 +345,6 @@ def test_pst_prioritization(mock_obs, mock_nm):
 
 def test_pst_recommender_enrichment():
     import sys
-    import os
-    from pathlib import Path
     
     # Robustly find ExpertAssist directory
     # If we are in /home/marotant/dev/Expert_op4grid_recommender/tests/test_pst_actions.py

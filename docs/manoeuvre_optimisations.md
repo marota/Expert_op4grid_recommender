@@ -135,9 +135,20 @@ A/B sur fixtures (moyenne sur N analyses, `networkx` réel) :
   `itertools`/`Counter`/`re` remontés en tête de module.
 - **#10 — qualité en CI** : job `quality` (CircleCI) — `ruff` (lint, **bloquant**),
   `interrogate` (docstrings ≥ 80 %, **bloquant**), `radon` (complexité,
-  indicatif). **Scopé au module `manoeuvre`** (maintenu propre) ; configuration
-  dans `pyproject.toml` (`[tool.ruff]`, `[tool.interrogate]`). Le reste du dépôt
-  (~300 violations `ruff`) reste à résorber avant d'élargir le périmètre.
+  indicatif). Configuration dans `pyproject.toml` (`[tool.ruff.lint]`,
+  `[tool.interrogate]`). `interrogate`/`radon` restent scopés au module
+  `manoeuvre` ; **`ruff` couvre désormais tout le dépôt** (cf. élargissement
+  ci‑dessous). 
+- **Élargissement du gate `ruff` au dépôt entier** : `ruff check .` (CI) couvre
+  l'ensemble du code. ~105 violations triviales ont été **corrigées
+  automatiquement** (imports/variables inutiles, `f""` sans champ, `not x in`…).
+  La dette legacy résiduelle (171 violations : `E701/E702` multi‑statements,
+  `F403/F405` star‑imports, `F841`…) est **grandfatherée** par une baseline
+  « ratchet » (`[tool.ruff.lint.per-file-ignores]`, 38 fichiers) : le gate reste
+  vert tout en capturant **toute nouvelle violation** (nouveau fichier, ou
+  nouveau code dans un fichier listé). **Invariant** : le module `manoeuvre`
+  (code, tests, IHM) n'a **aucune** entrée dans la baseline → reste strictement
+  propre. Dette à résorber progressivement.
 
 ### Qualité IHM — également traité
 
@@ -177,7 +188,17 @@ ni test n'a changé (646 tests verts, couverture ~92 % inchangée). Filets posé
 en amont : `test_public_api.py` (verrou de surface) + caractérisation
 multi‑barres (cf. ci‑dessus).
 
+### Architecture — #8 : externalisation du front‑end de l'IHM
+
+Les ~600 lignes de HTML/CSS/JS embarquées dans la constante `PAGE` de
+`scripts/manoeuvre_ihm.py` sont déplacées **verbatim** dans
+`scripts/manoeuvre_ihm_assets/index.html`, chargé au démarrage du module et
+servi tel quel par la route `GET /`. Le serveur Python passe de ~1650 à ~1050
+lignes ; le front s'édite sans toucher au code serveur. Filet :
+`test_ihm_frontend_asset.py` (asset présent, `PAGE == asset`, `GET /` sert
+l'asset, plus aucun bloc HTML dans le `.py`).
+
 ### Items de la revue encore ouverts
 
-Externalisation du front‑end de l'IHM ; élargissement du gate `ruff` au dépôt
-entier.
+Tous les items de la revue initiale sont traités. Reste, en dette continue : la
+**résorption progressive de la baseline `ruff`** (legacy hors `manoeuvre`).

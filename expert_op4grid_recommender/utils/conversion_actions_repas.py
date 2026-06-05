@@ -23,7 +23,6 @@ operations, which are expensive. Instead, we simulate the switch topology change
 in pure Python using a Union-Find (disjoint set) data structure.
 """
 
-import json
 from typing import List, Dict, Optional, Set, Tuple
 import warnings
 from collections import defaultdict

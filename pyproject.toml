@@ -68,8 +68,60 @@ Issues = "https://github.com/marota/Expert_op4grid_recommender/issues"
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+
+[tool.ruff.lint]
 # Jeu de règles ruff par défaut (E4/E7/E9 + pyflakes F) : haute valeur, faible
 # bruit (imports/variables inutilisés, noms indéfinis, statements douteux...).
+select = ["E4", "E7", "E9", "F"]
+
+# --- Gate élargi au dépôt entier — baseline « ratchet » ---------------------
+# Le gate ``ruff check .`` couvre désormais TOUT le dépôt (cf. CI). Les
+# violations héritées du code legacy sont grandfatherées ci-dessous par
+# (fichier, code) : le gate reste vert tout en capturant toute NOUVELLE
+# violation (nouveau fichier, ou nouveau code dans un fichier listé). Dette à
+# résorber progressivement.
+#
+# INVARIANT : le module ``manoeuvre`` (code, tests, IHM) n'a AUCUNE entrée ici
+# et reste donc strictement propre. Ne jamais l'y ajouter.
+[tool.ruff.lint.per-file-ignores]
+"expert_op4grid_recommender/action_evaluation/classifier.py" = ["E701"]
+"expert_op4grid_recommender/action_evaluation/discovery/_load_shedding.py" = ["F841"]
+"expert_op4grid_recommender/action_evaluation/discovery/_node_splitting.py" = ["F841"]
+"expert_op4grid_recommender/action_evaluation/discovery/_pst.py" = ["F841"]
+"expert_op4grid_recommender/environment.py" = ["E741", "F401"]
+"expert_op4grid_recommender/environment_pypowsybl.py" = ["E741"]
+"expert_op4grid_recommender/graph_analysis/processor.py" = ["E721"]
+"expert_op4grid_recommender/main.py" = ["E741", "F841"]
+"expert_op4grid_recommender/pypowsybl_backend/action_space.py" = ["E701"]
+"expert_op4grid_recommender/pypowsybl_backend/migration_guide.py" = ["E741"]
+"expert_op4grid_recommender/pypowsybl_backend/network_manager.py" = ["E701", "F841"]
+"expert_op4grid_recommender/pypowsybl_backend/observation.py" = ["F841"]
+"expert_op4grid_recommender/utils/data_utils.py" = ["F401"]
+"expert_op4grid_recommender/utils/load_evaluation_data.py" = ["E741", "F841"]
+"expert_op4grid_recommender/utils/load_training_data.py" = ["F401"]
+"expert_op4grid_recommender/utils/make_assistant_env.py" = ["F401"]
+"expert_op4grid_recommender/utils/make_training_env.py" = ["F401"]
+"expert_op4grid_recommender/utils/reassessment.py" = ["F841"]
+"expert_op4grid_recommender/utils/superposition.py" = ["F841"]
+"tests/conftest.py" = ["E402", "E712"]
+"tests/test_ActionClassifier.py" = ["E402", "E701"]
+"tests/test_ActionDiscoverer.py" = ["E402", "E701", "E702", "F841"]
+"tests/test_ActionRuleValidator.py" = ["E402", "E701", "E702"]
+"tests/test_action_rebuilder.py" = ["E712", "F841"]
+"tests/test_config_override.py" = ["E712"]
+"tests/test_expert_op4grid_analyzer.py" = ["E741", "F403", "F405", "F811", "F841"]
+"tests/test_initial_lf_voltage_init_mode.py" = ["E402", "F841"]
+"tests/test_islanding_mw.py" = ["F811"]
+"tests/test_lazy_action_dict.py" = ["F841"]
+"tests/test_lf_fallback_non_converged.py" = ["E402"]
+"tests/test_min_action_counts.py" = ["F841"]
+"tests/test_pst_actions.py" = ["E712"]
+"tests/test_pypowsybl_backend.py" = ["E712"]
+"tests/test_simulation_optimizations.py" = ["F821"]
+"tests/test_superposition.py" = ["E701"]
+"tests/test_superposition_action_types.py" = ["F841"]
+"tests/test_superposition_extended.py" = ["E402"]
+"tests/test_superposition_rho_estimation.py" = ["E701"]
 
 [tool.interrogate]
 # Couverture des docstrings. Les fonctions imbriquées (closures), __init__ et

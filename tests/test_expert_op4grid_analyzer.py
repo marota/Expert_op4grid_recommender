@@ -23,9 +23,6 @@ from datetime import datetime
 
 import numpy as np
 from pathlib import Path
-from alphaDeesp.core.grid2op.Grid2opObservationLoader import Grid2opObservationLoader
-from alphaDeesp.core.grid2op.Grid2opSimulation import Grid2opSimulation
-from alphaDeesp.core.graphsAndPaths import OverFlowGraph,Structured_Overload_Distribution_Graph
 
 import json
 # --- Imports from the refactored project ---
@@ -39,8 +36,6 @@ from expert_op4grid_recommender.environment import make_grid2op_training_env, ma
     get_first_obs_on_chronic
 from expert_op4grid_recommender.utils.load_evaluation_data import list_all_chronics,load_interesting_lines
 from expert_op4grid_recommender.graph_analysis.builder import build_overflow_graph
-from expert_op4grid_recommender.environment import switch_to_dc_load_flow,setup_environment_configs,get_env_first_obs
-from tests import config_test
 from expert_op4grid_recommender.main import run_analysis,Backend
 
 from packaging.version import Version as version_packaging
@@ -1269,7 +1264,7 @@ def test_reproducibility_bare_env_small_grid_test_pypowsybl():
         print(f"Action file path: {config.ACTION_FILE_PATH}")
         print(f"Timestep: {timestep}")
         print(f"Line defaut: {lines_defaut}")
-        print(f"Backend: PYPOWSYBL")
+        print("Backend: PYPOWSYBL")
         
         # Verify the config values are what we expect BEFORE calling run_analysis
         assert config.ENV_NAME == "bare_env_small_grid_test", \

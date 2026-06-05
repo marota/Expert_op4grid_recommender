@@ -31,8 +31,9 @@ jobs:
 
   quality:
     # Analyse statique (sans dépendances lourdes : ruff/interrogate/radon
-    # parsent le code, ne l'importent pas). Scopé au module `manoeuvre`, maintenu
-    # propre ; le reste du dépôt n'est pas encore couvert (dette à résorber).
+    # parsent le code, ne l'importent pas). Le gate `ruff` couvre désormais
+    # **tout le dépôt** (baseline « ratchet » dans pyproject pour la dette
+    # legacy) ; interrogate/radon restent scopés au module `manoeuvre`.
     docker:
       - image: cimg/python:3.12
     steps:
@@ -41,8 +42,8 @@ jobs:
           name: Install quality tools
           command: pip install ruff interrogate radon
       - run:
-          name: Lint (ruff) — module manoeuvre
-          command: ruff check expert_op4grid_recommender/manoeuvre scripts/manoeuvre_ihm.py tests/manoeuvre
+          name: Lint (ruff) — dépôt entier
+          command: ruff check .
       - run:
           name: Docstrings (interrogate) — module manoeuvre
           command: interrogate expert_op4grid_recommender/manoeuvre

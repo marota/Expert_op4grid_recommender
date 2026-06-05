@@ -8,7 +8,6 @@ which happens BEFORE any test modules are loaded. This ensures the config
 replacement happens before main.py or any other module imports config.
 """
 import sys
-import os
 from pathlib import Path
 
 # Get the tests directory
@@ -32,7 +31,7 @@ sys.modules['config'] = config_test
 
 # Print confirmation (this helps debug if the override isn't working)
 print(f"\n{'='*70}")
-print(f"✓ CONFIG OVERRIDE INSTALLED")
+print("✓ CONFIG OVERRIDE INSTALLED")
 print(f"{'='*70}")
 print(f"  expert_op4grid_recommender.config -> {config_test.__file__}")
 print(f"  DO_VISUALIZATION = {config_test.DO_VISUALIZATION}")
@@ -66,7 +65,7 @@ def verify_config_override():
     assert config.DO_VISUALIZATION == False, \
         f"❌ DO_VISUALIZATION should be False in tests, got {config.DO_VISUALIZATION}"
     
-    print(f"\n✓ Config override verified in fixture")
+    print("\n✓ Config override verified in fixture")
     print(f"  File: {config.__file__}")
     print(f"  DO_VISUALIZATION: {config.DO_VISUALIZATION}\n")
     

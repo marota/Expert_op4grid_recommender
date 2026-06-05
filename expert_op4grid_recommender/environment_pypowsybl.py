@@ -7,18 +7,16 @@ Provides the same interface for easy migration.
 """
 
 import os
-import json
 import datetime
 import sys
 from pathlib import Path
-from typing import Optional, Dict, List, Tuple, Any, Union
+from typing import Optional, Dict, List, Tuple, Union
 
 import numpy as np
 import pypowsybl as pp
 
 from expert_op4grid_recommender.pypowsybl_backend import (
     SimulationEnvironment,
-    make_simulation_env,
     PypowsyblObservation
 )
 from expert_op4grid_recommender import config

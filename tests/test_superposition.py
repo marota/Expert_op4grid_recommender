@@ -1,5 +1,4 @@
 
-import pytest
 import numpy as np
 from unittest.mock import MagicMock
 from expert_op4grid_recommender.utils.superposition import compute_all_pairs_superposition

@@ -30,7 +30,6 @@ from pathlib import Path
 from typing import Any
 
 import pypowsybl as pp
-import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)

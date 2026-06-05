@@ -13,9 +13,7 @@ This module provides translation between these representations.
 """
 
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
-import pypowsybl as pp
+from typing import Dict, List, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .network_manager import NetworkManager

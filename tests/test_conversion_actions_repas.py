@@ -12,7 +12,6 @@ These tests verify:
 
 import pytest
 from collections import defaultdict
-from typing import Dict, Set
 
 # Skip all tests if pypowsybl is not available
 pypowsybl = pytest.importorskip("pypowsybl")
@@ -224,7 +223,7 @@ class TestComputeBusAssignments:
     def test_isolated_node_gets_minus_one(self):
         """Test that a node with only 1 node in its component gets bus = -1."""
         from expert_op4grid_recommender.utils.conversion_actions_repas import (
-            NetworkTopologyCache, UnionFind
+            UnionFind
         )
         
         # Create a mock scenario with isolated nodes

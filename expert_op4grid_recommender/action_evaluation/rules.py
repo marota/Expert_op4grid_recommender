@@ -14,10 +14,10 @@ from expert_op4grid_recommender.utils.data_utils import StateInfo
 from expert_op4grid_recommender.utils.load_training_data import aux_prevent_asset_reconnection
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier #identify_action_type
 from expert_op4grid_recommender.utils.simulation import (
-    check_rho_reduction, check_rho_reduction_with_baseline,
+    check_rho_reduction_with_baseline,
     create_default_action, compute_baseline_simulation
 )
-from typing import Dict, Any, List, Tuple, Optional, Callable, Set
+from typing import Dict, Any, List, Tuple, Optional, Callable
 
 class ActionRuleValidator:
     """
