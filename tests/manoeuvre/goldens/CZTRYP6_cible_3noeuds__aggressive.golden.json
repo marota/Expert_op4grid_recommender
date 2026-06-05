@@ -1,0 +1,68 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "CZTRYP6_CZTRY6CHESN.3 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6CHESN.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6TR633 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6COUPL.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6SEC..34 SS.1.34_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6CHESN.3 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6CHESN.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6TR633 DJ_OC",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 8,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "CHESNL61CZTRY",
+      "CHESNL63CZTRY",
+      "CZTRYY633"
+    ],
+    [
+      "CHESNL62CZTRY",
+      "CZTRYL61MOISE",
+      "CZTRYY632"
+    ],
+    [
+      "CZTRYL61PLISO",
+      "CZTRYL61SENAR",
+      "CZTRYY634"
+    ]
+  ],
+  "voltage_level_id": "CZTRYP6"
+}

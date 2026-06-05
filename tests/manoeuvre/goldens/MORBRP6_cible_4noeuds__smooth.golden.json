@@ -1,0 +1,92 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "MORBRP6_MORBR6COSSI.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "MORBRP6_MORBR6COSSI.1 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "MORBRP6_MORBR6LANG6.1 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "MORBRP6_MORBR6LANG6.1 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "MORBRP6_MORBR6TRO.1AB DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "MORBRP6_MORBR6COUPL.A DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "MORBRP6_MORBR6COUPL.B DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "MORBRP6_MORBR6ARRIG.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "MORBRP6_MORBR6ARRIG.1 SA.1_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "MORBRP6_MORBR6ARRIG.1 DJ_OC",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "smooth",
+  "n_manoeuvres": 10,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "ARRIGL61MORBR"
+    ],
+    [
+      "ARRIGL62MORBR",
+      "COSSIL61MORBR",
+      "MORBRL61SONNE",
+      "MORBRL62MORB5",
+      "MORBRY762",
+      "MORBRY763"
+    ],
+    [
+      "LANG6L61MORBR",
+      "MORBRL61MORB5",
+      "MORBRY761"
+    ],
+    [
+      "MORBRL61REAC.",
+      "MORBRL61V.GEO"
+    ],
+    [
+      "MORBRL61REAC.",
+      "MORBRL62SONNE",
+      "MORBRL62ZLAN8",
+      "MORBRY764"
+    ],
+    [
+      "MORBRL61ZORS6"
+    ]
+  ],
+  "voltage_level_id": "MORBRP6"
+}

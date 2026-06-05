@@ -1,0 +1,96 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "BXTO5P3_BXTO53SINCE.2 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53COUPL.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53SEC..23 SS.2.23_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53SINCE.2 SA.2_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53SINCE.2 SA.1_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53HAM.1 SA.2_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53TR317 SA.2_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53TR317 SA.1_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53SINCE.2 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "BXTO5P3_BXTO53TR317 DJ.HT_OC",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 10,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "BXTO53Y316",
+      "BXTO5IN1",
+      "BXTO5L31SINCE"
+    ],
+    [
+      "BXTO53Y317",
+      "BXTO5IN2",
+      "BXTO5ING",
+      "BXTO5L31LAON",
+      "BXTO5L31MANO5",
+      "BXTO5L31SOISS",
+      "BXTO5L31ZMAR7",
+      "BXTO5L32HAM",
+      "BXTO5L32SINCE",
+      "BXTO5Y631",
+      "BXTO5Y635"
+    ],
+    [
+      "BXTO5INF"
+    ],
+    [
+      "BXTO5L31HAM"
+    ],
+    [
+      "BXTO5L31TERGN"
+    ],
+    [
+      "BXTO5L32TERGN"
+    ],
+    [
+      "BXTO5Y638"
+    ]
+  ],
+  "voltage_level_id": "BXTO5P3"
+}

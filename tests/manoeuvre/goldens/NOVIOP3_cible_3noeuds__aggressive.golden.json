@@ -1,0 +1,56 @@
+{
+  "ecarts": [
+    "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC : sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur"
+  ],
+  "is_verified": true,
+  "is_verified_detaillee": false,
+  "manoeuvres": [
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "NOVIOP3_NOVIO3COUPL.A DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 SA.2_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 5,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "ASNIEL31NOVIO",
+      "FALLOL32NOVIO",
+      "FALLOL34NOVIO",
+      "LAMARL31NOVIO",
+      "NOVIO3TR0312"
+    ],
+    [
+      "ASNIEL32NOVIO",
+      "NOVIOY631",
+      "NOVIOY632"
+    ],
+    [
+      "FALLOL33NOVIO",
+      "NOVIO3TR0314"
+    ]
+  ],
+  "voltage_level_id": "NOVIOP3"
+}

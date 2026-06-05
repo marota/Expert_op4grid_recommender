@@ -1,0 +1,209 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "SSAVOP3_SSAVO3CARLI.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3BOULA.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3TR636 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3ANCER.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3TR638 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVOP3-N1_DJ_F",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVOP3-SSAVO3TR311_DJ_F",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVOP3-N7_DJ_F",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3SEC.A23 SS.1A23_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3SEC.A23 SS.2A23_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3CARLI.1 SA.1_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3CARLI.1 SA.2_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3ANCER.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3CARLI.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3TR638 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3BOULA.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3TR636 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVOP3-N1_DJ_F",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVOP3-SSAVO3TR311_DJ_F",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVOP3-N7_DJ_F",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 30,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "ANCERL31SSAVO",
+      "BETTIL31SSAVO",
+      "LAND5L32SSAVO",
+      "SSAVO3TR311",
+      "SSAVOIN1",
+      "SSAVOIN7",
+      "SSAVOY638"
+    ],
+    [
+      "BOULAL31SSAVO",
+      "LAND5L31SSAVO",
+      "PUTTEL31SSAVO",
+      "SSAVOY636"
+    ],
+    [
+      "CARLIL31SSAVO",
+      "NORSOL31SSAVO",
+      "P.ROSL31SSAVO",
+      "SSAVOL31STEAM",
+      "SSAVOL31SYNTH",
+      "SSAVOL31ZCAR8",
+      "SSAVOL32SYNTH",
+      "SSAVOY637"
+    ],
+    [
+      "CREUTL31SSAVO",
+      "MERBEL31SSAVO",
+      "MERBEL32SSAVO",
+      "SSAVO3ATPOL",
+      "SSAVO3AUEH1",
+      "SSAVO3AUEH6",
+      "SSAVO3TR313",
+      "SSAVOIN3",
+      "SSAVOIN6",
+      "SSAVOL33SYNTH",
+      "SSAVOY634"
+    ],
+    [
+      "SSAVO3TR312",
+      "SSAVOIN2",
+      "SSAVOING"
+    ],
+    [
+      "SSAVOINF"
+    ]
+  ],
+  "voltage_level_id": "SSAVOP3"
+}

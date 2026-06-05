@@ -1,0 +1,128 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "CZTRYP6_CZTRY6PLISO.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "CZTRYP6_CZTRY6PLISO.1 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "CZTRYP6_CZTRY6SENAR.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "CZTRYP6_CZTRY6SENAR.1 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "CZTRYP6_CZTRY6TR634 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "CZTRYP6_CZTRY6TR634 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "CZTRYP6_CZTRY6SEC..34 SS.1.34_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6COUPL.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CZTRYP6_CZTRY6PLISO.1 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6PLISO.1 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6PLISO.1 SA.1_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6PLISO.1 DJ_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6SENAR.1 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6SENAR.1 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6SENAR.1 SA.1_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6SENAR.1 DJ_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6TR634 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6TR634 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6TR634 SA.1_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "CZTRYP6_CZTRY6TR634 DJ_OC",
+      "CLOSE",
+      "LONGUE"
+    ]
+  ],
+  "mode": "smooth",
+  "n_manoeuvres": 20,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "CHESNL61CZTRY",
+      "CHESNL63CZTRY",
+      "CZTRYY633"
+    ],
+    [
+      "CHESNL62CZTRY",
+      "CZTRYL61MOISE",
+      "CZTRYY632"
+    ],
+    [
+      "CZTRYL61PLISO",
+      "CZTRYL61SENAR",
+      "CZTRYY634"
+    ]
+  ],
+  "voltage_level_id": "CZTRYP6"
+}

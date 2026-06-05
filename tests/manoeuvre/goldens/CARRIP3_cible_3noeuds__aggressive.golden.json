@@ -1,0 +1,82 @@
+{
+  "ecarts": [
+    "CARRIP3_CARRI3TR312 SA.2_OC : sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur"
+  ],
+  "is_verified": true,
+  "is_verified_detaillee": false,
+  "manoeuvres": [
+    [
+      "CARRIP3_CARRI3V.PAU.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP3_CARRI3PERSA.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP3_CARRI3COUPL.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP3_CARRI3SEC..12 SS.1.12_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP3_CARRI3TR312 SA.1_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CARRIP3_CARRI3TR312 SA.2_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP3_CARRI3V.PAU.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CARRIP3_CARRI3PERSA.1 DJ_OC",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 8,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "BARR6L31CARRI",
+      "CARRI3T314",
+      "CARRIL31U.MON",
+      "CARRIL31VALES",
+      "CARRIY631"
+    ],
+    [
+      "BERT L31CARRI",
+      "BRENOL31CARRI",
+      "CARRI3T313",
+      "CARRIL31RANTI",
+      "CARRIL32U.MON",
+      "CARRIY632",
+      "CARRIY633"
+    ],
+    [
+      "CARRI3T312",
+      "CARRIL31PERSA",
+      "CARRIL31V.PAU"
+    ],
+    [
+      "CARRIINF"
+    ],
+    [
+      "CARRIING"
+    ]
+  ],
+  "voltage_level_id": "CARRIP3"
+}
