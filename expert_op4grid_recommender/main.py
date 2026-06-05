@@ -11,8 +11,6 @@
 import os
 import sys
 import argparse
-import copy
-import json
 import time
 from datetime import datetime
 from enum import Enum
@@ -217,7 +215,7 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     observation and proceeds straight to overload detection.
     """
     if backend == Backend.GRID2OP:
-        print(f"Using Grid2Op backend")
+        print("Using Grid2Op backend")
         setup_environment = setup_environment_grid2op
         get_env_first_obs = get_env_first_obs_grid2op
         switch_to_dc = switch_to_dc_grid2op
@@ -228,7 +226,7 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         compute_baseline = compute_baseline_simulation_grid2op
         build_overflow_graph = build_overflow_graph_grid2op
     elif backend == Backend.PYPOWSYBL:
-        print(f"Using pure pypowsybl backend")
+        print("Using pure pypowsybl backend")
         setup_environment = setup_environment_pypowsybl
         get_env_first_obs = get_env_first_obs_pypowsybl
         switch_to_dc = switch_to_dc_pypowsybl

@@ -27,10 +27,8 @@ import pytest
 import os
 import sys
 from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
 from datetime import datetime
 import pandas as pd
-import numpy as np
 
 # --- Test Setup: Add Project Root to Python path ---
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -52,7 +50,6 @@ from expert_op4grid_recommender.utils.conversion_actions_repas import (
     NetworkTopologyCache,
     convert_to_grid2op_action,
     convert_to_grid2op_action_batch,
-    convert_to_grid2op_action_with_variant,
     convert_repas_actions_to_grid2op_actions,
     get_all_switch_descriptions,
 )

@@ -19,8 +19,6 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
-from math import fabs
-import pypowsybl as pp
 import pypowsybl.loadflow as lf
 
 if TYPE_CHECKING:

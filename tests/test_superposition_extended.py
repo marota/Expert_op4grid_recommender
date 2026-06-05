@@ -52,7 +52,6 @@ def test_compute_pair_multiple_elements():
     # if we want to test the full logic, but compute_combined_pair_superposition 
     # calls them. For a unit test, we might need to mock them in the module.
     
-    from expert_op4grid_recommender.utils import superposition
     with patch('expert_op4grid_recommender.utils.superposition.get_delta_theta_line', return_value=0.1), \
          patch('expert_op4grid_recommender.utils.superposition.get_betas_coeff', return_value=np.array([0.5, 0.5])):
         
@@ -84,7 +83,6 @@ def test_compute_all_pairs_singular_system():
     }
     
     classifier = MagicMock()
-    from expert_op4grid_recommender.utils import superposition
     
     with patch('expert_op4grid_recommender.utils.superposition._identify_action_elements', return_value=([0], [])), \
          patch('expert_op4grid_recommender.utils.superposition.compute_combined_pair_superposition', return_value={"error": "Singular system", "betas": [np.nan, np.nan]}):
@@ -125,7 +123,6 @@ def test_compute_pair_out_of_range_betas_returns_error():
     obs_act2.p_or = np.array([100.0, 60.0])
     obs_act2.line_status = np.array([True, True])     # act2 reconnects line 1
 
-    from expert_op4grid_recommender.utils import superposition
 
     # Inject out-of-range betas (simulates ill-conditioned A-matrix)
     # Valid range is [-2, 3] for individual betas
@@ -175,7 +172,6 @@ def test_compute_pair_in_range_betas_no_error():
     obs_act2.rho = np.array([0.8, 0.6])
     obs_act2.line_status = np.array([True, True])
 
-    from expert_op4grid_recommender.utils import superposition
 
     # Normal betas — within [-2, 3] range
     for good_betas in [

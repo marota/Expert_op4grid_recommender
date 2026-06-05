@@ -17,8 +17,26 @@ de couplage.
 | `cellules.py`  | Etape 1.2 : `detecter_cellules()` — BFS structurel + connectivite electrique |
 | `troncons.py`  | Etapes 1.3-1.4 : `construire_tronconnement()` — barres, troncons, attribution |
 | `topologie.py` | Etapes 1.5-1.6 : `TopologieNodale`, `PosteTopologique`, `attribuer_noeuds()` |
-| `algo.py`      | Phase 2 : `determiner_topo_complete_cible()` — sequence de manoeuvres |
+| `algo/`        | Phase 2 : `determiner_topo_complete_cible()` — package en couches (voir ci-dessous) |
 | `__init__.py`  | API publique                                     |
+
+### Package `algo/` (Phase 2, eclate depuis l'ancien `algo.py`)
+
+Sous-modules en couches, **dependances strictement descendantes** (sans cycle) :
+
+| Sous-module          | Role                                                       |
+|----------------------|------------------------------------------------------------|
+| `algo/_constants.py` | Poids de placement et garde-fous combinatoires             |
+| `algo/results.py`    | `Manoeuvre`, `ResultatManoeuvres` (structures de sortie)   |
+| `algo/graph_ops.py`  | Helpers bas niveau : index O(1), `_is_open`/`_set_switch`, chemins SA, `_inter_sjb_couplers` |
+| `algo/placement.py`  | Placement noeud → sections (`_placement_automatique`, best-effort, glouton, `_main_busbar_sjb`) |
+| `algo/verification.py`| Regle du sectionneur (`_rejeu_securite`, `sectionneurs_sous_charge_par_manoeuvre`), `_optimiser_sequence` |
+| `algo/sequencing.py` | Sequenceur general (`determiner_manoeuvres_avec_sections`), re-aiguillages |
+| `algo/targets.py`    | Points d'entree : `determiner_topo_complete_cible`, `determiner_manoeuvres_cible_detaillee`, modes smooth/aggressive/multi-barres |
+| `algo/__init__.py`   | **Reexporte toute la surface** de l'ancien module (publics + prives) : `manoeuvre.algo.X` et `from ...algo import X` restent inchanges |
+
+Couches : `_constants`/`results` → `graph_ops` → `placement`/`verification` →
+`sequencing` → `targets`.
 
 ## Commandes
 
@@ -111,6 +129,24 @@ ces tests garantissent l'invariance du comportement :
 - `test_couplers_memoisation.py` — invariance a l'etat des couplers, purete,
   non-mutation de `poste.graph` par le pipeline.
 
+### Filets pre-eclatement d'`algo.py` (#7)
+
+Poses avant de scinder `algo.py` en sous-modules (un refactor structurel
+**deplace** des symboles) ; couverture du module ~92 % :
+
+- `test_public_api.py` — **verrou de surface publique** : chaque symbole de
+  `__all__` reste importable depuis le package *et* depuis son sous-module
+  d'origine (meme objet), entrypoints appelables, alias prive du verificateur
+  conserve. Un oubli de reexport casse la CI immediatement.
+- `test_multibarres_placement.py` — caracterisation du chemin **> 2 jeux de
+  barres** (CORNIP3/GUARBP6/MORBRP6, 4 barres), non couvert par les goldens :
+  `determiner_topo_complete_cible` (cible identite + cible scindee),
+  `_main_busbar_sjb`, degradation gracieuse (`noeuds_non_realisables`), rendu
+  `resume()`, non-mutation du graphe, organes emis existants.
+- `test_algo_entrypoint_guards.py` — garde-fous de faisabilite
+  (`determiner_topo_complete_cible`) : graphe absent, departs cibles absents.
+- `test_graph_helpers.py` — `graph._safe_get` (repli `all_attributes`, erreurs).
+
 ## Performance & invariants internes
 
 Plusieurs chemins chauds sont **memoises** ; toute modification doit preserver
@@ -169,10 +205,12 @@ deduite en priorite du **nommage RTE** (entier de tete apres `VL_id_`, ex.
 ## Dependances internes
 
 ```
-models.py  <--  graph.py  <--  cellules.py
-                  ^                |
-                  |                |
-              __init__.py  (reexporte tout)
+models.py  <--  graph.py  <--  cellules.py  <--  troncons.py  <--  topologie.py
+                                                                       ^
+                                                                       |
+   algo/  (results <- graph_ops <- placement/verification <- sequencing <- targets)
+                                                                       |
+                                                  __init__.py  (reexporte tout)
 ```
 
 Les seules dependances externes du module sont `pypowsybl`, `networkx`,

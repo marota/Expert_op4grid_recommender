@@ -748,7 +748,6 @@ class TestMonitoringFactorMaxRho:
         that returns the given observations' rho arrays (direct superposition).
         """
         from expert_op4grid_recommender.utils import superposition
-        from unittest.mock import patch
 
         env = MagicMock()
         env.name_line = ["L0", "L1", "L2"]

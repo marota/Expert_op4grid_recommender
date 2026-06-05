@@ -10,9 +10,7 @@ Covers:
 """
 import sys
 import os
-import io
 import pytest
-import unittest.mock as mock
 
 # Make sure the project root is on the path (conftest.py already handles this,
 # but we add it here for clarity when running the file standalone).

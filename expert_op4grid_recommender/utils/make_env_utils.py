@@ -7,12 +7,10 @@ loader / loadflow / Grid2Op parameter objects.
 """
 
 from typing import Any, Dict, Literal, Union
-import os
 from packaging import version
 from importlib.metadata import version as version_importlib,PackageNotFoundError
 
 import pypowsybl as pp
-import pypowsybl.loadflow as lf
 
 try:
     import lightsim2grid
@@ -66,7 +64,7 @@ for pkg in PACKAGES:
 
 # Check if either was found
 if not installed_package:
-    raise RuntimeError(f"Neither pypowsybl nor pypowsybl-rte was found. Please install one.")
+    raise RuntimeError("Neither pypowsybl nor pypowsybl-rte was found. Please install one.")
 
 # Perform the version check
 if version.parse(current_version) < MIN_PP_VERSION:

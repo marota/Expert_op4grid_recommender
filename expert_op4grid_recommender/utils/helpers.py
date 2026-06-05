@@ -13,7 +13,7 @@ import numpy as np
 import os
 import json
 import pandas as pd
-from typing import Dict, Any, List, Tuple, Optional, Callable
+from typing import Dict, Any, List, Tuple, Optional
 import time
 
 

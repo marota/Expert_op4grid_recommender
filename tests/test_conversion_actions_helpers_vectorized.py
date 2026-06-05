@@ -9,7 +9,6 @@ preserves strict input/output equivalence; these tests assert it.
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 
 from expert_op4grid_recommender.utils.conversion_actions_repas import (
     _get_switches_with_topology,

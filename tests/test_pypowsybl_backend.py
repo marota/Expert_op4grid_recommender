@@ -10,7 +10,6 @@ import pytest
 import numpy as np
 from pathlib import Path
 import tempfile
-import json
 import expert_op4grid_recommender.config as configuration_module
 import expert_op4grid_recommender
 expert_op4grid_recommender.config = configuration_module
@@ -67,7 +66,6 @@ class TestNetworkManager:
     def test_load_flow(self, sample_network):
         """Test load flow execution."""
         from expert_op4grid_recommender.pypowsybl_backend import NetworkManager
-        import pypowsybl.loadflow as lf
         
         nm = NetworkManager(network=sample_network)
         
@@ -373,7 +371,7 @@ class TestOverflowAnalysis:
     def overflow_setup(self):
         """Setup for overflow analysis tests."""
         from expert_op4grid_recommender.pypowsybl_backend import (
-            NetworkManager, ActionSpace, PypowsyblObservation, OverflowSimulator
+            NetworkManager, ActionSpace, PypowsyblObservation
         )
         
         network = pypowsybl.network.create_ieee9()

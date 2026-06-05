@@ -42,7 +42,7 @@ def main():
     print("✓ Check 3: Can import test config")
     try:
         from tests import config_test
-        print(f"  ✓ Successfully imported config_test")
+        print("  ✓ Successfully imported config_test")
         print(f"  ✓ Config file: {config_test.__file__}")
     except ImportError as e:
         print(f"  ✗ Failed to import: {e}")
@@ -57,7 +57,7 @@ def main():
         from expert_op4grid_recommender import config as imported_config
         
         if 'config_test' in imported_config.__file__:
-            print(f"  ✓ Config override working correctly!")
+            print("  ✓ Config override working correctly!")
             print(f"  ✓ Imported config from: {imported_config.__file__}")
         else:
             print(f"  ✗ Override not working - imported from: {imported_config.__file__}")

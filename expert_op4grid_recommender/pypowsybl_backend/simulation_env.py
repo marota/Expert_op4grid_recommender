@@ -7,11 +7,9 @@ a unified interface similar to grid2op's Environment class.
 """
 
 import numpy as np
-import pandas as pd
 import json
-import os
 from pathlib import Path
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, Dict, List, Union
 import pypowsybl as pp
 import pypowsybl.loadflow as lf
 

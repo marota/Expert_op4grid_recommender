@@ -5,10 +5,6 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from datetime import datetime
-import json
-from typing import Dict, Any, List, Tuple, Optional, Callable, Set
 
 # --- Test Setup: Add Project Root to Python path ---
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -27,7 +23,7 @@ class MockActionObject:
     def get_topological_impact(self):
         subs_impacted = np.zeros(10, dtype=bool)
         if self.substations_id:
-            sub_id = self.substations_id[0][0];
+            sub_id = self.substations_id[0][0]
             if sub_id < len(subs_impacted): subs_impacted[sub_id] = True
         return [], subs_impacted
     def impact_on_objects(self): # Added method
@@ -39,7 +35,7 @@ class MockActionObject:
     def as_dict(self): return self.content
 class MockActionSpace:
     def __call__(self, action_dict):
-        set_bus = action_dict.get("set_bus", {}); # Return MockActionObject for discoverer tests
+        set_bus = action_dict.get("set_bus", {}) # Return MockActionObject for discoverer tests
         return MockActionObject(substations_id=set_bus.get("substations_id"), lines_ex_id=set_bus.get("lines_ex_id"), lines_or_id=set_bus.get("lines_or_id"), set_line_status=action_dict.get("set_line_status"))
 class MockObservation:
     def __init__(self, **kwargs):
@@ -57,7 +53,7 @@ class MockObservation:
                 if sub_id < len(self.sub_info):
                     start = int(np.sum(self.sub_info[:sub_id])); length = int(self.sub_info[sub_id])
                     if start + length <= len(new_topo): new_topo[start:start+length] = topo
-        new_attrs['topo_vect'] = new_topo;
+        new_attrs['topo_vect'] = new_topo
         if '_simulate_return' in new_attrs: del new_attrs['_simulate_return']
         if 'load_p' in new_attrs: del new_attrs['load_p']
         return MockObservation(**new_attrs, load_values=self.load_p._values)

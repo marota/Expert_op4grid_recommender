@@ -297,7 +297,6 @@ class DiscovererBase:
         """Pre-computes which node pairs have active (non-dashed/dotted) edges."""
         if hasattr(self, "_active_edges_cache"):
             return
-        from collections import defaultdict
 
         self._active_edges_cache = defaultdict(list)
         graph = self.g_overflow.g

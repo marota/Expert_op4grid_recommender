@@ -26,7 +26,6 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from expert_op4grid_recommender.graph_analysis.builder import inhibit_swapped_flows
 from expert_op4grid_recommender.graph_analysis.processor import (

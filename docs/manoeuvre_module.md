@@ -50,7 +50,7 @@ recommandeur expert.
   [Etapes 1.3+]  (a venir)
     troncons.py   — Attribution des noeuds, tronconnement
     topologie.py  — TopologieNodale, PosteTopologique
-    algo.py       — Algorithme nodale -> detaillee
+    algo/         — Algorithme nodale -> detaillee (package en couches)
 ```
 
 ---
@@ -595,7 +595,7 @@ avec un `index.json` de synthese.
 | 1.4     | `troncons.py`    | Regroupement en troncons electriques                      |
 | 1.5     | `topologie.py`   | Construction de `TopologieNodale`                         |
 | 1.6     | `topologie.py`   | Construction de `PosteTopologique`                        |
-| Phase 2 | `algo.py`        | Algorithme nodale -> detaillee (generation de manoeuvres) |
+| Phase 2 | `algo/`          | Algorithme nodale -> detaillee (generation de manoeuvres ; package en couches) |
 
 ---
 

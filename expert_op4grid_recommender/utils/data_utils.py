@@ -60,7 +60,7 @@ class StateInfo:
             # I suppose that if a line was disconnected then it should not be reconnected
             res.should_not_reco = set([nm for nm, stat_ in init_state["init state"]["set_line_status"].items()
                                    if int(stat_) == -1])
-        if not res.n1_name in res.should_not_reco:
+        if res.n1_name not in res.should_not_reco:
             res.should_not_reco.add(res.n1_name)
         if "backend_type" in init_state:
             res.backend_type = str(init_state["backend_type"])

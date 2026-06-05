@@ -1,8 +1,6 @@
-import pytest
 from datetime import datetime
 from expert_op4grid_recommender.environment_pypowsybl import setup_environment_configs_pypowsybl
 from expert_op4grid_recommender import config
-from pathlib import Path
 
 def test_non_reconnectable_detection_with_date():
     """

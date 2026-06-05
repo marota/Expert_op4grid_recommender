@@ -381,6 +381,10 @@ assert res.ecarts == []
 
 ## 7. Notes techniques
 
+- **Front-end externalisé** : le HTML/CSS/JS de l'IHM vit dans
+  `scripts/manoeuvre_ihm_assets/index.html` (≈ 600 lignes), chargé au démarrage
+  du module et servi tel quel par la route `GET /` (`PAGE`). Le `.py` ne contient
+  plus de bloc HTML embarqué — édition du front sans toucher au serveur Python.
 - **Couleurs** : pypowsybl encode les couleurs via des variables CSS
   (`var(--sld-vl-color)`). Le navigateur les résout nativement ; aucune palette
   maison n'est appliquée. (Pour un export PNG hors navigateur, voir

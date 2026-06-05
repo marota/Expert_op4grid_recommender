@@ -8,7 +8,6 @@
 import numpy as np
 from typing import Any, Dict
 
-from expert_op4grid_recommender import config
 from expert_op4grid_recommender.utils.helpers import Timer, add_prioritized_actions
 
 class OrchestratorMixin:

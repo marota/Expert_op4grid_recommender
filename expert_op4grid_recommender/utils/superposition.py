@@ -577,7 +577,6 @@ def _estimate_rho_from_delta_theta(dt_combined, obs_start, obs_act1, obs_act2):
     Returns:
         rho_combined: Estimated loading array per line
     """
-    from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
 
     dt_threshold = 1e-4  # radians
     rho_start = obs_start.rho

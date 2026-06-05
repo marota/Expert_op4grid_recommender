@@ -15,7 +15,6 @@ Options:
 """
 
 import sys
-import os
 import argparse
 import re
 from pathlib import Path
@@ -63,7 +62,7 @@ def find_backend_file():
     except ImportError:
         print("pypowsybl2grid is not installed")
 
-    print(f"Could not find backend.py. Locations tried:")
+    print("Could not find backend.py. Locations tried:")
     for loc in locations_tried:
         print(f"  - {loc}")
     return None
@@ -182,7 +181,7 @@ def apply_patch(content, debug=False):
                 return new_content, True, f"Patch applied successfully (pattern {i+1})"
             else:
                 if debug:
-                    print(f"  Pattern matched but substitution had no effect!")
+                    print("  Pattern matched but substitution had no effect!")
 
     # If no pattern matched, try a line-by-line approach as fallback
     print("\nTrying line-by-line fallback approach...")
