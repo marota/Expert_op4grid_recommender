@@ -1,0 +1,500 @@
+{
+  "voltage_level_id": "CARRIP3",
+  "substation_id": "CARRI",
+  "nominal_v": 63.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "CARRIP3_CARRI3BERT.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3RANTI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3U.MON.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3VALES.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3BRENO.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3RANTI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR313 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR314 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3U.MON.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3PERSA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3V.PAU.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3U.MON.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR312 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR631 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3BARR6.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3VALES.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3V.PAU.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR631 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 30,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3U.MON.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3BRENO.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR633 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 33,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3BERT.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 19,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR314 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 34,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3COUPL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3BARR6.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR633 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 33,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR313 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR312 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3PERSA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR312 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3BERT.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 19,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3VALES.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR314 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3RANTI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3V.PAU.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3BARR6.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR313 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 39,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3BRENO.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3U.MON.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3PERSA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3U.MON.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR633 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 33,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR631 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_CARRI3TR312 DJ.HT_OC.CARRI TR312",
+      "kind": "BREAKER",
+      "node1": 5,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_Disj CARRIINF",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "CARRIP3_CARRI3TR313 DJ.HT_OC.CARRI TR313",
+      "kind": "BREAKER",
+      "node1": 6,
+      "node2": 39,
+      "open": false
+    },
+    {
+      "id": "CARRIP3_Disj CARRIING",
+      "kind": "BREAKER",
+      "node1": 38,
+      "node2": 39,
+      "open": true
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "CARRIP3_1.1",
+      "node": 0
+    },
+    {
+      "id": "CARRIP3_1.2",
+      "node": 1
+    },
+    {
+      "id": "CARRIP3_2.1",
+      "node": 2
+    },
+    {
+      "id": "CARRIP3_2.2",
+      "node": 3
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "CARRI3T314",
+      "type": "LOAD",
+      "node": 4
+    },
+    {
+      "id": "CARRI3T312",
+      "type": "LOAD",
+      "node": 5
+    },
+    {
+      "id": "CARRI3T313",
+      "type": "LOAD",
+      "node": 6
+    },
+    {
+      "id": "CARRIINF",
+      "type": "GENERATOR",
+      "node": 36
+    },
+    {
+      "id": "CARRIING",
+      "type": "GENERATOR",
+      "node": 38
+    },
+    {
+      "id": "CARRIL31PERSA",
+      "type": "LINE_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "CARRIL31RANTI",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "CARRIL31U.MON",
+      "type": "LINE_SIDE1",
+      "node": 14
+    },
+    {
+      "id": "CARRIL31V.PAU",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "CARRIL31VALES",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": "CARRIL32U.MON",
+      "type": "LINE_SIDE1",
+      "node": 17
+    },
+    {
+      "id": "BARR6L31CARRI",
+      "type": "LINE_SIDE2",
+      "node": 10
+    },
+    {
+      "id": "BERT L31CARRI",
+      "type": "LINE_SIDE2",
+      "node": 11
+    },
+    {
+      "id": "BRENOL31CARRI",
+      "type": "LINE_SIDE2",
+      "node": 18
+    },
+    {
+      "id": "CARRIY631",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 8
+    },
+    {
+      "id": "CARRIY632",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 9
+    },
+    {
+      "id": "CARRIY633",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 7
+    }
+  ],
+  "stats": {
+    "nb_switches": 54,
+    "nb_busbar_sections": 4,
+    "nb_internal_connections": 0,
+    "nb_equipment": 17,
+    "nb_breakers": 20,
+    "nb_disconnectors": 34
+  }
+}

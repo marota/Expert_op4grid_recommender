@@ -1,0 +1,567 @@
+{
+  "voltage_level_id": "BXTO5P3",
+  "substation_id": "BXTO5",
+  "nominal_v": 63.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "BXTO5P3_BXTO53SOISS.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53LAON.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR317 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53SINCE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR631 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53COUPL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53ZMAR7.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TERGN.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR638 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53COUPL.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53COUPL.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 31,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR638 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53SINCE.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53ZMAR7.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 33,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TERGN.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR631 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53HAM.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53SOISS.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53MANO5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR316 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53MANO5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 36,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53SEC..23 SS.1.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53SINCE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53SEC..23 SS.2.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR317 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR635 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53HAM.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 39,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TERGN.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53HAM.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 39,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53SINCE.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53LAON.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53HAM.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR316 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR635 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 38,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TERGN.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 4,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TERGN.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 13,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53SINCE.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TERGN.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 34,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR317 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 42,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53HAM.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 39,
+      "node2": 14,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR631 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53SINCE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53LAON.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53ZMAR7.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR638 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 9,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_BXTO53MANO5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR635 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 38,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53SOISS.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53HAM.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 33,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53COUPL.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO53TR316 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 37,
+      "node2": 40,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO5P3-N1_DJ_F",
+      "kind": "BREAKER",
+      "node1": 41,
+      "node2": 40,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO5P3-BXTO53Y316_DJ_F",
+      "kind": "BREAKER",
+      "node1": 7,
+      "node2": 40,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO5P3-N2_DJ_F",
+      "kind": "BREAKER",
+      "node1": 43,
+      "node2": 42,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_BXTO5P3-BXTO53Y317_DJ_F",
+      "kind": "BREAKER",
+      "node1": 6,
+      "node2": 42,
+      "open": false
+    },
+    {
+      "id": "BXTO5P3_Disj BXTO5INF",
+      "kind": "BREAKER",
+      "node1": 44,
+      "node2": 40,
+      "open": true
+    },
+    {
+      "id": "BXTO5P3_Disj BXTO5ING",
+      "kind": "BREAKER",
+      "node1": 45,
+      "node2": 42,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "BXTO5P3_1.1",
+      "node": 0
+    },
+    {
+      "id": "BXTO5P3_1.2",
+      "node": 1
+    },
+    {
+      "id": "BXTO5P3_1.3",
+      "node": 2
+    },
+    {
+      "id": "BXTO5P3_2.1",
+      "node": 3
+    },
+    {
+      "id": "BXTO5P3_2.2",
+      "node": 4
+    },
+    {
+      "id": "BXTO5P3_2.3",
+      "node": 5
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "BXTO53Y317",
+      "type": "LOAD",
+      "node": 6
+    },
+    {
+      "id": "BXTO53Y316",
+      "type": "LOAD",
+      "node": 7
+    },
+    {
+      "id": "BXTO5IN1",
+      "type": "GENERATOR",
+      "node": 41
+    },
+    {
+      "id": "BXTO5IN2",
+      "type": "GENERATOR",
+      "node": 43
+    },
+    {
+      "id": "BXTO5INF",
+      "type": "GENERATOR",
+      "node": 44
+    },
+    {
+      "id": "BXTO5ING",
+      "type": "GENERATOR",
+      "node": 45
+    },
+    {
+      "id": "BXTO5L31HAM",
+      "type": "LINE_SIDE1",
+      "node": 14
+    },
+    {
+      "id": "BXTO5L31LAON",
+      "type": "LINE_SIDE1",
+      "node": 18
+    },
+    {
+      "id": "BXTO5L31MANO5",
+      "type": "LINE_SIDE1",
+      "node": 11
+    },
+    {
+      "id": "BXTO5L31SINCE",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "BXTO5L31SOISS",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "BXTO5L31TERGN",
+      "type": "LINE_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "BXTO5L31ZMAR7",
+      "type": "LINE_SIDE1",
+      "node": 20
+    },
+    {
+      "id": "BXTO5L32HAM",
+      "type": "LINE_SIDE1",
+      "node": 17
+    },
+    {
+      "id": "BXTO5L32SINCE",
+      "type": "LINE_SIDE1",
+      "node": 19
+    },
+    {
+      "id": "BXTO5L32TERGN",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": "BXTO5Y631",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 8
+    },
+    {
+      "id": "BXTO5Y635",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 10
+    },
+    {
+      "id": "BXTO5Y638",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 9
+    }
+  ],
+  "stats": {
+    "nb_switches": 61,
+    "nb_busbar_sections": 6,
+    "nb_internal_connections": 0,
+    "nb_equipment": 19,
+    "nb_breakers": 23,
+    "nb_disconnectors": 38
+  }
+}

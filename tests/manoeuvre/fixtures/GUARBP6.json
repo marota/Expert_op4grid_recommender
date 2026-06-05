@@ -1,0 +1,288 @@
+{
+  "voltage_level_id": "GUARBP6",
+  "substation_id": "GUARB",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "GUARBP6_GUARB6ZWOES.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 14,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6ISBE5.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6CREC6.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6CREC6.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6ISBE5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 17,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6TR661 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6TR641 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 19,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6TR661 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 18,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6TR642 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6TR661 SI_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6ISBE5.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 15,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6ZWOES.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 14,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 21,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6TR641 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6TR642 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6ISBE5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6COUPL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6ZWOES.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 14,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6CREC6.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 16,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6ISBE5.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 15,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6ISBE5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 17,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6TR641 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 19,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6TR642 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 9,
+      "open": true
+    },
+    {
+      "id": "GUARBP6_GUARB6TR661 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 18,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARB6COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARBP6-GUARBP6.SJB.3.1-GUARBTD661SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "GUARBP6_GUARBP6-GUARBP6.SJB.3.2-GUARBTD661SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 7,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "GUARBP6_1.1",
+      "node": 0
+    },
+    {
+      "id": "GUARBP6_1.2",
+      "node": 1
+    },
+    {
+      "id": "GUARBP6_2.1",
+      "node": 2
+    },
+    {
+      "id": "GUARBP6_2.2",
+      "node": 3
+    },
+    {
+      "id": "GUARBP6_3.2",
+      "node": 4
+    },
+    {
+      "id": "GUARBP6_4.2",
+      "node": 5
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "GUARBL61ISBE5",
+      "type": "LINE_SIDE1",
+      "node": 10
+    },
+    {
+      "id": "GUARBL61ZWOES",
+      "type": "LINE_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "GUARBL62ISBE5",
+      "type": "LINE_SIDE1",
+      "node": 11
+    },
+    {
+      "id": "CREC6L61GUARB",
+      "type": "LINE_SIDE2",
+      "node": 12
+    },
+    {
+      "id": "GUARBY641",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 8
+    },
+    {
+      "id": "GUARBY642",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 9
+    },
+    {
+      "id": "GUARBY661",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 6
+    },
+    {
+      "id": "GUARBY661",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 7
+    }
+  ],
+  "stats": {
+    "nb_switches": 29,
+    "nb_busbar_sections": 6,
+    "nb_internal_connections": 0,
+    "nb_equipment": 8,
+    "nb_breakers": 8,
+    "nb_disconnectors": 21
+  }
+}

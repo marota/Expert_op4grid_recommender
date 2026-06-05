@@ -1,0 +1,265 @@
+{
+  "voltage_level_id": "CZTRYP6",
+  "name": "CZTRYP6_cible_3noeuds",
+  "scenario": "CZTRYP6_cible_3noeuds",
+  "verified": true,
+  "verified_detaillee": true,
+  "ecarts": [],
+  "message": "Topologie détaillée cible atteinte et vérifiée.",
+  "depart": {
+    "CZTRYP6_CZTRY6CHESN.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6PLISO.1 SA.2_OC": true,
+    "CZTRYP6_CZTRY6TR633 SA.2_OC": false,
+    "CZTRYP6_CZTRY6COUPL.1 SA.2_OC": false,
+    "CZTRYP6_CZTRY6PLISO.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6CHESN.3 SA.2_OC": false,
+    "CZTRYP6_CZTRY6SEC..12 SS.2.12_OC": false,
+    "CZTRYP6_CZTRY6SEC..34 SS.2.34_OC": false,
+    "CZTRYP6_CZTRY6MOISE.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6CHESN.2 SA.1_OC": false,
+    "CZTRYP6_CZTRY6COUPL.2 SA.1_OC": false,
+    "CZTRYP6_CZTRY6SENAR.1 SA.2_OC": true,
+    "CZTRYP6_CZTRY6COUPL.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6SEC..23 SS.1.23_OC": true,
+    "CZTRYP6_CZTRY6CHESN.2 SA.2_OC": true,
+    "CZTRYP6_CZTRY6TR634 SA.2_OC": true,
+    "CZTRYP6_CZTRY6SEC..12 SS.1.12_OC": false,
+    "CZTRYP6_CZTRY6TR633 SA.1_OC": true,
+    "CZTRYP6_CZTRY6CHESN.1 SA.2_OC": true,
+    "CZTRYP6_CZTRY6SEC..34 SS.1.34_OC": false,
+    "CZTRYP6_CZTRY6MOISE.1 SA.2_OC": true,
+    "CZTRYP6_CZTRY6CHESN.3 SA.1_OC": true,
+    "CZTRYP6_CZTRY6TR634 SA.1_OC": false,
+    "CZTRYP6_CZTRY6TR632 SA.2_OC": true,
+    "CZTRYP6_CZTRY6TR632 SA.1_OC": false,
+    "CZTRYP6_CZTRY6SENAR.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6SEC..23 SS.2.23_OC": false,
+    "CZTRYP6_CZTRY6COUPL.2 SA.2_OC": false,
+    "CZTRYP6_CZTRY6PLISO.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6COUPL.2 DJ_OC": false,
+    "CZTRYP6_CZTRY6MOISE.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6CHESN.3 DJ_OC": false,
+    "CZTRYP6_CZTRY6CHESN.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6SENAR.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6TR633 DJ_OC": false,
+    "CZTRYP6_CZTRY6TR632 DJ_OC": false,
+    "CZTRYP6_CZTRY6CHESN.2 DJ_OC": false,
+    "CZTRYP6_CZTRY6COUPL.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6TR634 DJ_OC": false
+  },
+  "cible": {
+    "CZTRYP6_CZTRY6CHESN.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6PLISO.1 SA.2_OC": true,
+    "CZTRYP6_CZTRY6TR633 SA.2_OC": false,
+    "CZTRYP6_CZTRY6COUPL.1 SA.2_OC": false,
+    "CZTRYP6_CZTRY6PLISO.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6CHESN.3 SA.2_OC": false,
+    "CZTRYP6_CZTRY6SEC..12 SS.2.12_OC": false,
+    "CZTRYP6_CZTRY6SEC..34 SS.2.34_OC": false,
+    "CZTRYP6_CZTRY6MOISE.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6CHESN.2 SA.1_OC": false,
+    "CZTRYP6_CZTRY6COUPL.2 SA.1_OC": false,
+    "CZTRYP6_CZTRY6SENAR.1 SA.2_OC": true,
+    "CZTRYP6_CZTRY6COUPL.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6SEC..23 SS.1.23_OC": true,
+    "CZTRYP6_CZTRY6CHESN.2 SA.2_OC": true,
+    "CZTRYP6_CZTRY6TR634 SA.2_OC": true,
+    "CZTRYP6_CZTRY6SEC..12 SS.1.12_OC": false,
+    "CZTRYP6_CZTRY6TR633 SA.1_OC": true,
+    "CZTRYP6_CZTRY6CHESN.1 SA.2_OC": true,
+    "CZTRYP6_CZTRY6SEC..34 SS.1.34_OC": true,
+    "CZTRYP6_CZTRY6MOISE.1 SA.2_OC": true,
+    "CZTRYP6_CZTRY6CHESN.3 SA.1_OC": true,
+    "CZTRYP6_CZTRY6TR634 SA.1_OC": false,
+    "CZTRYP6_CZTRY6TR632 SA.2_OC": true,
+    "CZTRYP6_CZTRY6TR632 SA.1_OC": false,
+    "CZTRYP6_CZTRY6SENAR.1 SA.1_OC": false,
+    "CZTRYP6_CZTRY6SEC..23 SS.2.23_OC": false,
+    "CZTRYP6_CZTRY6COUPL.2 SA.2_OC": false,
+    "CZTRYP6_CZTRY6PLISO.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6COUPL.2 DJ_OC": false,
+    "CZTRYP6_CZTRY6MOISE.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6CHESN.3 DJ_OC": false,
+    "CZTRYP6_CZTRY6CHESN.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6SENAR.1 DJ_OC": false,
+    "CZTRYP6_CZTRY6TR633 DJ_OC": false,
+    "CZTRYP6_CZTRY6TR632 DJ_OC": false,
+    "CZTRYP6_CZTRY6CHESN.2 DJ_OC": false,
+    "CZTRYP6_CZTRY6COUPL.1 DJ_OC": true,
+    "CZTRYP6_CZTRY6TR634 DJ_OC": false
+  },
+  "depart_nodale": [
+    [
+      "CHESNL61CZTRY",
+      "CHESNL62CZTRY",
+      "CHESNL63CZTRY",
+      "CZTRYL61MOISE",
+      "CZTRYL61PLISO",
+      "CZTRYL61SENAR",
+      "CZTRYY632",
+      "CZTRYY633",
+      "CZTRYY634"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "CHESNL61CZTRY",
+      "CHESNL63CZTRY",
+      "CZTRYY633"
+    ],
+    [
+      "CHESNL62CZTRY",
+      "CZTRYL61MOISE",
+      "CZTRYY632"
+    ],
+    [
+      "CZTRYL61PLISO",
+      "CZTRYL61SENAR",
+      "CZTRYY634"
+    ]
+  ],
+  "nb_manoeuvres": 20,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "CZTRYP6_CZTRY6PLISO.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CZTRYL61PLISO' vers CZTRYP6_2.4",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 2,
+      "switch_id": "CZTRYP6_CZTRY6PLISO.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'CZTRYL61PLISO' quitte CZTRYP6_1.4",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 3,
+      "switch_id": "CZTRYP6_CZTRY6SENAR.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CZTRYL61SENAR' vers CZTRYP6_2.4",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 4,
+      "switch_id": "CZTRYP6_CZTRY6SENAR.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'CZTRYL61SENAR' quitte CZTRYP6_1.4",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 5,
+      "switch_id": "CZTRYP6_CZTRY6TR634 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CZTRYY634' vers CZTRYP6_2.4",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 6,
+      "switch_id": "CZTRYP6_CZTRY6TR634 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'CZTRYY634' quitte CZTRYP6_1.4",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 7,
+      "switch_id": "CZTRYP6_CZTRY6SEC..34 SS.1.34_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (section hors tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "CZTRYP6_CZTRY6COUPL.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "ouverture couplage de barres",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "CZTRYP6_CZTRY6PLISO.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZTRYL61PLISO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 10,
+      "switch_id": "CZTRYP6_CZTRY6PLISO.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'CZTRYL61PLISO' quitte CZTRYP6_2.4",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 11,
+      "switch_id": "CZTRYP6_CZTRY6PLISO.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CZTRYL61PLISO' vers CZTRYP6_1.4",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 12,
+      "switch_id": "CZTRYP6_CZTRY6PLISO.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'CZTRYL61PLISO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 13,
+      "switch_id": "CZTRYP6_CZTRY6SENAR.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZTRYL61SENAR' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 14,
+      "switch_id": "CZTRYP6_CZTRY6SENAR.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'CZTRYL61SENAR' quitte CZTRYP6_2.4",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 15,
+      "switch_id": "CZTRYP6_CZTRY6SENAR.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CZTRYL61SENAR' vers CZTRYP6_1.4",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 16,
+      "switch_id": "CZTRYP6_CZTRY6SENAR.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'CZTRYL61SENAR' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 17,
+      "switch_id": "CZTRYP6_CZTRY6TR634 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZTRYY634' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 18,
+      "switch_id": "CZTRYP6_CZTRY6TR634 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'CZTRYY634' quitte CZTRYP6_2.4",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 19,
+      "switch_id": "CZTRYP6_CZTRY6TR634 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CZTRYY634' vers CZTRYP6_1.4",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 20,
+      "switch_id": "CZTRYP6_CZTRY6TR634 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'CZTRYY634' (boucle longue)",
+      "boucle": "LONGUE"
+    }
+  ],
+  "nb_final": 3
+}

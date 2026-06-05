@@ -1,0 +1,406 @@
+{
+  "voltage_level_id": "CARRIP6",
+  "substation_id": "CARRI",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "CARRIP6_CARRI6ZB.FR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 18,
+      "node2": 4,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6ZB.FR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 18,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TERRI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6CREI5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TERRI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 19,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6SEC..23 SS.2.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6GOUVI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6CREI5.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6CREI5.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6TR611 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR633 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR631 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6GOUVI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TERRI.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6COUPL.3 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 27,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6CREI5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6TERRI.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6VALES.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR633 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6MORU.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6TR611 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6SEC..23 SS.1.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6VALES.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6MORU.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6COUPL.3 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR631 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6ZB.FR.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 18,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6CREI5.1 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6CREI5.2 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6VALES.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR633 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR631 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6MORU.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TR611 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6COUPL.3 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TERRI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 19,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "CARRIP6_CARRI6TERRI.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 17,
+      "open": true
+    },
+    {
+      "id": "CARRIP6_CARRI6GOUVI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 12,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "CARRIP6_1.1",
+      "node": 0
+    },
+    {
+      "id": "CARRIP6_1.2",
+      "node": 1
+    },
+    {
+      "id": "CARRIP6_1.3",
+      "node": 2
+    },
+    {
+      "id": "CARRIP6_2.1",
+      "node": 3
+    },
+    {
+      "id": "CARRIP6_2.2",
+      "node": 4
+    },
+    {
+      "id": "CARRIP6_2.3",
+      "node": 5
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "CARRI6T611",
+      "type": "LOAD",
+      "node": 6
+    },
+    {
+      "id": "CARRI6CREI5.1",
+      "type": "LOAD",
+      "node": 7
+    },
+    {
+      "id": "CARRI6CREI5.2",
+      "type": "LOAD",
+      "node": 8
+    },
+    {
+      "id": "CARRIL61GOUVI",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "CARRIL61MORU",
+      "type": "LINE_SIDE1",
+      "node": 14
+    },
+    {
+      "id": "CARRIL61TERRI",
+      "type": "LINE_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "CARRIL61VALES",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": "CARRIL61ZB.FR",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "CARRIL62TERRI",
+      "type": "LINE_SIDE1",
+      "node": 17
+    },
+    {
+      "id": "CARRIY631",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 10
+    },
+    {
+      "id": "CARRIY632",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 11
+    },
+    {
+      "id": "CARRIY633",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 9
+    }
+  ],
+  "stats": {
+    "nb_switches": 43,
+    "nb_busbar_sections": 6,
+    "nb_internal_connections": 0,
+    "nb_equipment": 12,
+    "nb_breakers": 13,
+    "nb_disconnectors": 30
+  }
+}

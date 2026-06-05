@@ -1,0 +1,162 @@
+{
+  "voltage_level_id": "NOVIOP3",
+  "name": "NOVIOP3_cible_3noeuds",
+  "scenario": "NOVIOP3_cible_3noeuds",
+  "edited": false,
+  "matches_cible": true,
+  "nb_final": 3,
+  "depart": {
+    "NOVIOP3_NOVIO3FALLO.2 SA.1_OC": true,
+    "NOVIOP3_NOVIO3FALLO.4 SA.1_OC": true,
+    "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC": false,
+    "NOVIOP3_NOVIO3FALLO.2 SA.2_OC": false,
+    "NOVIOP3_NOVIO3TR631 SA.1_OC": false,
+    "NOVIOP3_NOVIO3TRO.1AB SA.1A_OC": false,
+    "NOVIOP3_NOVIO3COUPL.A SA.2_OC": false,
+    "NOVIOP3_NOVIO3FALLO.3 SA.2_OC": true,
+    "NOVIOP3_NOVIO3COUPL.A SA.1_OC": false,
+    "NOVIOP3_NOVIO3TR631 SA.2_OC": true,
+    "NOVIOP3_NOVIO3TRO.2AB SA.2B_OC": false,
+    "NOVIOP3_NOVIO3TR632 SA.2_OC": true,
+    "NOVIOP3_NOVIO3TRO.1AB SA.1B_OC": false,
+    "NOVIOP3_NOVIO3TRO.2AB SA.2A_OC": false,
+    "NOVIOP3_NOVIO3ASNIE.2 SA.2_OC": true,
+    "NOVIOP3_NOVIO3ASNIE.1 SA.2_OC": true,
+    "NOVIOP3_NOVIO3FALLO.3 SA.1_OC": false,
+    "NOVIOP3_NOVIO3TR312 SA.2_OC": false,
+    "NOVIOP3_NOVIO3LAMAR.1 SA.2_OC": false,
+    "NOVIOP3_NOVIO3FALLO.4 SA.2_OC": false,
+    "NOVIOP3_NOVIO3ASNIE.2 SA.1_OC": false,
+    "NOVIOP3_NOVIO3TR312 SA.1_OC": true,
+    "NOVIOP3_NOVIO3TR314 SA.2_OC": true,
+    "NOVIOP3_NOVIO3TR314 SA.1_OC": false,
+    "NOVIOP3_NOVIO3LAMAR.1 SA.1_OC": true,
+    "NOVIOP3_NOVIO3TR632 SA.1_OC": false,
+    "NOVIOP3_NOVIO3ASNIE.1 DJ_OC": false,
+    "NOVIOP3_NOVIO3COUPL.A DJ_OC": false,
+    "NOVIOP3_NOVIO3TRO.1AB DJ_OC": true,
+    "NOVIOP3_NOVIO3FALLO.4 DJ_OC": false,
+    "NOVIOP3_NOVIO3TRO.2AB DJ_OC": false,
+    "NOVIOP3_NOVIO3FALLO.3 DJ_OC": false,
+    "NOVIOP3_NOVIO3TR631 DJ_OC": false,
+    "NOVIOP3_NOVIO3TR312 DJ.HT_OC": false,
+    "NOVIOP3_NOVIO3LAMAR.1 DJ_OC": false,
+    "NOVIOP3_NOVIO3TR314 DJ.HT_OC": false,
+    "NOVIOP3_NOVIO3TR632 DJ_OC": false,
+    "NOVIOP3_NOVIO3FALLO.2 DJ_OC": false,
+    "NOVIOP3_NOVIO3ASNIE.2 DJ_OC": false
+  },
+  "cible": {
+    "NOVIOP3_NOVIO3FALLO.2 SA.1_OC": true,
+    "NOVIOP3_NOVIO3FALLO.4 SA.1_OC": true,
+    "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC": true,
+    "NOVIOP3_NOVIO3FALLO.2 SA.2_OC": false,
+    "NOVIOP3_NOVIO3TR631 SA.1_OC": false,
+    "NOVIOP3_NOVIO3TRO.1AB SA.1A_OC": false,
+    "NOVIOP3_NOVIO3COUPL.A SA.2_OC": false,
+    "NOVIOP3_NOVIO3FALLO.3 SA.2_OC": true,
+    "NOVIOP3_NOVIO3COUPL.A SA.1_OC": false,
+    "NOVIOP3_NOVIO3TR631 SA.2_OC": true,
+    "NOVIOP3_NOVIO3TRO.2AB SA.2B_OC": false,
+    "NOVIOP3_NOVIO3TR632 SA.2_OC": true,
+    "NOVIOP3_NOVIO3TRO.1AB SA.1B_OC": false,
+    "NOVIOP3_NOVIO3TRO.2AB SA.2A_OC": false,
+    "NOVIOP3_NOVIO3ASNIE.2 SA.2_OC": true,
+    "NOVIOP3_NOVIO3ASNIE.1 SA.2_OC": false,
+    "NOVIOP3_NOVIO3FALLO.3 SA.1_OC": false,
+    "NOVIOP3_NOVIO3TR312 SA.2_OC": false,
+    "NOVIOP3_NOVIO3LAMAR.1 SA.2_OC": false,
+    "NOVIOP3_NOVIO3FALLO.4 SA.2_OC": false,
+    "NOVIOP3_NOVIO3ASNIE.2 SA.1_OC": false,
+    "NOVIOP3_NOVIO3TR312 SA.1_OC": true,
+    "NOVIOP3_NOVIO3TR314 SA.2_OC": true,
+    "NOVIOP3_NOVIO3TR314 SA.1_OC": false,
+    "NOVIOP3_NOVIO3LAMAR.1 SA.1_OC": true,
+    "NOVIOP3_NOVIO3TR632 SA.1_OC": false,
+    "NOVIOP3_NOVIO3ASNIE.1 DJ_OC": false,
+    "NOVIOP3_NOVIO3COUPL.A DJ_OC": true,
+    "NOVIOP3_NOVIO3TRO.1AB DJ_OC": true,
+    "NOVIOP3_NOVIO3FALLO.4 DJ_OC": false,
+    "NOVIOP3_NOVIO3TRO.2AB DJ_OC": false,
+    "NOVIOP3_NOVIO3FALLO.3 DJ_OC": false,
+    "NOVIOP3_NOVIO3TR631 DJ_OC": false,
+    "NOVIOP3_NOVIO3TR312 DJ.HT_OC": false,
+    "NOVIOP3_NOVIO3LAMAR.1 DJ_OC": false,
+    "NOVIOP3_NOVIO3TR314 DJ.HT_OC": false,
+    "NOVIOP3_NOVIO3TR632 DJ_OC": false,
+    "NOVIOP3_NOVIO3FALLO.2 DJ_OC": false,
+    "NOVIOP3_NOVIO3ASNIE.2 DJ_OC": false
+  },
+  "depart_nodale": [
+    [
+      "ASNIEL31NOVIO",
+      "ASNIEL32NOVIO",
+      "NOVIOY631",
+      "NOVIOY632"
+    ],
+    [
+      "FALLOL32NOVIO",
+      "FALLOL33NOVIO",
+      "FALLOL34NOVIO",
+      "LAMARL31NOVIO",
+      "NOVIO3TR0312",
+      "NOVIO3TR0314"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "ASNIEL31NOVIO",
+      "FALLOL32NOVIO",
+      "FALLOL34NOVIO",
+      "LAMARL31NOVIO",
+      "NOVIO3TR0312"
+    ],
+    [
+      "ASNIEL32NOVIO",
+      "NOVIOY631",
+      "NOVIOY632"
+    ],
+    [
+      "FALLOL33NOVIO",
+      "NOVIO3TR0314"
+    ]
+  ],
+  "nb_manoeuvres": 5,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ASNIEL31NOVIO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 2,
+      "switch_id": "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'ASNIEL31NOVIO' quitte NOVIOP3_1B",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 3,
+      "switch_id": "NOVIOP3_NOVIO3ASNIE.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'ASNIEL31NOVIO' vers NOVIOP3_2B",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 4,
+      "switch_id": "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'ASNIEL31NOVIO' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 5,
+      "switch_id": "NOVIOP3_NOVIO3COUPL.A DJ_OC",
+      "action": "OPEN",
+      "raison": "ouverture couplage de barres",
+      "boucle": null
+    }
+  ]
+}

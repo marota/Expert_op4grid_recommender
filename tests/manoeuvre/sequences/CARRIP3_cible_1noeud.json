@@ -1,0 +1,318 @@
+{
+  "voltage_level_id": "CARRIP3",
+  "name": "CARRIP3_cible_1noeud",
+  "scenario": "CARRIP3_cible_1noeud",
+  "verified": true,
+  "message": "Topologie détaillée cible atteinte et vérifiée.",
+  "depart": {
+    "CARRIP3_CARRI3BERT.1 SA.2_OC": false,
+    "CARRIP3_CARRI3RANTI.1 SA.2_OC": false,
+    "CARRIP3_CARRI3U.MON.1 SA.2_OC": true,
+    "CARRIP3_CARRI3SEC..12 SS.2.12_OC": false,
+    "CARRIP3_CARRI3VALES.1 SA.2_OC": true,
+    "CARRIP3_CARRI3BRENO.1 SA.1_OC": true,
+    "CARRIP3_CARRI3RANTI.1 SA.1_OC": true,
+    "CARRIP3_CARRI3TR313 SA.1_OC": true,
+    "CARRIP3_CARRI3TR314 SA.2_OC": true,
+    "CARRIP3_CARRI3U.MON.2 SA.2_OC": false,
+    "CARRIP3_CARRI3PERSA.1 SA.2_OC": true,
+    "CARRIP3_CARRI3V.PAU.1 SA.2_OC": true,
+    "CARRIP3_CARRI3SEC..12 SS.1.12_OC": true,
+    "CARRIP3_CARRI3U.MON.2 SA.1_OC": true,
+    "CARRIP3_CARRI3TR312 SA.1_OC": false,
+    "CARRIP3_CARRI3TR631 SA.1_OC": false,
+    "CARRIP3_CARRI3BARR6.1 SA.1_OC": false,
+    "CARRIP3_CARRI3VALES.1 SA.1_OC": false,
+    "CARRIP3_CARRI3V.PAU.1 SA.1_OC": false,
+    "CARRIP3_CARRI3TR631 SA.2_OC": true,
+    "CARRIP3_CARRI3U.MON.1 SA.1_OC": false,
+    "CARRIP3_CARRI3TR632 SA.2_OC": false,
+    "CARRIP3_CARRI3BRENO.1 SA.2_OC": false,
+    "CARRIP3_CARRI3TR633 SA.2_OC": false,
+    "CARRIP3_CARRI3BERT.1 SA.1_OC": true,
+    "CARRIP3_CARRI3TR632 SA.1_OC": true,
+    "CARRIP3_CARRI3TR314 SA.1_OC": false,
+    "CARRIP3_CARRI3COUPL.1 SA.1_OC": false,
+    "CARRIP3_CARRI3COUPL.1 SA.2_OC": false,
+    "CARRIP3_CARRI3BARR6.1 SA.2_OC": true,
+    "CARRIP3_CARRI3TR633 SA.1_OC": true,
+    "CARRIP3_CARRI3TR313 SA.2_OC": false,
+    "CARRIP3_CARRI3TR312 SA.2_OC": true,
+    "CARRIP3_CARRI3PERSA.1 SA.1_OC": false,
+    "CARRIP3_CARRI3TR312 DJ.HT_OC": false,
+    "CARRIP3_CARRI3BERT.1 DJ_OC": false,
+    "CARRIP3_CARRI3VALES.1 DJ_OC": false,
+    "CARRIP3_CARRI3TR632 DJ_OC": false,
+    "CARRIP3_CARRI3TR314 DJ.HT_OC": false,
+    "CARRIP3_CARRI3RANTI.1 DJ_OC": false,
+    "CARRIP3_CARRI3V.PAU.1 DJ_OC": false,
+    "CARRIP3_CARRI3BARR6.1 DJ_OC": false,
+    "CARRIP3_CARRI3TR313 DJ.HT_OC": false,
+    "CARRIP3_CARRI3COUPL.1 DJ_OC": true,
+    "CARRIP3_CARRI3BRENO.1 DJ_OC": false,
+    "CARRIP3_CARRI3U.MON.1 DJ_OC": false,
+    "CARRIP3_CARRI3PERSA.1 DJ_OC": false,
+    "CARRIP3_CARRI3U.MON.2 DJ_OC": false,
+    "CARRIP3_CARRI3TR633 DJ_OC": false,
+    "CARRIP3_CARRI3TR631 DJ_OC": false,
+    "CARRIP3_CARRI3TR312 DJ.HT_OC.CARRI TR312": false,
+    "CARRIP3_Disj CARRIINF": true,
+    "CARRIP3_CARRI3TR313 DJ.HT_OC.CARRI TR313": false,
+    "CARRIP3_Disj CARRIING": true
+  },
+  "cible": {
+    "CARRIP3_CARRI3BERT.1 SA.2_OC": false,
+    "CARRIP3_CARRI3RANTI.1 SA.2_OC": false,
+    "CARRIP3_CARRI3U.MON.1 SA.2_OC": true,
+    "CARRIP3_CARRI3SEC..12 SS.2.12_OC": false,
+    "CARRIP3_CARRI3VALES.1 SA.2_OC": true,
+    "CARRIP3_CARRI3BRENO.1 SA.1_OC": true,
+    "CARRIP3_CARRI3RANTI.1 SA.1_OC": true,
+    "CARRIP3_CARRI3TR313 SA.1_OC": true,
+    "CARRIP3_CARRI3TR314 SA.2_OC": true,
+    "CARRIP3_CARRI3U.MON.2 SA.2_OC": false,
+    "CARRIP3_CARRI3PERSA.1 SA.2_OC": true,
+    "CARRIP3_CARRI3V.PAU.1 SA.2_OC": true,
+    "CARRIP3_CARRI3SEC..12 SS.1.12_OC": false,
+    "CARRIP3_CARRI3U.MON.2 SA.1_OC": true,
+    "CARRIP3_CARRI3TR312 SA.1_OC": false,
+    "CARRIP3_CARRI3TR631 SA.1_OC": false,
+    "CARRIP3_CARRI3BARR6.1 SA.1_OC": false,
+    "CARRIP3_CARRI3VALES.1 SA.1_OC": false,
+    "CARRIP3_CARRI3V.PAU.1 SA.1_OC": false,
+    "CARRIP3_CARRI3TR631 SA.2_OC": true,
+    "CARRIP3_CARRI3U.MON.1 SA.1_OC": false,
+    "CARRIP3_CARRI3TR632 SA.2_OC": false,
+    "CARRIP3_CARRI3BRENO.1 SA.2_OC": false,
+    "CARRIP3_CARRI3TR633 SA.2_OC": false,
+    "CARRIP3_CARRI3BERT.1 SA.1_OC": true,
+    "CARRIP3_CARRI3TR632 SA.1_OC": true,
+    "CARRIP3_CARRI3TR314 SA.1_OC": false,
+    "CARRIP3_CARRI3COUPL.1 SA.1_OC": false,
+    "CARRIP3_CARRI3COUPL.1 SA.2_OC": false,
+    "CARRIP3_CARRI3BARR6.1 SA.2_OC": true,
+    "CARRIP3_CARRI3TR633 SA.1_OC": true,
+    "CARRIP3_CARRI3TR313 SA.2_OC": false,
+    "CARRIP3_CARRI3TR312 SA.2_OC": true,
+    "CARRIP3_CARRI3PERSA.1 SA.1_OC": false,
+    "CARRIP3_CARRI3TR312 DJ.HT_OC": false,
+    "CARRIP3_CARRI3BERT.1 DJ_OC": false,
+    "CARRIP3_CARRI3VALES.1 DJ_OC": false,
+    "CARRIP3_CARRI3TR632 DJ_OC": false,
+    "CARRIP3_CARRI3TR314 DJ.HT_OC": false,
+    "CARRIP3_CARRI3RANTI.1 DJ_OC": false,
+    "CARRIP3_CARRI3V.PAU.1 DJ_OC": false,
+    "CARRIP3_CARRI3BARR6.1 DJ_OC": false,
+    "CARRIP3_CARRI3TR313 DJ.HT_OC": false,
+    "CARRIP3_CARRI3COUPL.1 DJ_OC": false,
+    "CARRIP3_CARRI3BRENO.1 DJ_OC": false,
+    "CARRIP3_CARRI3U.MON.1 DJ_OC": false,
+    "CARRIP3_CARRI3PERSA.1 DJ_OC": false,
+    "CARRIP3_CARRI3U.MON.2 DJ_OC": false,
+    "CARRIP3_CARRI3TR633 DJ_OC": false,
+    "CARRIP3_CARRI3TR631 DJ_OC": false,
+    "CARRIP3_CARRI3TR312 DJ.HT_OC.CARRI TR312": false,
+    "CARRIP3_Disj CARRIINF": true,
+    "CARRIP3_CARRI3TR313 DJ.HT_OC.CARRI TR313": false,
+    "CARRIP3_Disj CARRIING": true
+  },
+  "depart_nodale": [
+    [
+      "BARR6L31CARRI",
+      "CARRI3T314",
+      "CARRIL31U.MON",
+      "CARRIL31VALES",
+      "CARRIY631"
+    ],
+    [
+      "BERT L31CARRI",
+      "BRENOL31CARRI",
+      "CARRI3T313",
+      "CARRIL31RANTI",
+      "CARRIL32U.MON",
+      "CARRIY632",
+      "CARRIY633"
+    ],
+    [
+      "CARRI3T312",
+      "CARRIL31PERSA",
+      "CARRIL31V.PAU"
+    ],
+    [
+      "CARRIINF"
+    ],
+    [
+      "CARRIING"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "BARR6L31CARRI",
+      "BERT L31CARRI",
+      "BRENOL31CARRI",
+      "CARRI3T312",
+      "CARRI3T313",
+      "CARRI3T314",
+      "CARRIL31PERSA",
+      "CARRIL31RANTI",
+      "CARRIL31U.MON",
+      "CARRIL31V.PAU",
+      "CARRIL31VALES",
+      "CARRIL32U.MON",
+      "CARRIY631",
+      "CARRIY632",
+      "CARRIY633"
+    ],
+    [
+      "CARRIINF"
+    ],
+    [
+      "CARRIING"
+    ]
+  ],
+  "nb_manoeuvres": 20,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "CARRIP3_CARRI3COUPL.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "fermeture couplage de barres",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "CARRIP3_CARRI3PERSA.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CARRIL31PERSA' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 3,
+      "switch_id": "CARRIP3_CARRI3PERSA.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'CARRIL31PERSA' quitte CARRIP3_1.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 4,
+      "switch_id": "CARRIP3_CARRI3PERSA.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CARRIL31PERSA' vers CARRIP3_2.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 5,
+      "switch_id": "CARRIP3_CARRI3PERSA.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'CARRIL31PERSA' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 6,
+      "switch_id": "CARRIP3_CARRI3TR312 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CARRI3T312' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 7,
+      "switch_id": "CARRIP3_CARRI3TR312 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'CARRI3T312' quitte CARRIP3_1.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 8,
+      "switch_id": "CARRIP3_CARRI3TR312 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CARRI3T312' vers CARRIP3_2.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 9,
+      "switch_id": "CARRIP3_CARRI3TR312 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'CARRI3T312' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 10,
+      "switch_id": "CARRIP3_CARRI3V.PAU.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CARRIL31V.PAU' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 11,
+      "switch_id": "CARRIP3_CARRI3V.PAU.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'CARRIL31V.PAU' quitte CARRIP3_1.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 12,
+      "switch_id": "CARRIP3_CARRI3V.PAU.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CARRIL31V.PAU' vers CARRIP3_2.2",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 13,
+      "switch_id": "CARRIP3_CARRI3V.PAU.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension 'CARRIL31V.PAU' (boucle longue)",
+      "boucle": "LONGUE"
+    },
+    {
+      "ordre": 14,
+      "switch_id": "CARRIP3_CARRI3SEC..12 SS.1.12_OC",
+      "action": "CLOSE",
+      "raison": "fermeture sectionnement (section mise hors tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "CARRIP3_CARRI3TR312 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CARRI3T312' vers CARRIP3_1.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 16,
+      "switch_id": "CARRIP3_CARRI3TR312 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'CARRI3T312' quitte CARRIP3_2.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 17,
+      "switch_id": "CARRIP3_CARRI3PERSA.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CARRIL31PERSA' vers CARRIP3_1.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 18,
+      "switch_id": "CARRIP3_CARRI3PERSA.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'CARRIL31PERSA' quitte CARRIP3_2.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 19,
+      "switch_id": "CARRIP3_CARRI3V.PAU.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'CARRIL31V.PAU' vers CARRIP3_1.2",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 20,
+      "switch_id": "CARRIP3_CARRI3V.PAU.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'CARRIL31V.PAU' quitte CARRIP3_2.2",
+      "boucle": "COURTE"
+    }
+  ],
+  "verified_detaillee": true,
+  "ecarts": []
+}

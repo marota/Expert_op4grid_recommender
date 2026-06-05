@@ -1,0 +1,370 @@
+{
+  "voltage_level_id": "RAN.PP6",
+  "substation_id": "RAN.P",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "RAN.PP6_RAN.P6LAUNA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR661 SI_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 17,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6DOBER.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR635 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR633 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR634 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.3 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6DOBER.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 18,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR661 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6LAUNA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6B.EPI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6B.EPI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 19,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6COUPL SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 27,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6COUPL SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR661 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR634 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR633 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR635 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.3 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR635 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR633 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6LAUNA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 16,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR661 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6DOBER.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 18,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6COUPL DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6B.EPI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.2 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 19,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.3 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6RANCE.1 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 17,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.P6TR634 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.PP6-RAN.PP6.SJB.3.1-RAN.PTD661SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "RAN.PP6_RAN.PP6-RAN.PP6.SJB.4.1-RAN.PTD661SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 4,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "RAN.PP6_1",
+      "node": 0
+    },
+    {
+      "id": "RAN.PP6_2",
+      "node": 1
+    },
+    {
+      "id": "RAN.PP6_3.1",
+      "node": 2
+    },
+    {
+      "id": "RAN.PP6_4.1",
+      "node": 3
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "RAN.PL61RANCE",
+      "type": "LINE_SIDE1",
+      "node": 11
+    },
+    {
+      "id": "RAN.PL62RANCE",
+      "type": "LINE_SIDE1",
+      "node": 10
+    },
+    {
+      "id": "RAN.PL63RANCE",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "B.EPIL61RAN.P",
+      "type": "LINE_SIDE2",
+      "node": 14
+    },
+    {
+      "id": "DOBERL61RAN.P",
+      "type": "LINE_SIDE2",
+      "node": 15
+    },
+    {
+      "id": "LAUNAL61RAN.P",
+      "type": "LINE_SIDE2",
+      "node": 13
+    },
+    {
+      "id": "RAN.PY632",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 6
+    },
+    {
+      "id": "RAN.PY633",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 9
+    },
+    {
+      "id": "RAN.PY634",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 8
+    },
+    {
+      "id": "RAN.PY635",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 7
+    },
+    {
+      "id": "RAN.PY661",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 4
+    },
+    {
+      "id": "RAN.PY661",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 5
+    }
+  ],
+  "stats": {
+    "nb_switches": 39,
+    "nb_busbar_sections": 4,
+    "nb_internal_connections": 0,
+    "nb_equipment": 12,
+    "nb_breakers": 12,
+    "nb_disconnectors": 27
+  }
+}

@@ -45,6 +45,9 @@ quality = [
     "interrogate>=1.5",
     "ruff>=0.5",
 ]
+ihm = [
+    "flask>=3.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

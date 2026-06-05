@@ -1,0 +1,54 @@
+{
+  "voltage_level_id": "CZBEVP3",
+  "name": "CZBEVP3_cible_3noeuds",
+  "depart": {
+    "CZBEVP3_CZBEV3FALLO.2 SA.1_OC": false,
+    "CZBEVP3_CZBEV3CBO.1 SS.1.23_OC": false,
+    "CZBEVP3_CZBEV3DANT5.1 SA.1_OC": false,
+    "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC": false,
+    "CZBEVP3_CZBEV3FALLO.1 SA.1_OC": false,
+    "CZBEVP3_CZBEV3DANT5.1 DJ_OC": false,
+    "CZBEVP3_CZBEV3FALLO.2 DJ_OC": false,
+    "CZBEVP3_CZBEV3TR311 DJ.HT_OC": false,
+    "CZBEVP3_CZBEV3TR313 DJ.HT_OC": false,
+    "CZBEVP3_CZBEV3FALLO.1 DJ_OC": false,
+    "CZBEVP3_CZBEV3TR312 DJ.HT_OC": false
+  },
+  "cible": {
+    "CZBEVP3_CZBEV3FALLO.2 SA.1_OC": false,
+    "CZBEVP3_CZBEV3CBO.1 SS.1.23_OC": true,
+    "CZBEVP3_CZBEV3DANT5.1 SA.1_OC": false,
+    "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC": true,
+    "CZBEVP3_CZBEV3FALLO.1 SA.1_OC": false,
+    "CZBEVP3_CZBEV3DANT5.1 DJ_OC": false,
+    "CZBEVP3_CZBEV3FALLO.2 DJ_OC": false,
+    "CZBEVP3_CZBEV3TR311 DJ.HT_OC": false,
+    "CZBEVP3_CZBEV3TR313 DJ.HT_OC": false,
+    "CZBEVP3_CZBEV3FALLO.1 DJ_OC": false,
+    "CZBEVP3_CZBEV3TR312 DJ.HT_OC": false
+  },
+  "depart_nodale": [
+    [
+      "CZBEV3T311",
+      "CZBEV3T312",
+      "CZBEV3T313",
+      "CZBEVL31DANT5",
+      "CZBEVL31FALLO",
+      "CZBEVL32FALLO"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "CZBEV3T311",
+      "CZBEVL32FALLO"
+    ],
+    [
+      "CZBEV3T312",
+      "CZBEVL31DANT5"
+    ],
+    [
+      "CZBEV3T313",
+      "CZBEVL31FALLO"
+    ]
+  ]
+}

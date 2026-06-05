@@ -1,0 +1,972 @@
+{
+  "voltage_level_id": "SSAVOP3",
+  "substation_id": "SSAVO",
+  "nominal_v": 63.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "SSAVOP3_SSAVO3TRO.2AB SA.2A_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 35,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3AUXEH.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ZCAR8.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3CARLI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 38,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR313 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 39,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3COUPL.B SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 40,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR312 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 41,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3BETTI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 42,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR638 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 43,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3AUXEH.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 36,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 44,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3LAND5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 45,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3STEAR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 46,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TRO.1AB SA.1A_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 47,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.3 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 48,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 49,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3NORSR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 50,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 44,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3NORSR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 50,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SEC.A23 SS.2A23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 49,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR313 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 39,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SEC.A23 SS.1A23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3PUTTE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 51,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR638 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 43,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.3 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 48,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR634 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 52,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3BETTI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 42,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3BOULA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 53,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3AUXEH.6 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 54,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3COUPL.A SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 55,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3COUPL.B SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 56,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TRO.2AB SA.2B_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 57,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR637 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 58,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ATPOR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 59,
+      "node2": 7,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3STEAR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 46,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR636 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 60,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3MERBE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 61,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ANCER.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 62,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SEC.A12 SS.2A12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3P.ROS.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 63,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3CREUT.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 64,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR636 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 60,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3AUXEH.6 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 54,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR312 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 41,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR311 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 65,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3BOULA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 53,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR634 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 52,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SEC.A12 SS.1A12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR311 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 65,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ANCER.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 62,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3LAND5.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 66,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3MERBE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 61,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ATPOR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 59,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3LAND5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 45,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3CREUT.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 64,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3LAND5.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 66,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR637 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 58,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ZCAR8.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3MERBE.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 67,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3COUPL.A SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 68,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3P.ROS.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 63,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3MERBE.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 67,
+      "node2": 7,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TRO.1AB SA.1B_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 69,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3CARLI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3PUTTE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 51,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 44,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3CREUT.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 64,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3MERBE.1 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 61,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3NORSO.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 50,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ANCER.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 62,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3CARLI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 38,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR638 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 43,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TRO.1AB DJ_OC",
+      "kind": "BREAKER",
+      "node1": 69,
+      "node2": 47,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3STEAM.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 46,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR634 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 52,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 45,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3P.ROS.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 63,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ATPOL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 59,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 51,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3BOULA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 53,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3COUPL.B DJ_OC",
+      "kind": "BREAKER",
+      "node1": 40,
+      "node2": 56,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TRO.2AB DJ_OC",
+      "kind": "BREAKER",
+      "node1": 57,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3AUXEH.6 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 54,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 49,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3MERBE.2 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 67,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3COUPL.A DJ_OC",
+      "kind": "BREAKER",
+      "node1": 68,
+      "node2": 55,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVO3SYNTH.3 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 48,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR311 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 65,
+      "node2": 70,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR636 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 60,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR637 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 58,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 42,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR313 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 39,
+      "node2": 75,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3ZCAR8.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 37,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 66,
+      "node2": 33,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3AUXEH.1 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVO3TR312 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 41,
+      "node2": 73,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_SSAVOP3-N1_DJ_F",
+      "kind": "BREAKER",
+      "node1": 71,
+      "node2": 70,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVOP3-N7_DJ_F",
+      "kind": "BREAKER",
+      "node1": 72,
+      "node2": 70,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVOP3-SSAVO3TR311_DJ_F",
+      "kind": "BREAKER",
+      "node1": 9,
+      "node2": 70,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVOP3-N2_DJ_F",
+      "kind": "BREAKER",
+      "node1": 74,
+      "node2": 73,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVOP3-SSAVO3TR312_DJ_F",
+      "kind": "BREAKER",
+      "node1": 8,
+      "node2": 73,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVOP3-N3_DJ_F",
+      "kind": "BREAKER",
+      "node1": 76,
+      "node2": 75,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVOP3-N6_DJ_F",
+      "kind": "BREAKER",
+      "node1": 77,
+      "node2": 75,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_SSAVOP3-SSAVO3TR313_DJ_F",
+      "kind": "BREAKER",
+      "node1": 11,
+      "node2": 75,
+      "open": false
+    },
+    {
+      "id": "SSAVOP3_Disj SSAVOINF",
+      "kind": "BREAKER",
+      "node1": 78,
+      "node2": 70,
+      "open": true
+    },
+    {
+      "id": "SSAVOP3_Disj SSAVOING",
+      "kind": "BREAKER",
+      "node1": 79,
+      "node2": 73,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "SSAVOP3_1A1",
+      "node": 0
+    },
+    {
+      "id": "SSAVOP3_1A2",
+      "node": 1
+    },
+    {
+      "id": "SSAVOP3_1A3",
+      "node": 2
+    },
+    {
+      "id": "SSAVOP3_1B",
+      "node": 3
+    },
+    {
+      "id": "SSAVOP3_2A1",
+      "node": 4
+    },
+    {
+      "id": "SSAVOP3_2A2",
+      "node": 5
+    },
+    {
+      "id": "SSAVOP3_2A3",
+      "node": 6
+    },
+    {
+      "id": "SSAVOP3_2B",
+      "node": 7
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "SSAVO3TR312",
+      "type": "LOAD",
+      "node": 8
+    },
+    {
+      "id": "SSAVO3TR311",
+      "type": "LOAD",
+      "node": 9
+    },
+    {
+      "id": "SSAVO3ATPOL",
+      "type": "LOAD",
+      "node": 10
+    },
+    {
+      "id": "SSAVO3TR313",
+      "type": "LOAD",
+      "node": 11
+    },
+    {
+      "id": "SSAVO3AUEH6",
+      "type": "LOAD",
+      "node": 12
+    },
+    {
+      "id": "SSAVO3AUEH1",
+      "type": "LOAD",
+      "node": 13
+    },
+    {
+      "id": "SSAVOIN1",
+      "type": "GENERATOR",
+      "node": 71
+    },
+    {
+      "id": "SSAVOIN7",
+      "type": "GENERATOR",
+      "node": 72
+    },
+    {
+      "id": "SSAVOIN2",
+      "type": "GENERATOR",
+      "node": 74
+    },
+    {
+      "id": "SSAVOIN3",
+      "type": "GENERATOR",
+      "node": 76
+    },
+    {
+      "id": "SSAVOIN6",
+      "type": "GENERATOR",
+      "node": 77
+    },
+    {
+      "id": "SSAVOINF",
+      "type": "GENERATOR",
+      "node": 78
+    },
+    {
+      "id": "SSAVOING",
+      "type": "GENERATOR",
+      "node": 79
+    },
+    {
+      "id": "SSAVOL31STEAM",
+      "type": "LINE_SIDE1",
+      "node": 30
+    },
+    {
+      "id": "SSAVOL31SYNTH",
+      "type": "LINE_SIDE1",
+      "node": 27
+    },
+    {
+      "id": "SSAVOL31ZCAR8",
+      "type": "LINE_SIDE1",
+      "node": 19
+    },
+    {
+      "id": "SSAVOL32SYNTH",
+      "type": "LINE_SIDE1",
+      "node": 20
+    },
+    {
+      "id": "SSAVOL33SYNTH",
+      "type": "LINE_SIDE1",
+      "node": 31
+    },
+    {
+      "id": "ANCERL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 23
+    },
+    {
+      "id": "BETTIL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 21
+    },
+    {
+      "id": "BOULAL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 24
+    },
+    {
+      "id": "CARLIL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 32
+    },
+    {
+      "id": "CREUTL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 28
+    },
+    {
+      "id": "LAND5L31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 29
+    },
+    {
+      "id": "LAND5L32SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 33
+    },
+    {
+      "id": "MERBEL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 25
+    },
+    {
+      "id": "MERBEL32SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 26
+    },
+    {
+      "id": "NORSOL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 34
+    },
+    {
+      "id": "P.ROSL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 18
+    },
+    {
+      "id": "PUTTEL31SSAVO",
+      "type": "LINE_SIDE2",
+      "node": 22
+    },
+    {
+      "id": "SSAVOY634",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 14
+    },
+    {
+      "id": "SSAVOY636",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 15
+    },
+    {
+      "id": "SSAVOY637",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 16
+    },
+    {
+      "id": "SSAVOY638",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 17
+    }
+  ],
+  "stats": {
+    "nb_switches": 107,
+    "nb_busbar_sections": 8,
+    "nb_internal_connections": 0,
+    "nb_equipment": 34,
+    "nb_breakers": 41,
+    "nb_disconnectors": 66
+  }
+}

@@ -1,0 +1,200 @@
+{
+  "voltage_level_id": "BXTO5P3",
+  "name": "BXTO5P3_cible_2noeuds_miseServiceSectionnement",
+  "depart": {
+    "BXTO5P3_BXTO53SOISS.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53LAON.1 SA.1_OC": false,
+    "BXTO5P3_BXTO53TR317 SA.1_OC": false,
+    "BXTO5P3_BXTO53SINCE.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53TR631 SA.2_OC": false,
+    "BXTO5P3_BXTO53COUPL.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53ZMAR7.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53TERGN.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53TR638 SA.2_OC": true,
+    "BXTO5P3_BXTO53COUPL.2 SA.2_OC": false,
+    "BXTO5P3_BXTO53COUPL.2 SA.1_OC": false,
+    "BXTO5P3_BXTO53TR638 SA.1_OC": true,
+    "BXTO5P3_BXTO53SINCE.2 SA.1_OC": false,
+    "BXTO5P3_BXTO53ZMAR7.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53COUPL.1 SA.1_OC": false,
+    "BXTO5P3_BXTO53TERGN.2 SA.1_OC": true,
+    "BXTO5P3_BXTO53SEC..12 SS.1.12_OC": false,
+    "BXTO5P3_BXTO53TR631 SA.1_OC": true,
+    "BXTO5P3_BXTO53HAM.2 SA.1_OC": false,
+    "BXTO5P3_BXTO53SOISS.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53MANO5.1 SA.2_OC": true,
+    "BXTO5P3_BXTO53TR316 SA.2_OC": false,
+    "BXTO5P3_BXTO53MANO5.1 SA.1_OC": false,
+    "BXTO5P3_BXTO53SEC..23 SS.1.23_OC": false,
+    "BXTO5P3_BXTO53SINCE.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53SEC..23 SS.2.23_OC": true,
+    "BXTO5P3_BXTO53TR317 SA.2_OC": true,
+    "BXTO5P3_BXTO53TR635 SA.2_OC": true,
+    "BXTO5P3_BXTO53HAM.1 SA.2_OC": true,
+    "BXTO5P3_BXTO53TERGN.1 SA.2_OC": true,
+    "BXTO5P3_BXTO53HAM.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53SINCE.2 SA.2_OC": true,
+    "BXTO5P3_BXTO53LAON.1 SA.2_OC": true,
+    "BXTO5P3_BXTO53HAM.2 SA.2_OC": true,
+    "BXTO5P3_BXTO53TR316 SA.1_OC": true,
+    "BXTO5P3_BXTO53TR635 SA.1_OC": false,
+    "BXTO5P3_BXTO53TERGN.2 SA.2_OC": true,
+    "BXTO5P3_BXTO53SEC..12 SS.2.12_OC": true,
+    "BXTO5P3_BXTO53TERGN.1 DJ_OC": true,
+    "BXTO5P3_BXTO53SINCE.2 DJ_OC": false,
+    "BXTO5P3_BXTO53TERGN.2 DJ_OC": true,
+    "BXTO5P3_BXTO53TR317 DJ.HT_OC": true,
+    "BXTO5P3_BXTO53HAM.1 DJ_OC": true,
+    "BXTO5P3_BXTO53TR631 DJ_OC": false,
+    "BXTO5P3_BXTO53SINCE.1 DJ_OC": false,
+    "BXTO5P3_BXTO53LAON.1 DJ_OC": false,
+    "BXTO5P3_BXTO53ZMAR7.1 DJ_OC": false,
+    "BXTO5P3_BXTO53TR638 DJ_OC": true,
+    "BXTO5P3_BXTO53MANO5.1 DJ_OC": false,
+    "BXTO5P3_BXTO53TR635 DJ_OC": false,
+    "BXTO5P3_BXTO53SOISS.1 DJ_OC": false,
+    "BXTO5P3_BXTO53HAM.2 DJ_OC": false,
+    "BXTO5P3_BXTO53COUPL.1 DJ_OC": false,
+    "BXTO5P3_BXTO53COUPL.2 DJ_OC": false,
+    "BXTO5P3_BXTO53TR316 DJ.HT_OC": false,
+    "BXTO5P3_BXTO5P3-N1_DJ_F": false,
+    "BXTO5P3_BXTO5P3-BXTO53Y316_DJ_F": false,
+    "BXTO5P3_BXTO5P3-N2_DJ_F": false,
+    "BXTO5P3_BXTO5P3-BXTO53Y317_DJ_F": false,
+    "BXTO5P3_Disj BXTO5INF": true,
+    "BXTO5P3_Disj BXTO5ING": false
+  },
+  "cible": {
+    "BXTO5P3_BXTO53SOISS.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53LAON.1 SA.1_OC": false,
+    "BXTO5P3_BXTO53TR317 SA.1_OC": true,
+    "BXTO5P3_BXTO53SINCE.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53TR631 SA.2_OC": false,
+    "BXTO5P3_BXTO53COUPL.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53ZMAR7.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53TERGN.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53TR638 SA.2_OC": true,
+    "BXTO5P3_BXTO53COUPL.2 SA.2_OC": false,
+    "BXTO5P3_BXTO53COUPL.2 SA.1_OC": false,
+    "BXTO5P3_BXTO53TR638 SA.1_OC": true,
+    "BXTO5P3_BXTO53SINCE.2 SA.1_OC": true,
+    "BXTO5P3_BXTO53ZMAR7.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53COUPL.1 SA.1_OC": false,
+    "BXTO5P3_BXTO53TERGN.2 SA.1_OC": true,
+    "BXTO5P3_BXTO53SEC..12 SS.1.12_OC": false,
+    "BXTO5P3_BXTO53TR631 SA.1_OC": true,
+    "BXTO5P3_BXTO53HAM.2 SA.1_OC": false,
+    "BXTO5P3_BXTO53SOISS.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53MANO5.1 SA.2_OC": true,
+    "BXTO5P3_BXTO53TR316 SA.2_OC": false,
+    "BXTO5P3_BXTO53MANO5.1 SA.1_OC": false,
+    "BXTO5P3_BXTO53SEC..23 SS.1.23_OC": false,
+    "BXTO5P3_BXTO53SINCE.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53SEC..23 SS.2.23_OC": false,
+    "BXTO5P3_BXTO53TR317 SA.2_OC": false,
+    "BXTO5P3_BXTO53TR635 SA.2_OC": true,
+    "BXTO5P3_BXTO53HAM.1 SA.2_OC": false,
+    "BXTO5P3_BXTO53TERGN.1 SA.2_OC": true,
+    "BXTO5P3_BXTO53HAM.1 SA.1_OC": true,
+    "BXTO5P3_BXTO53SINCE.2 SA.2_OC": false,
+    "BXTO5P3_BXTO53LAON.1 SA.2_OC": true,
+    "BXTO5P3_BXTO53HAM.2 SA.2_OC": true,
+    "BXTO5P3_BXTO53TR316 SA.1_OC": true,
+    "BXTO5P3_BXTO53TR635 SA.1_OC": false,
+    "BXTO5P3_BXTO53TERGN.2 SA.2_OC": true,
+    "BXTO5P3_BXTO53SEC..12 SS.2.12_OC": true,
+    "BXTO5P3_BXTO53TERGN.1 DJ_OC": true,
+    "BXTO5P3_BXTO53SINCE.2 DJ_OC": false,
+    "BXTO5P3_BXTO53TERGN.2 DJ_OC": true,
+    "BXTO5P3_BXTO53TR317 DJ.HT_OC": false,
+    "BXTO5P3_BXTO53HAM.1 DJ_OC": true,
+    "BXTO5P3_BXTO53TR631 DJ_OC": false,
+    "BXTO5P3_BXTO53SINCE.1 DJ_OC": false,
+    "BXTO5P3_BXTO53LAON.1 DJ_OC": false,
+    "BXTO5P3_BXTO53ZMAR7.1 DJ_OC": false,
+    "BXTO5P3_BXTO53TR638 DJ_OC": true,
+    "BXTO5P3_BXTO53MANO5.1 DJ_OC": false,
+    "BXTO5P3_BXTO53TR635 DJ_OC": false,
+    "BXTO5P3_BXTO53SOISS.1 DJ_OC": false,
+    "BXTO5P3_BXTO53HAM.2 DJ_OC": false,
+    "BXTO5P3_BXTO53COUPL.1 DJ_OC": true,
+    "BXTO5P3_BXTO53COUPL.2 DJ_OC": false,
+    "BXTO5P3_BXTO53TR316 DJ.HT_OC": false,
+    "BXTO5P3_BXTO5P3-N1_DJ_F": false,
+    "BXTO5P3_BXTO5P3-BXTO53Y316_DJ_F": false,
+    "BXTO5P3_BXTO5P3-N2_DJ_F": false,
+    "BXTO5P3_BXTO5P3-BXTO53Y317_DJ_F": false,
+    "BXTO5P3_Disj BXTO5INF": true,
+    "BXTO5P3_Disj BXTO5ING": false
+  },
+  "depart_nodale": [
+    [
+      "BXTO53Y316",
+      "BXTO5IN1",
+      "BXTO5L31LAON",
+      "BXTO5L31MANO5",
+      "BXTO5L31SINCE",
+      "BXTO5L31SOISS",
+      "BXTO5L31ZMAR7",
+      "BXTO5L32HAM",
+      "BXTO5L32SINCE",
+      "BXTO5Y631",
+      "BXTO5Y635"
+    ],
+    [
+      "BXTO53Y317",
+      "BXTO5IN2",
+      "BXTO5ING"
+    ],
+    [
+      "BXTO5INF"
+    ],
+    [
+      "BXTO5L31HAM"
+    ],
+    [
+      "BXTO5L31TERGN"
+    ],
+    [
+      "BXTO5L32TERGN"
+    ],
+    [
+      "BXTO5Y638"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "BXTO53Y316",
+      "BXTO5IN1",
+      "BXTO5L31SINCE"
+    ],
+    [
+      "BXTO53Y317",
+      "BXTO5IN2",
+      "BXTO5ING",
+      "BXTO5L31LAON",
+      "BXTO5L31MANO5",
+      "BXTO5L31SOISS",
+      "BXTO5L31ZMAR7",
+      "BXTO5L32HAM",
+      "BXTO5L32SINCE",
+      "BXTO5Y631",
+      "BXTO5Y635"
+    ],
+    [
+      "BXTO5INF"
+    ],
+    [
+      "BXTO5L31HAM"
+    ],
+    [
+      "BXTO5L31TERGN"
+    ],
+    [
+      "BXTO5L32TERGN"
+    ],
+    [
+      "BXTO5Y638"
+    ]
+  ]
+}
