@@ -111,6 +111,24 @@ ces tests garantissent l'invariance du comportement :
 - `test_couplers_memoisation.py` — invariance a l'etat des couplers, purete,
   non-mutation de `poste.graph` par le pipeline.
 
+### Filets pre-eclatement d'`algo.py` (#7)
+
+Poses avant de scinder `algo.py` en sous-modules (un refactor structurel
+**deplace** des symboles) ; couverture du module ~92 % :
+
+- `test_public_api.py` — **verrou de surface publique** : chaque symbole de
+  `__all__` reste importable depuis le package *et* depuis son sous-module
+  d'origine (meme objet), entrypoints appelables, alias prive du verificateur
+  conserve. Un oubli de reexport casse la CI immediatement.
+- `test_multibarres_placement.py` — caracterisation du chemin **> 2 jeux de
+  barres** (CORNIP3/GUARBP6/MORBRP6, 4 barres), non couvert par les goldens :
+  `determiner_topo_complete_cible` (cible identite + cible scindee),
+  `_main_busbar_sjb`, degradation gracieuse (`noeuds_non_realisables`), rendu
+  `resume()`, non-mutation du graphe, organes emis existants.
+- `test_algo_entrypoint_guards.py` — garde-fous de faisabilite
+  (`determiner_topo_complete_cible`) : graphe absent, departs cibles absents.
+- `test_graph_helpers.py` — `graph._safe_get` (repli `all_attributes`, erreurs).
+
 ## Performance & invariants internes
 
 Plusieurs chemins chauds sont **memoises** ; toute modification doit preserver
