@@ -49,6 +49,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 import sys
 
 # Rendre le package importable quand lancé depuis la racine du dépôt
@@ -164,7 +165,6 @@ def _normalize_groups(all_branches, groups) -> list[list[str]]:
 def _decode_svg_id(s: str) -> str:
     """Décode un identifiant SVG pypowsybl (``_46_`` → ``.``, ``_95_`` → ``_``,
     ``_45_`` → ``-``…). Fonction pure."""
-    import re
     return re.sub(r"_(\d+)_", lambda m: chr(int(m.group(1))), s)
 
 
@@ -180,7 +180,6 @@ def _parse_feeder_meta(svg: str) -> dict:
       (bas) ; ``_NW_LABEL`` (barres) est exclu.
 
     Fonction pure (testable sans pypowsybl)."""
-    import re
     groups = re.findall(
         r'<g class="[^"]*sld-(top|bottom)-feeder[^"]*" id="(id[^"]+?)"'
         r'[^>]*transform="translate\(([0-9.]+),[0-9.]+\)"', svg)
@@ -200,7 +199,6 @@ def _parse_node_colors(svg: str) -> dict:
     élément (clé = id décodé sans le préfixe ``id``), via la palette
     ``.sld-vlXtoY.sld-bus-N {--sld-vl-color: #hex}`` et les classes
     ``sld-vl… sld-bus-N`` portées par les éléments. Fonction pure."""
-    import re
     palette = {}
     for vlc, busc, hexc in re.findall(
             r"\.(sld-vl\w+)\.(sld-bus-\d+)\s*\{\s*--sld-vl-color:\s*"
@@ -667,7 +665,6 @@ class Session:
         }
 
     def save_scenario(self, name: str) -> str:
-        import re
         name = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or self.vl
         data = {
             "voltage_level_id": self.vl,
@@ -765,7 +762,6 @@ class Session:
         éditée est sérialisée telle quelle ; on recalcule seulement l'état nodal
         final atteint et la concordance avec la cible.
         """
-        import re
         if not self.seq_states:   # aucune séquence calculée : on en calcule une
             self.sequence()
         info = self._seq_payload()
@@ -811,7 +807,6 @@ def _prefix_svg_ids(svg: str, pfx: str) -> str:
     Appliqué au schéma « départ » (non interactif) ; le schéma « cible » garde
     ses ids d'origine (cohérents avec le mapping switch → svgId).
     """
-    import re
     svg = re.sub(r'id="([^"]+)"', lambda m: f'id="{pfx}{m.group(1)}"', svg)
     svg = re.sub(r'url\(#([^)]+)\)', lambda m: f'url(#{pfx}{m.group(1)})', svg)
     svg = re.sub(r'(xlink:href|href)="#([^"]+)"',
@@ -894,7 +889,6 @@ def api_scenarios():
 
 
 def _safe_name(name, default):
-    import re
     return re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or default
 
 

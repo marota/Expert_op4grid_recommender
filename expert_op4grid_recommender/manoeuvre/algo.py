@@ -69,7 +69,9 @@ Limites connues (documentées, cf. doc C++) :
 
 from __future__ import annotations
 
+import itertools
 import logging
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
@@ -84,6 +86,22 @@ from .topologie import (
 from .troncons import Troncon
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Paramètres de la recherche de placement (phases 2.2-2.4)
+# ---------------------------------------------------------------------------
+# Poids du coût d'une affectation nœud -> SJB. Un **ré-aiguillage** (déplacer un
+# départ d'une barre à l'autre, manœuvre lourde) est plus cher qu'une simple
+# manœuvre de **coupler** ; **ouvrir un sectionnement** (organe hors charge,
+# dé-énergisation préalable) est pénalisé plus qu'ouvrir un couplage (DJ).
+POIDS_REAIGUILLAGE = 5
+POIDS_MANOEUVRE_COUPLER = 1
+POIDS_OUVERTURE_SECTIONNEMENT = 4
+
+# Garde-fous combinatoires : au-delà, on bascule sur une heuristique (placement
+# best-effort borné, puis glouton) plutôt que d'énumérer toutes les affectations.
+MAX_COMBINAISONS_PLACEMENT = 500_000        # affectation complète (~k^nb_SJB)
+MAX_COMBINAISONS_BEST_EFFORT = 2_000_000    # placement partiel (~(k+1)^nb_SJB)
 
 
 # ---------------------------------------------------------------------------
@@ -495,7 +513,6 @@ def _organes_internes_2bornes(poste: PosteTopologique) -> set[str]:
     bornes (typiquement une self/réactance dont les deux côtés sont câblés chacun
     sur une barre) apparaît dans deux cellules de départ. Ces organes sont laissés
     en place (ni ré-aiguillés ni signalés en écart)."""
-    from collections import Counter
     occ: Counter = Counter()
     for c in poste.cellules.cellules_depart:
         for eq in {c.equipment_id} | set(c.shared_equipment_ids):
@@ -953,7 +970,6 @@ def _assignations_connexes(sjb_nodes, k, est_connexe):
 
     ``est_connexe(frozenset[int]) -> bool`` : prédicat de connexité (mémoïsé).
     """
-    import itertools
     n = len(sjb_nodes)
     pos = {s: i for i, s in enumerate(sjb_nodes)}
 
@@ -1013,8 +1029,6 @@ def _placement_automatique(
     -------
     (placement, faisable, message, noeuds_non_places)
     """
-    import itertools
-
     G = poste.graph
     barre_par = poste.tronconnement.barre_par_busbar
     sjb_nodes = sorted(barre_par)
@@ -1114,7 +1128,7 @@ def _placement_automatique(
     # Recherche exhaustive d'une affectation **complète** (tous les nœuds placés),
     # uniquement si elle est possible (k ≤ nb SJB) et tient dans le garde-fou.
     best = None  # (cost, assign tuple)
-    if k <= len(sjb_nodes) and k ** len(sjb_nodes) <= 500_000:
+    if k <= len(sjb_nodes) and k ** len(sjb_nodes) <= MAX_COMBINAISONS_PLACEMENT:
         for assign in _assignations_connexes(sjb_nodes, k, _groupe_connexe):
             node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
             for j, ni in enumerate(assign):
@@ -1150,7 +1164,9 @@ def _placement_automatique(
                     cpl += 1
                     if cp.is_sectionnement:
                         sect += 1
-            cost = 5 * reaig + cpl + 4 * sect
+            cost = (POIDS_REAIGUILLAGE * reaig
+                    + POIDS_MANOEUVRE_COUPLER * cpl
+                    + POIDS_OUVERTURE_SECTIONNEMENT * sect)
             # Tie-break **lex-min** sur ``assign`` : reproduit exactement le choix
             # de l'ancienne énumération ``itertools.product`` (premier min-coût en
             # ordre lexicographique). La sortie est donc strictement identique,
@@ -1249,8 +1265,6 @@ def _diagnostic_infaisabilite(
     2. *Organe interne à 2 bornes* (self/réactance ``LINE_SIDE1``+``LINE_SIDE2``)
        présent sur plusieurs nœuds alors qu'il n'atteint qu'une seule section.
     """
-    from collections import Counter
-
     def _names(sset) -> str:
         return "{" + ", ".join(str(sjb_id.get(s, s)) for s in sorted(sset)) + "}"
 
@@ -1305,15 +1319,13 @@ def _placement_best_effort(
         ``placement`` = ``[(departs, sjb_ids)]`` des nœuds réalisés ;
         ``noeuds_non_places`` = liste des départs des nœuds non réalisés.
     """
-    import itertools
-
     k = len(nodes)
     n_sjb = len(sjb_nodes)
     if k == 0:
         return [], []
 
     # Garde-fou : chaque SJB → un nœud OU « inutilisée » (k+1 choix par SJB).
-    if (k + 1) ** n_sjb > 2_000_000:
+    if (k + 1) ** n_sjb > MAX_COMBINAISONS_BEST_EFFORT:
         return _placement_greedy(nodes, R, sjb_nodes, sjb_id)
 
     # Connexité d'un groupe de SJB : **mémoïsée** (cf. ``_placement_automatique``).
@@ -1666,7 +1678,6 @@ def determiner_manoeuvres_avec_sections(
             groupe_sjb[s] = gid
 
     # Référence = groupe portant le plus de départs cibles (le « tronc »)
-    from collections import Counter
     poids = Counter(groupe_sjb[s] for s in target_sjb.values() if s in groupe_sjb)
     ref_group = poids.most_common(1)[0][0] if poids else None
     ref_sjbs = {s for s, g in groupe_sjb.items() if g == ref_group}
