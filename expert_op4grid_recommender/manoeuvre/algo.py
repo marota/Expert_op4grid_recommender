@@ -943,6 +943,61 @@ def _ecarts_detailles(
 # (ré-aiguillages + manœuvres de couplers, sectionnements pénalisés).
 # ---------------------------------------------------------------------------
 
+def _assignations_connexes(sjb_nodes, k, est_connexe):
+    """Génère les affectations SJB->nœud (tuples de longueur n) où **chaque nœud
+    reçoit un groupe de SJB connexe non vide**, couvrant toutes les SJB.
+
+    Équivalent **en ensemble** à ``itertools.product(range(k), repeat=n)`` filtré
+    sur « tous les nœuds non vides et connexes », mais généré **par construction**
+    (partitions en k blocs connexes × bijections bloc->nœud) plutôt qu'en filtrant
+    k^n affectations. Le coût minimal exploré est donc identique ; seul l'ordre
+    d'énumération (et donc le tie-breaking en cas d'égalité) diffère.
+
+    ``est_connexe(frozenset[int]) -> bool`` : prédicat de connexité (mémoïsé).
+    """
+    import itertools
+    n = len(sjb_nodes)
+    pos = {s: i for i, s in enumerate(sjb_nodes)}
+
+    # Sous-ensembles connexes non vides, groupés par leur plus petite SJB (indice).
+    connexes_par_ancre: dict[int, list[frozenset]] = {}
+    for r in range(1, n + 1):
+        for combo in itertools.combinations(sjb_nodes, r):
+            fs = frozenset(combo)
+            if est_connexe(fs):
+                ancre = min(pos[s] for s in fs)
+                connexes_par_ancre.setdefault(ancre, []).append(fs)
+
+    # Partitions en exactement k blocs connexes, ancrées sur la plus petite SJB
+    # non couverte -> chaque partition (non ordonnée) générée une seule fois.
+    partitions: list[list[frozenset]] = []
+
+    def _rec(remaining: frozenset, blocks: list):
+        if not remaining:
+            if len(blocks) == k:
+                partitions.append(blocks)
+            return
+        if len(blocks) >= k:
+            return
+        ancre = min(pos[s] for s in remaining)
+        for block in connexes_par_ancre.get(ancre, ()):
+            if (block <= remaining
+                    and len(remaining) - len(block) >= (k - len(blocks) - 1)):
+                _rec(remaining - block, blocks + [block])
+
+    _rec(frozenset(sjb_nodes), [])
+
+    # Affectation des blocs aux nœuds : toutes les bijections (nœuds distinguables
+    # — départs distincts, donc coûts distincts selon le nœud porteur du bloc).
+    for blocks in partitions:
+        for perm in itertools.permutations(range(k)):
+            assign = [0] * n
+            for block, node in zip(blocks, perm):
+                for s in block:
+                    assign[pos[s]] = node
+            yield tuple(assign)
+
+
 def _placement_automatique(
     poste: PosteTopologique,
     topo_cible: TopologieNodale,
@@ -1062,7 +1117,7 @@ def _placement_automatique(
     # uniquement si elle est possible (k ≤ nb SJB) et tient dans le garde-fou.
     best = None  # (cost, assign tuple)
     if k <= len(sjb_nodes) and k ** len(sjb_nodes) <= 500_000:
-        for assign in itertools.product(range(k), repeat=len(sjb_nodes)):
+        for assign in _assignations_connexes(sjb_nodes, k, _groupe_connexe):
             node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
             for j, ni in enumerate(assign):
                 node_sjbs[ni].add(sjb_nodes[j])
@@ -1098,7 +1153,12 @@ def _placement_automatique(
                     if cp.is_sectionnement:
                         sect += 1
             cost = 5 * reaig + cpl + 4 * sect
-            if best is None or cost < best[0]:
+            # Tie-break **lex-min** sur ``assign`` : reproduit exactement le choix
+            # de l'ancienne énumération ``itertools.product`` (premier min-coût en
+            # ordre lexicographique). La sortie est donc strictement identique,
+            # quel que soit l'ordre d'énumération des partitions connexes.
+            if (best is None or cost < best[0]
+                    or (cost == best[0] and assign < best[1])):
                 best = (cost, assign)
 
     full_placement = None
