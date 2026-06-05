@@ -161,7 +161,23 @@ A/B sur fixtures (moyenne sur N analyses, `networkx` réel) :
   successifs n'entraînent plus de reconstruction de graphe ni de recalcul de
   flux.
 
+### Architecture — #7 : éclatement d'`algo.py`
+
+L'ancien module « god » `algo.py` (~2 450 lignes, 45 symboles, 4 points d'entrée)
+est éclaté en un **package `algo/` en couches** à dépendances strictement
+descendantes (sans cycle) : `_constants`/`results` → `graph_ops` →
+`placement`/`verification` → `sequencing` → `targets`. Le package
+**réexporte intégralement** la surface de l'ancien module (publics *et* privés,
+ré‑exports explicites `X as X`), si bien que `manoeuvre.algo.X` et
+`from …algo import X` restent **inchangés** pour les 23 sites d'import.
+
+Méthode (iso‑comportement) : chaque symbole a été **déplacé verbatim** (corps
+identiques, vérifiés par comparaison d'AST symbole‑par‑symbole) ; aucun golden
+ni test n'a changé (646 tests verts, couverture ~92 % inchangée). Filets posés
+en amont : `test_public_api.py` (verrou de surface) + caractérisation
+multi‑barres (cf. ci‑dessus).
+
 ### Items de la revue encore ouverts
 
-Éclatement d'`algo.py` en sous‑modules ; externalisation du front‑end de l'IHM ;
-élargissement du gate `ruff` au dépôt entier.
+Externalisation du front‑end de l'IHM ; élargissement du gate `ruff` au dépôt
+entier.

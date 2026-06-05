@@ -17,8 +17,26 @@ de couplage.
 | `cellules.py`  | Etape 1.2 : `detecter_cellules()` — BFS structurel + connectivite electrique |
 | `troncons.py`  | Etapes 1.3-1.4 : `construire_tronconnement()` — barres, troncons, attribution |
 | `topologie.py` | Etapes 1.5-1.6 : `TopologieNodale`, `PosteTopologique`, `attribuer_noeuds()` |
-| `algo.py`      | Phase 2 : `determiner_topo_complete_cible()` — sequence de manoeuvres |
+| `algo/`        | Phase 2 : `determiner_topo_complete_cible()` — package en couches (voir ci-dessous) |
 | `__init__.py`  | API publique                                     |
+
+### Package `algo/` (Phase 2, eclate depuis l'ancien `algo.py`)
+
+Sous-modules en couches, **dependances strictement descendantes** (sans cycle) :
+
+| Sous-module          | Role                                                       |
+|----------------------|------------------------------------------------------------|
+| `algo/_constants.py` | Poids de placement et garde-fous combinatoires             |
+| `algo/results.py`    | `Manoeuvre`, `ResultatManoeuvres` (structures de sortie)   |
+| `algo/graph_ops.py`  | Helpers bas niveau : index O(1), `_is_open`/`_set_switch`, chemins SA, `_inter_sjb_couplers` |
+| `algo/placement.py`  | Placement noeud → sections (`_placement_automatique`, best-effort, glouton, `_main_busbar_sjb`) |
+| `algo/verification.py`| Regle du sectionneur (`_rejeu_securite`, `sectionneurs_sous_charge_par_manoeuvre`), `_optimiser_sequence` |
+| `algo/sequencing.py` | Sequenceur general (`determiner_manoeuvres_avec_sections`), re-aiguillages |
+| `algo/targets.py`    | Points d'entree : `determiner_topo_complete_cible`, `determiner_manoeuvres_cible_detaillee`, modes smooth/aggressive/multi-barres |
+| `algo/__init__.py`   | **Reexporte toute la surface** de l'ancien module (publics + prives) : `manoeuvre.algo.X` et `from ...algo import X` restent inchanges |
+
+Couches : `_constants`/`results` → `graph_ops` → `placement`/`verification` →
+`sequencing` → `targets`.
 
 ## Commandes
 
@@ -187,10 +205,12 @@ deduite en priorite du **nommage RTE** (entier de tete apres `VL_id_`, ex.
 ## Dependances internes
 
 ```
-models.py  <--  graph.py  <--  cellules.py
-                  ^                |
-                  |                |
-              __init__.py  (reexporte tout)
+models.py  <--  graph.py  <--  cellules.py  <--  troncons.py  <--  topologie.py
+                                                                       ^
+                                                                       |
+   algo/  (results <- graph_ops <- placement/verification <- sequencing <- targets)
+                                                                       |
+                                                  __init__.py  (reexporte tout)
 ```
 
 Les seules dependances externes du module sont `pypowsybl`, `networkx`,
