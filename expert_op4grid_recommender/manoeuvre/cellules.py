@@ -49,8 +49,8 @@ from typing import Optional
 
 import networkx as nx
 
-from .models import NodeType, EquipmentType, SwitchKind, EdgeAttrs, NodeAttrs
-from .graph import get_node_attrs, get_edge_attrs, busbar_nodes, equipment_nodes
+from .models import EquipmentType, SwitchKind
+from .graph import get_node_attrs, busbar_nodes, equipment_nodes
 
 logger = logging.getLogger(__name__)
 

@@ -127,7 +127,20 @@ A/B sur fixtures (moyenne sur N analyses, `networkx` réel) :
   `_placement_automatique` (intrinsèque) ; la franchir demanderait un placement
   non exhaustif (heuristique/branch‑and‑bound), qui **pourrait** changer la
   sortie — non entrepris pour préserver l'iso‑comportement.
-- Items de la revue non traités (hors périmètre de cette campagne) : éclatement
-  d'`algo.py` en sous‑modules, externalisation du front‑end de l'IHM,
-  gestionnaire de contexte `applied(state)` côté IHM, câblage `ruff`/`radon`
-  dans la CI.
+
+### Qualité — également traité
+
+- **#9 — constantes nommées + imports remontés** (`algo.py`, `manoeuvre_ihm.py`) :
+  poids de coût et garde‑fous combinatoires extraits en constantes documentées ;
+  `itertools`/`Counter`/`re` remontés en tête de module.
+- **#10 — qualité en CI** : job `quality` (CircleCI) — `ruff` (lint, **bloquant**),
+  `interrogate` (docstrings ≥ 80 %, **bloquant**), `radon` (complexité,
+  indicatif). **Scopé au module `manoeuvre`** (maintenu propre) ; configuration
+  dans `pyproject.toml` (`[tool.ruff]`, `[tool.interrogate]`). Le reste du dépôt
+  (~300 violations `ruff`) reste à résorber avant d'élargir le périmètre.
+
+### Items de la revue encore ouverts
+
+Éclatement d'`algo.py` en sous‑modules ; externalisation du front‑end de l'IHM ;
+gestionnaire de contexte `applied(state)` côté IHM ; load flow paresseux + cache
+graphe dans l'IHM ; élargissement du gate `ruff` au dépôt entier.

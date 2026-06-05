@@ -83,7 +83,6 @@ from .topologie import (
     TopologieNodale,
     PosteTopologique,
 )
-from .troncons import Troncon
 
 logger = logging.getLogger(__name__)
 
@@ -1668,7 +1667,6 @@ def determiner_manoeuvres_avec_sections(
     # --- groupes SJB finaux (couplers gardés fermés) -----------------------
     sjb_graph = nx.Graph()
     sjb_graph.add_nodes_from(poste.tronconnement.barre_par_busbar)
-    open_ids = {sid for cp in to_open for sid in cp.switch_ids}
     for cp in couplers:
         if cp not in to_open:
             sjb_graph.add_edge(cp.sjb_a, cp.sjb_b)
@@ -1782,12 +1780,14 @@ def determiner_manoeuvres_avec_sections(
         for cp in list(restants):
             if cp.breaker_ids:                       # DJ -> couplage sûr
                 _fermer_coupler(cp, "fermeture couplage de barres")
-                restants.remove(cp); changed = True
+                restants.remove(cp)
+                changed = True
             elif (_equipotentiel(cp.sjb_a, cp.sjb_b)
                   or not _departs_cables(cp.sjb_a)
                   or not _departs_cables(cp.sjb_b)):  # sectionneur sûr
                 _fermer_coupler(cp, "fermeture sectionnement (barres équipotentielles)")
-                restants.remove(cp); changed = True
+                restants.remove(cp)
+                changed = True
 
     # Sectionneurs encore non sûrs : dé-énergiser le côté « stub » (moins de
     # départs) en ré-aiguillant ses départs vers une SJB du même nœud déjà

@@ -58,3 +58,24 @@ exclude = ["tests*", "venv*", "alphaDeesp*"]
 Homepage = "https://github.com/marota/Expert_op4grid_recommender"
 Repository = "https://github.com/marota/Expert_op4grid_recommender"
 Issues = "https://github.com/marota/Expert_op4grid_recommender/issues"
+
+# ---------------------------------------------------------------------------
+# Outils qualité (extra "quality"). Câblés en CI sur le module manoeuvre
+# (cf. .circleci/config.yml). Le reste du dépôt n'est pas encore couvert :
+# dette technique a resorber progressivement.
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+# Jeu de règles ruff par défaut (E4/E7/E9 + pyflakes F) : haute valeur, faible
+# bruit (imports/variables inutilisés, noms indéfinis, statements douteux...).
+
+[tool.interrogate]
+# Couverture des docstrings. Les fonctions imbriquées (closures), __init__ et
+# méthodes magiques ne sont pas exigées ; les fonctions privées de premier
+# niveau, si.
+fail-under = 80
+ignore-init-method = true
+ignore-magic = true
+ignore-nested-functions = true
