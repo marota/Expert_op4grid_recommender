@@ -476,8 +476,7 @@ def _sequence_detaillee_aggressive(
     res.topo_obtenue = TopologieNodale.from_graph(G, vl)
     res.is_verified = res.topo_cible.meme_topologie(res.topo_obtenue)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
-                  + _verifier_securite_sectionneurs(poste, manoeuvres)
-                  + _verifier_sectionneurs_hors_charge(poste, manoeuvres))
+                  + _verifier_regles(poste, manoeuvres, un_seul=False))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if not res.is_verified:
         res.message = (
@@ -679,9 +678,7 @@ def _sequence_detaillee_multibarres(
     res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
     res.is_changed = bool(res.manoeuvres)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
-                  + _verifier_securite_sectionneurs(poste, res.manoeuvres)
-                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres)
-                  + _verifier_sectionneurs_hors_charge(poste, res.manoeuvres))
+                  + _verifier_regles(poste, res.manoeuvres, un_seul=True))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if res.is_verified_detaillee:
         res.message = ("Topologie détaillée cible atteinte et vérifiée "
@@ -853,9 +850,7 @@ def determiner_manoeuvres_cible_detaillee(
     res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
     res.is_changed = bool(res.manoeuvres)
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
-                  + _verifier_securite_sectionneurs(poste, res.manoeuvres)
-                  + _verifier_un_seul_hors_tension(poste, res.manoeuvres)
-                  + _verifier_sectionneurs_hors_charge(poste, res.manoeuvres))
+                  + _verifier_regles(poste, res.manoeuvres, un_seul=True))
     res.is_verified_detaillee = res.is_verified and not res.ecarts
     if degradation:
         # Dégradation gracieuse (option 4) : cible partiellement atteinte.
@@ -1852,8 +1847,7 @@ def determiner_manoeuvres_avec_sections(
     res.is_changed = bool(manoeuvres)
     # Sûreté des sectionneurs : signaler toute ouverture restée sous tension
     # (sectionnements de barre) ou tout sectionneur manœuvré sous charge.
-    res.ecarts += _verifier_securite_sectionneurs(poste, manoeuvres)
-    res.ecarts += _verifier_sectionneurs_hors_charge(poste, manoeuvres)
+    res.ecarts += _verifier_regles(poste, manoeuvres, un_seul=False)
     res.message = (
         "Topologie cible atteinte et vérifiée."
         if res.is_verified
@@ -1916,83 +1910,131 @@ def _ouvrages_energises_sur(
     return out
 
 
-def _verifier_securite_sectionneurs(
+def _rejeu_securite(
     poste: PosteTopologique, manoeuvres: list[Manoeuvre]
-) -> list[str]:
-    """Rejoue la séquence depuis l'état initial et vérifie la **règle du
-    sectionneur** : à chaque ouverture d'un sectionnement de barre, au moins un
-    côté doit être hors tension (ou les deux côtés rester reliés par un chemin
-    parallèle). Retourne la liste des écarts (sectionneurs ouverts sous tension)."""
-    sect_ids: dict[str, tuple[int, int]] = {}
-    for cp in _inter_sjb_couplers(poste):
-        if cp.is_sectionnement:
-            for sid in cp.switch_ids:
-                sect_ids[sid] = (cp.sjb_a, cp.sjb_b)
-    if not sect_ids:
-        return []
+) -> tuple[list[str], list[Optional[str]], list[str]]:
+    """**Passe de rejeu unique** des règles du sectionneur (au lieu de trois
+    rejeux séparés). Rejoue la séquence une seule fois depuis l'état initial et
+    calcule en parallèle les trois diagnostics, en partageant le graphe « live »
+    construit au plus une fois par étape.
 
+    Returns
+    -------
+    (securite, sous_charge_par_man, un_seul)
+        - ``securite`` : sectionnements de barre ouverts **sous tension** (deux
+          côtés énergisés) — règle stricte du sectionneur de barre ;
+        - ``sous_charge_par_man`` : liste **alignée** sur ``manoeuvres`` ; message
+          d'infraction si la manœuvre ouvre un sectionneur (DISCONNECTOR) sous
+          charge, sinon ``None`` ;
+        - ``un_seul`` : moments où **plus d'un** ouvrage est hors tension par
+          ré-aiguillage (boucle longue) simultanément (R10ter, mode smooth).
+    """
+    couplers = _inter_sjb_couplers(poste)
     cells = poste.cellules
     all_sjb = set(poste.tronconnement.barre_par_busbar)
+
+    # Sectionnements de barre : sid -> (SJB a, SJB b) (règle stricte).
+    sect_pairs: dict[str, tuple[int, int]] = {}
+    for cp in couplers:
+        if cp.is_sectionnement:
+            for sid in cp.switch_ids:
+                sect_pairs[sid] = (cp.sjb_a, cp.sjb_b)
+    sect_id_set = set(sect_pairs)
+
+    # Tous les sectionneurs (DISCONNECTOR) : sid -> arête (« sous charge »).
+    disc: dict[str, tuple[int, int]] = {}
+    for u, v, d in poste.graph.edges(data=True):
+        sid = d.get("switch_id")
+        if sid and d.get("kind") == SwitchKind.DISCONNECTOR:
+            disc[sid] = (u, v)
+    equip = {n for n, d in poste.graph.nodes(data=True) if d.get("equipment_id")}
+
+    # DJ de départ (hors couplage) : sid -> équipement (« un seul HS »).
+    coupling_sids = {s for cp in couplers for s in cp.switch_ids}
+    dj_eq: dict[str, str] = {}
+    for c in cells.cellules_depart:
+        for b in c.breakers:
+            if b.switch_id not in coupling_sids:
+                dj_eq[b.switch_id] = c.equipment_id
+
+    securite: list[str] = []
+    sous_charge: list[Optional[str]] = []
+    un_seul: list[str] = []
+    temp_parking: set[str] = set()
+
     G = poste.graph.copy()
-    ecarts: list[str] = []
     for m in manoeuvres:
-        if (m.action == "OPEN" and m.switch_id in sect_ids
-                and not _is_open(G, m.switch_id)):
-            a, b = sect_ids[m.switch_id]
+        opening = (m.action == "OPEN" and not _is_open(G, m.switch_id))
+        H = None  # graphe « live » privé du switch, construit au plus une fois
+
+        # --- sectionneur sous charge (tout DISCONNECTOR), aligné sur la séquence
+        msg: Optional[str] = None
+        if opening and m.switch_id in disc:
             H = _live_graph_sans(G, [m.switch_id])
-            relies = a in H and b in H and nx.has_path(H, a, b)
-            if not relies:
+            u, v = disc[m.switch_id]
+            if not (u in H and v in H and nx.has_path(H, u, v)):
+                cu = nx.node_connected_component(H, u) if u in H else {u}
+                cv = nx.node_connected_component(H, v) if v in H else {v}
+                if (cu & equip) and (cv & equip):
+                    if m.switch_id in sect_id_set:
+                        msg = ("sectionneur de barre manœuvré sous charge — mettre "
+                               "la section de barre hors tension (ré-aiguiller ses "
+                               "départs sur l'autre section) avant d'ouvrir ce "
+                               "sectionnement")
+                    else:
+                        msg = ("sectionneur manœuvré sous charge — dé-énergiser la "
+                               "branche par son disjoncteur avant d'ouvrir ce "
+                               "sectionneur")
+        sous_charge.append(msg)
+
+        # --- sectionnement de barre ouvert sous tension (règle stricte) --------
+        if opening and m.switch_id in sect_pairs:
+            if H is None:
+                H = _live_graph_sans(G, [m.switch_id])
+            a, b = sect_pairs[m.switch_id]
+            if not (a in H and b in H and nx.has_path(H, a, b)):
                 side_a = (nx.node_connected_component(H, a)
                           if a in H else {a}) & all_sjb
                 side_b = (nx.node_connected_component(H, b)
                           if b in H else {b}) & all_sjb
                 if (_ouvrages_energises_sur(G, cells, side_a, H)
                         and _ouvrages_energises_sur(G, cells, side_b, H)):
-                    ecarts.append(
+                    securite.append(
                         f"sectionneur {m.switch_id} ouvert sous tension "
                         "(deux côtés énergisés)")
+
+        # --- un seul ouvrage hors tension par ré-aiguillage (boucle longue) ----
+        eq = dj_eq.get(m.switch_id)
+        if eq is not None:
+            longue = (m.type_boucle == "LONGUE"
+                      or "boucle longue" in (m.raison or ""))
+            if m.action == "OPEN" and longue:
+                temp_parking.add(eq)
+            elif m.action == "CLOSE":
+                temp_parking.discard(eq)
+            if len(temp_parking) > 1:
+                un_seul.append(
+                    "plus d'un ouvrage hors tension simultanément (ré-aiguillage) : "
+                    + ", ".join(sorted(temp_parking)))
+
         _set_switch(G, m.switch_id, m.action == "OPEN")
-    return ecarts
+
+    return securite, sous_charge, list(dict.fromkeys(un_seul))
+
+
+def _verifier_securite_sectionneurs(
+    poste: PosteTopologique, manoeuvres: list[Manoeuvre]
+) -> list[str]:
+    """Sectionnements de barre ouverts sous tension (cf. ``_rejeu_securite``)."""
+    return _rejeu_securite(poste, manoeuvres)[0]
 
 
 def _verifier_un_seul_hors_tension(
     poste: PosteTopologique, manoeuvres: list[Manoeuvre]
 ) -> list[str]:
-    """Règle R10ter (mode smooth) : on ne déconnecte **temporairement** pas plus
-    d'**un** ouvrage à la fois par **ré-aiguillage (boucle longue)**. Les
-    dé-énergisations **en place** (« avant ouverture sectionneur », sans tampon)
-    sont l'**exception** tolérée et ne sont pas comptées.
-
-    Rejoue la séquence : un départ est « temporairement hors tension par
-    parking » entre une ouverture de son DJ en **boucle longue** et la
-    refermeture correspondante. On signale tout moment où **deux** tels ouvrages
-    le sont simultanément (chevauchement de ré-aiguillages)."""
-    cells = poste.cellules
-    coupling_sids = {s for cp in _inter_sjb_couplers(poste) for s in cp.switch_ids}
-    dj_eq: dict[str, str] = {}
-    for c in cells.cellules_depart:
-        for b in c.breakers:
-            if b.switch_id not in coupling_sids:
-                dj_eq[b.switch_id] = c.equipment_id
-    if not dj_eq:
-        return []
-
-    temp_parking: set[str] = set()   # ouvrages hors tension via boucle longue
-    ecarts: list[str] = []
-    for m in manoeuvres:
-        eq = dj_eq.get(m.switch_id)
-        if eq is None:
-            continue
-        longue = (m.type_boucle == "LONGUE" or "boucle longue" in (m.raison or ""))
-        if m.action == "OPEN" and longue:
-            temp_parking.add(eq)
-        elif m.action == "CLOSE":
-            temp_parking.discard(eq)
-        if len(temp_parking) > 1:
-            ecarts.append(
-                "plus d'un ouvrage hors tension simultanément (ré-aiguillage) : "
-                + ", ".join(sorted(temp_parking)))
-    return list(dict.fromkeys(ecarts))
+    """Règle R10ter : pas plus d'**un** ouvrage hors tension par ré-aiguillage
+    (boucle longue) simultanément (cf. ``_rejeu_securite``)."""
+    return _rejeu_securite(poste, manoeuvres)[2]
 
 
 def _sectionneurs_sous_charge_par_manoeuvre(
@@ -2008,43 +2050,29 @@ def _sectionneurs_sous_charge_par_manoeuvre(
     Un sectionneur ne se manœuvre que hors charge : la parade est de dé-énergiser
     la branche par son **disjoncteur** avant d'ouvrir le sectionneur.
     """
-    disc: dict[str, tuple[int, int]] = {}
-    for u, v, d in poste.graph.edges(data=True):
-        sid = d.get("switch_id")
-        if sid and d.get("kind") == SwitchKind.DISCONNECTOR:
-            disc[sid] = (u, v)
-    # Sectionnements de barre (sectionneurs SA reliant deux SJB) : le message de
-    # parade diffère d'un sélecteur de barre de départ (on dé-énergise une
-    # **section de barre**, pas une branche par son disjoncteur).
-    sect_ids: set[str] = set()
-    for cp in _inter_sjb_couplers(poste):
-        if cp.is_sectionnement:
-            sect_ids.update(cp.switch_ids)
-    equip = {n for n, d in poste.graph.nodes(data=True) if d.get("equipment_id")}
-    G = poste.graph.copy()
-    out: list[Optional[str]] = []
-    for m in manoeuvres:
-        msg: Optional[str] = None
-        if (m.action == "OPEN" and m.switch_id in disc
-                and not _is_open(G, m.switch_id)):
-            u, v = disc[m.switch_id]
-            H = _live_graph_sans(G, [m.switch_id])
-            relies = u in H and v in H and nx.has_path(H, u, v)
-            if not relies:
-                cu = nx.node_connected_component(H, u) if u in H else {u}
-                cv = nx.node_connected_component(H, v) if v in H else {v}
-                if (cu & equip) and (cv & equip):
-                    if m.switch_id in sect_ids:
-                        msg = ("sectionneur de barre manœuvré sous charge — mettre "
-                               "la section de barre hors tension (ré-aiguiller ses "
-                               "départs sur l'autre section) avant d'ouvrir ce "
-                               "sectionnement")
-                    else:
-                        msg = ("sectionneur manœuvré sous charge — dé-énergiser la "
-                               "branche par son disjoncteur avant d'ouvrir ce "
-                               "sectionneur")
-        out.append(msg)
-        _set_switch(G, m.switch_id, m.action == "OPEN")
+    return _rejeu_securite(poste, manoeuvres)[1]
+
+
+def _verifier_regles(
+    poste: PosteTopologique,
+    manoeuvres: list[Manoeuvre],
+    un_seul: bool = True,
+) -> list[str]:
+    """Agrège, en **une seule passe de rejeu** (``_rejeu_securite``), les écarts
+    des règles du sectionneur dans l'ordre historique : sécurité des
+    sectionnements, [un seul ouvrage hors tension,] sectionneurs hors charge.
+
+    ``un_seul`` : inclure la règle R10ter (modes smooth / multi-barres) ; les
+    orchestrations « batch » (agressif, séquenceur à sections) l'omettent.
+    """
+    securite, sous_charge, un = _rejeu_securite(poste, manoeuvres)
+    hors_charge = list(dict.fromkeys(
+        f"{m.switch_id} : {msg}"
+        for m, msg in zip(manoeuvres, sous_charge) if msg))
+    out = list(securite)
+    if un_seul:
+        out += un
+    out += hors_charge
     return out
 
 
