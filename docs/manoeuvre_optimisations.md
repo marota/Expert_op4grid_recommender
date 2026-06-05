@@ -139,8 +139,29 @@ A/B sur fixtures (moyenne sur N analyses, `networkx` réel) :
   dans `pyproject.toml` (`[tool.ruff]`, `[tool.interrogate]`). Le reste du dépôt
   (~300 violations `ruff`) reste à résorber avant d'élargir le périmètre.
 
+### Qualité IHM — également traité
+
+- **#4 — vérificateur de règle public** : le contrôle « sectionneur sous charge,
+  manœuvre par manœuvre » est désormais exposé sous
+  `manoeuvre.sectionneurs_sous_charge_par_manoeuvre` (réexporté par `__init__`).
+  L'IHM ne franchit plus la frontière privée (`_sectionneurs_sous_charge_…`,
+  conservé comme alias de compatibilité pour les tests). Les clients (IHM,
+  notebooks) valident une séquence éditée à la main sans symbole privé.
+- **#5 — gestionnaire de contexte `applied(state)`** (`Session.applied`) :
+  applique temporairement un état détaillé au réseau puis **restaure l'état
+  d'affichage courant en sortie, même sur exception**. Remplace les paires
+  `apply(state)` … `apply(self.current)  # restaurer` disséminées (sources
+  d'oublis et de fuites d'état entre requêtes).
+- **#6 — load flow paresseux + cache graphe** (`Session._graph` / `_topo` /
+  `_flows`) : le graphe NX, la topologie nodale et le **load flow** d'un VL ne
+  dépendent que du VL et de l'état des organes (injections constantes dans
+  l'IHM) ; ils sont **mémoïsés par état** et invalidés au chargement d'un poste
+  (`load()`). Le load flow n'est exécuté qu'à la demande (vue nodale détaillée)
+  et **une seule fois par état** — la navigation pas‑à‑pas et les re‑rendus
+  successifs n'entraînent plus de reconstruction de graphe ni de recalcul de
+  flux.
+
 ### Items de la revue encore ouverts
 
 Éclatement d'`algo.py` en sous‑modules ; externalisation du front‑end de l'IHM ;
-gestionnaire de contexte `applied(state)` côté IHM ; load flow paresseux + cache
-graphe dans l'IHM ; élargissement du gate `ruff` au dépôt entier.
+élargissement du gate `ruff` au dépôt entier.

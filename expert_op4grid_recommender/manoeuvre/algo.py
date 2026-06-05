@@ -2137,7 +2137,7 @@ def _verifier_un_seul_hors_tension(
     return _rejeu_securite(poste, manoeuvres)[2]
 
 
-def _sectionneurs_sous_charge_par_manoeuvre(
+def sectionneurs_sous_charge_par_manoeuvre(
     poste: PosteTopologique, manoeuvres: list[Manoeuvre]
 ) -> list[Optional[str]]:
     """Analyse, **manœuvre par manœuvre**, la règle du sectionneur (hors charge).
@@ -2149,8 +2149,17 @@ def _sectionneurs_sous_charge_par_manoeuvre(
 
     Un sectionneur ne se manœuvre que hors charge : la parade est de dé-énergiser
     la branche par son **disjoncteur** avant d'ouvrir le sectionneur.
+
+    Point d'entrée **public** : c'est le vérificateur de règle exposé aux clients
+    du module (IHM, notebooks) qui souhaitent valider une séquence éditée à la
+    main sans réimporter de symbole privé.
     """
     return _rejeu_securite(poste, manoeuvres)[1]
+
+
+# Alias privé historique : conservé pour les imports/tests antérieurs à la
+# publication du vérificateur (cf. ``__all__``).
+_sectionneurs_sous_charge_par_manoeuvre = sectionneurs_sous_charge_par_manoeuvre
 
 
 def _verifier_regles(
@@ -2180,10 +2189,10 @@ def _verifier_sectionneurs_hors_charge(
     poste: PosteTopologique, manoeuvres: list[Manoeuvre]
 ) -> list[str]:
     """Règle générale du sectionneur : un **sectionneur** (DISCONNECTOR) ne se
-    manœuvre que **hors charge** (cf. ``_sectionneurs_sous_charge_par_manoeuvre``).
+    manœuvre que **hors charge** (cf. ``sectionneurs_sous_charge_par_manoeuvre``).
     Retourne les écarts agrégés (sectionneurs manœuvrés sous charge), pour
     **tous** les sectionneurs (sélecteurs de barre comme sectionnements)."""
-    par_man = _sectionneurs_sous_charge_par_manoeuvre(poste, manoeuvres)
+    par_man = sectionneurs_sous_charge_par_manoeuvre(poste, manoeuvres)
     ecarts = [f"{m.switch_id} : {msg}"
               for m, msg in zip(manoeuvres, par_man) if msg]
     return list(dict.fromkeys(ecarts))

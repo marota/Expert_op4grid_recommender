@@ -51,6 +51,7 @@ import json
 import pathlib
 import re
 import sys
+from contextlib import contextmanager
 
 # Rendre le package importable quand lancé depuis la racine du dépôt
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
@@ -77,7 +78,7 @@ from expert_op4grid_recommender.manoeuvre.algo import (
     Manoeuvre,
     determiner_topo_complete_cible,
     determiner_manoeuvres_cible_detaillee,
-    _sectionneurs_sous_charge_par_manoeuvre,
+    sectionneurs_sous_charge_par_manoeuvre,
 )
 
 # Postes de test retenus (intersectés avec les VL réellement présents)
@@ -260,6 +261,13 @@ class Session:
         self.seq_labels: list[str] = []
         self.seq_edited: bool = False
         self.seq_mode: str = "smooth"
+        # Caches mémoïsés par état détaillé (cf. _graph / _topo / _flows).
+        # Le graphe NX, la topologie nodale et le résultat de load flow d'un VL
+        # ne dépendent que du VL et de l'état des organes — purs vis-à-vis de
+        # l'état appliqué. Invalidés au chargement d'un poste (load()).
+        self._graph_cache: dict = {}
+        self._topo_cache: dict = {}
+        self._flow_cache: dict = {}
 
     # --- gestion d'état ---------------------------------------------------
     def switches_df(self, vl):
@@ -268,6 +276,11 @@ class Session:
 
     def load(self, vl):
         self.vl = vl
+        # Nouveau poste : l'univers d'organes change → les caches mémoïsés par
+        # état (graphe / topo / flux) ne sont plus valides.
+        self._graph_cache.clear()
+        self._topo_cache.clear()
+        self._flow_cache.clear()
         df = self.switches_df(vl)
         # Départ = état pristine du poste (et non un état résiduel de session)
         self.initial = {sid: self.pristine[sid] for sid in df.index}
@@ -290,6 +303,62 @@ class Session:
         if state:
             ids = list(state.keys())
             self.net.update_switches(id=ids, open=[state[i] for i in ids])
+
+    @contextmanager
+    def applied(self, state: dict[str, bool]):
+        """Applique temporairement l'état détaillé ``state`` au réseau, puis
+        **restaure l'état d'affichage courant** (``self.current``) en sortie —
+        y compris si le corps lève. Remplace les paires ``apply(state)`` …
+        ``apply(self.current)  # restaurer`` disséminées (sources d'oublis et de
+        fuites d'état entre requêtes). Les lectures dépendantes de l'état appliqué
+        (SLD, load flow) doivent se faire **dans** le bloc."""
+        self.apply(state)
+        try:
+            yield
+        finally:
+            self.apply(self.current)
+
+    # --- caches mémoïsés par état (graphe / topo / load flow) -------------
+    def _state_key(self, state: dict[str, bool]):
+        """Clé de cache d'un état détaillé : (VL, organes figés). Le VL borne la
+        clé pour éviter toute collision si deux postes partagent un id d'organe."""
+        return (self.vl, frozenset(state.items()))
+
+    def _graph(self, state: dict[str, bool]) -> nx.Graph:
+        """Graphe NX du VL pour ``state``, **mémoïsé** par (VL, état). Le graphe
+        ne dépend que du VL et de l'état des organes ; on évite ainsi de
+        reconstruire le graphe pypowsybl→NX à chaque vue. **Suppose le réseau
+        déjà appliqué** à ``state`` (en cas de défaut de cache, ``build_vl_graph``
+        lit l'état appliqué)."""
+        key = self._state_key(state)
+        G = self._graph_cache.get(key)
+        if G is None:
+            G = build_vl_graph(self.net, self.vl)
+            self._graph_cache[key] = G
+        return G
+
+    def _topo(self, state: dict[str, bool]) -> TopologieNodale:
+        """TopologieNodale du VL pour ``state``, **mémoïsée** (sur le graphe
+        mémoïsé). Suppose le réseau déjà appliqué à ``state``."""
+        key = self._state_key(state)
+        topo = self._topo_cache.get(key)
+        if topo is None:
+            topo = TopologieNodale.from_graph(self._graph(state), self.vl)
+            self._topo_cache[key] = topo
+        return topo
+
+    def _flows(self, state: dict[str, bool],
+               types: dict[str, str | None]) -> dict[str, float]:
+        """Flux actifs (MW) par branche pour ``state``, **load flow paresseux** :
+        exécuté **et mémoïsé** par état (le load flow ne dépend que de la
+        topologie, les injections étant constantes dans l'IHM). Suppose le réseau
+        déjà appliqué à ``state``."""
+        key = self._state_key(state)
+        flows = self._flow_cache.get(key)
+        if flows is None:
+            flows = self._branch_flows(types)
+            self._flow_cache[key] = flows
+        return flows
 
     # --- rendu ------------------------------------------------------------
     def _switches_meta(self, meta, state):
@@ -319,7 +388,7 @@ class Session:
         svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
         meta = json.loads(svg.metadata)
         switches = self._switches_meta(meta, state)
-        nb = TopologieNodale.from_graph(build_vl_graph(self.net, self.vl), self.vl).nb_noeuds
+        nb = self._topo(state).nb_noeuds
         return svg.svg, switches, nb
 
     def svgid_par_switch(self):
@@ -341,17 +410,13 @@ class Session:
             return "", [], 0, 0, False
         i = max(0, min(i, len(self.seq_states) - 1))
         state = self.seq_states[i]
-        self.apply(state)
-        svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
-        meta = json.loads(svg.metadata)
-        switches = self._switches_meta(meta, state)
-        topo_i = TopologieNodale.from_graph(
-            build_vl_graph(self.net, self.vl), self.vl)
-        nb = topo_i.nb_noeuds
-        self.apply(self.current)
-        topo_c = TopologieNodale.from_graph(
-            build_vl_graph(self.net, self.vl), self.vl)
-        reached = topo_c.meme_topologie(topo_i)
+        with self.applied(state):
+            svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
+            meta = json.loads(svg.metadata)
+            switches = self._switches_meta(meta, state)
+            nb = self._topo(state).nb_noeuds
+        # ``applied`` a restauré le réseau sur ``self.current``.
+        reached = self._topo(self.current).meme_topologie(self._topo(state))
         return _highlight(svg.svg, self.seq_highlights[i]), switches, nb, i, reached
 
     # --- séquence éditable (navigation + édition par l'expert) ------------
@@ -372,28 +437,22 @@ class Session:
         manuelle invalide."""
         if not self.seq_manoeuvres or not self.vl:
             return [None] * len(self.seq_manoeuvres)
-        self.apply(self.initial)
-        poste = PosteTopologique.from_graph(
-            build_vl_graph(self.net, self.vl), self.vl)
-        manos = [Manoeuvre(m["switch_id"], m["action"], m.get("raison", ""))
-                 for m in self.seq_manoeuvres]
-        viol = _sectionneurs_sous_charge_par_manoeuvre(poste, manos)
-        self.apply(self.current)  # restaurer l'affichage courant
+        with self.applied(self.initial):
+            poste = PosteTopologique.from_graph(self._graph(self.initial), self.vl)
+            manos = [Manoeuvre(m["switch_id"], m["action"], m.get("raison", ""))
+                     for m in self.seq_manoeuvres]
+            viol = sectionneurs_sous_charge_par_manoeuvre(poste, manos)
         return viol
 
     def _seq_payload(self) -> dict:
         """Charge utile commune (séquence + état final) renvoyée au front."""
         nb_final, matches = None, None
         if self.seq_states:
-            self.apply(self.seq_states[-1])
-            topo_f = TopologieNodale.from_graph(
-                build_vl_graph(self.net, self.vl), self.vl)
-            nb_final = topo_f.nb_noeuds
-            self.apply(self.current)
-            topo_c = TopologieNodale.from_graph(
-                build_vl_graph(self.net, self.vl), self.vl)
-            matches = topo_c.meme_topologie(topo_f)
-        self.apply(self.current)  # restaurer l'affichage courant
+            with self.applied(self.seq_states[-1]):
+                topo_f = self._topo(self.seq_states[-1])
+                nb_final = topo_f.nb_noeuds
+            # ``applied`` a restauré le réseau sur ``self.current``.
+            matches = self._topo(self.current).meme_topologie(topo_f)
         return {
             "manoeuvres": [dict(m) for m in self.seq_manoeuvres],
             "nb_manoeuvres": len(self.seq_manoeuvres),
@@ -444,7 +503,7 @@ class Session:
     def groups_of(self, state):
         """Partition nodale (liste de groupes de départs) pour un état donné."""
         self.apply(state)
-        topo = TopologieNodale.from_graph(build_vl_graph(self.net, self.vl), self.vl)
+        topo = self._topo(state)
         return [sorted(n.equipment_ids) for n in topo.noeuds.values()]
 
     # --- topologie nodale (édition de la cible nodale d'intérêt) -----------
@@ -564,44 +623,43 @@ class Session:
         - ``order``  : abscisse SLD (ordre gauche → droite) ;
         - ``colors`` : couleur SLD du nœud électrique de la branche (topological) ;
         - ``isolated``: départs déconnectés (présentés en liste, non comme nœuds)."""
-        self.apply(state)
-        G = build_vl_graph(self.net, self.vl)
-        topo = TopologieNodale.from_graph(G, self.vl)
-        fmeta = self._sld_feeder_meta()
-        ncolors = self._sld_node_colors()
+        with self.applied(state):
+            G = self._graph(state)
+            topo = self._topo(state)
+            fmeta = self._sld_feeder_meta()
+            ncolors = self._sld_node_colors()
 
-        def _resolve(eq: str):
-            if eq in fmeta:
-                return fmeta[eq]
-            for core, m in fmeta.items():   # repli : id + suffixe de côté (_TWO…)
-                if core == eq or core.startswith(eq + "_"):
-                    return m
-            return None
+            def _resolve(eq: str):
+                if eq in fmeta:
+                    return fmeta[eq]
+                for core, m in fmeta.items():   # repli : id + suffixe de côté (_TWO…)
+                    if core == eq or core.startswith(eq + "_"):
+                        return m
+                return None
 
-        def _color(eq: str):
-            if eq in ncolors:
-                return ncolors[eq]
-            for core, c in ncolors.items():   # id interne de ligne contient l'eq
-                if eq in core:
-                    return c
-            return None
+            def _color(eq: str):
+                if eq in ncolors:
+                    return ncolors[eq]
+                for core, c in ncolors.items():   # id interne de ligne contient l'eq
+                    if eq in core:
+                        return c
+                return None
 
-        groups, labels, types, dirs, order, colors = [], {}, {}, {}, {}, {}
-        for noeud in topo.noeuds.values():
-            grp = sorted(noeud.equipment_ids)
-            groups.append(grp)
-            for dep in noeud.departs:
-                eq = dep.equipment_id
-                m = _resolve(eq)
-                labels[eq] = (m["label"] if m and m["label"]
-                              else self._short_name(eq))
-                dirs[eq] = m["dir"] if m else "BOTTOM"
-                order[eq] = m["x"] if m else 0.0
-                types[eq] = dep.equipment_type.name if dep.equipment_type else None
-                colors[eq] = _color(eq)
-        isolated = self._branch_isolated(G)
-        flows = self._branch_flows(types)
-        self.apply(self.current)  # restaurer l'affichage courant
+            groups, labels, types, dirs, order, colors = [], {}, {}, {}, {}, {}
+            for noeud in topo.noeuds.values():
+                grp = sorted(noeud.equipment_ids)
+                groups.append(grp)
+                for dep in noeud.departs:
+                    eq = dep.equipment_id
+                    m = _resolve(eq)
+                    labels[eq] = (m["label"] if m and m["label"]
+                                  else self._short_name(eq))
+                    dirs[eq] = m["dir"] if m else "BOTTOM"
+                    order[eq] = m["x"] if m else 0.0
+                    types[eq] = dep.equipment_type.name if dep.equipment_type else None
+                    colors[eq] = _color(eq)
+            isolated = self._branch_isolated(G)
+            flows = self._flows(state, types)
         return {"groups": groups, "labels": labels, "types": types,
                 "flows": flows, "dirs": dirs, "order": order, "colors": colors,
                 "isolated": isolated}
@@ -611,14 +669,12 @@ class Session:
         (partition + couleurs SLD topologiques + ouvrages déconnectés), **sans**
         recalcul de flux. Sert à resynchroniser le volet nodal cible lorsque la
         topologie **détaillée** est éditée (bascule d'organes) ou recalculée."""
-        self.apply(state)
-        G = build_vl_graph(self.net, self.vl)
-        topo = TopologieNodale.from_graph(G, self.vl)
-        groups = [sorted(n.equipment_ids) for n in topo.noeuds.values()]
-        isolated = self._branch_isolated(G)
-        self.apply(state)
-        colors = self._branch_colors([eq for g in groups for eq in g])
-        self.apply(self.current)   # restaurer l'affichage courant
+        with self.applied(state):
+            G = self._graph(state)
+            topo = self._topo(state)
+            groups = [sorted(n.equipment_ids) for n in topo.noeuds.values()]
+            isolated = self._branch_isolated(G)
+            colors = self._branch_colors([eq for g in groups for eq in g])
         return {"groups": groups, "colors": colors, "isolated": isolated}
 
     def nodale_to_detaillee(self, groups, isolated=None) -> dict:
@@ -633,7 +689,7 @@ class Session:
         (dégradation gracieuse de l'algorithme remontée à l'IHM)."""
         # Poste à l'état de départ.
         self.apply(self.initial)
-        poste = PosteTopologique.from_graph(build_vl_graph(self.net, self.vl), self.vl)
+        poste = PosteTopologique.from_graph(self._graph(self.initial), self.vl)
 
         iso = set(isolated or [])
         univers = [eq for grp in self.groups_of(self.initial)
@@ -713,11 +769,11 @@ class Session:
     def sequence(self, mode: str = "smooth"):
         # Poste à l'état de départ (A)
         self.apply(self.initial)
-        poste = PosteTopologique.from_graph(build_vl_graph(self.net, self.vl), self.vl)
+        poste = PosteTopologique.from_graph(self._graph(self.initial), self.vl)
         # Topologie détaillée cible (B) imposée : on vise la barre exacte de
         # chaque départ, pas seulement la partition nodale.
         self.apply(self.current)
-        cible_graph = build_vl_graph(self.net, self.vl)
+        cible_graph = self._graph(self.current)
 
         mode = "aggressive" if mode == "aggressive" else "smooth"
         self.seq_mode = mode
