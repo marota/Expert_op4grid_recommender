@@ -21,3 +21,9 @@ dist/
 # Virtual environments
 venv/
 .venv/
+
+# Coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
