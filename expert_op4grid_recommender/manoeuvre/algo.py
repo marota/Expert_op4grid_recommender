@@ -1395,7 +1395,17 @@ def _inter_sjb_couplers(poste: PosteTopologique) -> list[_InterSjbCoupler]:
     """
     Recense les liaisons inter-SJB (sectionnements et couplages) d'un poste,
     en contractant les nœuds intermédiaires du sous-graphe de couplage.
+
+    **Mémoïsé sur le poste** (auparavant recalculé ~10×/analyse). Le résultat ne
+    dépend que de la **topologie** (graphe + tronçonnement), pas de l'état
+    ouvert/fermé des organes — propriété vérifiée par
+    ``tests/manoeuvre/test_couplers_memoisation.py``. Le poste n'étant jamais
+    muté structurellement, le cache reste valide toute sa durée de vie.
     """
+    cached = getattr(poste, "_inter_sjb_couplers_cache", None)
+    if cached is not None:
+        return cached
+
     G = poste.graph
     bb_nodes = set(poste.tronconnement.barre_par_busbar)
 
@@ -1437,6 +1447,8 @@ def _inter_sjb_couplers(poste: PosteTopologique) -> list[_InterSjbCoupler]:
                     couplers.append(_InterSjbCoupler(a, b, sw_ids, brk_ids))
                 # Retirer les arêtes du chemin pour révéler un couplage parallèle.
                 H.remove_edges_from(edges)
+
+    poste._inter_sjb_couplers_cache = couplers
     return couplers
 
 
