@@ -1468,7 +1468,10 @@ def determiner_manoeuvres_avec_sections(
         sjb_set = {sjb_node_par_id[s] for s in sjb_ids if s in sjb_node_par_id}
         for s in sjb_set:
             node_de_sjb[s] = idx
-        for eq in departs:
+        # ``departs`` est un ensemble : on l'itère **trié** pour que l'ordre
+        # d'insertion dans ``target_sjb`` (donc l'ordre des manœuvres qui en
+        # découlent) soit reproductible d'un process à l'autre (PYTHONHASHSEED).
+        for eq in sorted(departs):
             if organes_fixes and eq in organes_fixes:
                 continue  # organe interne à 2 bornes : laissé en place
             cell = cells.get_cellule_depart(eq)
@@ -1585,7 +1588,9 @@ def determiner_manoeuvres_avec_sections(
         return a in Hc and b in Hc and nx.has_path(Hc, a, b)
 
     def _departs_cables(s: int) -> list[str]:
-        return [eq for eq in target_sjb if s in _wired_sjbs(G, cells, eq)]
+        # Tri explicite : la séquence de dé-énergisation ne doit pas dépendre de
+        # l'ordre d'itération de ``target_sjb`` (cf. construction triée ci-dessus).
+        return sorted(eq for eq in target_sjb if s in _wired_sjbs(G, cells, eq))
 
     def parking_sjb(eq: str, target: int) -> Optional[int]:
         """SJB **tampon** où garer temporairement le départ pendant l'ouverture
