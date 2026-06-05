@@ -238,12 +238,10 @@ def _wired_busbar(cell: CelluleDepart, graph: nx.Graph) -> Optional[int]:
 
 
 def _edges_of_switches(graph: nx.Graph, switch_ids):
-    out = []
-    sset = set(switch_ids)
-    for u, v, d in graph.edges(data=True):
-        if d.get("switch_id") in sset:
-            out.append((u, v))
-    return out
+    """Arêtes (u, v) des switches donnés, via l'index O(1) (un id inconnu est
+    simplement omis — même sémantique que l'ancien scan linéaire)."""
+    idx = _switch_edge_index(graph)
+    return [idx[sid] for sid in switch_ids if sid in idx]
 
 
 def _departure_dj_changes(
@@ -1397,30 +1395,34 @@ def _placement_greedy(
 def _switch_edge_index(G: nx.Graph) -> dict[str, tuple[int, int]]:
     """Index ``switch_id -> (u, v)`` mémoïsé sur le graphe (``G.graph``).
 
-    Construit en une passe au premier accès, puis réutilisé en O(1) — il
+    Construit en une passe au premier accès, puis réutilisé en **O(1)** — il
     remplace les anciens scans linéaires de ``_is_open`` / ``_set_switch``.
 
     Validité : la coordonnée ``(u, v)`` d'un switch est **topologique**, donc
     stable tant que la structure du graphe ne change pas. Le séquenceur ne fait
     que basculer l'attribut ``open`` (jamais ajouter/retirer d'arête), et
     ``G.copy()`` préserve nœuds et arêtes : l'index reste valide sur les graphes
-    dérivés (copies de travail, ``cible_graph`` du même réseau). Le nombre
-    d'arêtes sert de garde-fou : toute modification structurelle force une
-    reconstruction.
+    dérivés (copies de travail, ``cible_graph`` du même réseau).
+
+    Garde-fou **O(1)** : le nombre de *nœuds* (``len(G)``, immédiat) sert de
+    canari. ``number_of_edges()`` serait O(arêtes) (somme des degrés) et, appelé
+    à chaque lookup, annulerait le bénéfice de l'index. Dans ce module la
+    structure (nœuds **et** arêtes) est figée après construction ; une variation
+    du nombre de nœuds (sous-graphe, vue) force la reconstruction.
     """
     cache = G.graph.get("_switch_edge_index")
-    if cache is None or cache[0] != G.number_of_edges():
+    if cache is None or cache[0] != G.number_of_nodes():
         mapping = {d["switch_id"]: (u, v)
                    for u, v, d in G.edges(data=True)
                    if d.get("switch_id") is not None}
-        cache = (G.number_of_edges(), mapping)
+        cache = (G.number_of_nodes(), mapping)
         G.graph["_switch_edge_index"] = cache
     return cache[1]
 
 
 def _equipment_node_index(G: nx.Graph) -> dict[str, int]:
     """Index ``equipment_id -> node`` mémoïsé sur le graphe (cf.
-    ``_switch_edge_index`` ; garde-fou sur le nombre de nœuds)."""
+    ``_switch_edge_index`` ; garde-fou O(1) sur le nombre de nœuds)."""
     cache = G.graph.get("_equipment_node_index")
     if cache is None or cache[0] != G.number_of_nodes():
         mapping = {d["equipment_id"]: n
