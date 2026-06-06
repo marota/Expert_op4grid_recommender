@@ -92,7 +92,13 @@
 </style></head><body>
 <div id="side">
   <h2>Poste</h2>
-  <select id="poste"></select>
+  <select id="poste" title="Postes épinglés (jeu de test + 3 jeux de barres identifiés)"></select>
+  <div style="margin-top:6px">
+    <input id="posteSearch" list="allPostes" placeholder="🔎 rechercher un poste (tous)…"
+           style="width:100%;padding:6px" autocomplete="off"
+           title="Inspecter n'importe quel poste NODE_BREAKER de la situation chargée">
+    <datalist id="allPostes"></datalist>
+  </div>
   <div style="margin-top:6px"><button onclick="reset()">↺ État de départ</button></div>
 
   <h2>1 · Valider la cible</h2>
@@ -197,8 +203,16 @@ function setValidated(v){document.getElementById('bcalc').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
 async function init(){const r=await (await fetch('/api/postes')).json();const sel=document.getElementById('poste');
   r.postes.forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
+  // Recherche « tous postes » : datalist de tous les VL NODE_BREAKER de la situation.
+  const dl=document.getElementById('allPostes');const all=r.all||r.postes;
+  all.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
+  const search=document.getElementById('posteSearch');const allSet=new Set(all);
+  const go=()=>{const v=search.value.trim();if(v&&allSet.has(v))load(v);};
+  search.onchange=go;search.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
   sel.onchange=()=>load(sel.value); initNodalResize(); initNodalDnD(); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
 async function load(vl){stopAnim();const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
+  document.getElementById('poste').value=vl;            // sync menu épinglé (vide si non listé)
+  document.getElementById('posteSearch').value=vl;      // sync champ de recherche
   document.getElementById('scenName').value=vl+'_cible';}
 async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
   syncNodalCible(d.nodale);hideSeq();setValidated(false);}

@@ -86,6 +86,9 @@ POSTES_TEST = [
     "CARRIP3", "CARRIP6", "CZTRYP6", "COMPIP3", "BXTO5P3", "BXTO5P6",
     "CZBEVP3", "PALUNP3", "NOVIOP3", "SSAVOP3", "VIELMP6",
     "CORNIP3", "GUARBP6", "MORBRP6",
+    # Postes 400 kV à **3 jeux de barres** identifiés (réseau France 28/08/2024),
+    # gérés par le placement N-barres + le réalisateur connectivité-based.
+    "SSV.OP7", "TAVELP7", "TRI.PP7", "ARGOEP7", "CHESNP7", "COR.PP7", "CERGYP7",
 ]
 
 SLD_PAR = ppn.SldParameters(topological_coloring=True)
@@ -245,7 +248,19 @@ class Session:
     def __init__(self, network):
         self.net = network
         self.vls = set(network.get_voltage_levels().index)
+        # Postes « épinglés » (jeu de test + 3 JdB identifiés) présents dans le réseau.
         self.postes = [p for p in POSTES_TEST if p in self.vls]
+        # **Tous** les postes inspectables = voltage levels en topologie
+        # NODE_BREAKER (ceux qui possèdent des sections de jeux de barres). Permet
+        # d'inspecter / tester n'importe quel poste de la situation chargée, pas
+        # seulement la liste épinglée. Trié, postes épinglés en tête.
+        try:
+            bbs = network.get_busbar_sections(all_attributes=True)
+            nb_vls = set(bbs["voltage_level_id"]) if "voltage_level_id" in bbs else set()
+        except Exception:
+            nb_vls = set()
+        autres = sorted(nb_vls - set(self.postes))
+        self.all_postes = self.postes + autres
         # État pristine des organes (référence stable pour « état de départ »,
         # indépendant des modifications appliquées en cours de session).
         df = network.get_switches(all_attributes=True)
@@ -885,7 +900,9 @@ def index():
 
 @app.get("/api/postes")
 def api_postes():
-    return jsonify(postes=SESSION.postes)
+    # ``postes`` : liste épinglée (jeu de test + 3 JdB). ``all`` : tous les postes
+    # NODE_BREAKER de la situation chargée (recherche dans l'IHM).
+    return jsonify(postes=SESSION.postes, all=SESSION.all_postes)
 
 
 @app.post("/api/load")
