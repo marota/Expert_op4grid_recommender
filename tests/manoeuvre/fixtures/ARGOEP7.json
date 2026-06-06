@@ -1,0 +1,612 @@
+{
+  "voltage_level_id": "ARGOEP7",
+  "substation_id": "ARGOE",
+  "nominal_v": 400.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "ARGOEP7_ARGOE7SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TR741 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7CHEVA.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TR741 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 20,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIMEU.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TR742 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7CHEVA.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIAIS SA.11_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TR741 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIMEU.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIAIS SA.21_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7PENL5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7FRUGE.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7SEC..12 SS.3.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7AT763 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7CHEVA.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7AT763 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7MANDA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7FRUGE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 30,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7CHEVA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIAIS SA.31_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COUPL.1 SA.21_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COUPL.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 33,
+      "node2": 4,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7PENL5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIAIS SA.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 34,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COND.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7PENL5.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 22,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIAIS SA.32_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 34,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COND.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7CHEVA.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COND.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIMEU.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIAIS SA.22_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 34,
+      "node2": 3,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7MANDA.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7FRUGE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 30,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7AT761 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7CHEVA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7AT761 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7AT763 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.3 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.3 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7MANDA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.3 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TR742 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COUPL.1 SA.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 33,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7AT761 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TR742 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.3 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 37,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7CHEVA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 13,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7CHEVA.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7FRUGE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 33,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIAIS DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7MANDA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7LIMEU.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TR742 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7PENL5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 17,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7COND.1 DJ.MCOMP_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 6,
+      "open": true
+    },
+    {
+      "id": "ARGOEP7_ARGOE7AT763 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TR741 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7TERRI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "ARGOEP7_ARGOE7AT761 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 9,
+      "open": true
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "ARGOEP7_1.1",
+      "node": 0
+    },
+    {
+      "id": "ARGOEP7_1.2",
+      "node": 1
+    },
+    {
+      "id": "ARGOEP7_2.1",
+      "node": 2
+    },
+    {
+      "id": "ARGOEP7_2.2",
+      "node": 3
+    },
+    {
+      "id": "ARGOEP7_3.1",
+      "node": 4
+    },
+    {
+      "id": "ARGOEP7_3.2",
+      "node": 5
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "ARGOE7COND.1",
+      "type": "SHUNT_COMPENSATOR",
+      "node": 6
+    },
+    {
+      "id": "ARGOEL71CHEVA",
+      "type": "LINE_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "ARGOEL71FRUGE",
+      "type": "LINE_SIDE1",
+      "node": 18
+    },
+    {
+      "id": "ARGOEL71LIMEU",
+      "type": "LINE_SIDE1",
+      "node": 19
+    },
+    {
+      "id": "ARGOEL71MANDA",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "ARGOEL71PENL5",
+      "type": "LINE_SIDE1",
+      "node": 17
+    },
+    {
+      "id": "ARGOEL71TERRI",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "ARGOEL72CHEVA",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": "ARGOEL72TERRI",
+      "type": "LINE_SIDE1",
+      "node": 14
+    },
+    {
+      "id": "ARGOEL73TERRI",
+      "type": "LINE_SIDE1",
+      "node": 11
+    },
+    {
+      "id": "ARGOEY741",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 7
+    },
+    {
+      "id": "ARGOEY742",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 8
+    },
+    {
+      "id": "ARGOEY771",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 9
+    },
+    {
+      "id": "ARGOEY773",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 10
+    }
+  ],
+  "stats": {
+    "nb_switches": 71,
+    "nb_busbar_sections": 6,
+    "nb_internal_connections": 0,
+    "nb_equipment": 14,
+    "nb_breakers": 16,
+    "nb_disconnectors": 55
+  }
+}

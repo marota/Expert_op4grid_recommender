@@ -656,6 +656,14 @@ def determiner_manoeuvres_avec_sections(
         return False
 
     if _viole_separation(_live()) is not None:
+        # **Transactionnel** : on tente la séparation, mais on ne CONSERVE les
+        # ouvertures que si elles atteignent EXACTEMENT la topologie cible. Sinon
+        # (couplages multi-barres partagés mal décomposés par `_inter_sjb_couplers`
+        # → placement « exotique » irréalisable), on **annule** : Phase F ne doit
+        # jamais sur-fragmenter ni dégrader le résultat du séquenceur de base.
+        snapshot = {sid: _is_open(G, sid) for sid in coupling_breakers}
+        n_avant = len(manoeuvres)
+
         # 1) Ouvrir TOUS les DJ de couplage dont l'ouverture ne casse aucune
         #    connexité **intra-nœud** (les barres à cheval sur des couplages
         #    parallèles — COUPL.A et COUPL.B — exigent d'ouvrir le *lot*, une
@@ -682,6 +690,13 @@ def determiner_manoeuvres_avec_sections(
                 manoeuvres.append(Manoeuvre(
                     switch_id=sid, action="OPEN",
                     raison="ouverture couplage de barres (séparation de nœuds)"))
+
+        # 4) Validation transactionnelle : conserver uniquement si la cible
+        #    nodale est atteinte exactement ; sinon tout annuler.
+        if not topo_cible.meme_topologie(TopologieNodale.from_graph(G, vl)):
+            for sid in coupling_breakers:
+                _set_switch(G, sid, snapshot[sid])
+            del manoeuvres[n_avant:]
 
     # --- Optimisation : suppression des manœuvres sans effet (listeDordre) -
     manoeuvres = _optimiser_sequence(poste, manoeuvres)

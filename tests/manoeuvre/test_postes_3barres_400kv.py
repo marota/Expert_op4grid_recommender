@@ -1,0 +1,182 @@
+"""
+tests/manoeuvre/test_postes_3barres_400kv.py
+--------------------------------------------
+Batterie de **topologies cibles à 3 et 4 nœuds** sur plusieurs **postes 400 kV à
+3 jeux de barres** réels (réseau France 28/08/2024) :
+
+    SSV.OP7, TAVELP7, TRI.PP7, ARGOEP7, CHESNP7, COR.PP7, CERGYP7
+    (tous : 3 barres × 2 demi-rames, 6 SJB, 9-16 départs).
+
+Deux niveaux d'exigence, conformes à l'état réel du moteur :
+
+1. **Réalisation complète** (``SSV.OP7``) : plusieurs cibles 3 et 4 nœuds sont
+   atteintes ET vérifiées (placement N-barres + séquençage Phase F).
+
+2. **Innocuité** (tous les postes) : pour une large variété de cibles 3/4 nœuds,
+   le moteur ne régresse jamais — graphe du poste non muté, manœuvres portant sur
+   des organes existants, **aucune dégradation par scoping** « 2 jeux de barres »,
+   vérificateur de sectionneurs aligné, et cohérence ``is_verified`` ⇒ 0 écart.
+
+   Limite connue (documentée) : sur les postes en *triangle* à cellules de
+   couplage **multi-barres partagées** (COUPL.A/COUPL.B/LIAIS), `_inter_sjb_couplers`
+   décompose mal le faisceau partagé ⇒ certaines cibles ne sont pas réalisées
+   exactement. La Phase F est **transactionnelle** : elle n'est conservée que si
+   elle atteint la cible, sinon annulée — donc jamais de sur-fragmentation.
+"""
+from __future__ import annotations
+
+from collections import defaultdict
+
+import pytest
+
+from expert_op4grid_recommender.manoeuvre import (
+    PosteTopologique,
+    TopologieNodale,
+    determiner_topo_complete_cible,
+    sectionneurs_sous_charge_par_manoeuvre,
+)
+from expert_op4grid_recommender.manoeuvre.algo.graph_ops import _wired_busbar
+
+from .fixture_loader import (
+    build_graph_from_fixture,
+    get_fixture_metadata,
+    list_available_fixtures,
+)
+
+POSTES_3B_400 = ["SSV_OP7", "TAVELP7", "TRI_PP7", "ARGOEP7",
+                 "CHESNP7", "COR_PP7", "CERGYP7"]
+
+_DISPONIBLES = [n for n in POSTES_3B_400 if n in list_available_fixtures()]
+
+
+# --------------------------------------------------------------------------
+# Helpers
+# --------------------------------------------------------------------------
+
+def _poste(name: str) -> PosteTopologique:
+    vl = get_fixture_metadata(name)["voltage_level_id"]
+    return PosteTopologique.from_graph(build_graph_from_fixture(name), vl)
+
+
+def _switch_states(G):
+    return {d["switch_id"]: bool(d.get("open", False))
+            for _, _, d in G.edges(data=True) if d.get("switch_id")}
+
+
+def _known_switch_ids(G):
+    return {d.get("switch_id") for _, _, d in G.edges(data=True) if d.get("switch_id")}
+
+
+def _departs(poste) -> list[str]:
+    return sorted(e for n in poste.topologie_nodale.noeuds.values()
+                  for e in n.equipment_ids)
+
+
+def _par_barre(poste):
+    bp = poste.tronconnement.barre_par_busbar
+    out = defaultdict(list)
+    for c in poste.cellules.cellules_depart:
+        b = bp.get(_wired_busbar(c, poste.graph))
+        if b is not None:
+            out[b].append(c.equipment_id)
+    return out
+
+
+def _cibles(poste) -> dict[str, list[list[str]]]:
+    """Plusieurs partitions cibles à 3 et 4 nœuds (round-robin, isolement,
+    tronçonnage de la barre la plus chargée)."""
+    d = _departs(poste)
+    out: dict[str, list[list[str]]] = {
+        "rr3": [d[i::3] for i in range(3)],
+        "rr4": [d[i::4] for i in range(4)],
+    }
+    bb = _par_barre(poste)
+    pop = sorted((b for b in bb if bb[b]), key=lambda b: -len(bb[b]))
+    if pop and len(bb[pop[0]]) >= 2:
+        rest = [list(bb[b]) for b in pop]
+        moved = rest[0].pop()
+        out["iso"] = [g for g in rest if g] + [[moved]]
+        big = max((list(bb[b]) for b in pop), key=len)
+        others = [list(bb[b]) for b in pop if list(bb[b]) is not big]
+        out["splitbig"] = others + [big[:len(big) // 2], big[len(big) // 2:]]
+    return {k: [g for g in v if g] for k, v in out.items()}
+
+
+# --------------------------------------------------------------------------
+# 1. Réalisation complète sur SSV.OP7 (cibles 3 et 4 nœuds)
+# --------------------------------------------------------------------------
+
+@pytest.mark.skipif("SSV_OP7" not in _DISPONIBLES, reason="Fixture SSV_OP7 absente.")
+@pytest.mark.parametrize("shape", ["rr3", "rr4", "iso"])
+def test_ssv_op7_realise_cible(shape):
+    """SSV.OP7 : la cible (3 ou 4 nœuds) est atteinte ET vérifiée, sans écart."""
+    poste = _poste("SSV_OP7")
+    before = _switch_states(poste.graph)
+    groups = _cibles(poste)[shape]
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, groups)
+    assert cible.nb_noeuds in (3, 4)
+
+    res = determiner_topo_complete_cible(poste, cible)
+
+    assert res.is_verified is True, f"{shape}: {res.message}"
+    assert res.topo_obtenue.nb_noeuds == cible.nb_noeuds
+    assert res.ecarts == []
+    assert res.nb_manoeuvres > 0
+    assert all(m.switch_id in _known_switch_ids(poste.graph) for m in res.manoeuvres)
+    assert _switch_states(poste.graph) == before  # graphe non muté
+
+
+# --------------------------------------------------------------------------
+# 2. Innocuité sur tous les postes 3-barres (cibles 3 et 4 nœuds)
+# --------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _DISPONIBLES, reason="Aucune fixture de poste 3-barres 400 kV.")
+@pytest.mark.parametrize("name", _DISPONIBLES)
+@pytest.mark.parametrize("shape", ["rr3", "rr4", "iso", "splitbig"])
+def test_cible_3_ou_4_noeuds_innocuite(name, shape):
+    """Pour une large variété de cibles 3/4 nœuds sur des postes 3-barres réels,
+    le moteur reste **sûr** quel que soit le résultat de réalisation."""
+    poste = _poste(name)
+    cibles = _cibles(poste)
+    if shape not in cibles:
+        pytest.skip(f"forme {shape} indisponible pour {name}")
+    before = _switch_states(poste.graph)
+    known = _known_switch_ids(poste.graph)
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, cibles[shape])
+
+    res = determiner_topo_complete_cible(poste, cible)
+
+    # (a) graphe du poste jamais muté.
+    assert _switch_states(poste.graph) == before
+    # (b) toute manœuvre porte sur un organe existant.
+    assert all(m.switch_id in known for m in res.manoeuvres)
+    # (c) plus aucune dégradation par scoping « 2 jeux de barres ».
+    assert "niveaux de barres supplémentaires" not in res.message
+    assert "algorithme 2 jeux de barres" not in res.message
+    # (d) vérificateur de sectionneurs : sortie alignée, pas d'exception.
+    viol = sectionneurs_sous_charge_par_manoeuvre(poste, res.manoeuvres)
+    assert len(viol) == len(res.manoeuvres)
+    assert all(v is None or isinstance(v, str) for v in viol)
+    # (e) cohérence : si vérifié, alors topologie exacte et aucun écart.
+    assert res.topo_obtenue is not None
+    if res.is_verified:
+        assert res.topo_obtenue.nb_noeuds == cible.nb_noeuds
+        assert res.ecarts == []
+
+
+# --------------------------------------------------------------------------
+# 3. La Phase F est transactionnelle (sur SSV.OP7, placement propre)
+# --------------------------------------------------------------------------
+
+@pytest.mark.skipif("SSV_OP7" not in _DISPONIBLES, reason="Fixture SSV_OP7 absente.")
+@pytest.mark.parametrize("shape", ["rr3", "rr4", "iso"])
+def test_phase_f_transactionnelle_ssv(shape):
+    """Sur SSV.OP7 (placement propre), une manœuvre « séparation de nœuds »
+    (Phase F) implique que la cible est atteinte : la Phase F n'est conservée
+    que si elle réalise exactement la topologie cible (sinon annulée)."""
+    poste = _poste("SSV_OP7")
+    groups = _cibles(poste)[shape]
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, groups)
+    res = determiner_topo_complete_cible(poste, cible)
+    if any("séparation de nœuds" in m.raison for m in res.manoeuvres):
+        assert res.is_verified, res.message
