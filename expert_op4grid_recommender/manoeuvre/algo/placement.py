@@ -11,7 +11,7 @@ import networkx as nx
 from ..cellules import CelluleDepart
 from ..cellules import SwitchInfo
 from ..topologie import TopologieNodale, PosteTopologique
-from ._constants import POIDS_REAIGUILLAGE, POIDS_MANOEUVRE_COUPLER, POIDS_OUVERTURE_SECTIONNEMENT, MAX_COMBINAISONS_PLACEMENT, MAX_COMBINAISONS_BEST_EFFORT
+from ._constants import POIDS_REAIGUILLAGE, POIDS_MANOEUVRE_COUPLER, POIDS_OUVERTURE_SECTIONNEMENT, POIDS_NOEUD_MULTIBARRE, MAX_COMBINAISONS_PLACEMENT, MAX_COMBINAISONS_BEST_EFFORT
 from .graph_ops import _inter_sjb_couplers, _is_open, _sa_path_to_sjb, _set_switch
 
 
@@ -274,6 +274,7 @@ def _within_guard(k: int, n_sjb: int) -> bool:
 
 def _recherche_exhaustive(
     nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe,
+    barre_par=None,
 ) -> Optional[tuple[int, tuple]]:
     """Recherche **exacte** de l'affectation complète SJB->nœud de coût minimal.
 
@@ -288,13 +289,28 @@ def _recherche_exhaustive(
     (décomposition) ; sur l'ensemble complet il n'écarte jamais aucun coupler,
     donc le comportement 2-JdB est strictement préservé.
 
+    ``barre_par`` (optionnel) : map SJB->barre. Si fourni, on **départage à coût
+    égal en faveur du moins de nœuds « multi-barres »** (nœuds dont les SJB
+    couvrent plusieurs jeux de barres). Cela évite les nœuds « exotiques »
+    (demi-rames croisées de barres différentes, ex. ``{1A,2B}``) que la
+    décomposition par paires de ``_inter_sjb_couplers`` rend faussement
+    réalisables à travers un faisceau de couplage **partagé** : à coût égal, on
+    préfère des nœuds tenant sur une seule barre (ou barres entières), réalisables
+    par le séquenceur. **Optimalité en coût préservée** → goldens à coût unique
+    inchangés.
+
     Returns ``(cost, assign)`` ou ``None`` si aucune affectation faisable.
     """
     k = len(nodes)
     n_sjb = len(sjb_nodes)
     if k == 0 or k > n_sjb:
         return None
-    best: Optional[tuple[int, tuple]] = None
+    # Pénalité multi-barres : uniquement sur les postes > 2 barres (cas 2-JdB
+    # strictement inchangés). On juge le nombre de barres sur l'ensemble **complet**
+    # du poste (``barre_par``), pas sur le sous-ensemble courant.
+    penalise_multibarre = (
+        barre_par is not None and len(set(barre_par.values())) > 2)
+    best = None  # interne : (cost, assign)  — coût pénalisé inclus
     for assign in _assignations_connexes(sjb_nodes, k, groupe_connexe):
         node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
         for j, ni in enumerate(assign):
@@ -333,9 +349,18 @@ def _recherche_exhaustive(
         cost = (POIDS_REAIGUILLAGE * reaig
                 + POIDS_MANOEUVRE_COUPLER * cpl
                 + POIDS_OUVERTURE_SECTIONNEMENT * sect)
-        if (best is None or cost < best[0]
-                or (cost == best[0] and assign < best[1])):
-            best = (cost, assign)
+        # Pénalité **dominante** des nœuds multi-barres (réalisabilité > coût).
+        if penalise_multibarre:
+            multibarre = sum(
+                max(0, len({barre_par[s] for s in node_sjbs[i] if s in barre_par}) - 1)
+                for i in range(k)
+            )
+            cost += POIDS_NOEUD_MULTIBARRE * multibarre
+        # Tie-break **lex-min** sur ``assign`` (à coût pénalisé égal) — reproduit
+        # l'ancienne énumération ``itertools.product`` sur les cas non pénalisés.
+        key = (cost, assign)
+        if best is None or key < best:
+            best = key
     return best
 
 
@@ -474,7 +499,8 @@ def _placement_decompose(
         sub_nodes = [nodes[g] for g in node_idx]
         sjb_sorted = sorted(sjb_set)
         best = _recherche_exhaustive(
-            sub_nodes, sjb_sorted, R, wired_sjb, couplers, cp_closed, groupe_connexe)
+            sub_nodes, sjb_sorted, R, wired_sjb, couplers, cp_closed, groupe_connexe,
+            barre_par)
         if best is None:
             return None
         return {sjb_sorted[j]: node_idx[local] for j, local in enumerate(best[1])}
@@ -589,7 +615,8 @@ def _placement_complet(
     amap = None
     if _within_guard(k, n_sjb):
         best = _recherche_exhaustive(
-            nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe)
+            nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe,
+            barre_par)
         if best is not None:
             amap = {sjb_nodes[j]: best[1][j] for j in range(n_sjb)}
     else:

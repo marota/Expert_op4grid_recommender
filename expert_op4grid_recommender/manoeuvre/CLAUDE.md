@@ -195,6 +195,13 @@ Etape 1+2 (placement N jeux de barres) :
   le long du graphe de couplage — par **composantes connexes** (exacte,
   separable) puis **bissection au niveau barre** (best-effort) ; tout placement
   declare complet est revérifie faisable (`_placement_est_faisable`).
+- **Pénalité multi-barres** (`POIDS_NOEUD_MULTIBARRE`, postes > 2 barres
+  uniquement) : `_recherche_exhaustive` pénalise (dominant) les nœuds dont les SJB
+  couvrent plusieurs barres. Sur les postes à **faisceau de couplage partagé**
+  (un DJ atteignant > 2 barres), `_inter_sjb_couplers` rend faussement réalisables
+  des nœuds « exotiques » (demi-rames croisées, ex. `{1A,2B}`) ; la pénalité
+  oriente le placement vers des nœuds **mono-barre / barres entières**,
+  réalisables. Optimalité-coût préservée hors pénalité → **cas 2-JdB inchangés**.
 
 Sequenceur N barres :
 - Phase 0 (`bridge_breakers`) : ne ferme pas un coupler « meme noeud » via un
