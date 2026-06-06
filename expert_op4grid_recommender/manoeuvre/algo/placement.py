@@ -267,6 +267,338 @@ def _placement_best_effort(
     return best[1], best[2]
 
 
+def _within_guard(k: int, n_sjb: int) -> bool:
+    """Vrai si l'énumération exhaustive (~k^nb_SJB) tient dans le garde-fou."""
+    return 1 <= k <= n_sjb and k ** n_sjb <= MAX_COMBINAISONS_PLACEMENT
+
+
+def _recherche_exhaustive(
+    nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe,
+) -> Optional[tuple[int, tuple]]:
+    """Recherche **exacte** de l'affectation complète SJB->nœud de coût minimal.
+
+    Énumère les partitions connexes (``_assignations_connexes``) et retient le
+    **lex-min** parmi les affectations de coût minimal — reproduisant exactement
+    l'ancienne énumération ``itertools.product``. Le **garde-fou combinatoire
+    est de la responsabilité de l'appelant** (cf. ``_within_guard``).
+
+    Couvre N jeux de barres sans changement : ``sjb_nodes`` et le graphe de
+    connexité (via ``groupe_connexe``) sont génériques. Le filtre
+    ``na is None``/``nb is None`` permet l'appel sur un **sous-ensemble** de SJB
+    (décomposition) ; sur l'ensemble complet il n'écarte jamais aucun coupler,
+    donc le comportement 2-JdB est strictement préservé.
+
+    Returns ``(cost, assign)`` ou ``None`` si aucune affectation faisable.
+    """
+    k = len(nodes)
+    n_sjb = len(sjb_nodes)
+    if k == 0 or k > n_sjb:
+        return None
+    best: Optional[tuple[int, tuple]] = None
+    for assign in _assignations_connexes(sjb_nodes, k, groupe_connexe):
+        node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
+        for j, ni in enumerate(assign):
+            node_sjbs[ni].add(sjb_nodes[j])
+        if any(not s for s in node_sjbs.values()):
+            continue  # chaque nœud doit avoir ≥ 1 SJB
+        if not all(groupe_connexe(s) for s in node_sjbs.values()):
+            continue
+        ok = True
+        for i, deps in enumerate(nodes):
+            sset = node_sjbs[i]
+            if any(not (R[eq] & sset) for eq in deps):
+                ok = False
+                break
+        if not ok:
+            continue
+        reaig = sum(
+            1 for i, deps in enumerate(nodes) for eq in deps
+            if wired_sjb.get(eq) not in node_sjbs[i]
+        )
+        node_of_sjb = {sjb_nodes[j]: assign[j] for j in range(n_sjb)}
+        cpl = 0
+        sect = 0
+        for cp, currently_closed in zip(couplers, cp_closed):
+            na = node_of_sjb.get(cp.sjb_a)
+            nb = node_of_sjb.get(cp.sjb_b)
+            if na is None or nb is None:
+                continue  # coupler hors du sous-ensemble courant
+            same = na == nb
+            if same and not currently_closed:
+                cpl += 1
+            elif (not same) and currently_closed:
+                cpl += 1
+                if cp.is_sectionnement:
+                    sect += 1
+        cost = (POIDS_REAIGUILLAGE * reaig
+                + POIDS_MANOEUVRE_COUPLER * cpl
+                + POIDS_OUVERTURE_SECTIONNEMENT * sect)
+        if (best is None or cost < best[0]
+                or (cost == best[0] and assign < best[1])):
+            best = (cost, assign)
+    return best
+
+
+def _placement_est_faisable(amap, nodes, R, groupe_connexe) -> bool:
+    """Vérifie qu'un dict ``{sjb_node -> index_nœud}`` réalise **tous** les nœuds
+    (groupes connexes + chaque départ atteint une SJB de son groupe)."""
+    if amap is None:
+        return False
+    node_sjbs: dict[int, set[int]] = {}
+    for s, ni in amap.items():
+        node_sjbs.setdefault(ni, set()).add(s)
+    if len(node_sjbs) != len(nodes):
+        return False
+    for i, deps in enumerate(nodes):
+        sset = node_sjbs.get(i)
+        if not sset or not groupe_connexe(sset):
+            return False
+        if any(not (R.get(eq, frozenset()) & sset) for eq in deps):
+            return False
+    return True
+
+
+def _couper_graphe_couplage(CG: nx.Graph):
+    """Coupe un graphe de couplage **connexe** en 2 sous-ensembles de SJB **connexes
+    et équilibrés**. ``None`` si impossible.
+
+    Préférence à un **pont** (le plus équilibré) ; sinon **bipartition équilibrée**
+    (Kernighan-Lin) si les deux moitiés restent connexes ; sinon **moitié/moitié**
+    (cas dense, p.ex. graphe complet d'un poste triple-barre entièrement maillé) ;
+    en dernier recours, **coupe d'arêtes minimale**. Un cut équilibré est crucial :
+    une coupe min isole souvent **un seul** sommet sur un graphe dense, ce qui
+    empêche de répartir les nœuds (sous-capacité)."""
+    n = CG.number_of_nodes()
+    if n < 2:
+        return None
+
+    # 1) pont le plus équilibré.
+    best = None
+    for u, v in nx.bridges(CG):
+        H = CG.copy()
+        H.remove_edge(u, v)
+        comps = list(nx.connected_components(H))
+        if len(comps) == 2:
+            bal = min(len(comps[0]), len(comps[1]))
+            if best is None or bal > best[0]:
+                best = (bal, set(comps[0]), set(comps[1]))
+    if best is not None:
+        return best[1], best[2]
+
+    # 2) bipartition équilibrée (Kernighan-Lin), si les 2 moitiés sont connexes.
+    try:
+        a, b = nx.algorithms.community.kernighan_lin_bisection(CG, seed=0)
+        if a and b and nx.is_connected(CG.subgraph(a)) and nx.is_connected(CG.subgraph(b)):
+            return set(a), set(b)
+    except Exception:
+        pass
+
+    # 3) moitié/moitié (les deux moitiés sont connexes si le graphe est dense).
+    nodesl = sorted(CG.nodes())
+    mid = n // 2
+    A, B = set(nodesl[:mid]), set(nodesl[mid:])
+    if A and B and nx.is_connected(CG.subgraph(A)) and nx.is_connected(CG.subgraph(B)):
+        return A, B
+
+    # 4) repli : coupe d'arêtes minimale (peut être déséquilibrée).
+    try:
+        cut = nx.minimum_edge_cut(CG)
+    except Exception:
+        return None
+    H = CG.copy()
+    H.remove_edges_from(cut)
+    comps = list(nx.connected_components(H))
+    if len(comps) >= 2:
+        return set(comps[0]), set().union(*comps[1:])
+    return None
+
+
+def _couper_par_barres(CGsub: nx.Graph, sjb_set: set, barre_par: dict) -> Optional[tuple]:
+    """Coupe l'ensemble de SJB en 2 en **gardant les SJB d'une même barre du même
+    côté** (les départs raccordent des *barres*, pas des demi-rames isolées :
+    couper à l'intérieur d'une barre casserait la réacheminabilité).
+
+    Coupe le **graphe au niveau barre** (barres adjacentes si un coupler relie
+    leurs SJB), puis retransforme en ensembles de SJB. Repli sur une coupe SJB
+    générique quand l'ensemble ne couvre qu'une seule barre."""
+    barres: dict[int, set[int]] = {}
+    for s in sjb_set:
+        barres.setdefault(barre_par.get(s), set()).add(s)
+    if len(barres) >= 2:
+        BG = nx.Graph()
+        BG.add_nodes_from(barres)
+        for u, v in CGsub.edges():
+            bu, bv = barre_par.get(u), barre_par.get(v)
+            if bu != bv:
+                BG.add_edge(bu, bv)
+        parts = _couper_graphe_couplage(BG)
+        if parts is not None:
+            ga, gb = parts
+            A = {s for s in sjb_set if barre_par.get(s) in ga}
+            B = {s for s in sjb_set if barre_par.get(s) in gb}
+            if A and B:
+                return A, B
+    # Une seule barre (ou découpe-barre impossible) : coupe SJB générique.
+    return _couper_graphe_couplage(CGsub)
+
+
+def _placement_decompose(
+    node_idx, sjb_set, nodes, R, wired_sjb, couplers, cp_closed,
+    groupe_connexe, barre_par, depth=0,
+):
+    """**Étape 2 — décomposition récursive le long du graphe de couplage.**
+
+    Réutilise la primitive exacte 2-JdB (``_recherche_exhaustive``) sur des
+    **sous-ensembles** de jeux de barres lorsque le poste complet excède le
+    garde-fou combinatoire :
+
+    1. **cas de base** : sous-ensemble assez petit → recherche exacte ;
+    2. **composantes connexes** du graphe de couplage : chaque nœud n'occupe
+       qu'**une** composante (groupe connexe) ; le coût est séparable d'une
+       composante à l'autre → décomposition **exacte** ;
+    3. **bissection** d'une composante unique trop grosse : coupe en 2 demi-
+       graphes connexes, affecte chaque nœud au côté atteint par ses départs
+       (décision binaire = primitive 2-JdB), puis **récursion** sur chaque côté.
+
+    ``node_idx`` : indices (globaux dans ``nodes``) des nœuds à placer.
+    Retourne un dict ``{sjb_node -> index_nœud}`` ou ``None``.
+    """
+    if not node_idx:
+        return {}
+    sjb_set = set(sjb_set)
+    n_sjb = len(sjb_set)
+    k = len(node_idx)
+    if k > n_sjb:
+        return None
+    if _within_guard(k, n_sjb):
+        sub_nodes = [nodes[g] for g in node_idx]
+        sjb_sorted = sorted(sjb_set)
+        best = _recherche_exhaustive(
+            sub_nodes, sjb_sorted, R, wired_sjb, couplers, cp_closed, groupe_connexe)
+        if best is None:
+            return None
+        return {sjb_sorted[j]: node_idx[local] for j, local in enumerate(best[1])}
+    if depth > n_sjb:
+        return None  # garde-fou anti-récursion
+
+    CGsub = nx.Graph()
+    CGsub.add_nodes_from(sjb_set)
+    for cp in couplers:
+        if cp.sjb_a in sjb_set and cp.sjb_b in sjb_set:
+            CGsub.add_edge(cp.sjb_a, cp.sjb_b)
+    comps = [set(c) for c in nx.connected_components(CGsub)]
+
+    if len(comps) > 1:
+        # (2) composantes connexes : affectation séparable, exacte.
+        node_comp: dict[int, int] = {}
+        for gi in node_idx:
+            deps = nodes[gi]
+            cands = [ci for ci, c in enumerate(comps)
+                     if all(R.get(eq, frozenset()) & c for eq in deps)]
+            if not cands:
+                return None
+            node_comp[gi] = max(
+                cands,
+                key=lambda ci: (sum(1 for eq in deps if wired_sjb.get(eq) in comps[ci]),
+                                -min(comps[ci])),
+            )
+        out: dict[int, int] = {}
+        for ci, comp in enumerate(comps):
+            sub_idx = [gi for gi in node_idx if node_comp[gi] == ci]
+            if not sub_idx:
+                continue
+            sub = _placement_decompose(
+                sub_idx, comp, nodes, R, wired_sjb, couplers, cp_closed,
+                groupe_connexe, barre_par, depth + 1)
+            if sub is None:
+                return None
+            out.update(sub)
+        return out
+
+    # (3) composante unique trop grosse : bissection récursive (primitive 2-JdB).
+    # Coupe **au niveau barre** (SJB d'une même barre du même côté) pour préserver
+    # la réacheminabilité départ -> barre.
+    parts = _couper_par_barres(CGsub, sjb_set, barre_par)
+    if parts is None:
+        return None
+    side_a, side_b = parts
+
+    # Affectation des nœuds aux deux côtés, **en respectant la capacité** : un
+    # côté à ``|side|`` SJB héberge au plus ``|side|`` nœuds (groupes disjoints).
+    forced_a: list[int] = []
+    forced_b: list[int] = []
+    both: list[int] = []
+    for gi in node_idx:
+        deps = nodes[gi]
+        ok_a = all(R.get(eq, frozenset()) & side_a for eq in deps)
+        ok_b = all(R.get(eq, frozenset()) & side_b for eq in deps)
+        if ok_a and ok_b:
+            both.append(gi)
+        elif ok_a:
+            forced_a.append(gi)
+        elif ok_b:
+            forced_b.append(gi)
+        else:
+            return None  # nœud à cheval sur la coupe : non réalisable ainsi
+    cap_a = len(side_a) - len(forced_a)
+    cap_b = len(side_b) - len(forced_b)
+    if cap_a < 0 or cap_b < 0:
+        return None
+    a_idx, b_idx = list(forced_a), list(forced_b)
+    # Répartit les nœuds « indifférents » : côté **câblé** de préférence, sinon là
+    # où il reste de la capacité (départage déterministe par index).
+    for gi in sorted(both):
+        deps = nodes[gi]
+        wa = sum(1 for eq in deps if wired_sjb.get(eq) in side_a)
+        wb = sum(1 for eq in deps if wired_sjb.get(eq) in side_b)
+        prefer_a = wa >= wb
+        if prefer_a and cap_a > 0:
+            a_idx.append(gi); cap_a -= 1
+        elif (not prefer_a) and cap_b > 0:
+            b_idx.append(gi); cap_b -= 1
+        elif cap_a > 0:
+            a_idx.append(gi); cap_a -= 1
+        elif cap_b > 0:
+            b_idx.append(gi); cap_b -= 1
+        else:
+            return None  # plus de capacité d'aucun côté
+
+    out = {}
+    for sub_idx, side in ((a_idx, side_a), (b_idx, side_b)):
+        if not sub_idx:
+            continue
+        sub = _placement_decompose(
+            sub_idx, side, nodes, R, wired_sjb, couplers, cp_closed,
+            groupe_connexe, barre_par, depth + 1)
+        if sub is None:
+            return None
+        out.update(sub)
+    return out
+
+
+def _placement_complet(
+    nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe, barre_par,
+):
+    """Affectation **complète** SJB->nœud (tous les nœuds placés) ou ``None``.
+
+    Exacte (lex-min) si le garde-fou combinatoire le permet, sinon Étape 2
+    (décomposition récursive). Le résultat est revérifié faisable avant d'être
+    déclaré complet (on ne renvoie jamais une affectation partielle ici)."""
+    n_sjb = len(sjb_nodes)
+    k = len(nodes)
+    amap = None
+    if _within_guard(k, n_sjb):
+        best = _recherche_exhaustive(
+            nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe)
+        if best is not None:
+            amap = {sjb_nodes[j]: best[1][j] for j in range(n_sjb)}
+    else:
+        amap = _placement_decompose(
+            list(range(k)), set(sjb_nodes), nodes, R, wired_sjb, couplers,
+            cp_closed, groupe_connexe, barre_par)
+    return amap if _placement_est_faisable(amap, nodes, R, groupe_connexe) else None
+
+
 def _placement_automatique(
     poste: PosteTopologique,
     topo_cible: TopologieNodale,
@@ -330,32 +662,12 @@ def _placement_automatique(
     if not nodes:
         return [], True, "Aucun nœud connecté à placer.", []
 
-    # --- Scoping > 2 jeux de barres -----------------------------------------
-    # L'algorithme de placement est conçu pour le double jeu de barres classique.
-    # Sur un poste à > 2 jeux de barres (ex. niveaux supplémentaires 3B/4B), on se
-    # restreint aux **2 jeux de barres principaux** ; les nœuds dont au moins un
-    # départ n'atteint que les niveaux supplémentaires sont laissés à l'opérateur.
-    forced_non_places: list[list[str]] = []
-    extra_sjb: set[int] = set()
-    if len(set(barre_par.values())) > 2:
-        main_sjb, extra_sjb = _main_busbar_sjb(poste)
-        sjb_nodes = [s for s in sjb_nodes if s in main_sjb]
-        R = {eq: (rs & main_sjb) for eq, rs in R.items()}
-        wired_sjb = {eq: (b if b in main_sjb else None)
-                     for eq, b in wired_sjb.items()}
-        kept: list[list[str]] = []
-        for nd in nodes:
-            if all(R.get(eq) for eq in nd):
-                kept.append(nd)              # nœud entièrement sur le 2-JdB
-            else:
-                forced_non_places.append(nd)  # touche un niveau supplémentaire
-        nodes = kept
-
-    # Graphe des couplers entre SJB (pour la contrainte de connexité des groupes),
-    # restreint aux SJB retenues (2 jeux de barres principaux si scoping).
-    main_set = set(sjb_nodes)
-    couplers = [cp for cp in _inter_sjb_couplers(poste)
-                if cp.sjb_a in main_set and cp.sjb_b in main_set]
+    # --- Graphe des couplers entre SJB (contrainte de connexité des groupes) -
+    # **Généralisé à N jeux de barres** (Étape 1) : on construit CG sur **toutes**
+    # les SJB du poste et **tous** les couplers — plus aucune restriction aux
+    # « 2 jeux de barres principaux ». Pour un poste à 2 barres, ``barre_par``
+    # ne contient que 2 barres, donc le comportement est strictement préservé.
+    couplers = _inter_sjb_couplers(poste)
     CG = nx.Graph()
     CG.add_nodes_from(sjb_nodes)
     for cp in couplers:
@@ -380,85 +692,31 @@ def _placement_automatique(
     # calculé une seule fois (au lieu d'être recalculé à chaque itération).
     cp_closed = [all(not _is_open(G, s) for s in cp.switch_ids) for cp in couplers]
 
-    # Recherche exhaustive d'une affectation **complète** (tous les nœuds placés),
-    # uniquement si elle est possible (k ≤ nb SJB) et tient dans le garde-fou.
-    best = None  # (cost, assign tuple)
-    if k <= len(sjb_nodes) and k ** len(sjb_nodes) <= MAX_COMBINAISONS_PLACEMENT:
-        for assign in _assignations_connexes(sjb_nodes, k, _groupe_connexe):
-            node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
-            for j, ni in enumerate(assign):
-                node_sjbs[ni].add(sjb_nodes[j])
-            if any(not s for s in node_sjbs.values()):
-                continue  # chaque nœud doit avoir ≥ 1 SJB
-            # Groupes connexes dans le graphe des couplers
-            if not all(_groupe_connexe(s) for s in node_sjbs.values()):
-                continue
-            # Faisabilité : chaque départ atteint une SJB de son nœud
-            ok = True
-            for i, deps in enumerate(nodes):
-                sset = node_sjbs[i]
-                if any(not (R[eq] & sset) for eq in deps):
-                    ok = False
-                    break
-            if not ok:
-                continue
-            # Coût : ré-aiguillages (départ dont la barre câblée n'est pas dans son
-            # groupe) + manœuvres de couplers (sectionnements pénalisés).
-            reaig = sum(
-                1 for i, deps in enumerate(nodes) for eq in deps
-                if wired_sjb.get(eq) not in node_sjbs[i]
-            )
-            node_of_sjb = {sjb_nodes[j]: assign[j] for j in range(len(sjb_nodes))}
-            cpl = 0
-            sect = 0
-            for cp, currently_closed in zip(couplers, cp_closed):
-                same = node_of_sjb[cp.sjb_a] == node_of_sjb[cp.sjb_b]
-                if same and not currently_closed:
-                    cpl += 1
-                elif (not same) and currently_closed:
-                    cpl += 1
-                    if cp.is_sectionnement:
-                        sect += 1
-            cost = (POIDS_REAIGUILLAGE * reaig
-                    + POIDS_MANOEUVRE_COUPLER * cpl
-                    + POIDS_OUVERTURE_SECTIONNEMENT * sect)
-            # Tie-break **lex-min** sur ``assign`` : reproduit exactement le choix
-            # de l'ancienne énumération ``itertools.product`` (premier min-coût en
-            # ordre lexicographique). La sortie est donc strictement identique,
-            # quel que soit l'ordre d'énumération des partitions connexes.
-            if (best is None or cost < best[0]
-                    or (cost == best[0] and assign < best[1])):
-                best = (cost, assign)
+    # Affectation complète : recherche exacte (lex-min) dans le garde-fou, sinon
+    # décomposition récursive le long du graphe de couplage (Étape 2).
+    assign_map = _placement_complet(
+        nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, _groupe_connexe,
+        barre_par)
 
     full_placement = None
-    if best is not None:
-        assign = best[1]
+    if assign_map is not None:
         node_sjbs = {i: set() for i in range(k)}
-        for j, ni in enumerate(assign):
-            node_sjbs[ni].add(sjb_nodes[j])
+        for s, ni in assign_map.items():
+            node_sjbs[ni].add(s)
         full_placement = [
             (set(nodes[i]), {sjb_id[s] for s in node_sjbs[i]})
             for i in range(k)
         ]
 
-    # Cas nominal : affectation complète ET aucun niveau supplémentaire écarté.
-    if full_placement is not None and not forced_non_places:
+    # Cas nominal : affectation complète réalisable (sur N jeux de barres).
+    if full_placement is not None:
         return full_placement, True, "OK", []
 
     # --- Dégradation : placement partiel + diagnostic explicite -------------
-    raisons: list[str] = []
-    if forced_non_places:
-        raisons.append(_scoping_raison(sjb_id, extra_sjb, forced_non_places))
-    if full_placement is not None:
-        placement, partial_non_places = full_placement, []
-    elif nodes:
-        raisons.extend(_diagnostic_infaisabilite(nodes, R, sjb_id))
-        placement, partial_non_places = _placement_best_effort(
-            nodes, R, sjb_nodes, sjb_id, CG, wired_sjb)
-    else:
-        placement, partial_non_places = [], []
-    non_places = partial_non_places + forced_non_places
-    return placement, False, _message_non_realisable(raisons), non_places
+    raisons = _diagnostic_infaisabilite(nodes, R, sjb_id)
+    placement, partial_non_places = _placement_best_effort(
+        nodes, R, sjb_nodes, sjb_id, CG, wired_sjb)
+    return placement, False, _message_non_realisable(raisons), partial_non_places
 
 
 def _placement_avec_reconnexions(

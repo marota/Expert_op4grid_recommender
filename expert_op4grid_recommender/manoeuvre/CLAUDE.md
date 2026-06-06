@@ -91,9 +91,12 @@ mais n'etre connectee qu'a 1 electriquement.
   intermediaires. Signale par `CelluleDepart.is_multiple` et
   `shared_equipment_ids`.
 
-- **Postes >= 3 barres** : les couplages avec > 2 SJB emettent un warning ;
-  seules les 2 premieres sont enregistrees. A ameliorer dans une version
-  ulterieure.
+- **Postes >= 3 barres** : le **placement** (`_placement_automatique`) gere
+  desormais N jeux de barres (Etape 1+2, cf. ci-dessous). En revanche, le modele
+  de cellule `CelluleCouplage` ne retient encore que 2 SJB par composante de
+  couplage (warning sur > 2 SJB) et le **sequenceur** ne realise pas encore une
+  cible > 2 noeuds passant par un couplage multi-barres partage : frontiere
+  suivante.
 
 ## Tests
 
@@ -180,11 +183,23 @@ que l'attribut `open`.
   (couplage ferme) ou longue, ouverture/fermeture de couplage, verification
   post-manoeuvre par recalcul de `TopologieNodale.from_graph`.
 
+Etape 1+2 (placement N jeux de barres) :
+- le **scoping 2-JdB** de `_placement_automatique` a ete retire : la recherche
+  exacte (`_recherche_exhaustive`, lex-min) tourne sur **toutes** les SJB et
+  **tous** les couplers — couvre les postes 3B/4B reels dans le garde-fou
+  (`MAX_COMBINAISONS_PLACEMENT`). Comportement 2-barres strictement preserve.
+- au-dela du garde-fou : **decomposition recursive** (`_placement_decompose`)
+  le long du graphe de couplage — par **composantes connexes** (exacte,
+  separable) puis **bissection au niveau barre** (best-effort) ; tout placement
+  declare complet est revérifie faisable (`_placement_est_faisable`).
+
 Limites connues (cf. docstring `algo.py`) :
 - re-aiguillage d'omnibus complexes : partiel ;
 - pas de verification fine de court-circuit avant fermeture de couplage ;
-- postes >= 3 barres : partiel (une cible a plus de noeuds que de barres est
-  signalee comme non verifiee).
+- postes >= 3 barres : le **placement** est gere ; la realisation **sequencee**
+  d'une cible > 2 noeuds via un couplage multi-barres partage reste partielle
+  (frontiere sequenceur). La bissection best-effort peut degrader gracieusement
+  sur des postes a demi-rames tres maillees (la voie exacte, elle, les gere).
 
 ### Specification des regles
 
