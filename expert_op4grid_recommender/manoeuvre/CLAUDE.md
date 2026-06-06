@@ -228,6 +228,24 @@ Sequenceur N barres :
   Non encore couverts : les regroupements **arbitraires** (round-robin) exigeant
   la *reconnexion* de departs deja deconnectes, et la cible **2 noeuds** sur un
   poste a barre de reserve fusionnee (exige un controle fin des SA de faisceau).
+  Le realisateur est aussi branche en **repli only-on-failure** sur le chemin
+  **detaille** multi-barres (`_sequence_detaillee_multibarres`) : si le
+  re-aiguillage SJB-par-SJB n'atteint pas la partition, on tente la realisation
+  par connectivite, transactionnellement.
+- **Alignement detaille des faisceaux** (`_aligner_couplers_sur_cible`, etape 2/2
+  bis) : une fois la **partition nodale** atteinte, ramene chaque **faisceau** de
+  couplage a l'**etat d'organes exact** de la cible detaillee (de-energiser le DJ
+  → SA hors charge → DJ a l'etat cible ; faisceaux actifs d'abord). Garde
+  **transactionnelle de preservation de partition** (revert en bloc si la
+  partition change). Supprime les ecarts de faisceau « cosmetiques » (faisceau
+  electriquement equivalent mais d'organes differents) : en mode `aggressive` les
+  7 postes 400 kV 3 JdB atteignent la **topologie detaillee exacte** (0 ecart) ;
+  en `smooth`, partition exacte + alerte sectionneur (R18) possible sur faisceau
+  partage. Applique dans les deux branches (repli realisateur **et** nodal verifie).
+- **Sectionneur de ligne partage** (R9bis) : `_reaiguiller_vers_sjb` n'ouvre pas
+  un sectionneur (`SL`) commun au chemin de la barre **cible** (sinon on
+  deconnecte le depart de sa propre barre cible — manoeuvre parasite + cible non
+  atteinte). Corrige le `OPEN … SL` parasite observe sur TAVELP7.
 
 Limites connues (cf. docstring `algo.py`) :
 - re-aiguillage d'omnibus complexes : partiel ;

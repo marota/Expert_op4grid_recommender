@@ -53,8 +53,20 @@ redesign ci-dessous.
 - **`determiner_manoeuvres_par_connectivite`** : réalisateur connectivité-based
   (ré-aiguillage avec maintien en place + sectionnements intra-barre par état
   direct + séparation/fusion par connectivité). Branché **transactionnellement**
-  par `determiner_topo_complete_cible` : retenu seulement s'il vérifie
-  exactement la cible → **ne peut jamais dégrader** un résultat correct.
+  par `determiner_topo_complete_cible` (chemin nodal) **et** en **repli
+  only-on-failure** sur le chemin **détaillé** (`_sequence_detaillee_multibarres`)
+  : retenu seulement s'il vérifie exactement la cible → **ne peut jamais dégrader**
+  un résultat correct.
+- **`_aligner_couplers_sur_cible`** (alignement détaillé des faisceaux) : une fois
+  la partition nodale atteinte, ramène chaque **faisceau** de couplage à l'**état
+  d'organes exact** de la cible (dé-énergiser le DJ → SA hors charge → DJ à l'état
+  cible ; faisceaux actifs d'abord), avec **garde transactionnelle de préservation
+  de partition** (revert en bloc). Supprime les écarts de faisceau « cosmétiques »
+  (faisceau électriquement équivalent mais d'organes différents). En mode
+  `aggressive`, les cibles 3 JdB sont atteintes **exactement** (0 écart).
+- **Sectionneur de ligne partagé** (R9bis) : `_reaiguiller_vers_sjb` n'ouvre plus
+  un sectionneur (`SL`) commun au chemin de la barre **cible** → supprime le
+  `OPEN … SL` parasite observé sur `TAVELP7` (le départ restait sur sa barre cible).
 
 ### 3. IHM — `scripts/manoeuvre_ihm.py`, `…_assets/index.html`
 - Les 7 postes 3-JdB sont **épinglés** (`POSTES_TEST`).
@@ -62,6 +74,9 @@ redesign ci-dessous.
   pour inspecter/tester n'importe quel poste de la situation.
 - Endpoint **`POST /api/load_grid`** : charge dynamiquement une autre situation
   `.xiidm` sans relancer le serveur.
+- **Topologie nodale qui suit l'étape** : `GET /api/step` renvoie désormais la
+  **partition nodale de l'état détaillé de l'étape** (`step_view` → 6 valeurs) ;
+  le volet « cible » se met à jour au fil de l'animation départ → … → cible.
 
 ### Couverture vérifiée (cibles 3 ET 4 nœuds, manœuvres opérationnelles)
 
@@ -69,16 +84,34 @@ redesign ci-dessous.
 |---|---|---|
 | **Séparer les barres couplées** | 3 à 7 | 6/7 (skip documenté : `SSV.OP7` à 2 nœuds, barre de réserve) |
 | **Tronçonnage** (demi-rames) | 4 à 8 | **7/7** |
+| **Topologie détaillée exacte** (0 écart, mode `aggressive`) | 3 | `CHESNP7`, `TRI.PP7`, `TAVELP7` (goldens) |
 
 Tests : `tests/manoeuvre/test_ssv_op7_3jdb.py`, `test_placement_decomposition.py`,
-`test_postes_3barres_400kv.py`, `test_ihm_postes_3barres.py`.
-**Suite `manoeuvre/` : 761 passed, 0 régression** (30 goldens intacts, dont
-`MORBRP6` 4-barres). Les 6 échecs résiduels (`goldens/*_cible_2noeuds*` absents)
-sont **pré-existants sur `main`** et indépendants.
+`test_postes_3barres_400kv.py`, `test_ihm_postes_3barres.py`,
+`test_ihm_step_nodale.py`, `test_sequences_sauvegardees_3barres.py`,
+`test_golden_sequences.py` (goldens `CHESNP7_cible_3noeuds__*`,
+`TRI.PP7_cible_3_noeuds__*`, `TAVELP7_cible_3noeuds__*`).
+**Suite `manoeuvre/` : 779 passed, 4 skipped, 0 régression** (goldens intacts,
+dont `MORBRP6` 4-barres).
+
+> **Réalisation mode-dépendante** : le mode `smooth` garantit la **partition
+> nodale** exacte (`is_verified`) ; le mode `aggressive` (alignement d'organes)
+> atteint la **topologie détaillée exacte** (`is_verified_detaillee`, 0 écart) sur
+> les cibles 3 JdB. Le test de scénario est désormais **mode-conscient** (partition
+> exigée des deux modes ; exactitude détaillée d'au moins un —
+> `test_scenarios_sauvegardes.py::test_scenario_atteint_topologie_detaillee`).
+> Le chargeur de fixtures tolère le **nommage point/underscore**
+> (`TRI.PP7` ↔ `TRI_PP7.json`).
 
 ## Reste à faire
 
 ### Séquenceur (raffinements)
+- **Mode `smooth` sur faisceau partagé** : l'alignement détaillé
+  (`_aligner_couplers_sur_cible`) atteint la partition nodale exacte mais peut
+  émettre une **alerte sectionneur** (R18) consignée en écart plutôt que de
+  reconfigurer un faisceau partagé sous charge. Le mode `aggressive` atteint la
+  topologie détaillée **exacte** (0 écart). → Les écarts de faisceau « cosmétiques »
+  des cibles 3 JdB testées (`CHESNP7`, `TRI.PP7`) sont **résolus** en `aggressive`.
 - **Reconnexion de départs déconnectés** : une cible regroupant des départs déjà
   hors-service exige une *mise en service* (DJ + SA) que le réalisateur ne fait
   pas — les regroupements arbitraires (round-robin) ne sont donc pas tous réalisés.
@@ -93,7 +126,10 @@ sont **pré-existants sur `main`** et indépendants.
   `_inter_sjb_couplers`, pas `CelluleCouplage`.
 - **Bug de nommage `RAN.PP6` / `RAN_PP6`** : `troncons._barres_par_nommage`
   sous-compte la fixture à 2 barres au lieu de 4 (mismatch point/underscore entre
-  l'id du VL et le *stem* de la fixture).
+  l'id du VL et le *stem* de la fixture). Le **chargeur de fixtures** tolère
+  désormais ce mismatch (`fixture_loader.load_fixture_json`, `TRI.PP7` ↔
+  `TRI_PP7.json`) ; la déduction de barre par nommage dans `troncons.py` reste à
+  durcir.
 
 ### Discovery — chaînon **end-to-end** manquant pour le recommandeur
 - `discovery/_node_splitting.py` est **binaire** (`buses = [1, 2]`, un seul

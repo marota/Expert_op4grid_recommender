@@ -164,6 +164,16 @@ pont entre deux barres de tensions différentes = court-circuit).
   `::test_boucle_longue_ouvre_ancien_sa_avant_fermer_nouveau`,
   `::test_boucle_longue_jamais_deux_sa_fermes_simultanement`.
 
+### R9bis — Sectionneur **partagé** avec la barre cible (sectionneur de ligne)
+Certaines cellules ont un **sectionneur de ligne** (`SL`) **commun** au chemin
+vers *toutes* les barres (la sélection de barre se fait par les SA `SA.1/SA.2/…`
+en aval). En quittant une ancienne barre, on **n'ouvre pas** un sectionneur qui
+appartient aussi au chemin de la **barre cible** : sinon on déconnecte le départ
+de sa barre cible elle-même (manœuvre parasite + cible non atteinte). On n'ouvre
+que les sectionneurs **propres** à l'ancienne barre.
+- **Code** : `algo._reaiguiller_vers_sjb._ouvrir_sa_anciens` (filtre `sa_cible`).
+- **Test** : `test_postes_3barres_400kv.py` (TAVELP7, cible 3 nœuds).
+
 ### R10 — Règle du sectionneur de barre (dé-énergisation)
 Un sectionneur de barre ne se manœuvre que **hors charge**. Pour scinder une
 barre en deux nœuds (créer un nœud au-delà du nombre de barres) :
@@ -296,6 +306,15 @@ partition nodale), on vise cet état exact :
 3. **vérifier la topologie détaillée** (barre de chaque départ + état de chaque
    coupler) ; les **écarts** résiduels sont consignés (`ecarts`,
    `is_verified_detaillee`).
+
+**Réalisation mode-dépendante** (postes > 2 JdB, R19) : le mode `smooth`
+garantit la **partition nodale** exacte (`is_verified`) — d'éventuels écarts de
+faisceau partagé restent consignés ; le mode `aggressive` (alignement d'organes,
+R19) atteint la **topologie détaillée exacte** (`is_verified_detaillee`, 0 écart)
+sur les cibles 3 JdB testées. Les tests de scénario sont **mode-conscients** :
+la partition exacte est exigée des deux modes, l'exactitude détaillée d'au moins
+un des deux (`test_scenarios_sauvegardes.py::test_scenario_atteint_topologie_
+detaillee`).
 - **Code** : `algo.determiner_manoeuvres_cible_detaillee`, `_ecarts_detailles`.
 - **Test** : `test_algo.py::test_cible_detaillee_atteinte_avec_barres_exactes`,
   `::test_cible_detaillee_signale_les_ecarts`,
@@ -338,6 +357,12 @@ Trois mécanismes complètent ce chemin :
 Correctif associé du séquenceur : un couplage n'est mis en `to_open` que s'il est
 **réellement fermé** (conducteur), pour ne pas ouvrir un organe partagé avec un
 couplage à garder fermé (DJ commun sur trois barres).
+
+Sur les postes à **faisceau de couplage partagé** (DJ atteignant > 2 barres), ce
+chemin est complété **transactionnellement** par le **réalisateur par
+connectivité** et l'**alignement détaillé des faisceaux** (cf. **R19**), qui
+réalisent les séparations/fusions/tronçonnages de demi-rames non couverts par le
+ré-aiguillage SJB-par-SJB.
 
 Si la cible n'est pas atteinte en totalité, dégradation gracieuse (R16) : nodale
 partielle + écarts pour complétion manuelle.
@@ -389,6 +414,44 @@ sectionneur, puis ré-alimenter.
   `test_message_sectionnement_de_barre_specifique` (message « section de barre »
   sur CZBEVP3) et `test_morbrp6_multibarres` (ordre DJ→SA→DJ vérifié).
 
+### R19 — Réalisateur par connectivité + alignement détaillé des faisceaux (postes > 2 JdB, faisceaux partagés)
+Sur les postes à **faisceau de couplage partagé** (un même DJ atteignant > 2
+barres — ex. `COUPL.A`/`COUPL.B`/`LIAIS` sur les postes 400 kV à 3 barres), le
+ré-aiguillage SJB-par-SJB (R8/R9) ne suffit pas à séparer/fusionner proprement
+les nœuds : `_inter_sjb_couplers` peut **mal attribuer** un faisceau partagé. Deux
+mécanismes, branchés **transactionnellement** (retenus seulement s'ils vérifient
+**exactement** la cible — sinon revert, jamais de dégradation), complètent R17 :
+
+1. **Réalisateur par connectivité** (`determiner_manoeuvres_par_connectivite`) —
+   repli du chemin nodal *et* du chemin détaillé multi-barres. Au lieu de
+   raisonner faisceau par faisceau, il agit sur la **connectivité réelle** :
+   (a) ré-aiguillage des départs (maintien en place si déjà dans le bon nœud),
+   (b) **sectionnements intra-barre** par état direct, (c) **séparation** par
+   ouverture du **lot minimal** de DJ de couplage qui sépare deux nœuds, (d)
+   **fusion** par fermeture des faisceaux requis. Réalise les manœuvres
+   opérationnelles (séparer des barres couplées ; tronçonner un JdB en
+   demi-rames) sur les 7 postes 400 kV à 3 barres testés.
+2. **Alignement détaillé des faisceaux** (`_aligner_couplers_sur_cible`) — une
+   fois la **partition nodale** atteinte, ramène chaque **faisceau** (bay de
+   couplage) à l'**état d'organes exact** de la cible détaillée, faisceau par
+   faisceau : dé-énergiser (ouvrir le DJ) → positionner les SA **hors charge** →
+   refermer le DJ à l'état cible (faisceaux actifs d'abord). Garde
+   **transactionnelle de préservation de partition** : tout réalignement qui
+   changerait la partition nodale est **annulé en bloc**. Supprime les écarts de
+   faisceau « cosmétiques » (faisceau électriquement équivalent mais d'organes
+   différents).
+- **Mode `aggressive`** : atteint la topologie détaillée **exacte** (0 écart) sur
+  les cibles 3 JdB testées. **Mode `smooth`** : atteint la **partition nodale**
+  exacte ; un réalignement de faisceau partagé peut émettre une **alerte
+  sectionneur** (R18) consignée en écart plutôt que manœuvré sous charge.
+- **Code** : `algo.determiner_manoeuvres_par_connectivite`,
+  `algo._aligner_couplers_sur_cible`, `algo._sequence_detaillee_multibarres`
+  (repli only-on-failure), `algo.determiner_topo_complete_cible` (branche nodale).
+- **Tests** : `test_postes_3barres_400kv.py` (7 postes, cibles 3-7 nœuds),
+  `test_golden_sequences.py` (goldens `CHESNP7_cible_3noeuds__{smooth,aggressive}`,
+  `TRI.PP7_cible_3_noeuds__{smooth,aggressive}`, `TAVELP7_cible_3noeuds__*`),
+  `test_sequences_sauvegardees_3barres.py`.
+
 ---
 
 ## Postes multi-sections
@@ -411,6 +474,8 @@ vérifiée).
 | Topologies de couplers non chaînées (≥ 3 barres en anneau) | partiel |
 | Nœuds mêlant départs connectés et déconnectés | partiel |
 | Postes > 2 jeux de barres (niveaux 3B/4B, organes internes à 2 bornes, nœuds à 0 barre) | géré via placement par composantes (R17) ; fallback nodal-only : scoping 2 JdB |
+| Postes 3 JdB à **faisceau de couplage partagé** (séparation/fusion/tronçonnage de demi-rames) | géré via réalisateur connectivité + alignement détaillé (R19) — exact en `aggressive` ; `smooth` exact en nodal, écart faisceau possible |
+| Cible **arbitraire** (round-robin) exigeant la *reconnexion* de départs déjà déconnectés | partiel |
 
 ---
 
