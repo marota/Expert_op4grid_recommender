@@ -168,6 +168,48 @@ def test_cible_3_ou_4_noeuds_innocuite(name, shape):
 # 3. La Phase F est transactionnelle (sur SSV.OP7, placement propre)
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# 4. FILET DE CARACTÉRISATION — base verrouillée avant la réécriture du
+#    séquenceur « bay-aware » (étape 2/2 du redesign couplage).
+# --------------------------------------------------------------------------
+#
+# Épingle l'état ACTUEL de réalisation (``is_verified``) de cibles déterministes
+# 3/4 nœuds. `SSV.OP7` réalise déjà (placement propre + Phase F) ; les postes
+# *triangle* à faisceaux de couplage **partagés** (TAVELP7…) ne réalisent pas
+# encore exactement — c'est l'objet de la réécriture séquenceur à venir.
+#
+# >>> Quand le séquenceur bay-aware débloquera ces postes, les ``False`` ci-dessous
+#     deviendront ``True`` : ce filet ÉCHOUERA et devra être mis à jour
+#     **consciemment** (preuve du gain). C'est le signal de progression voulu.
+_REALISATION_ACTUELLE = {
+    "SSV_OP7": {"rr3": True, "rr4": True},
+    "TAVELP7": {"rr3": False, "rr4": False},
+    "TRI_PP7": {"rr3": False, "rr4": False},
+    "ARGOEP7": {"rr3": False, "rr4": False},
+    "CHESNP7": {"rr3": False, "rr4": False},
+    "COR_PP7": {"rr3": False, "rr4": False},
+    "CERGYP7": {"rr3": False, "rr4": False},
+}
+
+
+@pytest.mark.skipif(not _DISPONIBLES, reason="Aucune fixture de poste 3-barres 400 kV.")
+@pytest.mark.parametrize("name", _DISPONIBLES)
+@pytest.mark.parametrize("shape", ["rr3", "rr4"])
+def test_caracterisation_realisation_sequenceur(name, shape):
+    """Filet : verrouille l'état actuel de réalisation par poste/forme. Le
+    placement (mono-barre) est déjà corrigé ; ce filet suit la réalisation
+    SÉQUENCÉE, cible de l'étape 2/2 (séquenceur bay-aware)."""
+    attendu = _REALISATION_ACTUELLE.get(name, {}).get(shape)
+    if attendu is None:
+        pytest.skip(f"pas d'attendu épinglé pour {name}/{shape}")
+    poste = _poste(name)
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, _cibles(poste)[shape])
+    res = determiner_topo_complete_cible(poste, cible)
+    assert res.is_verified is attendu, (
+        f"{name}/{shape}: réalisation={res.is_verified} (épinglé {attendu}). "
+        "Si le séquenceur bay-aware a progressé, mettre à jour _REALISATION_ACTUELLE.")
+
+
 @pytest.mark.skipif("SSV_OP7" not in _DISPONIBLES, reason="Fixture SSV_OP7 absente.")
 @pytest.mark.parametrize("shape", ["rr3", "rr4", "iso"])
 def test_phase_f_transactionnelle_ssv(shape):
