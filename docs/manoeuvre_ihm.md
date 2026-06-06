@@ -244,8 +244,9 @@ navigateur).
 | Méthode & route | Corps | Réponse | Rôle |
 |-----------------|-------|---------|------|
 | `GET /` | — | HTML | Page de l'IHM |
-| `GET /api/postes` | — | `{postes:[…]}` | Liste des postes de test |
-| `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) ; inclut les partitions nodales |
+| `GET /api/postes` | — | `{postes:[…], all:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) |
+| `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
+| `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) — **n'importe quel** VL NODE_BREAKER ; inclut les partitions nodales |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds, nodale}` | Bascule un OC (cible) ; `nodale` = vue nodale resynchronisée |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds, nodale}` | Réinitialise la cible = départ |
 | `POST /api/cible` | — | `{svg, switches, nb_noeuds, nodale}` | Vue de la cible détaillée **courante** (sans la modifier) — pour revenir l'éditer alors qu'une séquence est calculée |
@@ -419,9 +420,15 @@ assert res.ecarts == []
 ## 8. Limites
 
 - Mono-utilisateur (serveur de développement Flask, mono-thread).
-- `RAN_PP6` (fixture) est absent du réseau France de référence (nommé
-  `RAN.PP6`) : 14 des 15 postes de test sont disponibles.
+- **Postes à ≥ 3 jeux de barres** : gérés (placement N-barres + réalisateur
+  connectivité-based). Les 7 postes 400 kV à 3 JdB identifiés (`SSV.OP7`,
+  `TAVELP7`, `TRI.PP7`, `ARGOEP7`, `CHESNP7`, `COR.PP7`, `CERGYP7`) sont épinglés ;
+  le champ de **recherche** donne accès à tout poste NODE_BREAKER de la situation.
+  État détaillé et limites restantes : `docs/postes_n_jeux_de_barres.md`.
+- **Chargement de situation** : `/api/load_grid` recharge un `.xiidm` côté
+  serveur ; l'upload de fichier depuis le navigateur n'est pas (encore) géré.
 - Les postes multi-sections (ex. CARRIP6, 2 barres × 3 sections) sont gérés ;
   les écarts détaillés résiduels éventuels sont affichés (dégradation gracieuse).
 - Les limites de l'algorithme lui-même sont documentées dans
-  `docs/manoeuvre_regles.md` (omnibus complexes, couplers non chaînés, etc.).
+  `docs/manoeuvre_regles.md` (omnibus complexes, couplers non chaînés, etc.) et
+  `docs/postes_n_jeux_de_barres.md` (reste à faire séquenceur / discovery).

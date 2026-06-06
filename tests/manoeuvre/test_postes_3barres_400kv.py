@@ -36,6 +36,10 @@ from expert_op4grid_recommender.manoeuvre import (
     sectionneurs_sous_charge_par_manoeuvre,
 )
 from expert_op4grid_recommender.manoeuvre.algo.graph_ops import _wired_busbar, _wired_sjbs
+from expert_op4grid_recommender.manoeuvre.algo.placement import _placement_automatique
+from expert_op4grid_recommender.manoeuvre.algo.sequencing import (
+    determiner_manoeuvres_par_connectivite,
+)
 
 from .fixture_loader import (
     build_graph_from_fixture,
@@ -174,6 +178,71 @@ _REALISATIONS_VERIFIEES = [
     ("SSV_OP7", "rr3"), ("SSV_OP7", "rr4"), ("SSV_OP7", "iso"), ("SSV_OP7", "tron"),
     ("TAVELP7", "sep"), ("TAVELP7", "tron"),
 ]
+
+
+# --------------------------------------------------------------------------
+# Redesign couplage : effet de la pénalité (placement mono-barre) + réalisateur
+# --------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _DISPONIBLES, reason="Aucune fixture de poste 3-barres 400 kV.")
+@pytest.mark.parametrize("name", _DISPONIBLES)
+def test_placement_mono_barre_pour_separation(name):
+    """Effet de ``POIDS_NOEUD_MULTIBARRE`` : pour une cible « séparer barres » sur
+    un poste à faisceaux partagés, le placement affecte chaque nœud à **une seule
+    barre** (pas de demi-rames croisées « exotiques »)."""
+    poste = _poste(name)
+    groups = _cible_separer_barres(poste)
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, groups)
+    if cible.nb_noeuds < 3:
+        pytest.skip(f"{name}: séparation < 3 nœuds")
+    placement, faisable, msg, _np = _placement_automatique(poste, cible)
+    assert faisable is True, f"{name}: {msg}"
+    bp = poste.tronconnement.barre_par_busbar
+    sjbid2barre = {poste.graph.nodes[n].get("busbar_section_id"): bp[n] for n in bp}
+    for _deps, sjbs in placement:
+        barres = {sjbid2barre[s] for s in sjbs}
+        assert len(barres) == 1, f"{name}: nœud multi-barre {sjbs}"
+
+
+@pytest.mark.skipif(not _DISPONIBLES, reason="Aucune fixture de poste 3-barres 400 kV.")
+@pytest.mark.parametrize("name", _DISPONIBLES)
+def test_realisateur_connectivite_engage_et_separe(name):
+    """Sur un poste à faisceaux partagés, ``determiner_topo_complete_cible``
+    bascule sur le **réalisateur connectivité-based** : la cible « séparer barres »
+    est vérifiée ET au moins une manœuvre « séparation de nœuds » (Phase F) est
+    émise — preuve que le repli bay-aware est engagé."""
+    poste = _poste(name)
+    groups = _cible_separer_barres(poste)
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, groups)
+    if cible.nb_noeuds < 3:
+        pytest.skip(f"{name}: séparation < 3 nœuds")
+    res = determiner_topo_complete_cible(poste, cible)
+    assert res.is_verified is True, f"{name}: {res.message}"
+    assert any("séparation de nœuds" in m.raison for m in res.manoeuvres), \
+        f"{name}: le réalisateur connectivité aurait dû séparer des nœuds"
+
+
+@pytest.mark.skipif(not _DISPONIBLES, reason="Aucune fixture de poste 3-barres 400 kV.")
+@pytest.mark.parametrize("name", _DISPONIBLES)
+def test_realisateur_connectivite_sur_et_pur(name):
+    """Contrat du réalisateur connectivité (appel direct) : il **ne mute pas** le
+    graphe du poste, ses manœuvres portent sur des organes existants, et s'il
+    déclare ``is_verified`` la topologie obtenue est **exactement** la cible."""
+    poste = _poste(name)
+    before = _switch_states(poste.graph)
+    known = _known_switch_ids(poste.graph)
+    groups = _cible_separer_barres(poste)
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, groups)
+    placement, faisable, _msg, _np = _placement_automatique(poste, cible)
+    if not faisable:
+        pytest.skip(f"{name}: placement non faisable")
+
+    res = determiner_manoeuvres_par_connectivite(poste, placement, cible)
+
+    assert _switch_states(poste.graph) == before  # pureté : poste non muté
+    assert all(m.switch_id in known for m in res.manoeuvres)
+    if res.is_verified:
+        assert cible.meme_topologie(res.topo_obtenue)
 
 
 @pytest.mark.skipif(not _DISPONIBLES, reason="Aucune fixture de poste 3-barres 400 kV.")

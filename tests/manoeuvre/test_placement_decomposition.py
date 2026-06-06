@@ -30,6 +30,76 @@ from .fixture_loader import (
 
 
 # --------------------------------------------------------------------------
+# (0) Pénalité multi-barres : **gated > 2 barres** (cas 2-JdB inchangés)
+# --------------------------------------------------------------------------
+
+def _scenario_chaine_4sjb():
+    """4 SJB reliées en chaîne 0-1-2-3, 2 nœuds atteignant toutes les SJB."""
+    sjb_nodes = [0, 1, 2, 3]
+    R = {"a": frozenset({0, 1, 2, 3}), "b": frozenset({0, 1, 2, 3})}
+    wired_sjb = {"a": 0, "b": 3}
+    nodes = [["a"], ["b"]]
+    couplers = [
+        _InterSjbCoupler(0, 1, ["c01"], ["c01"]),
+        _InterSjbCoupler(1, 2, ["c12"], ["c12"]),
+        _InterSjbCoupler(2, 3, ["c23"], ["c23"]),
+    ]
+    cp_closed = [True, True, True]
+    CG = nx.path_graph([0, 1, 2, 3])
+    groupe_connexe = lambda s: nx.is_connected(CG.subgraph(s))  # noqa: E731
+    return sjb_nodes, R, wired_sjb, nodes, couplers, cp_closed, groupe_connexe
+
+
+def test_penalite_multibarre_gated_sur_2_barres():
+    """La pénalité multi-barres ne s'applique **qu'aux postes > 2 barres**. Sur un
+    poste à 2 barres, passer ``barre_par`` à ``_recherche_exhaustive`` ne change
+    **pas** le résultat (mêmes coût et affectation lex-min) — garantie de
+    non-régression du comportement 2-JdB."""
+    sjb_nodes, R, wired_sjb, nodes, couplers, cp_closed, gc = _scenario_chaine_4sjb()
+    barre_par_2 = {0: 0, 1: 0, 2: 1, 3: 1}  # 2 barres -> pénalité inactive
+
+    sans = pmod._recherche_exhaustive(
+        nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, gc, None)
+    avec = pmod._recherche_exhaustive(
+        nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, gc, barre_par_2)
+
+    assert sans is not None and avec is not None
+    assert sans == avec, "la pénalité doit être inactive (gated) à 2 barres"
+
+
+def test_penalite_multibarre_reduit_les_noeuds_multibarres():
+    """Sur **3 barres**, à coût pénalisé minimal, l'affectation retenue ne crée
+    pas plus de nœuds multi-barres que nécessaire : ici chaque nœud peut tenir sur
+    une barre, la recherche pénalisée doit donc renvoyer une affectation
+    **mono-barre** (aucun nœud à cheval sur 2 barres)."""
+    # 3 barres mono-SJB (0,1,2) ; 3 nœuds épinglés chacun sur une barre.
+    sjb_nodes = [0, 1, 2]
+    R = {"a": frozenset({0}), "b": frozenset({1}), "c": frozenset({2})}
+    wired_sjb = {"a": 0, "b": 1, "c": 2}
+    nodes = [["a"], ["b"], ["c"]]
+    couplers = [
+        _InterSjbCoupler(0, 1, ["c01"], ["c01"]),
+        _InterSjbCoupler(1, 2, ["c12"], ["c12"]),
+        _InterSjbCoupler(0, 2, ["c02"], ["c02"]),
+    ]
+    cp_closed = [True, True, True]
+    CG = nx.Graph(); CG.add_nodes_from(sjb_nodes)
+    CG.add_edges_from([(0, 1), (1, 2), (0, 2)])
+    gc = lambda s: nx.is_connected(CG.subgraph(s))  # noqa: E731
+    barre_par = {0: 0, 1: 1, 2: 2}  # 3 barres -> pénalité active
+
+    best = pmod._recherche_exhaustive(
+        nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, gc, barre_par)
+    assert best is not None
+    assign = best[1]
+    node_sjbs: dict = {}
+    for j, ni in enumerate(assign):
+        node_sjbs.setdefault(ni, set()).add(sjb_nodes[j])
+    for sset in node_sjbs.values():
+        assert len({barre_par[s] for s in sset}) == 1, "nœud mono-barre attendu"
+
+
+# --------------------------------------------------------------------------
 # (1) Décomposition par composantes connexes — exacte (test synthétique)
 # --------------------------------------------------------------------------
 

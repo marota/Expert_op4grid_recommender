@@ -179,6 +179,9 @@ que l'attribut `open`.
 
 ## Etat algo (phase 2)
 
+> **Postes à N jeux de barres (≥ 3 JdB)** : état d'avancement et reste à faire
+> consolidés dans **`docs/postes_n_jeux_de_barres.md`**.
+
 `determiner_topo_complete_cible(poste, topo_cible)` traite :
 - postes 1 barre (cas trivial) ;
 - postes 2 barres standard : evaluation de couplage (`nbNoeuds`/`nbBarres`),
