@@ -182,7 +182,7 @@
       <div class="nodiso ro" id="ndDepartIso" style="display:none"></div>
     </div>
     <div class="nsec" style="flex:2">
-      <div class="stitle"><span>Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
+      <div class="stitle"><span id="ndCibTitle">Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
       <div class="ntools">
         <button onclick="nodNewNode()" title="Créer un nœud vide (puis y glisser des départs ; ou avec la sélection courante)">＋ Nœud</button>
         <button onclick="nodReset()" title="Réinitialiser la cible nodale = départ">= départ</button>
@@ -425,6 +425,15 @@ async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
   const ln=document.getElementById('ln'+S.idx);if(ln)ln.classList.add('cur');
   // Halo jaune autour de la vue du poste quand l'état affiché EST la topologie cible.
   document.getElementById('paneBot').classList.toggle('reached', !!r.reached);
+  // La topologie nodale **suit l'étape** : on affiche (en lecture seule) la
+  // partition de l'état détaillé courant dans le volet « cible ». L'état éditable
+  // (NOD.groups) n'est pas modifié ; il est restauré par renderNodaleCible().
+  if(r.nodale){
+    renderNodaleSVG('ndCible', r.nodale.groups||[], false, r.nodale.colors||{});
+    renderIso('ndCibleIso', r.nodale.isolated||[], false);
+    document.getElementById('ndCibN').textContent=(r.nodale.groups||[]).length;
+    document.getElementById('ndCibTitle').textContent='Étape '+S.idx+'/'+(S.n-1)+' (vue)';
+  }
   document.getElementById('bprev').disabled=(S.idx<=0);document.getElementById('bnext').disabled=(S.idx>=S.n-1);}
 function step(d){stopAnim();showStep(S.idx+d);}
 function play(){stopAnim();S.timer=setInterval(async()=>{if(S.idx>=S.n-1){stopAnim();return;}await showStep(S.idx+1);},1000);}
@@ -551,6 +560,7 @@ function renderNodaleDepart(){const gs=NOD.depart.groups||[];
   renderNodaleSVG('ndDepart',gs,false,NOD.colors);
   renderIso('ndDepartIso',NOD.departIso,false);}
 function renderNodaleCible(){nodNormalize();
+  document.getElementById('ndCibTitle').textContent='Cible (éditable)';  // restaure le mode édition
   document.getElementById('ndCibN').textContent=NOD.groups.length;
   renderNodaleSVG('ndCible',NOD.groups,true,NOD.colorsCible);
   renderIso('ndCibleIso',NOD.isolated,true);}

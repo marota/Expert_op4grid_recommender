@@ -422,7 +422,7 @@ class Session:
         ``reached`` indique si l'état affiché **est déjà la topologie cible**
         (même partition nodale) — pour mettre en évidence la vue du poste."""
         if not self.seq_states:
-            return "", [], 0, 0, False
+            return "", [], 0, 0, False, None
         i = max(0, min(i, len(self.seq_states) - 1))
         state = self.seq_states[i]
         with self.applied(state):
@@ -432,7 +432,11 @@ class Session:
             nb = self._topo(state).nb_noeuds
         # ``applied`` a restauré le réseau sur ``self.current``.
         reached = self._topo(self.current).meme_topologie(self._topo(state))
-        return _highlight(svg.svg, self.seq_highlights[i]), switches, nb, i, reached
+        # Vue nodale de l'**état détaillé de l'étape** : permet à l'IHM de faire
+        # « suivre » la topologie nodale (partition) au fil de l'animation.
+        nodale = self.nodale_state(state)
+        return (_highlight(svg.svg, self.seq_highlights[i]),
+                switches, nb, i, reached, nodale)
 
     # --- séquence éditable (navigation + édition par l'expert) ------------
     def _rebuild_seq(self):
@@ -1021,8 +1025,9 @@ def api_save_sequence():
 @app.get("/api/step")
 def api_step():
     i = int(request.args.get("i", 0))
-    svg, switches, nb, i, reached = SESSION.step_view(i)
-    return jsonify(svg=svg, switches=switches, nb_noeuds=nb, i=i, reached=reached)
+    svg, switches, nb, i, reached, nodale = SESSION.step_view(i)
+    return jsonify(svg=svg, switches=switches, nb_noeuds=nb, i=i,
+                   reached=reached, nodale=nodale)
 
 
 @app.post("/api/seq_insert")
