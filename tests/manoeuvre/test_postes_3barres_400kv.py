@@ -35,7 +35,7 @@ from expert_op4grid_recommender.manoeuvre import (
     determiner_topo_complete_cible,
     sectionneurs_sous_charge_par_manoeuvre,
 )
-from expert_op4grid_recommender.manoeuvre.algo.graph_ops import _wired_busbar
+from expert_op4grid_recommender.manoeuvre.algo.graph_ops import _wired_busbar, _wired_sjbs
 
 from .fixture_loader import (
     build_graph_from_fixture,
@@ -90,8 +90,12 @@ def _cibles(poste) -> dict[str, list[list[str]]]:
         "rr3": [d[i::3] for i in range(3)],
         "rr4": [d[i::4] for i in range(4)],
     }
-    bb = _par_barre(poste)
+    bb = _par_barre(poste)  # départs **câblés** uniquement, groupés par barre
     pop = sorted((b for b in bb if bb[b]), key=lambda b: -len(bb[b]))
+    # "sep" : séparer les barres courantes (départs câblés maintenus en place).
+    grp_sep = [list(v) for v in bb.values() if v]
+    if len(grp_sep) >= 2:
+        out["sep"] = grp_sep
     if pop and len(bb[pop[0]]) >= 2:
         rest = [list(bb[b]) for b in pop]
         moved = rest[0].pop()
@@ -99,12 +103,54 @@ def _cibles(poste) -> dict[str, list[list[str]]]:
         big = max((list(bb[b]) for b in pop), key=len)
         others = [list(bb[b]) for b in pop if list(bb[b]) is not big]
         out["splitbig"] = others + [big[:len(big) // 2], big[len(big) // 2:]]
+        # "tron" : scinder la barre la plus chargée par demi-rame (tronçonnage).
+        sub: dict[int, list[str]] = {}
+        for eq in bb[pop[0]]:
+            sj = _wired_sjbs(poste.graph, poste.cellules, eq)
+            key = sorted(sj)[0] if sj else None
+            if key is not None:
+                sub.setdefault(key, []).append(eq)
+        if len(sub) >= 2:
+            out["tron"] = [list(bb[b]) for b in pop[1:] if bb[b]] + \
+                          [list(v) for v in sub.values() if v]
     return {k: [g for g in v if g] for k, v in out.items()}
 
 
 # --------------------------------------------------------------------------
 # 1. Réalisation complète sur SSV.OP7 (cibles 3 et 4 nœuds)
 # --------------------------------------------------------------------------
+
+# Cibles 3/4 nœuds réalisées de bout en bout grâce au **réalisateur
+# connectivité-based** (séquenceur bay-aware) : SSV.OP7 (toutes formes) et
+# TAVELP7 (séparation par barre, tronçonnage). Verrouille les gains de l'étape 2.
+_REALISATIONS_VERIFIEES = [
+    ("SSV_OP7", "rr3"), ("SSV_OP7", "rr4"), ("SSV_OP7", "iso"), ("SSV_OP7", "tron"),
+    ("TAVELP7", "sep"), ("TAVELP7", "tron"),
+]
+
+
+@pytest.mark.parametrize("name,shape", _REALISATIONS_VERIFIEES)
+def test_realisation_3_4_noeuds_verifiee(name, shape):
+    """La cible (3 ou 4 nœuds) est atteinte ET vérifiée par le réalisateur
+    connectivité-based, sur un vrai poste 400 kV à 3 barres."""
+    if name not in _DISPONIBLES:
+        pytest.skip(f"Fixture {name} absente.")
+    poste = _poste(name)
+    cibles = _cibles(poste)
+    if shape not in cibles:
+        pytest.skip(f"forme {shape} indisponible pour {name}")
+    before = _switch_states(poste.graph)
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, cibles[shape])
+    assert cible.nb_noeuds in (3, 4)
+
+    res = determiner_topo_complete_cible(poste, cible)
+
+    assert res.is_verified is True, f"{name}/{shape}: {res.message}"
+    assert res.topo_obtenue.nb_noeuds == cible.nb_noeuds
+    assert res.nb_manoeuvres > 0
+    assert all(m.switch_id in _known_switch_ids(poste.graph) for m in res.manoeuvres)
+    assert _switch_states(poste.graph) == before  # graphe non muté
+
 
 @pytest.mark.skipif("SSV_OP7" not in _DISPONIBLES, reason="Fixture SSV_OP7 absente.")
 @pytest.mark.parametrize("shape", ["rr3", "rr4", "iso"])

@@ -721,3 +721,169 @@ def determiner_manoeuvres_avec_sections(
              f"visé {topo_cible.nb_noeuds})."
     )
     return res
+
+
+def determiner_manoeuvres_par_connectivite(poste, placement, topo_cible):
+    """Réalisateur **connectivité-based** — postes > 2 barres à faisceaux de
+    couplage **partagés** (un DJ atteignant plusieurs barres par sélection de SA,
+    ex. COUPL.A/LIAIS), que ``_inter_sjb_couplers`` décompose mal en couplers par
+    paires (le séquenceur général s'y trompe : ré-aiguillage qui isole, faisceau
+    incomplètement ouvert).
+
+    On raisonne sur la **connectivité réelle** du graphe (et non sur la liste de
+    couplers) :
+
+    1. **ré-aiguillage** des départs vers leur barre cible — *maintien* si le
+       départ est déjà sur une SJB de son nœud (évite les isolements parasites) ;
+    2. **sectionnements** (organes intra-barre, non partagés) : état direct selon
+       la partition — fermé si même nœud, ouvert sinon ;
+    3. **séparation** : ouverture du **lot minimal** de DJ de couplage séparant les
+       nœuds différents sans casser une connexité intra-nœud (cf. Phase F) ;
+    4. **fusion** : fermeture de DJ de couplage reliant les SJB d'un même nœud
+       encore séparées, sans relier deux nœuds différents.
+
+    Destiné à un usage **transactionnel** : l'appelant ne le retient que s'il
+    ``is_verified`` (cf. ``determiner_topo_complete_cible``) — il ne peut donc
+    jamais dégrader un résultat déjà correct.
+    """
+    vl = poste.voltage_level_id
+    cells = poste.cellules
+    G = poste.graph.copy()
+    bp = poste.tronconnement.barre_par_busbar
+    sjb_node = {G.nodes[n].get("busbar_section_id"): n for n in bp}
+    couplers = _inter_sjb_couplers(poste)
+    coupling_breakers = sorted({sid for cp in couplers for sid in cp.breaker_ids})
+
+    node_de_sjb: dict[int, int] = {}
+    for idx, (deps, sjbids) in enumerate(placement):
+        for sid in sjbids:
+            n = sjb_node.get(sid)
+            if n is not None:
+                node_de_sjb[n] = idx
+
+    manoeuvres: list[Manoeuvre] = []
+
+    def _live() -> nx.Graph:
+        H = nx.Graph()
+        H.add_nodes_from(G.nodes())
+        for u, v, d in G.edges(data=True):
+            if not d.get("open", False):
+                H.add_edge(u, v)
+        return H
+
+    def _viol_sep(H) -> bool:
+        it = sorted(node_de_sjb.items())
+        for i, (s1, n1) in enumerate(it):
+            for s2, n2 in it[i + 1:]:
+                if n1 != n2 and s1 in H and s2 in H and nx.has_path(H, s1, s2):
+                    return True
+        return False
+
+    def _nb_fusion_manquante(H) -> int:
+        it = sorted(node_de_sjb.items())
+        return sum(
+            1 for i, (s1, n1) in enumerate(it) for s2, n2 in it[i + 1:]
+            if n1 == n2 and not (s1 in H and s2 in H and nx.has_path(H, s1, s2))
+        )
+
+    # 1) ré-aiguillage des départs (maintien si déjà sur une SJB de son nœud).
+    for idx, (deps, sjbids) in enumerate(placement):
+        group = {sjb_node[s] for s in sjbids if s in sjb_node}
+        for eq in sorted(deps):
+            cell = cells.get_cellule_depart(eq)
+            if cell is None:
+                continue
+            reachable = cell.busbar_nodes & group
+            if not reachable:
+                continue
+            if _wired_busbar(cell, G) in group:
+                continue  # déjà bien placé : ne pas bouger
+            if _reaiguiller_vers_sjb(G, cells, eq, min(reachable), manoeuvres):
+                pass
+
+    # 2) sectionnements **intra-barre** : état direct selon la partition.
+    #    On ne traite QUE les vrais sectionnements (deux SJB de la **même** barre).
+    #    Attention : ``_inter_sjb_couplers`` étiquette aussi ``is_sectionnement``
+    #    des liaisons SA-seules **inter-barres** (artefacts de la décomposition d'un
+    #    faisceau partagé dont le chemin évite le DJ) — les ouvrir fragmenterait le
+    #    poste. La séparation inter-barres est gérée en (3) par l'ouverture des DJ.
+    for cp in couplers:
+        if not cp.is_sectionnement:
+            continue
+        if bp.get(cp.sjb_a) != bp.get(cp.sjb_b):
+            continue  # liaison inter-barres mal étiquetée : pas un sectionnement
+        na, nb = node_de_sjb.get(cp.sjb_a), node_de_sjb.get(cp.sjb_b)
+        if na is None or nb is None:
+            continue
+        want_open = (na != nb)
+        for sid in cp.switch_ids:
+            if _is_open(G, sid) != want_open:
+                _set_switch(G, sid, want_open)
+                manoeuvres.append(Manoeuvre(
+                    sid, "OPEN" if want_open else "CLOSE",
+                    "ouverture sectionnement de barre (séparation)" if want_open
+                    else "fermeture sectionnement de barre (fusion)"))
+
+    # 3) séparation : lot minimal de **DJ de couplage** ouverts, par
+    #    **connectivité réelle** (robuste à la mauvaise attribution des faisceaux
+    #    partagés). Les DJ coupent la charge (manœuvre sûre) ; on n'ouvre jamais un
+    #    organe cassant une connexité intra-nœud, et on minimise l'ensemble retenu.
+    sep_switches = coupling_breakers
+    if _viol_sep(_live()):
+        ouverts: list[str] = []
+        for sid in sep_switches:
+            if _is_open(G, sid):
+                continue
+            _set_switch(G, sid, True)
+            if _nb_fusion_manquante(_live()) > 0:
+                _set_switch(G, sid, False)  # casserait une connexité intra-nœud
+            else:
+                ouverts.append(sid)
+        for sid in ouverts:
+            _set_switch(G, sid, False)
+            if _viol_sep(_live()):
+                _set_switch(G, sid, True)  # nécessaire
+        for sid in ouverts:
+            if _is_open(G, sid):
+                manoeuvres.append(Manoeuvre(
+                    sid, "OPEN", "ouverture couplage de barres (séparation de nœuds)"))
+
+    # 4) fusion : fermer des DJ de couplage reliant les SJB d'un même nœud, sans
+    #    relier deux nœuds différents (réduction stricte des manques de fusion).
+    while True:
+        manque = _nb_fusion_manquante(_live())
+        if manque == 0:
+            break
+        progres = False
+        for sid in coupling_breakers:
+            if not _is_open(G, sid):
+                continue
+            _set_switch(G, sid, False)
+            if _viol_sep(_live()) or _nb_fusion_manquante(_live()) >= manque:
+                _set_switch(G, sid, True)  # relie des nœuds différents / n'aide pas
+            else:
+                manoeuvres.append(Manoeuvre(
+                    sid, "CLOSE", "fermeture couplage de barres (fusion de nœud)"))
+                progres = True
+                break
+        if not progres:
+            break
+
+    manoeuvres = _optimiser_sequence(poste, manoeuvres)
+    res = ResultatManoeuvres(
+        voltage_level_id=vl,
+        topo_initiale=poste.topologie_nodale,
+        topo_cible=topo_cible,
+    )
+    res.manoeuvres = manoeuvres
+    res.topo_obtenue = TopologieNodale.from_graph(G, vl)
+    res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
+    res.is_changed = bool(manoeuvres)
+    res.ecarts = _verifier_regles(poste, manoeuvres, un_seul=False)
+    res.message = (
+        "Topologie cible atteinte (réalisateur connectivité)."
+        if res.is_verified
+        else f"Cible non atteinte (connectivité) : obtenu "
+             f"{res.topo_obtenue.nb_noeuds} nœud(s), visé {topo_cible.nb_noeuds}."
+    )
+    return res

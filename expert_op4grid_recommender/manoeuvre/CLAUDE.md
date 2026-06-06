@@ -211,6 +211,16 @@ Sequenceur N barres :
   sans casser une connexite intra-noeud. Connectivite reelle (robuste a la
   mauvaise attribution des couplages partages par `_inter_sjb_couplers`).
   **No-op** quand la separation est deja acquise (postes 2 barres) -> goldens iso.
+- **Realisateur connectivite-based** (`determiner_manoeuvres_par_connectivite`,
+  etape 2/2 du redesign couplage) : repli pour le chemin **nodal > 2 barres** a
+  faisceaux de couplage **partages**. (1) re-aiguillage des departs (maintien si
+  deja dans le bon noeud), (2) sectionnements **intra-barre** par etat direct,
+  (3) separation par ouverture du lot minimal de DJ (connectivite), (4) fusion.
+  Branche **transactionnellement** par `determiner_topo_complete_cible` : retenu
+  seulement s'il vERIFIE exactement la cible -> ne degrade jamais. Debloque
+  SSV.OP7 (toutes formes 3/4 noeuds) et TAVELP7 (sep, tron). **Partiel** : les
+  postes triangle a departs deconnectes / faisceaux tres denses (ARGOEP7,
+  CHESNP7, COR.PP7, TRI.PP7, CERGYP7) ne verifient pas encore toutes les cibles.
 
 Limites connues (cf. docstring `algo.py`) :
 - re-aiguillage d'omnibus complexes : partiel ;

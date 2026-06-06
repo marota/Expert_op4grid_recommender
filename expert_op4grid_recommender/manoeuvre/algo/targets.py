@@ -11,7 +11,7 @@ from .results import Manoeuvre, ResultatManoeuvres
 from .graph_ops import _edges_of_switches, _inter_sjb_couplers, _is_open, _live_graph_sans, _organes_internes_2bornes, _ouvrages_energises_sur, _set_switch, _wired_busbar
 from .placement import _departure_dj_changes, _placement_automatique, _placement_avec_reconnexions
 from .verification import _optimiser_sequence, _verifier_regles
-from .sequencing import _appliquer_changements_dj, _consigner_non_realisables, _isoler_depart_hors_barre, _reaiguiller_vers_sjb, determiner_manoeuvres_avec_sections
+from .sequencing import _appliquer_changements_dj, _consigner_non_realisables, _isoler_depart_hors_barre, _reaiguiller_vers_sjb, determiner_manoeuvres_avec_sections, determiner_manoeuvres_par_connectivite
 
 
 def _ecarts_detailles(
@@ -420,6 +420,20 @@ def determiner_topo_complete_cible(
         core.topo_obtenue and topo_cible.meme_topologie(core.topo_obtenue)
     )
     core.is_changed = bool(core.manoeuvres)
+
+    # --- Repli connectivité-based (postes > 2 barres à faisceaux partagés) --
+    # Si le séquenceur général n'atteint pas la cible sur un poste > 2 barres
+    # (faisceaux de couplage partagés mal décomposés), on tente le réalisateur
+    # connectivité-based. **Transactionnel** : on ne le retient que s'il vérifie
+    # exactement la cible → ne peut jamais dégrader un résultat déjà correct.
+    if (faisable and not core.is_verified
+            and len(set(poste.tronconnement.barre_par_busbar.values())) > 2):
+        alt = determiner_manoeuvres_par_connectivite(poste, placement, topo_cible)
+        if alt.is_verified:
+            alt.topo_initiale = poste.topologie_nodale
+            alt.topo_cible = topo_cible
+            return alt
+
     if faisable:
         core.message = (
             "Topologie cible atteinte et vérifiée." if core.is_verified
