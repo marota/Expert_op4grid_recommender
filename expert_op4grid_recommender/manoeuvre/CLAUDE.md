@@ -217,10 +217,14 @@ Sequenceur N barres :
   deja dans le bon noeud), (2) sectionnements **intra-barre** par etat direct,
   (3) separation par ouverture du lot minimal de DJ (connectivite), (4) fusion.
   Branche **transactionnellement** par `determiner_topo_complete_cible` : retenu
-  seulement s'il vERIFIE exactement la cible -> ne degrade jamais. Debloque
-  SSV.OP7 (toutes formes 3/4 noeuds) et TAVELP7 (sep, tron). **Partiel** : les
-  postes triangle a departs deconnectes / faisceaux tres denses (ARGOEP7,
-  CHESNP7, COR.PP7, TRI.PP7, CERGYP7) ne verifient pas encore toutes les cibles.
+  seulement s'il vERIFIE exactement la cible -> ne degrade jamais. **Realise les
+  manoeuvres operationnelles** (separer les barres couplees ; tronconner un JdB en
+  demi-rames) sur **les 7 postes 400 kV a 3 barres** testes (SSV.OP7, TAVELP7,
+  TRI.PP7, ARGOEP7, CHESNP7, COR.PP7, CERGYP7) — cibles 3 a 7 noeuds, etats de
+  service preserves (cf. `tests/manoeuvre/test_postes_3barres_400kv.py`).
+  Non encore couverts : les regroupements **arbitraires** (round-robin) exigeant
+  la *reconnexion* de departs deja deconnectes, et la cible **2 noeuds** sur un
+  poste a barre de reserve fusionnee (exige un controle fin des SA de faisceau).
 
 Limites connues (cf. docstring `algo.py`) :
 - re-aiguillage d'omnibus complexes : partiel ;
