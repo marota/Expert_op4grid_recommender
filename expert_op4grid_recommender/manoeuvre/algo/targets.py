@@ -226,6 +226,74 @@ def _sequence_detaillee_aggressive(
     return res
 
 
+def _aligner_couplers_sur_cible(poste, G, cible_graph, topo_cible):
+    """Aligne l'état des **faisceaux de couplage** sur la cible **détaillée**, sans
+    changer la partition nodale (mute ``G`` ; retourne les manœuvres d'alignement).
+
+    Le séquenceur/réalisateur atteint la bonne **partition** mais peut coupler les
+    barres via un **faisceau équivalent** différent de celui encodé par la cible
+    (un poste triple-barre a plusieurs faisceaux — COUPL.A/COUPL.B/LIAIS — donnant
+    la même partition) → écarts détaillés « cosmétiques ».
+
+    On réaligne **faisceau par faisceau** (organe-diff sûr) : pour chaque faisceau
+    dont un organe diffère de la cible, on **dé-énergise** (ouverture du DJ), on
+    positionne les **SA hors charge** sur l'état cible, puis on **ramène le DJ** à
+    l'état cible. Les faisceaux **actifs dans la cible** (DJ fermé) sont traités en
+    premier pour maintenir une liaison. Garde **transactionnelle** finale : si
+    l'alignement ne reproduit pas exactement la partition cible, tout est annulé.
+    """
+    vl = poste.voltage_level_id
+    couplers = _inter_sjb_couplers(poste)
+
+    def _cible_open(sid):
+        for u, v in _edges_of_switches(cible_graph, [sid]):
+            return bool(cible_graph.edges[u, v].get("open", False))
+        return None
+
+    # Faisceaux groupés par DJ partagé (un faisceau = un DJ + ses SA).
+    bays: dict = {}
+    for cp in couplers:
+        key = frozenset(cp.breaker_ids)
+        bay = bays.setdefault(key, {"dj": set(cp.breaker_ids), "sa": set()})
+        bay["sa"].update(s for s in cp.switch_ids if s not in cp.breaker_ids)
+
+    out: list[Manoeuvre] = []
+
+    def _set(sid, want_open, raison):
+        if _is_open(G, sid) != want_open:
+            _set_switch(G, sid, want_open)
+            out.append(Manoeuvre(sid, "OPEN" if want_open else "CLOSE", raison))
+
+    def _bay_actif_cible(bay):
+        return any(_cible_open(dj) is False for dj in bay["dj"])
+
+    # Faisceaux actifs (DJ cible fermé) d'abord → établir les liaisons cibles
+    # avant d'ouvrir les faisceaux redondants.
+    for bay in sorted(bays.values(), key=lambda b: not _bay_actif_cible(b)):
+        organs = bay["dj"] | bay["sa"]
+        if all(_cible_open(s) is None or _is_open(G, s) == _cible_open(s)
+               for s in organs):
+            continue  # faisceau déjà aligné
+        for dj in sorted(bay["dj"]):                       # 1) dé-énergiser
+            _set(dj, True, "dé-énergisation faisceau (alignement cible)")
+        for sa in sorted(bay["sa"]):                       # 2) SA hors charge
+            co = _cible_open(sa)
+            if co is not None:
+                _set(sa, co, "alignement SA de faisceau sur la cible")
+        for dj in sorted(bay["dj"]):                       # 3) DJ -> cible
+            co = _cible_open(dj)
+            if co is not None:
+                _set(dj, co, "alignement DJ de faisceau sur la cible")
+
+    # Garde transactionnelle : ne conserver l'alignement que s'il **préserve**
+    # exactement la partition cible.
+    if not topo_cible.meme_topologie(TopologieNodale.from_graph(G, vl)):
+        for m in reversed(out):
+            _set_switch(G, m.switch_id, m.action != "OPEN")
+        return []
+    return out
+
+
 def _sequence_detaillee_multibarres(
     poste: PosteTopologique,
     cible_graph: nx.Graph,
@@ -333,6 +401,11 @@ def _sequence_detaillee_multibarres(
             Galt = poste.graph.copy()
             for m in alt.manoeuvres:
                 _set_switch(Galt, m.switch_id, m.action == "OPEN")
+            # Aligne les faisceaux de couplage sur la cible détaillée (cosmétique,
+            # partition préservée) pour viser is_verified_detaillee.
+            alt.manoeuvres = alt.manoeuvres + _aligner_couplers_sur_cible(
+                poste, Galt, cible_graph, topo_cible)
+            alt.topo_obtenue = TopologieNodale.from_graph(Galt, vl)
             alt.ecarts = (_ecarts_detailles(poste, Galt, cible_graph, cible_busbar)
                           + _verifier_regles(poste, alt.manoeuvres, un_seul=True))
             alt.is_verified_detaillee = not alt.ecarts
@@ -344,6 +417,14 @@ def _sequence_detaillee_multibarres(
                 f"multi-barres) ; {len(alt.ecarts)} écart(s) détaillé(s) résiduel(s) : "
                 + " ; ".join(alt.ecarts[:6]))
             return alt
+
+    # Nodale atteinte par la voie multi-barres : aligner les faisceaux de couplage
+    # sur la cible détaillée (faisceau équivalent → écarts cosmétiques) pour viser
+    # is_verified_detaillee, sans changer la partition.
+    if res.is_verified:
+        res.manoeuvres = res.manoeuvres + _aligner_couplers_sur_cible(
+            poste, G, cible_graph, topo_cible)
+        res.topo_obtenue = TopologieNodale.from_graph(G, vl)
 
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
                   + _verifier_regles(poste, res.manoeuvres, un_seul=True))
