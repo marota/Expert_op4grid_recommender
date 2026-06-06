@@ -82,6 +82,53 @@ def _par_barre(poste):
     return out
 
 
+def _cible_separer_barres(poste) -> list[list[str]]:
+    """Cible **bien formée** « séparer les barres couplées » : scinde le nœud
+    principal (couplé) par barre câblée, et **préserve les autres nœuds courants**
+    tels quels (les départs déjà déconnectés restent des nœuds isolés). C'est la
+    manœuvre d'exploitation séparée par jeu de barres."""
+    bp = poste.tronconnement.barre_par_busbar
+    noeuds = list(poste.topologie_nodale.noeuds.values())
+    big = max(noeuds, key=lambda n: len(n.equipment_ids))
+    groups = [sorted(n.equipment_ids) for n in noeuds if n is not big]
+    sub: dict = defaultdict(list)
+    for eq in big.equipment_ids:
+        cell = poste.cellules.get_cellule_depart(eq)
+        wb = _wired_busbar(cell, poste.graph) if cell else None
+        sub[bp.get(wb) if wb is not None else f"iso_{eq}"].append(eq)
+    groups += [sorted(v) for v in sub.values()]
+    return [g for g in groups if g]
+
+
+def _cible_tronconner(poste):
+    """Cible bien formée = ``_cible_separer_barres`` + tronçonnage (demi-rame) de
+    la barre la plus chargée. Sollicite un sectionnement intra-barre."""
+    bp = poste.tronconnement.barre_par_busbar
+    sep = _cible_separer_barres(poste)
+    # repérer le plus gros groupe tenant sur une seule barre (≥ 2 départs).
+    def _barre_unique(grp):
+        bs = set()
+        for eq in grp:
+            cell = poste.cellules.get_cellule_depart(eq)
+            wb = _wired_busbar(cell, poste.graph) if cell else None
+            bs.add(bp.get(wb))
+        return next(iter(bs)) if len(bs) == 1 and None not in bs else None
+
+    cibles = [(g, _barre_unique(g)) for g in sep]
+    candidats = [(g, b) for g, b in cibles if b is not None and len(g) >= 2]
+    if not candidats:
+        return None
+    big, _b = max(candidats, key=lambda gb: len(gb[0]))
+    half: dict = defaultdict(list)
+    for eq in big:
+        sj = _wired_sjbs(poste.graph, poste.cellules, eq)
+        half[sorted(sj)[0] if sj else None].append(eq)
+    if len(half) < 2:
+        return None
+    out = [g for g in sep if g is not big] + [sorted(v) for v in half.values() if v]
+    return [g for g in out if g]
+
+
 def _cibles(poste) -> dict[str, list[list[str]]]:
     """Plusieurs partitions cibles à 3 et 4 nœuds (round-robin, isolement,
     tronçonnage de la barre la plus chargée)."""
@@ -127,6 +174,43 @@ _REALISATIONS_VERIFIEES = [
     ("SSV_OP7", "rr3"), ("SSV_OP7", "rr4"), ("SSV_OP7", "iso"), ("SSV_OP7", "tron"),
     ("TAVELP7", "sep"), ("TAVELP7", "tron"),
 ]
+
+
+@pytest.mark.skipif(not _DISPONIBLES, reason="Aucune fixture de poste 3-barres 400 kV.")
+@pytest.mark.parametrize("name", _DISPONIBLES)
+def test_separer_barres_realise(name):
+    """**Manœuvre d'exploitation séparée par jeu de barres** (cible bien formée,
+    états de service préservés) : réalisée ET vérifiée sur **tous** les postes
+    400 kV à 3 barres (3-7 nœuds selon les départs déconnectés). C'est le cœur
+    opérationnel du redesign couplage (réalisateur connectivité-based)."""
+    poste = _poste(name)
+    before = _switch_states(poste.graph)
+    groups = _cible_separer_barres(poste)
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, groups)
+    if cible.nb_noeuds < 3:
+        pytest.skip(f"{name}: cible séparation < 3 nœuds (barre de réserve)")
+    res = determiner_topo_complete_cible(poste, cible)
+    assert res.is_verified is True, f"{name} séparer-barres: {res.message}"
+    assert res.topo_obtenue.nb_noeuds == cible.nb_noeuds
+    assert all(m.switch_id in _known_switch_ids(poste.graph) for m in res.manoeuvres)
+    assert _switch_states(poste.graph) == before
+
+
+@pytest.mark.skipif(not _DISPONIBLES, reason="Aucune fixture de poste 3-barres 400 kV.")
+@pytest.mark.parametrize("name", _DISPONIBLES)
+def test_tronconner_barre_realise(name):
+    """**Tronçonnage d'une barre** (séparation + scission d'un JdB en demi-rames)
+    : cible 4+ nœuds, réalisée ET vérifiée sur tous les postes 400 kV à 3 barres."""
+    poste = _poste(name)
+    before = _switch_states(poste.graph)
+    groups = _cible_tronconner(poste)
+    if not groups or len({frozenset(g) for g in groups}) < 3:
+        pytest.skip(f"{name}: pas de tronçonnage exploitable")
+    cible = TopologieNodale.from_node_groups(poste.voltage_level_id, groups)
+    res = determiner_topo_complete_cible(poste, cible)
+    assert res.is_verified is True, f"{name} tronçonnage: {res.message}"
+    assert res.topo_obtenue.nb_noeuds == cible.nb_noeuds
+    assert _switch_states(poste.graph) == before
 
 
 @pytest.mark.parametrize("name,shape", _REALISATIONS_VERIFIEES)
