@@ -905,6 +905,23 @@ def api_postes():
     return jsonify(postes=SESSION.postes, all=SESSION.all_postes)
 
 
+@app.post("/api/load_grid")
+def api_load_grid():
+    """Charge une **situation réseau** quelconque (chemin ``.xiidm`` côté serveur)
+    et réinitialise la session. Permet d'inspecter/tester n'importe quel poste
+    d'une situation arbitraire sans relancer le serveur."""
+    global SESSION
+    path = ((request.json or {}).get("path") or "").strip()
+    if not path or not pathlib.Path(path).expanduser().exists():
+        return jsonify(ok=False, error=f"Fichier introuvable : {path}"), 400
+    try:
+        net = pp.network.load(str(pathlib.Path(path).expanduser()))
+    except Exception as exc:  # pragma: no cover - dépend du fichier fourni
+        return jsonify(ok=False, error=f"Échec du chargement : {exc}"), 400
+    SESSION = Session(net)
+    return jsonify(ok=True, postes=SESSION.postes, all=SESSION.all_postes)
+
+
 @app.post("/api/load")
 def api_load():
     SESSION.load(request.json["vl"])

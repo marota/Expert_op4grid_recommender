@@ -91,6 +91,12 @@
  #nodstatus.kov{color:#92400e;background:#fffbeb}
 </style></head><body>
 <div id="side">
+  <h2>Situation réseau</h2>
+  <input id="gridPath" placeholder="chemin .xiidm (situation réseau)" style="width:72%;padding:5px"
+         title="Charge une autre situation réseau côté serveur, puis liste ses postes">
+  <button onclick="loadGrid()">Charger</button>
+  <div id="gridMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
+
   <h2>Poste</h2>
   <select id="poste" title="Postes épinglés (jeu de test + 3 jeux de barres identifiés)"></select>
   <div style="margin-top:6px">
@@ -201,15 +207,31 @@ const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/jso
 function setValidated(v){document.getElementById('bcalc').disabled=!v;
   document.getElementById('bmanual').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
-async function init(){const r=await (await fetch('/api/postes')).json();const sel=document.getElementById('poste');
-  r.postes.forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
+let ALL_POSTES=[];
+function populatePostes(r){
+  ALL_POSTES=r.all||r.postes||[];
+  const sel=document.getElementById('poste');sel.innerHTML='';
+  (r.postes||[]).forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
+  const dl=document.getElementById('allPostes');dl.innerHTML='';
+  ALL_POSTES.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});}
+async function init(){const r=await (await fetch('/api/postes')).json();
+  populatePostes(r);
+  const sel=document.getElementById('poste');sel.onchange=()=>load(sel.value);
   // Recherche « tous postes » : datalist de tous les VL NODE_BREAKER de la situation.
-  const dl=document.getElementById('allPostes');const all=r.all||r.postes;
-  all.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
-  const search=document.getElementById('posteSearch');const allSet=new Set(all);
-  const go=()=>{const v=search.value.trim();if(v&&allSet.has(v))load(v);};
+  const search=document.getElementById('posteSearch');
+  const go=()=>{const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);};
   search.onchange=go;search.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
-  sel.onchange=()=>load(sel.value); initNodalResize(); initNodalDnD(); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
+  initNodalResize(); initNodalDnD(); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
+// Charger une **situation réseau** quelconque (chemin .xiidm côté serveur).
+async function loadGrid(){
+  const path=document.getElementById('gridPath').value.trim();if(!path)return;
+  const msg=document.getElementById('gridMsg');msg.textContent='Chargement du réseau…';
+  let r;try{r=await fetch('/api/load_grid',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path})}).then(x=>x.json());}catch(e){msg.textContent='erreur réseau';return;}
+  if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
+  populatePostes(r);
+  msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
+  if(r.postes.length)load(r.postes[0]);else if(ALL_POSTES.length)load(ALL_POSTES[0]);}
 async function load(vl){stopAnim();const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
   document.getElementById('poste').value=vl;            // sync menu épinglé (vide si non listé)
   document.getElementById('posteSearch').value=vl;      // sync champ de recherche
