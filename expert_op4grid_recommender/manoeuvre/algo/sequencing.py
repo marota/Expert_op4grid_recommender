@@ -327,6 +327,18 @@ def determiner_manoeuvres_avec_sections(
         elif not currently_closed:
             to_close.append(cp)
 
+    # Organes (DJ) qui, une fois fermés, relient des SJB de **nœuds différents** :
+    # ce sont des couplages multi-barres **partagés** (ex. cellule LIAIS d'un poste
+    # triple-barre, dont le DJ est commun aux liaisons 1-2, 1-3, 2-3). Fermer un
+    # coupler « même nœud » qui passe par un tel organe re-ponterait des barres
+    # distinctes : à proscrire quand la fusion de ce nœud est déjà acquise par
+    # ailleurs (coupler dédié), cf. Phase 0.
+    bridge_breakers: set[str] = set()
+    for cp in couplers:
+        na, nb = node_de_sjb.get(cp.sjb_a), node_de_sjb.get(cp.sjb_b)
+        if na is not None and nb is not None and na != nb:
+            bridge_breakers.update(cp.breaker_ids)
+
     # --- groupes SJB finaux (couplers gardés fermés) -----------------------
     sjb_graph = nx.Graph()
     sjb_graph.add_nodes_from(poste.tronconnement.barre_par_busbar)
@@ -441,6 +453,15 @@ def determiner_manoeuvres_avec_sections(
     while changed and restants:
         changed = False
         for cp in list(restants):
+            # Fusion déjà acquise (même potentiel) via un coupler dédié : fermer
+            # ce coupler-ci serait redondant. Si en plus il passe par un organe
+            # **partagé** reliant des nœuds différents (DJ d'une liaison multi-
+            # barres), le fermer re-ponterait des barres distinctes -> on l'écarte.
+            if (_equipotentiel(cp.sjb_a, cp.sjb_b)
+                    and set(cp.breaker_ids) & bridge_breakers):
+                restants.remove(cp)
+                changed = True
+                continue
             if cp.breaker_ids:                       # DJ -> couplage sûr
                 _fermer_coupler(cp, "fermeture couplage de barres")
                 restants.remove(cp)
@@ -594,6 +615,73 @@ def determiner_manoeuvres_avec_sections(
     for eq in sorted(parkings):
         if _reaiguiller_vers_sjb(G, cells, eq, parkings[eq], manoeuvres):
             reaiguilles.add(eq)
+
+    # --- Phase F : enforcement de séparation (couplages multi-barres partagés)
+    # Sur un poste à > 2 barres, une cellule de couplage **partagée** (un DJ
+    # commun atteignant plusieurs barres par sélection de SA, ex. COUPL.A/LIAIS)
+    # est mal décomposée en couplers par paires : le séquenceur peut laisser deux
+    # SJB de **nœuds cibles différents** reliées. On corrige ici en raisonnant sur
+    # la **connectivité réelle** (et non sur la liste de couplers) : tant que deux
+    # SJB de nœuds différents restent reliées, ouvrir un **DJ de couplage** (organe
+    # coupant la charge — manœuvre sûre) dont l'ouverture les sépare **sans**
+    # déconnecter deux SJB d'un même nœud. No-op si la séparation est déjà acquise
+    # (cas 2 barres) → aucun golden affecté.
+    coupling_breakers = {sid for cp in couplers for sid in cp.breaker_ids}
+
+    def _live() -> nx.Graph:
+        Hc = nx.Graph()
+        Hc.add_nodes_from(G.nodes())
+        for u, v, dd in G.edges(data=True):
+            if not dd.get("open", False):
+                Hc.add_edge(u, v)
+        return Hc
+
+    def _viole_separation(H: nx.Graph):
+        """Première paire de SJB de nœuds différents encore reliée, sinon None."""
+        items = sorted(node_de_sjb.items())
+        for i, (s1, n1) in enumerate(items):
+            for s2, n2 in items[i + 1:]:
+                if n1 != n2 and s1 in H and s2 in H and nx.has_path(H, s1, s2):
+                    return s1, s2
+        return None
+
+    def _meme_noeud_casse(H: nx.Graph) -> bool:
+        """Une paire de SJB d'un **même** nœud est-elle déconnectée dans H ?"""
+        items = sorted(node_de_sjb.items())
+        for i, (s1, n1) in enumerate(items):
+            for s2, n2 in items[i + 1:]:
+                if n1 == n2 and not (
+                        s1 in H and s2 in H and nx.has_path(H, s1, s2)):
+                    return True
+        return False
+
+    if _viole_separation(_live()) is not None:
+        # 1) Ouvrir TOUS les DJ de couplage dont l'ouverture ne casse aucune
+        #    connexité **intra-nœud** (les barres à cheval sur des couplages
+        #    parallèles — COUPL.A et COUPL.B — exigent d'ouvrir le *lot*, une
+        #    ouverture isolée ne séparant rien). Les DJ qui unifient un nœud
+        #    (LIAIS/TRO2.AB ici) cassent un même-nœud → conservés fermés.
+        ouverts: list[str] = []
+        for sid in sorted(coupling_breakers):
+            if _is_open(G, sid):
+                continue
+            _set_switch(G, sid, True)
+            if _meme_noeud_casse(_live()):
+                _set_switch(G, sid, False)        # casserait un même-nœud
+            else:
+                ouverts.append(sid)
+        # 2) Refermer les ouvertures **inutiles** (séparation conservée sans elles)
+        #    → ne garder que le sous-ensemble minimal.
+        for sid in ouverts:
+            _set_switch(G, sid, False)
+            if _viole_separation(_live()) is not None:
+                _set_switch(G, sid, True)         # nécessaire : ré-ouvrir
+        # 3) Émettre les manœuvres pour les DJ effectivement laissés ouverts.
+        for sid in ouverts:
+            if _is_open(G, sid):
+                manoeuvres.append(Manoeuvre(
+                    switch_id=sid, action="OPEN",
+                    raison="ouverture couplage de barres (séparation de nœuds)"))
 
     # --- Optimisation : suppression des manœuvres sans effet (listeDordre) -
     manoeuvres = _optimiser_sequence(poste, manoeuvres)

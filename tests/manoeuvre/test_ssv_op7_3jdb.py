@@ -158,18 +158,25 @@ def test_determiner_topo_complete_cible_ne_degrade_plus_par_scoping():
     assert _switch_states(poste.graph) == before
 
 
-@pytest.mark.xfail(
-    reason="Réalisation SÉQUENCÉE d'une cible > 2 nœuds via un couplage "
-           "multi-barres partagé (cellule LIAIS de SSV.OP7) : frontière du "
-           "séquenceur (étape suivante), hors périmètre Étape 1+2 (placement).",
-    strict=False,
-)
 def test_cible_3_noeuds_realisee_de_bout_en_bout():
+    """Réalisation **séquencée** complète d'une cible à 3 nœuds sur un poste
+    triple-barre à couplages multi-barres partagés (COUPL.A/COUPL.B/LIAIS) :
+    le séquenceur ouvre le lot minimal de DJ de couplage pour séparer les 3
+    nœuds (Phase F), sans casser l'unité de chaque barre."""
     poste = _poste()
+    before = _switch_states(poste.graph)
     cible = _cible_3_noeuds(poste)
+
     res = determiner_topo_complete_cible(poste, cible)
+
     assert res.is_verified is True, res.message
     assert res.topo_obtenue is not None and res.topo_obtenue.nb_noeuds == 3
+    assert res.ecarts == [], res.ecarts
+    assert res.noeuds_non_realisables == []
+    # Au moins une ouverture de couplage a servi à séparer les nœuds.
+    assert any("séparation de nœuds" in m.raison for m in res.manoeuvres)
+    # Invariant : le graphe du poste n'est pas muté.
+    assert _switch_states(poste.graph) == before
 
 
 def test_cible_identite_triviale_inchangee():

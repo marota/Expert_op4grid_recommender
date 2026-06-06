@@ -91,12 +91,15 @@ mais n'etre connectee qu'a 1 electriquement.
   intermediaires. Signale par `CelluleDepart.is_multiple` et
   `shared_equipment_ids`.
 
-- **Postes >= 3 barres** : le **placement** (`_placement_automatique`) gere
-  desormais N jeux de barres (Etape 1+2, cf. ci-dessous). En revanche, le modele
-  de cellule `CelluleCouplage` ne retient encore que 2 SJB par composante de
-  couplage (warning sur > 2 SJB) et le **sequenceur** ne realise pas encore une
-  cible > 2 noeuds passant par un couplage multi-barres partage : frontiere
-  suivante.
+- **Postes >= 3 barres** : le **placement** (`_placement_automatique`) gere N jeux
+  de barres (Etape 1+2) et le **sequenceur** realise une cible > 2 noeuds, y
+  compris via des **couplages multi-barres partages** (un meme DJ atteignant
+  plusieurs barres, ex. COUPL.A/LIAIS) : Phase 0 evite de re-ponter via un organe
+  partage (`bridge_breakers`) et la **Phase F** ouvre le lot minimal de DJ de
+  couplage pour separer les noeuds, en raisonnant sur la **connectivite reelle**
+  (no-op si la separation est deja acquise). Limite restante : le modele de cellule
+  `CelluleCouplage` ne retient encore que 2 SJB par composante (warning sur > 2 SJB,
+  cosmetique — le sequenceur utilise `_inter_sjb_couplers`, pas `CelluleCouplage`).
 
 ## Tests
 
@@ -193,13 +196,21 @@ Etape 1+2 (placement N jeux de barres) :
   separable) puis **bissection au niveau barre** (best-effort) ; tout placement
   declare complet est revérifie faisable (`_placement_est_faisable`).
 
+Sequenceur N barres :
+- Phase 0 (`bridge_breakers`) : ne ferme pas un coupler « meme noeud » via un
+  organe partage avec une liaison inter-noeuds (eviter de re-ponter des barres).
+- Phase F (separation) : tant que deux SJB de noeuds **differents** restent
+  reliees, ouvre le **sous-ensemble minimal** de DJ de couplage qui les separe
+  sans casser une connexite intra-noeud. Connectivite reelle (robuste a la
+  mauvaise attribution des couplages partages par `_inter_sjb_couplers`).
+  **No-op** quand la separation est deja acquise (postes 2 barres) -> goldens iso.
+
 Limites connues (cf. docstring `algo.py`) :
 - re-aiguillage d'omnibus complexes : partiel ;
 - pas de verification fine de court-circuit avant fermeture de couplage ;
-- postes >= 3 barres : le **placement** est gere ; la realisation **sequencee**
-  d'une cible > 2 noeuds via un couplage multi-barres partage reste partielle
-  (frontiere sequenceur). La bissection best-effort peut degrader gracieusement
-  sur des postes a demi-rames tres maillees (la voie exacte, elle, les gere).
+- la bissection de placement best-effort peut degrader gracieusement sur des
+  postes a demi-rames tres maillees au-dela du garde-fou (la voie exacte les gere) ;
+- modele `CelluleCouplage` : encore limite a 2 SJB par composante (cosmetique).
 
 ### Specification des regles
 
