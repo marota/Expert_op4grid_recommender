@@ -87,11 +87,19 @@ def _reaiguiller_vers_sjb(
                     type_boucle=boucle,
                 ))
 
+    # Organes **partagés** avec le chemin de la barre cible (ex. sectionneur de
+    # ligne ``SL`` commun à toutes les barres) : à NE PAS ouvrir, sinon on
+    # déconnecte le départ de sa barre cible elle-même. On ne déconnecte une
+    # ancienne barre qu'en ouvrant les sectionneurs qui lui sont **propres**.
+    _sa_cible_set = set(sa_cible)
+
     def _ouvrir_sa_anciens():
         for bb in cell.busbar_nodes:
             if bb == target_sjb:
                 continue
             for sa in _sa_path_to_sjb(cell, bb):
+                if sa in _sa_cible_set:
+                    continue  # organe partagé avec la barre cible -> garder fermé
                 if not _is_open(G, sa):
                     _set_switch(G, sa, True)
                     bb_id = G.nodes[bb].get("busbar_section_id") or str(bb)

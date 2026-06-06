@@ -317,6 +317,34 @@ def _sequence_detaillee_multibarres(
     res.topo_obtenue = TopologieNodale.from_graph(G, vl)
     res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
     res.is_changed = bool(res.manoeuvres)
+
+    # --- Repli connectivité-based (faisceaux de couplage partagés) ----------
+    # Si la voie multi-barres n'atteint pas la cible **nodale** (typiquement des
+    # postes en triangle à faisceaux partagés où la séparation par couplers
+    # échoue), on tente le **réalisateur connectivité-based** sur le placement
+    # dérivé du graphe cible. **Transactionnel / only-on-failure** : on ne le
+    # retient que s'il vérifie la cible nodale → les postes déjà réalisés (ex.
+    # MORBRP6) ne sont pas touchés (goldens inchangés).
+    if not res.is_verified:
+        alt = determiner_manoeuvres_par_connectivite(poste, placement, topo_cible)
+        if alt.is_verified:
+            alt.topo_initiale = poste.topologie_nodale
+            alt.topo_cible = topo_cible
+            Galt = poste.graph.copy()
+            for m in alt.manoeuvres:
+                _set_switch(Galt, m.switch_id, m.action == "OPEN")
+            alt.ecarts = (_ecarts_detailles(poste, Galt, cible_graph, cible_busbar)
+                          + _verifier_regles(poste, alt.manoeuvres, un_seul=True))
+            alt.is_verified_detaillee = not alt.ecarts
+            alt.message = (
+                "Topologie détaillée cible atteinte et vérifiée "
+                "(réalisateur connectivité, poste multi-barres)."
+                if alt.is_verified_detaillee else
+                f"Topologie nodale atteinte (réalisateur connectivité, poste "
+                f"multi-barres) ; {len(alt.ecarts)} écart(s) détaillé(s) résiduel(s) : "
+                + " ; ".join(alt.ecarts[:6]))
+            return alt
+
     res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
                   + _verifier_regles(poste, res.manoeuvres, un_seul=True))
     res.is_verified_detaillee = res.is_verified and not res.ecarts

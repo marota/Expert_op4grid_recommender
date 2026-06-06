@@ -382,7 +382,9 @@ def test_cible_3_ou_4_noeuds_innocuite(name, shape):
 #     **consciemment** (preuve du gain). C'est le signal de progression voulu.
 _REALISATION_ACTUELLE = {
     "SSV_OP7": {"rr3": True, "rr4": True},
-    "TAVELP7": {"rr3": False, "rr4": False},
+    # TAVELP7 rr3 débloqué par le correctif « ne pas ouvrir un sectionneur
+    # partagé avec la barre cible » (sectionneur de ligne SL commun).
+    "TAVELP7": {"rr3": True, "rr4": False},
     "TRI_PP7": {"rr3": False, "rr4": False},
     "ARGOEP7": {"rr3": False, "rr4": False},
     "CHESNP7": {"rr3": False, "rr4": False},
