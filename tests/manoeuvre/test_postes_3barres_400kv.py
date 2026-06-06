@@ -96,7 +96,7 @@ def _cible_separer_barres(poste) -> list[list[str]]:
     big = max(noeuds, key=lambda n: len(n.equipment_ids))
     groups = [sorted(n.equipment_ids) for n in noeuds if n is not big]
     sub: dict = defaultdict(list)
-    for eq in big.equipment_ids:
+    for eq in sorted(big.equipment_ids):   # tri → cible déterministe (indép. PYTHONHASHSEED)
         cell = poste.cellules.get_cellule_depart(eq)
         wb = _wired_busbar(cell, poste.graph) if cell else None
         sub[bp.get(wb) if wb is not None else f"iso_{eq}"].append(eq)

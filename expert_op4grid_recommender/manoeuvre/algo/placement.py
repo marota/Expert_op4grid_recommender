@@ -579,13 +579,17 @@ def _placement_decompose(
         wb = sum(1 for eq in deps if wired_sjb.get(eq) in side_b)
         prefer_a = wa >= wb
         if prefer_a and cap_a > 0:
-            a_idx.append(gi); cap_a -= 1
+            a_idx.append(gi)
+            cap_a -= 1
         elif (not prefer_a) and cap_b > 0:
-            b_idx.append(gi); cap_b -= 1
+            b_idx.append(gi)
+            cap_b -= 1
         elif cap_a > 0:
-            a_idx.append(gi); cap_a -= 1
+            a_idx.append(gi)
+            cap_a -= 1
         elif cap_b > 0:
-            b_idx.append(gi); cap_b -= 1
+            b_idx.append(gi)
+            cap_b -= 1
         else:
             return None  # plus de capacité d'aucun côté
 

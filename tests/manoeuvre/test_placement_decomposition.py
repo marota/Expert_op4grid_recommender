@@ -83,7 +83,8 @@ def test_penalite_multibarre_reduit_les_noeuds_multibarres():
         _InterSjbCoupler(0, 2, ["c02"], ["c02"]),
     ]
     cp_closed = [True, True, True]
-    CG = nx.Graph(); CG.add_nodes_from(sjb_nodes)
+    CG = nx.Graph()
+    CG.add_nodes_from(sjb_nodes)
     CG.add_edges_from([(0, 1), (1, 2), (0, 2)])
     gc = lambda s: nx.is_connected(CG.subgraph(s))  # noqa: E731
     barre_par = {0: 0, 1: 1, 2: 2}  # 3 barres -> pénalité active
