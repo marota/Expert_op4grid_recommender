@@ -1,0 +1,70 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "TAVELP7_TAVEL7ZT.SU.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "TAVELP7_TAVEL7ZT.SU.1 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "TAVELP7_TAVEL7TRI.P.1 SA.3_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "TAVELP7_TAVEL7TRI.P.1 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "TAVELP7_TAVEL7COUPL.A DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "TAVELP7_TAVEL7LIAISAB DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "TAVELP7_TAVEL7TRO.1AB DJ_OC",
+      "OPEN",
+      null
+    ]
+  ],
+  "mode": "smooth",
+  "n_manoeuvres": 7,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "COULAL71TAVEL",
+      "JONQUL72TAVEL",
+      "P.ORGL71TAVEL",
+      "REALTL71TAVEL",
+      "TAMARL72TAVEL",
+      "TAVELL71TRI.P",
+      "TAVELL73TRI.P",
+      "TAVELL75TRI.P",
+      "TAVELY764"
+    ],
+    [
+      "JONQUL71TAVEL",
+      "REALTL72TAVEL",
+      "TAMARL71TAVEL",
+      "TAVELL71ZT.SU",
+      "TAVELL72TRI.P"
+    ],
+    [
+      "TAVELL74TRI.P",
+      "TAVELY763"
+    ]
+  ],
+  "voltage_level_id": "TAVELP7"
+}
