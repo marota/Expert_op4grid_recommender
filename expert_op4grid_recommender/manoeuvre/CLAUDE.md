@@ -205,6 +205,20 @@ Etape 1+2 (placement N jeux de barres) :
   des nœuds « exotiques » (demi-rames croisées, ex. `{1A,2B}`) ; la pénalité
   oriente le placement vers des nœuds **mono-barre / barres entières**,
   réalisables. Optimalité-coût préservée hors pénalité → **cas 2-JdB inchangés**.
+- **Double candidat de placement (origin-preserving)** : la pénalité étant
+  dominante, elle peut forcer un placement mono-barre qui **multiplie les
+  ré-aiguillages** là où un nœud multi-barres *légitime* (barres entièrement
+  couplées) serait plus économique. `_placement_automatique(..., penaliser_
+  multibarre=False)` calcule le placement de **coût brut minimal** ;
+  `determiner_topo_complete_cible` réalise **les deux** candidats et retient
+  **transactionnellement** la réalisation **vérifiée** la moins coûteuse en
+  manœuvres (le placement exotique non réalisable n'étant jamais vérifié, il est
+  écarté → **aucune régression possible**). Effet : sur les postes 3 JdB testés
+  (`determiner_topo_complete_cible` cible nodale d'un scénario détaillé), la cible
+  détaillée auto-déterminée est **≤** en manœuvres que la cible faite main —
+  `TAVELP7` converge **exactement** vers la cible visée (7 manœuvres vs 13 avant),
+  `CHESNP7` 11→8, `TRI.PP7` 15→12
+  (cf. `tests/manoeuvre/test_cible_detaillee_optimalite.py`).
 
 Sequenceur N barres :
 - Phase 0 (`bridge_breakers`) : ne ferme pas un coupler « meme noeud » via un

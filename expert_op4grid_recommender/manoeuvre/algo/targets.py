@@ -521,40 +521,68 @@ def determiner_topo_complete_cible(
         res.noeuds_non_realisables = non_places
         return res
 
-    # --- Délégation au séquenceur général (couplage + sectionnement) -------
-    core = determiner_manoeuvres_avec_sections(poste, placement, cible_busbar)
-    core.topo_initiale = poste.topologie_nodale
-    core.topo_cible = topo_cible
-    core.is_verified = bool(
-        core.topo_obtenue and topo_cible.meme_topologie(core.topo_obtenue)
-    )
-    core.is_changed = bool(core.manoeuvres)
+    nb_barres = len(set(poste.tronconnement.barre_par_busbar.values()))
 
-    # --- Repli connectivité-based (postes > 2 barres à faisceaux partagés) --
-    # Si le séquenceur général n'atteint pas la cible sur un poste > 2 barres
-    # (faisceaux de couplage partagés mal décomposés), on tente le réalisateur
-    # connectivité-based. **Transactionnel** : on ne le retient que s'il vérifie
-    # exactement la cible → ne peut jamais dégrader un résultat déjà correct.
-    if (faisable and not core.is_verified
-            and len(set(poste.tronconnement.barre_par_busbar.values())) > 2):
-        alt = determiner_manoeuvres_par_connectivite(poste, placement, topo_cible)
-        if alt.is_verified:
-            alt.topo_initiale = poste.topologie_nodale
-            alt.topo_cible = topo_cible
-            return alt
-
-    if faisable:
-        core.message = (
-            "Topologie cible atteinte et vérifiée." if core.is_verified
-            else "La topologie obtenue ne correspond pas à la cible "
-                 f"(obtenu {core.topo_obtenue.nb_noeuds if core.topo_obtenue else 0} "
-                 f"nœud(s), visé {topo_cible.nb_noeuds})."
+    def _realiser(placement, faisable, non_places) -> ResultatManoeuvres:
+        """Réalise un placement : séquenceur général, puis repli connectivité-based
+        (postes > 2 barres) si la cible n'est pas atteinte. Renvoie un
+        ``ResultatManoeuvres`` complet (champs de vérification + message)."""
+        # --- Délégation au séquenceur général (couplage + sectionnement) ---
+        core = determiner_manoeuvres_avec_sections(poste, placement, cible_busbar)
+        core.topo_initiale = poste.topologie_nodale
+        core.topo_cible = topo_cible
+        core.is_verified = bool(
+            core.topo_obtenue and topo_cible.meme_topologie(core.topo_obtenue)
         )
-    else:
-        # Dégradation gracieuse (option 4) : placement partiel + diagnostic.
-        core.noeuds_non_realisables = non_places
-        core.message = msg
-    return core
+        core.is_changed = bool(core.manoeuvres)
+
+        # --- Repli connectivité-based (postes > 2 barres à faisceaux partagés) -
+        # Si le séquenceur général n'atteint pas la cible sur un poste > 2 barres
+        # (faisceaux de couplage partagés mal décomposés), on tente le réalisateur
+        # connectivité-based. **Transactionnel** : on ne le retient que s'il vérifie
+        # exactement la cible → ne peut jamais dégrader un résultat déjà correct.
+        if faisable and not core.is_verified and nb_barres > 2:
+            alt = determiner_manoeuvres_par_connectivite(poste, placement, topo_cible)
+            if alt.is_verified:
+                alt.topo_initiale = poste.topologie_nodale
+                alt.topo_cible = topo_cible
+                return alt
+
+        if faisable:
+            core.message = (
+                "Topologie cible atteinte et vérifiée." if core.is_verified
+                else "La topologie obtenue ne correspond pas à la cible "
+                     f"(obtenu {core.topo_obtenue.nb_noeuds if core.topo_obtenue else 0} "
+                     f"nœud(s), visé {topo_cible.nb_noeuds})."
+            )
+        else:
+            # Dégradation gracieuse (option 4) : placement partiel + diagnostic.
+            core.noeuds_non_realisables = non_places
+            core.message = msg
+        return core
+
+    resultat = _realiser(placement, faisable, non_places)
+
+    # --- Candidat alternatif : placement de coût brut minimal (ré-aiguillage) -
+    # Postes > 2 barres uniquement (cas 2-JdB strictement inchangés : la pénalité
+    # multi-barres n'y joue pas, les deux placements sont identiques). La pénalité
+    # multi-barres **dominante** évite les nœuds « exotiques », mais peut forcer un
+    # placement mono-barre qui **multiplie les ré-aiguillages** quand un nœud
+    # multi-barres légitime (barres entièrement couplées) serait plus économique
+    # (ex. TAVELP7). On réalise donc aussi le placement **sans pénalité** et on
+    # retient, de façon **transactionnelle**, la réalisation vérifiée la **moins
+    # coûteuse en manœuvres** (jamais de dégradation : un placement exotique non
+    # réalisable n'est pas vérifié, donc écarté).
+    if nb_barres > 2:
+        alt_pl, alt_f, _alt_msg, alt_np = _placement_automatique(
+            poste, topo_cible, penaliser_multibarre=False)
+        if alt_pl and alt_pl != placement:
+            cand = _realiser(alt_pl, alt_f, alt_np)
+            if cand.is_verified and (
+                    not resultat.is_verified
+                    or cand.nb_manoeuvres < resultat.nb_manoeuvres):
+                resultat = cand
+    return resultat
 
 
 def determiner_manoeuvres_cible_detaillee(

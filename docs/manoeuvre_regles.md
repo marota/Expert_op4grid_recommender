@@ -71,9 +71,24 @@ au groupe sont fermés (un seul potentiel), ceux entre groupes ouverts.
   privilégié quand cela suffit (cf. R6).
 - une cible demandant plus de nœuds que physiquement réalisable (p.ex. nœuds
   mixtes > barres) n'a aucune affectation valide → **infaisable**.
-- **Code** : `algo._placement_automatique`.
+- **Postes > 2 barres — pénalité multi-barres + double candidat « origin-preserving »** :
+  à coût égal, une pénalité **dominante** (`POIDS_NOEUD_MULTIBARRE`) écarte les
+  nœuds « exotiques » (demi-rames croisées, ex. `{1A,2B}`) que les faisceaux de
+  couplage **partagés** rendent faussement réalisables. Mais cette pénalité peut
+  forcer un placement **mono-barre** qui *multiplie les ré-aiguillages* là où un
+  nœud multi-barres **légitime** (barres entièrement couplées) serait moins
+  coûteux. Parade : `determiner_topo_complete_cible` réalise **deux** placements —
+  pénalisé **et** de coût brut minimal (`penaliser_multibarre=False`) — et retient
+  **transactionnellement** la réalisation **vérifiée** la **moins coûteuse en
+  manœuvres** (le placement exotique non réalisable n'étant jamais vérifié, il est
+  écarté → **aucune régression**). Garantie : à partition nodale égale, la cible
+  détaillée **auto-déterminée** coûte **≤** la cible détaillée faite main.
+- **Code** : `algo._placement_automatique(..., penaliser_multibarre)`,
+  `algo._recherche_exhaustive`, `algo.determiner_topo_complete_cible` (double candidat).
 - **Test** : `test_carrip3_3noeuds.py::test_point_entree_unique_cree_3eme_noeud_automatiquement`,
-  `::test_infaisable_trois_noeuds_mixtes`, `test_algo.py::test_trois_noeuds_sur_deux_barres_infaisable`.
+  `::test_infaisable_trois_noeuds_mixtes`, `test_algo.py::test_trois_noeuds_sur_deux_barres_infaisable`,
+  `test_postes_3barres_400kv.py::test_placement_mono_barre_pour_separation`,
+  `test_cible_detaillee_optimalite.py` (garantie `T_ALGO ≤ T_VISÉE` ; convergence TAVELP7).
 
 ### R6 — Évaluation de l'état de couplage (utiliser les barres disponibles)
 Lorsqu'il y a **moins de nœuds que de barres**, on **utilise les barres

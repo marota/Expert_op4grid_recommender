@@ -274,7 +274,7 @@ def _within_guard(k: int, n_sjb: int) -> bool:
 
 def _recherche_exhaustive(
     nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe,
-    barre_par=None,
+    barre_par=None, penaliser_multibarre=True,
 ) -> Optional[tuple[int, tuple]]:
     """Recherche **exacte** de l'affectation complète SJB->nœud de coût minimal.
 
@@ -309,7 +309,8 @@ def _recherche_exhaustive(
     # strictement inchangés). On juge le nombre de barres sur l'ensemble **complet**
     # du poste (``barre_par``), pas sur le sous-ensemble courant.
     penalise_multibarre = (
-        barre_par is not None and len(set(barre_par.values())) > 2)
+        penaliser_multibarre and barre_par is not None
+        and len(set(barre_par.values())) > 2)
     best = None  # interne : (cost, assign)  — coût pénalisé inclus
     for assign in _assignations_connexes(sjb_nodes, k, groupe_connexe):
         node_sjbs: dict[int, set[int]] = {i: set() for i in range(k)}
@@ -469,7 +470,7 @@ def _couper_par_barres(CGsub: nx.Graph, sjb_set: set, barre_par: dict) -> Option
 
 def _placement_decompose(
     node_idx, sjb_set, nodes, R, wired_sjb, couplers, cp_closed,
-    groupe_connexe, barre_par, depth=0,
+    groupe_connexe, barre_par, depth=0, penaliser_multibarre=True,
 ):
     """**Étape 2 — décomposition récursive le long du graphe de couplage.**
 
@@ -500,7 +501,7 @@ def _placement_decompose(
         sjb_sorted = sorted(sjb_set)
         best = _recherche_exhaustive(
             sub_nodes, sjb_sorted, R, wired_sjb, couplers, cp_closed, groupe_connexe,
-            barre_par)
+            barre_par, penaliser_multibarre)
         if best is None:
             return None
         return {sjb_sorted[j]: node_idx[local] for j, local in enumerate(best[1])}
@@ -535,7 +536,7 @@ def _placement_decompose(
                 continue
             sub = _placement_decompose(
                 sub_idx, comp, nodes, R, wired_sjb, couplers, cp_closed,
-                groupe_connexe, barre_par, depth + 1)
+                groupe_connexe, barre_par, depth + 1, penaliser_multibarre)
             if sub is None:
                 return None
             out.update(sub)
@@ -599,7 +600,7 @@ def _placement_decompose(
             continue
         sub = _placement_decompose(
             sub_idx, side, nodes, R, wired_sjb, couplers, cp_closed,
-            groupe_connexe, barre_par, depth + 1)
+            groupe_connexe, barre_par, depth + 1, penaliser_multibarre)
         if sub is None:
             return None
         out.update(sub)
@@ -608,6 +609,7 @@ def _placement_decompose(
 
 def _placement_complet(
     nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe, barre_par,
+    penaliser_multibarre=True,
 ):
     """Affectation **complète** SJB->nœud (tous les nœuds placés) ou ``None``.
 
@@ -620,19 +622,20 @@ def _placement_complet(
     if _within_guard(k, n_sjb):
         best = _recherche_exhaustive(
             nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, groupe_connexe,
-            barre_par)
+            barre_par, penaliser_multibarre)
         if best is not None:
             amap = {sjb_nodes[j]: best[1][j] for j in range(n_sjb)}
     else:
         amap = _placement_decompose(
             list(range(k)), set(sjb_nodes), nodes, R, wired_sjb, couplers,
-            cp_closed, groupe_connexe, barre_par)
+            cp_closed, groupe_connexe, barre_par, 0, penaliser_multibarre)
     return amap if _placement_est_faisable(amap, nodes, R, groupe_connexe) else None
 
 
 def _placement_automatique(
     poste: PosteTopologique,
     topo_cible: TopologieNodale,
+    penaliser_multibarre: bool = True,
 ) -> tuple[list[tuple[set[str], set[str]]], bool, str, list[list[str]]]:
     """
     Calcule un placement ``[(departs, sjb_ids)]`` réalisant ``topo_cible``.
@@ -642,6 +645,14 @@ def _placement_automatique(
     de l'infaisabilité dans ``message`` et un **placement partiel** « best-effort »
     plaçant le plus de nœuds possible, ``noeuds_non_places`` listant les départs
     des nœuds laissés à l'opérateur.
+
+    ``penaliser_multibarre`` (postes > 2 barres) : quand ``True`` (défaut), pénalise
+    de façon **dominante** les nœuds multi-barres (évite les nœuds « exotiques »
+    demi-rames croisées). Quand ``False``, on cherche le placement de **coût brut
+    minimal** (ré-aiguillage), qui peut légitimement préférer un nœud multi-barres
+    quand cela **évite des ré-aiguillages** (barres entièrement couplées). L'appelant
+    (``determiner_topo_complete_cible``) essaie les deux et **retient, de façon
+    transactionnelle, la réalisation vérifiée la moins coûteuse en manœuvres**.
 
     Returns
     -------
@@ -727,7 +738,7 @@ def _placement_automatique(
     # décomposition récursive le long du graphe de couplage (Étape 2).
     assign_map = _placement_complet(
         nodes, sjb_nodes, R, wired_sjb, couplers, cp_closed, _groupe_connexe,
-        barre_par)
+        barre_par, penaliser_multibarre)
 
     full_placement = None
     if assign_map is not None:

@@ -43,6 +43,15 @@ redesign ci-dessous.
   vers des nœuds **mono-barre / barres entières**, en évitant les nœuds
   « exotiques » (demi-rames croisées) faussement réalisables via les faisceaux
   partagés. **Comportement 2-JdB strictement préservé.**
+- **Double candidat « origin-preserving »** : la pénalité dominante pouvait forcer
+  un placement mono-barre **multipliant les ré-aiguillages** là où un nœud
+  multi-barres légitime (barres entièrement couplées) serait moins coûteux.
+  `determiner_topo_complete_cible` réalise désormais **aussi** le placement de
+  coût brut minimal (`penaliser_multibarre=False`) et retient
+  **transactionnellement** la réalisation **vérifiée** la moins coûteuse en
+  manœuvres → la cible détaillée auto-déterminée est **toujours ≤** en manœuvres
+  que la cible faite main (à partition nodale égale). **Aucune régression
+  possible** (un placement exotique non réalisable n'est jamais vérifié).
 
 ### 2. Séquenceur bay-aware — `algo/sequencing.py`, `algo/targets.py`
 - **Phase 0** (`bridge_breakers`) : ne ferme pas un coupler « même nœud » via un
@@ -85,13 +94,15 @@ redesign ci-dessous.
 | **Séparer les barres couplées** | 3 à 7 | 6/7 (skip documenté : `SSV.OP7` à 2 nœuds, barre de réserve) |
 | **Tronçonnage** (demi-rames) | 4 à 8 | **7/7** |
 | **Topologie détaillée exacte** (0 écart, mode `aggressive`) | 3 | `CHESNP7`, `TRI.PP7`, `TAVELP7` (goldens) |
+| **Optimalité nodale→détaillée** (`T_ALGO ≤ T_VISÉE`) | 3 à 7 | `CHESNP7` (8 vs 23), `TAVELP7` (7 = 7, identique), `TRI.PP7` (12 vs 33) |
 
 Tests : `tests/manoeuvre/test_ssv_op7_3jdb.py`, `test_placement_decomposition.py`,
 `test_postes_3barres_400kv.py`, `test_ihm_postes_3barres.py`,
 `test_ihm_step_nodale.py`, `test_sequences_sauvegardees_3barres.py`,
+`test_cible_detaillee_optimalite.py`,
 `test_golden_sequences.py` (goldens `CHESNP7_cible_3noeuds__*`,
 `TRI.PP7_cible_3_noeuds__*`, `TAVELP7_cible_3noeuds__*`).
-**Suite `manoeuvre/` : 779 passed, 4 skipped, 0 régression** (goldens intacts,
+**Suite `manoeuvre/` : 783 passed, 4 skipped, 0 régression** (goldens intacts,
 dont `MORBRP6` 4-barres).
 
 > **Réalisation mode-dépendante** : le mode `smooth` garantit la **partition
