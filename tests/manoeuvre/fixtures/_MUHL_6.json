@@ -1,0 +1,507 @@
+{
+  "voltage_level_id": ".MUHL 6",
+  "substation_id": ".MUHL",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": ".MUHL 6_.MUHL6COUPL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 17,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6AT761 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 18,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6TR651 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 19,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.BOT5.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 20,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6AT761 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 18,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.MUHLT1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 21,
+      "node2": 3,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.BICK.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 22,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.KERZ.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 23,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.KERZ.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 24,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.CHAM.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 25,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6TR651 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6Z.LAU.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 27,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.HAUT.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 28,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.MUHLT1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 29,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.CHAM.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 25,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.CHAM.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 30,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.KERZ.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 23,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.MUHLT2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 31,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6TR652 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 32,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.GALM.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 33,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6TR651 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.GSTA.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 34,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6TR652 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 35,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.BOT5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 36,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.HAUT.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 37,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.BICK.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 38,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.MUHLT2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 31,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.HAUT.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 28,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 39,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.GALM.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 40,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.MUHLT2 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 41,
+      "node2": 2,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.BOT5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 36,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6TR652 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 35,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.BICK.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 22,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.GSTA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 42,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.GSTA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 42,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6Z.LAU.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 43,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.MUHLT1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 29,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6Z.LAU.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 27,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.GALM.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 40,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6AT761 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 10,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 39,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.MUHLT1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.BICK.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 38,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6Z.LAU.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 43,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.HAUT.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6TR651 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.BOT5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6TR652 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.CHAM.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.MUHLT2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 41,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.KERZ.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.GSTA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 42,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL6.GALM.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 40,
+      "node2": 33,
+      "open": true
+    },
+    {
+      "id": ".MUHL 6_.MUHL 6-.MUHL 6.BTS.1-.MUHL 6.BTS.2SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL 6-.MUHL 6.SJB.3.1-.MUHLAT761DJ_F",
+      "kind": "BREAKER",
+      "node1": 44,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": ".MUHL 6_.MUHL 6-.MUHL 6.SJB.3.1-.MUHLTD661DJ_F",
+      "kind": "BREAKER",
+      "node1": 44,
+      "node2": 9,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": ".MUHL 6_1",
+      "node": 0
+    },
+    {
+      "id": ".MUHL 6_2",
+      "node": 1
+    },
+    {
+      "id": ".MUHL 6_3.1",
+      "node": 44
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": ".MUHL6.KERZ.1",
+      "type": "LOAD",
+      "node": 4
+    },
+    {
+      "id": ".MUHL6.GALM.1",
+      "type": "LOAD",
+      "node": 5
+    },
+    {
+      "id": ".MUHL6TR652",
+      "type": "LOAD",
+      "node": 6
+    },
+    {
+      "id": ".MUHL6TR651",
+      "type": "LOAD",
+      "node": 7
+    },
+    {
+      "id": ".MUHLT 2",
+      "type": "GENERATOR",
+      "node": 2
+    },
+    {
+      "id": ".MUHLT 1",
+      "type": "GENERATOR",
+      "node": 3
+    },
+    {
+      "id": ".MUHL 6 Z.LAU 1",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": ".BICK 6 .MUHL 1",
+      "type": "LINE_SIDE2",
+      "node": 13
+    },
+    {
+      "id": ".BOT5 6 .MUHL 1",
+      "type": "LINE_SIDE2",
+      "node": 15
+    },
+    {
+      "id": ".CHAM 6 .MUHL 1",
+      "type": "LINE_SIDE2",
+      "node": 11
+    },
+    {
+      "id": ".GSTA 6 .MUHL 1",
+      "type": "LINE_SIDE2",
+      "node": 14
+    },
+    {
+      "id": ".HAUT 6 .MUHL 1",
+      "type": "LINE_SIDE2",
+      "node": 12
+    },
+    {
+      "id": ".MUHL TD 661",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 9
+    },
+    {
+      "id": ".MUHL AT 761",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 8
+    },
+    {
+      "id": ".MUHL TD 661",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 10
+    }
+  ],
+  "stats": {
+    "nb_switches": 57,
+    "nb_busbar_sections": 3,
+    "nb_internal_connections": 0,
+    "nb_equipment": 15,
+    "nb_breakers": 16,
+    "nb_disconnectors": 41
+  }
+}

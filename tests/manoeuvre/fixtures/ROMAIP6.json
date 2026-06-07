@@ -1,0 +1,666 @@
+{
+  "voltage_level_id": "ROMAIP6",
+  "substation_id": "ROMAI",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "ROMAIP6_ROMAI6COND.1 SI_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 25,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6PIQU.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6AVENI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6AVENI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6PIQU.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6PIQU.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 29,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6COUPL.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6MALA6.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6FLAND.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR631 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 33,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6VLEVA.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6PIQU.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR633 SI_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 25,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6FLAND.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6SEC..34 SS.1.34_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR613 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR631 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 33,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR612 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6VLEVA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6SEC..23 SS.1.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6LIAIS23 SA.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 39,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6LIAIS23 SA.13_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 39,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6VLEVA.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6NOISY.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 40,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6REAC.1 SI_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 27,
+      "node2": 41,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6SEC..34 SS.2.34_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR611 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 42,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6NOISY.2 SI.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 27,
+      "node2": 43,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6VLEVA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR611 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 42,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6COUPL.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 44,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6PLAIS.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 45,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6MALA6.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6ZGALE.4 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 46,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6B.CHA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 47,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6PLAIS.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 45,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR613 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 36,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6NOISY.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 40,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6ZGALE.4 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 46,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6SEC..23 SS.2.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6B.CHA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 47,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR612 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6COUPL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 48,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR633 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6AVENI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6NOISY.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 43,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6LIAIS23 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 39,
+      "node2": 49,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6VLEVA.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 34,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6COND.1 DJ.MCOMP_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 9,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6PLAIS.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 45,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 48,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6B.CHA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 47,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR612 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 37,
+      "node2": 55,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6MALA6.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR611 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 42,
+      "node2": 53,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6VLEVA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 38,
+      "node2": 15,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6NOISY.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 40,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6REAC.1 DJ.MCOMP_OC",
+      "kind": "BREAKER",
+      "node1": 41,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6FLAND.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR631 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 33,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6ZGALE.4 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 46,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6COUPL.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 44,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6LIAIS23 SRB.12_OC",
+      "kind": "LOAD_BREAK_SWITCH",
+      "node1": 49,
+      "node2": 50,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6LIAIS23 SRB.22_OC",
+      "kind": "LOAD_BREAK_SWITCH",
+      "node1": 49,
+      "node2": 51,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAIP6-ROMAIP6.BTS.2.2-ROMAIP6LI51SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 51,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAIP6-ROMAIP6.BTS.1.2-ROMAIP6LI50SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 50,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR611 DJ.HT_OC.ROMAI TR611",
+      "kind": "BREAKER",
+      "node1": 10,
+      "node2": 53,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_Disj ROMAIINF",
+      "kind": "BREAKER",
+      "node1": 52,
+      "node2": 53,
+      "open": true
+    },
+    {
+      "id": "ROMAIP6_ROMAI6TR612 DJ.HT_OC.ROMAI TR612",
+      "kind": "BREAKER",
+      "node1": 11,
+      "node2": 55,
+      "open": false
+    },
+    {
+      "id": "ROMAIP6_Disj ROMAIING",
+      "kind": "BREAKER",
+      "node1": 54,
+      "node2": 55,
+      "open": true
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "ROMAIP6_1.1",
+      "node": 0
+    },
+    {
+      "id": "ROMAIP6_1.2",
+      "node": 1
+    },
+    {
+      "id": "ROMAIP6_1.3",
+      "node": 2
+    },
+    {
+      "id": "ROMAIP6_1.4",
+      "node": 3
+    },
+    {
+      "id": "ROMAIP6_2.1",
+      "node": 4
+    },
+    {
+      "id": "ROMAIP6_2.2",
+      "node": 5
+    },
+    {
+      "id": "ROMAIP6_2.3",
+      "node": 6
+    },
+    {
+      "id": "ROMAIP6_2.4",
+      "node": 7
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "ROMAI6T611",
+      "type": "LOAD",
+      "node": 10
+    },
+    {
+      "id": "ROMAI6T612",
+      "type": "LOAD",
+      "node": 11
+    },
+    {
+      "id": "ROMAI6T613",
+      "type": "LOAD",
+      "node": 12
+    },
+    {
+      "id": "ROMAIINF",
+      "type": "GENERATOR",
+      "node": 52
+    },
+    {
+      "id": "ROMAIING",
+      "type": "GENERATOR",
+      "node": 54
+    },
+    {
+      "id": "ROMAI6REAC.1",
+      "type": "SHUNT_COMPENSATOR",
+      "node": 8
+    },
+    {
+      "id": "ROMAI6COND.1",
+      "type": "SHUNT_COMPENSATOR",
+      "node": 9
+    },
+    {
+      "id": "ROMAIL61VLEVA",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "ROMAIL62VLEVA",
+      "type": "LINE_SIDE1",
+      "node": 24
+    },
+    {
+      "id": "ROMAIL64ZGALE",
+      "type": "LINE_SIDE1",
+      "node": 20
+    },
+    {
+      "id": "AVENIL61ROMAI",
+      "type": "LINE_SIDE2",
+      "node": 16
+    },
+    {
+      "id": "B.CHAL61ROMAI",
+      "type": "LINE_SIDE2",
+      "node": 19
+    },
+    {
+      "id": "FLANDL61ROMAI",
+      "type": "LINE_SIDE2",
+      "node": 22
+    },
+    {
+      "id": "MALA6L61ROMAI",
+      "type": "LINE_SIDE2",
+      "node": 18
+    },
+    {
+      "id": "NOISYL61ROMAI",
+      "type": "LINE_SIDE2",
+      "node": 21
+    },
+    {
+      "id": "NOISYL62ROMAI",
+      "type": "LINE_SIDE2",
+      "node": 17
+    },
+    {
+      "id": "PLAISL61ROMAI",
+      "type": "LINE_SIDE2",
+      "node": 23
+    },
+    {
+      "id": "ROMAIY631",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "ROMAIY663",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 14
+    }
+  ],
+  "stats": {
+    "nb_switches": 74,
+    "nb_busbar_sections": 8,
+    "nb_internal_connections": 0,
+    "nb_equipment": 19,
+    "nb_breakers": 24,
+    "nb_disconnectors": 48
+  }
+}

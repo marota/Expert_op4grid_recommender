@@ -111,7 +111,16 @@ Les tests `test_postes_reels.py` utilisent des fixtures JSON dans
 **sans pypowsybl** a l'execution (independance CI).
 
 Le `fixture_loader.py` contient les fonctions de chargement :
-`build_graph_from_fixture(vl_name)` est le point d'entree principal.
+`build_graph_from_fixture(vl_name)` est le point d'entree principal (tolere le
+nommage point/espace -> underscore : VL `.OBER 7` <-> fixture `_OBER_7.json`).
+
+**Corpus « caracteristiques particulieres »** (`test_postes_caracteristiques_
+particulieres.py`) : 10 postes reels issus d'un balayage des 4018 VL NODE_BREAKER
+du reseau France, couvrant des cas rares — **8 JdB** (`_OBER_7`), **7 JdB**
+(`_VANY_7`), **24 SJB** sectionnement extreme (`_LAUF_7`), **26 departs**
+(`P_GASP6`), organe interne 2 bornes (`CPNIEP6`), omnibus (`ROMAIP6`), departs
+**deconnectes** (`_MUHL_6`)… Caracterisation structurelle + **innocuite** (graphe
+non mute, organes existants, `is_verified` => topologie exacte).
 
 ### Reseau de reference
 

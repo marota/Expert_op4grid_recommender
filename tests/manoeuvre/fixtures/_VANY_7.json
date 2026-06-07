@@ -1,0 +1,372 @@
+{
+  "voltage_level_id": ".VANY 7",
+  "substation_id": ".VANY",
+  "nominal_v": 400.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": ".VANY 7_.VANY7TR771 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 17,
+      "node2": 2,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7Z.AND.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 18,
+      "node2": 2,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7COUPL SA.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 19,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7TR771 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 17,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7COUPL SA.21_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 20,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7.MEER.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7.LIXH.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 22,
+      "node2": 2,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7TR772 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 23,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7.MEER.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7TR772 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 23,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7TR771 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 17,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7.MEER.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 21,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7.MEER.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 24,
+      "node2": 2,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7.LIXH.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 22,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7.MEER.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 24,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7Z.AND.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 18,
+      "node2": 0,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7COUPL SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 19,
+      "node2": 2,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7TR772 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 25,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.TDVA7.VANY.2 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7TR771 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7Z.AND.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 18,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7.TDVA.4 S.SHUNT_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 25,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7.LIXH.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 22,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7.TDVA.3 S.SHUNT_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 6,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7COUPL SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 20,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7TR772 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 23,
+      "node2": 2,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.TDVA7.VANY.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7.MEER.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 24,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.TDVA7.MAAS.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 5,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.TDVA7.MAAS.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 6,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7TR771 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 17,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7COUPL DJ_OC",
+      "kind": "BREAKER",
+      "node1": 20,
+      "node2": 19,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7.MEER.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7TR772 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7.MEER.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 21,
+      "node2": 13,
+      "open": true
+    },
+    {
+      "id": ".VANY 7_.VANY7.LIXH.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 22,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY7Z.AND.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 18,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY 7-.VANY 7.SJB.4.1-.VANYTD771SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": ".VANY 7_.VANY 7-.VANY 7.SJB.5.1-.VANYTD772SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 9,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": ".VANY 7_1",
+      "node": 0
+    },
+    {
+      "id": ".VANY 7_2",
+      "node": 1
+    },
+    {
+      "id": ".VANY 7_3",
+      "node": 2
+    },
+    {
+      "id": ".VANY 7_4.1",
+      "node": 3
+    },
+    {
+      "id": ".VANY 7_5.1",
+      "node": 4
+    },
+    {
+      "id": ".VANY 7_6.1",
+      "node": 5
+    },
+    {
+      "id": ".VANY 7_7.1",
+      "node": 6
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": ".VANY 7 Z.AND 1",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": ".LIXH 7 .VANY 1",
+      "type": "LINE_SIDE2",
+      "node": 14
+    },
+    {
+      "id": ".MAAS 7 .VANY 1",
+      "type": "LINE_SIDE2",
+      "node": 11
+    },
+    {
+      "id": ".MAAS 7 .VANY 2",
+      "type": "LINE_SIDE2",
+      "node": 15
+    },
+    {
+      "id": ".MEER 7 .VANY 1",
+      "type": "LINE_SIDE2",
+      "node": 16
+    },
+    {
+      "id": ".MEER 7 .VANY 2",
+      "type": "LINE_SIDE2",
+      "node": 13
+    },
+    {
+      "id": ".VANY TD 771",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 7
+    },
+    {
+      "id": ".VANY TD 772",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 9
+    },
+    {
+      "id": ".VANY TD 771",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 8
+    },
+    {
+      "id": ".VANY TD 772",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 10
+    }
+  ],
+  "stats": {
+    "nb_switches": 39,
+    "nb_busbar_sections": 7,
+    "nb_internal_connections": 0,
+    "nb_equipment": 10,
+    "nb_breakers": 9,
+    "nb_disconnectors": 30
+  }
+}

@@ -102,8 +102,28 @@ Tests : `tests/manoeuvre/test_ssv_op7_3jdb.py`, `test_placement_decomposition.py
 `test_cible_detaillee_optimalite.py`,
 `test_golden_sequences.py` (goldens `CHESNP7_cible_3noeuds__*`,
 `TRI.PP7_cible_3_noeuds__*`, `TAVELP7_cible_3noeuds__*`).
-**Suite `manoeuvre/` : 783 passed, 4 skipped, 0 régression** (goldens intacts,
+**Suite `manoeuvre/` : 837 passed, 4 skipped, 0 régression** (goldens intacts,
 dont `MORBRP6` 4-barres).
+
+### Corpus « caractéristiques particulières » (10 postes réels)
+
+Balayage des **4018 VL NODE_BREAKER** du réseau France → 10 postes choisis pour
+couvrir des caractéristiques rares non testées par ailleurs, extraits en fixtures
+et couverts par `tests/manoeuvre/test_postes_caracteristiques_particulieres.py`
+(caractérisation structurelle + **innocuité** sur cibles séparer/round-robin) :
+
+| Fixture | VL réel | Caractéristique |
+|---|---|---|
+| `_OBER_7` | `.OBER 7` | **8 jeux de barres** (max réseau), faisceaux partagés massifs (66 couplers) |
+| `_VANY_7` | `.VANY 7` | **7 jeux de barres**, anneau de couplers |
+| `_ZAND_7` | `.ZAND 7` | 6 barres, **12 SJB** multi-section, organes internes |
+| `MUHLBP7` | `MUHLBP7` | 5 barres, 10 SJB, faisceaux partagés |
+| `_LAUF_7` | `.LAUF 7` | **24 SJB** (sectionnement extrême), 4 barres, anneau |
+| `P_GASP6` | `P.GASP6` | **26 départs** (max), 225 kV — séparer-barres **réalisé** |
+| `CPNIEP6` | `CPNIEP6` | **organe interne 2 bornes** (self/réactance), 4 barres |
+| `ROMAIP6` | `ROMAIP6` | **omnibus** (départs multiples ×4), 8 SJB |
+| `REICHP3` | `REICHP3` | **14 SJB** (sectionnement extrême), 63 kV |
+| `_MUHL_6` | `.MUHL 6` | **10 départs déconnectés** (nœuds 0-barre), 3 barres |
 
 > **Réalisation mode-dépendante** : le mode `smooth` garantit la **partition
 > nodale** exacte (`is_verified`) ; le mode `aggressive` (alignement d'organes)
