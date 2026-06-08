@@ -16,6 +16,7 @@ from expert_op4grid_recommender.action_evaluation.discovery._node_merging import
 from expert_op4grid_recommender.action_evaluation.discovery._pst import PSTMixin
 from expert_op4grid_recommender.action_evaluation.discovery._load_shedding import LoadSheddingMixin
 from expert_op4grid_recommender.action_evaluation.discovery._renewable_curtailment import RenewableCurtailmentMixin
+from expert_op4grid_recommender.action_evaluation.discovery._redispatch import RedispatchMixin
 from expert_op4grid_recommender.action_evaluation.discovery._orchestrator import OrchestratorMixin
 
 
@@ -28,6 +29,7 @@ class ActionDiscoverer(
     PSTMixin,
     LoadSheddingMixin,
     RenewableCurtailmentMixin,
+    RedispatchMixin,
     DiscovererBase,
 ):
     """Discovers, evaluates, and prioritizes corrective actions for grid overloads.

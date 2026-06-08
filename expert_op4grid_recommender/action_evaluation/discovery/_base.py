@@ -152,6 +152,11 @@ class DiscovererBase:
         self.ineffective_renewable_curtailment = []
         self.scores_renewable_curtailment = {}
         self.params_renewable_curtailment = {}
+        self.identified_redispatch = {}
+        self.effective_redispatch = []
+        self.ineffective_redispatch = []
+        self.scores_redispatch = {}
+        self.params_redispatch = {}
         self.prioritized_actions = {}
 
     def _build_lookup_caches(self):
@@ -254,6 +259,66 @@ class DiscovererBase:
                 if renewable:
                     result[sub_id] = renewable
         self._cached_subs_with_renewable_gens = result
+        return result
+
+    def _get_subs_with_dispatchable_gens(self) -> Dict[int, List[int]]:
+        """Cached mapping of substation_id -> list of dispatchable generator_ids
+        with non-zero power.
+
+        A generator is considered *dispatchable* when its energy source is NOT
+        in ``RENEWABLE_ENERGY_SOURCES`` (i.e. the complement of the renewable
+        set used by curtailment). Built once using vectorized operations
+        instead of per-node ``get_obj_connect_to``."""
+        if hasattr(self, "_cached_subs_with_dispatchable_gens"):
+            return self._cached_subs_with_dispatchable_gens
+        obs = self.obs_defaut
+        renewable_sources = set(
+            s.upper()
+            for s in getattr(config, "RENEWABLE_ENERGY_SOURCES", ["WIND", "SOLAR"])
+        )
+        gen_energy_sources = getattr(obs, "gen_energy_source", getattr(obs, "gen_type", None))
+        min_mw = getattr(config, "REDISPATCH_MIN_MW", 1.0)
+        result: Dict[int, List[int]] = {}
+
+        if gen_energy_sources is not None and hasattr(obs, "gen_to_subid"):
+            gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
+            if gen_p_array is None:
+                self._cached_subs_with_dispatchable_gens = result
+                return result
+            for gid in range(len(gen_energy_sources)):
+                if str(gen_energy_sources[gid]).upper() in renewable_sources:
+                    continue
+                if gid >= len(gen_p_array):
+                    continue
+                gen_p = float(gen_p_array[gid])
+                # Active producer (production stored as negative target terminal
+                # power in pypowsybl); ignore idle/trivial generators.
+                if gen_p > 0 or abs(gen_p) < min_mw:
+                    continue
+                sub_id = int(obs.gen_to_subid[gid])
+                if sub_id not in result:
+                    result[sub_id] = []
+                result[sub_id].append(gid)
+        elif gen_energy_sources is not None:
+            # Fallback without gen_to_subid
+            gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
+            for sub_id in range(len(obs.name_sub)):
+                obj = obs.get_obj_connect_to(substation_id=sub_id)
+                gen_ids = obj.get("generators_id", [])
+                dispatchable = []
+                for gid in gen_ids:
+                    if gid >= len(gen_energy_sources):
+                        continue
+                    if str(gen_energy_sources[gid]).upper() in renewable_sources:
+                        continue
+                    if gen_p_array is not None and gid < len(gen_p_array):
+                        gen_p = float(gen_p_array[gid])
+                        if gen_p > 0 or abs(gen_p) < min_mw:
+                            continue
+                    dispatchable.append(gid)
+                if dispatchable:
+                    result[sub_id] = dispatchable
+        self._cached_subs_with_dispatchable_gens = result
         return result
 
     def _build_node_flow_cache(self, blue_edge_names_set: Set[str],

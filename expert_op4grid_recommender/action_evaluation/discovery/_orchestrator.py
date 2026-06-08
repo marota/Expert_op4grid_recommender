@@ -173,6 +173,22 @@ class OrchestratorMixin:
                     all_nodes, nodes_dispatch_loop_names
                 )  # (nodes_rc_indices)
 
+        # Redispatching: raise dispatchable production downstream (aval) of the
+        # constrained path or on the parallel red dispatch loops; lower it
+        # upstream (amont). Amont is approximated as the blue path minus aval.
+        nodes_up_indices = list(
+            set(nodes_aval_indices) | set(nodes_dispatch_loop_indices)
+        )
+        nodes_down_indices = list(
+            set(nodes_blue_path_indices) - set(nodes_aval_indices)
+        )
+        if nodes_up_indices or nodes_down_indices:
+            with Timer("Verifying relevant redispatching"):
+                print("\n--- Verifying relevant redispatching ---")
+                self.find_relevant_redispatch(
+                    nodes_up_indices, nodes_down_indices, nodes_dispatch_loop_names
+                )
+
         with Timer("Finalizing   Priorization"):
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
             from expert_op4grid_recommender import config
@@ -224,6 +240,12 @@ class OrchestratorMixin:
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
+                self.identified_redispatch,
+                n_action_max,
+                n_action_max_per_type=getattr(config, "MIN_REDISPATCH", 0),
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions,
                 self.identified_renewable_curtailment,
                 n_action_max,
                 n_action_max_per_type=getattr(config, "MIN_RENEWABLE_CURTAILMENT", 0),
@@ -261,6 +283,9 @@ class OrchestratorMixin:
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions, self.identified_load_shedding, n_action_max
+            )
+            self.prioritized_actions = add_prioritized_actions(
+                self.prioritized_actions, self.identified_redispatch, n_action_max
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
@@ -377,6 +402,19 @@ class OrchestratorMixin:
                     )
                 ),
                 "params": _round_params(self.params_renewable_curtailment),
+                "non_convergence": {},
+            },
+            "redispatch": {
+                "scores": _round_scores(
+                    dict(
+                        sorted(
+                            self.scores_redispatch.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )
+                    )
+                ),
+                "params": _round_params(self.params_redispatch),
                 "non_convergence": {},
             },
         }

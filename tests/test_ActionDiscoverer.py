@@ -2117,3 +2117,177 @@ def test_renewable_curtailment_in_action_scores():
     assert "scores" in action_scores["renewable_curtailment"]
     assert "params" in action_scores["renewable_curtailment"]
     assert "non_convergence" in action_scores["renewable_curtailment"]
+
+
+# ===========================================================================
+# Section: Redispatching (find_relevant_redispatch) Tests
+# ===========================================================================
+# Network topology used in these tests:
+#   Sub0 (amont, thermal gen) --L1-- Sub1 (constraint) --L2-- Sub2 (aval, thermal gen)
+#   L1 is overloaded at 120% (rho=1.2), capacity=100 MW.
+#   Raise dispatchable production downstream (Sub2/aval); lower it upstream
+#   (Sub0/amont). Renewable generators are NOT eligible.
+
+@pytest.fixture
+def redispatch_discoverer():
+    """Provides a discoverer configured for redispatching tests."""
+    mock_obs = MockObservation(
+        name_sub=np.array(["Sub0", "Sub1", "Sub2"]),
+        name_line=np.array(["L1", "L2"]),
+        name_load=np.array(["Load_A"]),
+        name_gen=np.array(["Therm0", "Therm2", "Wind2"]),
+        line_or_to_subid=np.array([0, 1]),
+        line_ex_to_subid=np.array([1, 2]),
+        line_or_bus=np.array([1, 1]),
+        line_ex_bus=np.array([1, 1]),
+        rho=np.array([1.2, 0.5]),       # L1 overloaded at 120%
+        load_to_subid=np.array([1]),
+        gen_to_subid=np.array([0, 2, 2]),  # Therm0 at Sub0; Therm2 + Wind2 at Sub2
+        load_values=[50.0],
+        gen_values=[-50.0, -30.0, -20.0],  # Negative = producing
+        gen_energy_sources=["THERMAL", "NUCLEAR", "WIND"],
+        sub_topologies={0: [1, 1], 1: [1, 1], 2: [1, 1, 1, 1]},
+        sub_info=np.array([2, 2, 4]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1, 1]),
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+
+    # L1 (0->1) label -80: blue, negative -> Sub0 neg_out=80 (amont influence).
+    # L2 (1->2) label -60: blue, negative -> Sub2 neg_in=60 (aval influence).
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "-80"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2"],
+        aval_nodes=[2],
+        amont_nodes=[0],
+    )
+
+    discoverer = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[0],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+        simulator_data={}, check_action_simulation=False,
+    )
+    return discoverer
+
+
+def test_redispatch_finds_up_and_down_candidates(redispatch_discoverer):
+    """One redispatch action per dispatchable gen: raise downstream, lower upstream."""
+    d = redispatch_discoverer
+    d.find_relevant_redispatch(nodes_up_indices=[2], nodes_down_indices=[0])
+    assert "redispatch_Therm0" in d.identified_redispatch  # amont -> lower
+    assert "redispatch_Therm2" in d.identified_redispatch  # aval -> raise
+
+
+def test_redispatch_skips_renewable(redispatch_discoverer):
+    """Renewable generators are not dispatchable and produce no redispatch action."""
+    d = redispatch_discoverer
+    d.find_relevant_redispatch(nodes_up_indices=[2], nodes_down_indices=[0])
+    assert "redispatch_Wind2" not in d.identified_redispatch
+
+
+def test_redispatch_directions_and_targets(redispatch_discoverer):
+    """Up adds the default delta to current production; down subtracts it."""
+    d = redispatch_discoverer
+    d.find_relevant_redispatch(nodes_up_indices=[2], nodes_down_indices=[0])
+    up = d.params_redispatch["redispatch_Therm2"]
+    down = d.params_redispatch["redispatch_Therm0"]
+    assert up["direction"] == "up"
+    assert up["node_type"] == "aval"
+    assert up["delta_MW"] == 10.0
+    assert up["target_p_MW"] == 40.0  # 30 + 10
+    assert down["direction"] == "down"
+    assert down["node_type"] == "amont"
+    assert down["delta_MW"] == -10.0
+    assert down["target_p_MW"] == 40.0  # 50 - 10
+
+
+def test_redispatch_action_encodes_real_setpoint(redispatch_discoverer):
+    """Redispatch encodes the real target_p in set_gen_p (not 0 like curtailment)."""
+    d = redispatch_discoverer
+    calls = []
+    original = d.action_space
+    def capturing(action_dict):
+        calls.append(action_dict)
+        return original(action_dict)
+    d.action_space = capturing
+    d.find_relevant_redispatch(nodes_up_indices=[2], nodes_down_indices=[0])
+    targets = {list(c["set_gen_p"].keys())[0]: list(c["set_gen_p"].values())[0]
+               for c in calls if "set_gen_p" in c}
+    assert targets["Therm2"] == 40.0
+    assert targets["Therm0"] == 40.0
+    assert all("set_bus" not in c for c in calls)
+
+
+def test_redispatch_params_structure(redispatch_discoverer):
+    """Params expose the redispatch action_mode and MW fields."""
+    d = redispatch_discoverer
+    d.find_relevant_redispatch(nodes_up_indices=[2], nodes_down_indices=[0])
+    p = d.params_redispatch["redispatch_Therm2"]
+    for key in ("substation", "gen_name", "action_mode", "direction",
+                "target_p_MW", "delta_MW", "influence_factor", "coverage_ratio"):
+        assert key in p
+    assert p["action_mode"] == "redispatch"
+
+
+def test_redispatch_scores_in_range(redispatch_discoverer):
+    """Scores are in (0, 1]."""
+    d = redispatch_discoverer
+    d.find_relevant_redispatch(nodes_up_indices=[2], nodes_down_indices=[0])
+    for action_id, score in d.scores_redispatch.items():
+        assert 0 < score <= 1.0, f"Score for {action_id} out of range: {score}"
+
+
+def test_redispatch_in_action_scores():
+    """redispatch key is present in discover_and_prioritize action_scores."""
+    mock_obs = MockObservation(
+        name_sub=np.array(["Sub0", "Sub1"]),
+        name_line=np.array(["L1"]),
+        name_load=np.array([]),
+        name_gen=np.array(["Gen_A"]),
+        line_or_to_subid=np.array([0]),
+        line_ex_to_subid=np.array([1]),
+        rho=np.array([0.5]),
+        load_to_subid=np.array([], dtype=int),
+        gen_to_subid=np.array([0]),
+        load_values=[],
+        gen_values=[-50.0],
+        gen_energy_sources=["THERMAL"],
+        sub_topologies={0: [1, 1], 1: [1, 1]},
+        sub_info=np.array([2, 2]),
+        topo_vect=np.array([1, 1, 1, 1]),
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "50"}},
+    })
+
+    class MinimalDistGraph:
+        def __init__(self):
+            self.red_loops = __import__('pandas').DataFrame(columns=["Path"])
+        def get_dispatch_edges_nodes(self, only_loop_paths=False): return [], []
+        def get_constrained_edges_nodes(self): return [], [], [], []
+        def get_constrained_path(self): return None
+
+    discoverer = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=MinimalDistGraph(),
+        simulator_data={}, check_action_simulation=False,
+    )
+
+    _, action_scores = discoverer.discover_and_prioritize(n_action_max=5)
+    assert "redispatch" in action_scores
+    assert "scores" in action_scores["redispatch"]
+    assert "params" in action_scores["redispatch"]
+    assert "non_convergence" in action_scores["redispatch"]

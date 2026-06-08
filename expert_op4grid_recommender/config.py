@@ -131,6 +131,7 @@ class Settings(BaseSettings):
     MIN_PST: int = Field(default=2, ge=0)
     MIN_LOAD_SHEDDING: int = Field(default=2, ge=0)
     MIN_RENEWABLE_CURTAILMENT: int = Field(default=2, ge=0)
+    MIN_REDISPATCH: int = Field(default=2, ge=0)
 
     # -------------------
     #  Load shedding parameters
@@ -148,6 +149,19 @@ class Settings(BaseSettings):
     RENEWABLE_ENERGY_SOURCES: List[str] = Field(
         default_factory=lambda: ["WIND", "SOLAR"]
     )
+
+    # -------------------
+    #  Redispatching parameters
+    # -------------------
+    # Default active-power delta (MW) applied when raising/lowering a
+    # dispatchable generator. The operator can edit this volume downstream
+    # (Co-Study4Grid). Raising acts on generators downstream of the
+    # constrained path (or on parallel red dispatch loops); lowering acts on
+    # generators upstream of the constrained path. Dispatchable generators are
+    # those whose energy source is NOT in RENEWABLE_ENERGY_SOURCES.
+    REDISPATCH_DEFAULT_DELTA_MW: float = Field(default=10.0, gt=0.0)
+    REDISPATCH_MARGIN: float = Field(default=0.05, ge=0.0)
+    REDISPATCH_MIN_MW: float = Field(default=1.0, ge=0.0)
 
     # -------------------
     #  Expert system parameters

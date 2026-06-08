@@ -59,6 +59,9 @@ from expert_op4grid_recommender.action_evaluation.discovery._pst import PSTMixin
 from expert_op4grid_recommender.action_evaluation.discovery._renewable_curtailment import (
     RenewableCurtailmentMixin,
 )
+from expert_op4grid_recommender.action_evaluation.discovery._redispatch import (
+    RedispatchMixin,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +81,7 @@ MIXIN_EXPECTED_METHODS: dict[type, set[str]] = {
     PSTMixin: {"find_relevant_pst_actions"},
     LoadSheddingMixin: {"find_relevant_load_shedding"},
     RenewableCurtailmentMixin: {"find_relevant_renewable_curtailment"},
+    RedispatchMixin: {"find_relevant_redispatch"},
     OrchestratorMixin: {"discover_and_prioritize"},
     NodeSplittingMixin: {
         "identify_bus_of_interest_in_node_splitting_",
@@ -101,6 +105,7 @@ BASE_SHARED_HELPERS: set[str] = {
     "_get_blue_edge_names_set",
     "_get_subs_with_loads",
     "_get_subs_with_renewable_gens",
+    "_get_subs_with_dispatchable_gens",
     "_build_node_flow_cache",
     "_build_active_edges_cache",
     "_get_active_edges_between_cached",
@@ -210,20 +215,20 @@ def test_no_method_is_defined_in_two_places():
 
 
 def test_method_count_matches_original_class():
-    """Sanity check: the new package distributes exactly 42 methods
-    across the base + mixins (same as the pre-P1 flat class). The base
-    contributes ``__init__`` plus 24 helpers; the eight mixins together
-    contribute the remaining 17 family methods (1 + 2 + 8 + 2 + 1 + 1
-    + 1 + 1)."""
+    """Sanity check: the new package distributes exactly 44 methods
+    across the base + mixins. The base contributes ``__init__`` plus 25
+    helpers (the original 24 plus ``_get_subs_with_dispatchable_gens``
+    added for redispatching); the nine mixins together contribute the
+    remaining 18 family methods (1 + 2 + 8 + 2 + 1 + 1 + 1 + 1 + 1)."""
     non_dunder = sum(
         len(_class_defined_methods(cls))
         for cls in [DiscovererBase, *MIXIN_EXPECTED_METHODS.keys()]
     )
     # _class_defined_methods filters out dunder names, so __init__ is
     # excluded from the per-class counts. Add it back explicitly to get
-    # the full 42 we had before the split.
+    # the full 44 (42 original + redispatch mixin + dispatchable-gen helper).
     assert "__init__" in DiscovererBase.__dict__
-    assert non_dunder + 1 == 42
+    assert non_dunder + 1 == 44
 
 
 # ---------------------------------------------------------------------------
