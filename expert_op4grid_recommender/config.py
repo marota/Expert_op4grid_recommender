@@ -134,6 +134,15 @@ class Settings(BaseSettings):
     MIN_REDISPATCH: int = Field(default=2, ge=0)
 
     # -------------------
+    #  Allowed action types (recommender restriction)
+    # -------------------
+    # When non-empty, the recommender ONLY discovers/prioritizes the listed
+    # action families (others are skipped entirely). Empty list = all families
+    # (default behaviour). Tokens match the UI filter tokens:
+    #   "reco", "close", "open", "disco", "pst", "ls", "rc", "redispatch".
+    ALLOWED_ACTION_TYPES: List[str] = Field(default_factory=list)
+
+    # -------------------
     #  Load shedding parameters
     # -------------------
     # 5% safety margin on top of the minimum shedding volume.

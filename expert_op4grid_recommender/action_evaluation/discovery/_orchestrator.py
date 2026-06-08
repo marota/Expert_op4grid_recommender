@@ -54,6 +54,15 @@ class OrchestratorMixin:
         self.prioritized_actions = {}
         # Use n_pst_max as the per-type limit for PST actions in the remaining fill phase
 
+        # Optional recommender restriction: when ``config.ALLOWED_ACTION_TYPES``
+        # is non-empty, ONLY the listed action families are discovered (others
+        # are skipped entirely — saving time and keeping the result focused).
+        from expert_op4grid_recommender import config as _cfg
+        _allowed_types = set(getattr(_cfg, "ALLOWED_ACTION_TYPES", []) or [])
+
+        def _type_allowed(token: str) -> bool:
+            return not _allowed_types or token in _allowed_types
+
         with Timer("Priorization Preparation"):
             name_sub_arr = np.array(self.obs.name_sub)
             n_subs = len(name_sub_arr)
@@ -121,7 +130,7 @@ class OrchestratorMixin:
                 )
             )
         )
-        if interesting_lines_to_reconnect:
+        if _type_allowed("reco") and interesting_lines_to_reconnect:
             with Timer("Verifying relevant line reconnections"):
                 print("\n--- Verifying relevant line reconnections ---")
                 print(interesting_lines_to_reconnect)
@@ -129,22 +138,22 @@ class OrchestratorMixin:
                     interesting_lines_to_reconnect, red_loop_paths_names
                 )
 
-        if nodes_dispatch_loop_names:
+        if _type_allowed("close") and nodes_dispatch_loop_names:
             with Timer("Verifying relevant node merging"):
                 print("\n--- Verifying relevant node merging ---")
                 self.find_relevant_node_merging(nodes_dispatch_loop_names)
 
-        if hubs_names or nodes_blue_path_names:
+        if _type_allowed("open") and (hubs_names or nodes_blue_path_names):
             with Timer("Verifying relevant node splitting"):
                 print("\n--- Verifying relevant node splitting ---")
                 self.find_relevant_node_splitting(hubs_names, nodes_blue_path_names)
 
-        if lines_constrained_names:
+        if _type_allowed("disco") and lines_constrained_names:
             with Timer("Verifying relevant line disconnections"):
                 print("\n--- Verifying relevant line disconnections ---")
                 self.find_relevant_disconnections(lines_constrained_names)
 
-        if nodes_blue_path_names or red_loop_paths_names:
+        if _type_allowed("pst") and (nodes_blue_path_names or red_loop_paths_names):
             with Timer("Verifying relevant PST actions"):
                 print("\n--- Verifying relevant PST actions ---")
                 self.find_relevant_pst_actions(
@@ -156,7 +165,7 @@ class OrchestratorMixin:
         nodes_aval_indices = (
             list(constrained_path.n_aval()) if constrained_path is not None else []
         )
-        if nodes_aval_indices:
+        if _type_allowed("ls") and nodes_aval_indices:
             with Timer("Verifying relevant load shedding"):
                 print("\n--- Verifying relevant load shedding ---")
                 self.find_relevant_load_shedding(nodes_aval_indices)
@@ -165,7 +174,7 @@ class OrchestratorMixin:
             (set(nodes_blue_path_indices) - set(nodes_aval_indices))
             | set(nodes_dispatch_loop_indices)
         )
-        if nodes_rc_indices:
+        if _type_allowed("rc") and nodes_rc_indices:
             with Timer("Verifying relevant renewable curtailment"):
                 print("\n--- Verifying relevant renewable curtailment ---")
                 all_nodes = [i for i in range(n_subs)]
@@ -182,7 +191,7 @@ class OrchestratorMixin:
         nodes_down_indices = list(
             set(nodes_blue_path_indices) - set(nodes_aval_indices)
         )
-        if nodes_up_indices or nodes_down_indices:
+        if _type_allowed("redispatch") and (nodes_up_indices or nodes_down_indices):
             with Timer("Verifying relevant redispatching"):
                 print("\n--- Verifying relevant redispatching ---")
                 self.find_relevant_redispatch(

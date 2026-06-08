@@ -2509,3 +2509,47 @@ def test_renewable_curtailment_antenna_uses_higher_voltage_reference():
     assert p["influence_ref_substation"] == "ZSITEP7"
     assert p["via_higher_voltage"] is True
     assert p["target_p_MW"] == 0.0
+
+
+def _spy_all_family_methods(d, monkeypatch):
+    """Replace every find/verify family method with a call-recording spy."""
+    calls = {}
+    names = [
+        "verify_relevant_reconnections", "find_relevant_node_merging",
+        "find_relevant_node_splitting", "find_relevant_disconnections",
+        "find_relevant_pst_actions", "find_relevant_load_shedding",
+        "find_relevant_renewable_curtailment", "find_relevant_redispatch",
+    ]
+    for name in names:
+        calls[name] = {"called": False}
+        def _make(n):
+            def _spy(*args, **kwargs):
+                calls[n]["called"] = True
+            return _spy
+        monkeypatch.setattr(d, name, _make(name))
+    return calls
+
+
+def test_allowed_action_types_restricts_discovery_to_redispatch(redispatch_discoverer, monkeypatch):
+    from expert_op4grid_recommender import config
+    monkeypatch.setattr(config, "ALLOWED_ACTION_TYPES", ["redispatch"], raising=False)
+    d = redispatch_discoverer
+    calls = _spy_all_family_methods(d, monkeypatch)
+    d.discover_and_prioritize(n_action_max=5)
+    assert calls["find_relevant_redispatch"]["called"]
+    # Families that WOULD have candidates on this fixture are skipped.
+    assert not calls["find_relevant_disconnections"]["called"]
+    assert not calls["find_relevant_load_shedding"]["called"]
+    assert not calls["find_relevant_node_splitting"]["called"]
+
+
+def test_empty_allowed_action_types_keeps_all_families(redispatch_discoverer, monkeypatch):
+    from expert_op4grid_recommender import config
+    monkeypatch.setattr(config, "ALLOWED_ACTION_TYPES", [], raising=False)
+    d = redispatch_discoverer
+    calls = _spy_all_family_methods(d, monkeypatch)
+    d.discover_and_prioritize(n_action_max=5)
+    # No restriction → families whose conditions hold are all invoked.
+    assert calls["find_relevant_redispatch"]["called"]
+    assert calls["find_relevant_disconnections"]["called"]
+    assert calls["find_relevant_load_shedding"]["called"]

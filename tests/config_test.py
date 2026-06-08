@@ -98,6 +98,9 @@ REDISPATCH_DEFAULT_DELTA_MW = 10.0
 REDISPATCH_MARGIN = 0.05
 REDISPATCH_MIN_MW = 1.0
 
+# Allowed action types (empty = all families)
+ALLOWED_ACTION_TYPES = []
+
 # -------------------
 #  Expert System Parameters
 # -------------------
