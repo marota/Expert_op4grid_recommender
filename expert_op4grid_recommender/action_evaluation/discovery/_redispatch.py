@@ -86,27 +86,55 @@ class RedispatchMixin:
         identified, effective, ineffective = {}, [], []
         scores_map, params_map = {}, {}
 
+        # Same-site higher-voltage (400/225 kV) reference nodes, used to reach
+        # generators sitting on a radial ("antenne") voltage level absent from
+        # the influence graph.
+        higher_refs = self._get_site_higher_voltage_map()
+
+        def _influence_of(node_flows, direction):
+            if direction == "up":
+                # Raising downstream / on parallel paths: any influence
+                # component (constrained or dispatch loop) is relevant.
+                return max(
+                    node_flows["neg_in"], node_flows["neg_out"],
+                    node_flows["pos_in"], node_flows["pos_out"],
+                )
+            # Lowering upstream: only the constrained (blue) flow.
+            return max(node_flows["neg_in"], node_flows["neg_out"])
+
         def _process(nodes_indices, direction):
             nodes_set = set(nodes_indices)
-            relevant_subs = [
-                sub_id for sub_id in subs_with_dispatchable
-                if sub_id in nodes_set and sub_id in node_flow_cache
-            ]
-            for node_idx in relevant_subs:
-                sub_name = str(obs.name_sub[node_idx])
-                gen_ids = subs_with_dispatchable[node_idx]
-                node_flows = node_flow_cache[node_idx]
+            for sub_id, gen_ids in subs_with_dispatchable.items():
+                sub_name = str(obs.name_sub[sub_id])
 
-                if direction == "up":
-                    # Raising downstream / on parallel paths: any influence
-                    # component (constrained or dispatch loop) is relevant.
-                    influence_flow = max(
-                        node_flows["neg_in"], node_flows["neg_out"],
-                        node_flows["pos_in"], node_flows["pos_out"],
-                    )
-                else:
-                    # Lowering upstream: only the constrained (blue) flow.
-                    influence_flow = max(node_flows["neg_in"], node_flows["neg_out"])
+                # 1) Direct: the generator's own voltage level is a graph node
+                #    on the correct side of the constraint.
+                ref_idx = (
+                    sub_id
+                    if (sub_id in node_flow_cache and sub_id in nodes_set)
+                    else None
+                )
+                via_higher = False
+
+                # 2) Antenna: the generator's voltage level is NOT in the
+                #    influence graph — borrow the same site's higher-voltage
+                #    (400/225 kV) busbar if it is in the graph on the right
+                #    side, using it as the influence/score reference.
+                if ref_idx is None:
+                    best_idx, best_flow = None, 0.0
+                    for cand in higher_refs.get(sub_id, ()):
+                        if cand in node_flow_cache and cand in nodes_set:
+                            cand_flow = _influence_of(node_flow_cache[cand], direction)
+                            if cand_flow > best_flow:
+                                best_flow, best_idx = cand_flow, cand
+                    if best_idx is not None:
+                        ref_idx, via_higher = best_idx, True
+
+                if ref_idx is None:
+                    continue
+
+                node_flows = node_flow_cache[ref_idx]
+                influence_flow = _influence_of(node_flows, direction)
                 if influence_flow <= 0:
                     continue
 
@@ -117,6 +145,8 @@ class RedispatchMixin:
                 )
                 if influence_factor <= 0:
                     continue
+
+                ref_name = str(obs.name_sub[ref_idx])
 
                 mw_required = (
                     (P_overload_excess * (1 + margin)) / influence_factor
@@ -175,6 +205,11 @@ class RedispatchMixin:
                         "mw_required": round(mw_required, 2),
                         "gen_p": round(prod, 2),
                         "coverage_ratio": round(coverage_ratio, 2),
+                        # Reference node used to estimate influence: the gen's
+                        # own VL, or a same-site higher-voltage busbar for
+                        # antenna sites.
+                        "influence_ref_substation": ref_name,
+                        "via_higher_voltage": via_higher,
                     }
 
         _process(nodes_up_indices, "up")

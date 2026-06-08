@@ -106,6 +106,8 @@ BASE_SHARED_HELPERS: set[str] = {
     "_get_subs_with_loads",
     "_get_subs_with_renewable_gens",
     "_get_subs_with_dispatchable_gens",
+    "_get_voltage_level_metadata",
+    "_get_site_higher_voltage_map",
     "_build_node_flow_cache",
     "_build_active_edges_cache",
     "_get_active_edges_between_cached",
@@ -215,9 +217,10 @@ def test_no_method_is_defined_in_two_places():
 
 
 def test_method_count_matches_original_class():
-    """Sanity check: the new package distributes exactly 44 methods
-    across the base + mixins. The base contributes ``__init__`` plus 25
-    helpers (the original 24 plus ``_get_subs_with_dispatchable_gens``
+    """Sanity check: the new package distributes exactly 46 methods
+    across the base + mixins. The base contributes ``__init__`` plus 27
+    helpers (the original 24 plus ``_get_subs_with_dispatchable_gens``,
+    ``_get_voltage_level_metadata`` and ``_get_site_higher_voltage_map``
     added for redispatching); the nine mixins together contribute the
     remaining 18 family methods (1 + 2 + 8 + 2 + 1 + 1 + 1 + 1 + 1)."""
     non_dunder = sum(
@@ -226,9 +229,9 @@ def test_method_count_matches_original_class():
     )
     # _class_defined_methods filters out dunder names, so __init__ is
     # excluded from the per-class counts. Add it back explicitly to get
-    # the full 44 (42 original + redispatch mixin + dispatchable-gen helper).
+    # the full 46 (42 original + redispatch mixin + 3 redispatch helpers).
     assert "__init__" in DiscovererBase.__dict__
-    assert non_dunder + 1 == 44
+    assert non_dunder + 1 == 46
 
 
 # ---------------------------------------------------------------------------

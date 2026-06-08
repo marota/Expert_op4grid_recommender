@@ -321,6 +321,94 @@ class DiscovererBase:
         self._cached_subs_with_dispatchable_gens = result
         return result
 
+    def _get_voltage_level_metadata(self) -> Dict[int, Tuple[str, float]]:
+        """Cached ``{node_idx: (site_id, nominal_v_kV)}``.
+
+        Each discovery node is a *voltage level* (pypowsybl semantics:
+        ``name_sub`` are voltage-level ids). This maps every node to the
+        physical site it belongs to and its nominal voltage, so generator
+        discovery can reason about "the same site at a higher voltage".
+
+        Source of truth is the pypowsybl network
+        (``get_voltage_levels()[['substation_id', 'nominal_v']]``); when the
+        network is unreachable (e.g. grid2op backend) we fall back to the RTE
+        naming convention (site = name without a numeric prefix, truncated to
+        5 chars; voltage encoded by the trailing character — ``7``→400 kV,
+        ``6``→225 kV, ``3``→63 kV, …)."""
+        if hasattr(self, "_cached_vl_metadata"):
+            return self._cached_vl_metadata
+        obs = self.obs_defaut
+        n_subs = len(obs.name_sub)
+        meta: Dict[int, Tuple[str, float]] = {}
+
+        network = None
+        env = getattr(self, "env", None)
+        nm = getattr(env, "network_manager", None)
+        if nm is not None:
+            network = getattr(nm, "network", None)
+        if network is not None:
+            try:
+                vl_df = network.get_voltage_levels()
+                site_map = vl_df["substation_id"].to_dict()
+                nomv_map = vl_df["nominal_v"].to_dict()
+                for i in range(n_subs):
+                    name = str(obs.name_sub[i])
+                    site = site_map.get(name)
+                    nomv = nomv_map.get(name)
+                    if site is not None and nomv is not None:
+                        meta[i] = (str(site), float(nomv))
+            except Exception as e:
+                print(f"Warning: could not read voltage-level metadata from network: {e}")
+                meta = {}
+
+        if not meta:
+            # RTE naming fallback (grid2op backend or missing network).
+            import re
+            digit_to_v = {
+                "7": 400.0, "6": 225.0, "5": 90.0, "4": 150.0,
+                "3": 63.0, "2": 45.0, "1": 20.0, "0": 20.0,
+            }
+            for i in range(n_subs):
+                name = str(obs.name_sub[i])
+                stripped = re.sub(r"^\d+", "", name)
+                site = stripped[:5] if stripped else name
+                nomv = digit_to_v.get(name[-1], 0.0) if name else 0.0
+                meta[i] = (site, nomv)
+
+        self._cached_vl_metadata = meta
+        return meta
+
+    def _get_site_higher_voltage_map(self) -> Dict[int, List[int]]:
+        """Cached ``{node_idx: [higher-voltage same-site node_idx, ...]}``.
+
+        For each voltage-level node, lists the nodes of the **same physical
+        site** whose nominal voltage is strictly higher AND at an EHV/HV
+        reference level (>= 225 kV), sorted by descending nominal voltage.
+
+        Generators usually sit on a radial ("antenne") voltage level that is
+        absent from the influence graph; this map lets generator-targeting
+        discovery borrow the influence of the same site's 400/225 kV busbar
+        when that higher node *is* in the graph."""
+        if hasattr(self, "_cached_site_higher_v"):
+            return self._cached_site_higher_v
+        meta = self._get_voltage_level_metadata()
+        ref_threshold = 220.0  # EHV/HV reference levels: 225 kV and 400 kV
+        by_site: Dict[str, List[Tuple[float, int]]] = {}
+        for idx, (site, nomv) in meta.items():
+            by_site.setdefault(site, []).append((nomv, idx))
+
+        result: Dict[int, List[int]] = {}
+        for idx, (site, nomv) in meta.items():
+            candidates = [
+                (v, n_idx) for (v, n_idx) in by_site.get(site, ())
+                if n_idx != idx and v > nomv and v >= ref_threshold
+            ]
+            if candidates:
+                candidates.sort(key=lambda vc: vc[0], reverse=True)
+                result[idx] = [n_idx for (_v, n_idx) in candidates]
+        self._cached_site_higher_v = result
+        return result
+
     def _build_node_flow_cache(self, blue_edge_names_set: Set[str],
                                 dispatch_loop_set: Optional[Set[str]] = None
                                 ) -> Dict[int, Dict[str, float]]:

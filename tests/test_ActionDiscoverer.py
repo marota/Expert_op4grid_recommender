@@ -2291,3 +2291,171 @@ def test_redispatch_in_action_scores():
     assert "scores" in action_scores["redispatch"]
     assert "params" in action_scores["redispatch"]
     assert "non_convergence" in action_scores["redispatch"]
+
+
+# ===========================================================================
+# Section: Redispatching on antenna sites (higher-voltage reference)
+# ===========================================================================
+# Generators usually sit on a radial ("antenne") voltage level absent from the
+# influence graph. When the SAME physical site has a higher-voltage (400/225kV)
+# busbar that IS in the graph, the generator becomes of interest and the higher
+# node is used as the influence/score reference.
+
+def test_redispatch_antenna_uses_higher_voltage_reference():
+    # node0 AMONTP6 (225, amont)  --L1(overload)--  node1 CONSTP6 (225, constraint)
+    #   --L2-- node2 ZSITEP7 (400, aval, in graph)   ;   node3 ZSITEP3 (63, antenna
+    #   gen, NOT a graph node, SAME site 'ZSITE' as node2).
+    mock_obs = MockObservation(
+        name_sub=np.array(["AMONTP6", "CONSTP6", "ZSITEP7", "ZSITEP3"]),
+        name_line=np.array(["L1", "L2"]),
+        name_load=np.array([]),
+        name_gen=np.array(["Therm_ant"]),
+        line_or_to_subid=np.array([0, 1]),
+        line_ex_to_subid=np.array([1, 2]),
+        line_or_bus=np.array([1, 1]),
+        line_ex_bus=np.array([1, 1]),
+        rho=np.array([1.2, 0.5]),
+        load_to_subid=np.array([], dtype=int),
+        gen_to_subid=np.array([3]),          # generator on the antenna VL (node3)
+        load_values=[],
+        gen_values=[-40.0],                  # producing 40 MW
+        gen_energy_sources=["THERMAL"],
+        sub_topologies={0: [1, 1], 1: [1, 1], 2: [1, 1], 3: [1, 1]},
+        sub_info=np.array([2, 2, 2, 2]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1, 1]),
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+    # L1 (0->1) label -80 (overloaded blue), L2 (1->2) label -60 -> node2 neg_in=60.
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "-80"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2"],
+        aval_nodes=[2],
+        amont_nodes=[0],
+    )
+    d = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[0],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+        simulator_data={}, check_action_simulation=False,
+    )
+
+    # Sanity: the same-site higher-voltage map links the 63kV antenna (node3)
+    # to the 400kV busbar (node2).
+    higher = d._get_site_higher_voltage_map()
+    assert higher.get(3) == [2]
+
+    d.find_relevant_redispatch(nodes_up_indices=[2], nodes_down_indices=[0])
+
+    # The antenna generator is discovered (raise), scored via the 400kV node.
+    assert "redispatch_Therm_ant" in d.identified_redispatch
+    p = d.params_redispatch["redispatch_Therm_ant"]
+    assert p["direction"] == "up"
+    assert p["substation"] == "ZSITEP3"            # the generator's own VL
+    assert p["influence_ref_substation"] == "ZSITEP7"  # higher-voltage reference
+    assert p["via_higher_voltage"] is True
+    assert p["target_p_MW"] == 50.0               # 40 + 10 (raise)
+    assert 0 < d.scores_redispatch["redispatch_Therm_ant"] <= 1.0
+
+
+def test_redispatch_antenna_skipped_when_no_higher_node_in_graph():
+    # Same antenna gen, but the site's higher-voltage node is NOT on the
+    # aval/amont side (not in the influence node sets) -> no action.
+    mock_obs = MockObservation(
+        name_sub=np.array(["AMONTP6", "CONSTP6", "ZSITEP7", "ZSITEP3"]),
+        name_line=np.array(["L1", "L2"]),
+        name_load=np.array([]),
+        name_gen=np.array(["Therm_ant"]),
+        line_or_to_subid=np.array([0, 1]),
+        line_ex_to_subid=np.array([1, 2]),
+        line_or_bus=np.array([1, 1]),
+        line_ex_bus=np.array([1, 1]),
+        rho=np.array([1.2, 0.5]),
+        load_to_subid=np.array([], dtype=int),
+        gen_to_subid=np.array([3]),
+        load_values=[],
+        gen_values=[-40.0],
+        gen_energy_sources=["THERMAL"],
+        sub_topologies={0: [1, 1], 1: [1, 1], 2: [1, 1], 3: [1, 1]},
+        sub_info=np.array([2, 2, 2, 2]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1, 1]),
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "-80"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2"], aval_nodes=[2], amont_nodes=[0],
+    )
+    d = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[0],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+        simulator_data={}, check_action_simulation=False,
+    )
+    # Pass empty up/down node sets: the 400kV reference is in neither -> skip.
+    d.find_relevant_redispatch(nodes_up_indices=[], nodes_down_indices=[])
+    assert "redispatch_Therm_ant" not in d.identified_redispatch
+
+
+def test_site_higher_voltage_map_from_pypowsybl_network():
+    """The site->higher-voltage map prefers the pypowsybl network
+    (substation_id + nominal_v) over the RTE-name heuristic."""
+    class _FakeNetwork:
+        def __init__(self, df):
+            self._df = df
+        def get_voltage_levels(self):
+            return self._df
+    class _FakeNM:
+        def __init__(self, net):
+            self.network = net
+
+    vl_df = pd.DataFrame(
+        {"substation_id": ["BEON", "BEON", "MID"], "nominal_v": [400.0, 63.0, 225.0]},
+        index=["WIND_BUS_A", "WIND_BUS_B", "OTHER_BUS"],  # names that defeat the name heuristic
+    )
+    mock_obs = MockObservation(
+        name_sub=np.array(["WIND_BUS_A", "WIND_BUS_B", "OTHER_BUS"]),
+        name_line=np.array(["L1"]),
+        line_or_to_subid=np.array([0]),
+        line_ex_to_subid=np.array([1]),
+        rho=np.array([0.5]),
+        sub_topologies={0: [1, 1], 1: [1, 1], 2: [1, 1]},
+        sub_info=np.array([2, 2, 2]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1]),
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+    mock_env.network_manager = _FakeNM(_FakeNetwork(vl_df))
+    mock_g_overflow = MockOverflowGraph(edge_data={(0, 1): {0: {"name": "L1", "capacity": 100.0}}})
+
+    d = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=[], lines_overloaded_ids=[],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=MockDistributionGraph(),
+        simulator_data={}, check_action_simulation=False,
+    )
+
+    meta = d._get_voltage_level_metadata()
+    assert meta[0] == ("BEON", 400.0)
+    assert meta[1] == ("BEON", 63.0)
+    assert meta[2] == ("MID", 225.0)
+    # Antenna 63kV bus (idx 1) references the same-site 400kV bus (idx 0).
+    higher = d._get_site_higher_voltage_map()
+    assert higher.get(1) == [0]
+    assert 0 not in higher          # 400kV has no higher same-site node
+    assert 2 not in higher          # MID site has a single VL
