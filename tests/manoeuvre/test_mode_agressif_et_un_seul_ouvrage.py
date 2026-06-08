@@ -166,6 +166,31 @@ def test_verificateur_reconnait_la_sequence_experte_un_a_la_fois():
         "l'ancienne séquence batch déconnecte plusieurs ouvrages à la fois")
 
 
+def test_smooth_reduction_section_morte_par_cross_feed():
+    """ROMAIP6 smooth : pour vider la section adjacente d'un nœud couplé, un
+    couplage DJ frontière est ouvert **temporairement** puis **refermé** (réduction
+    de section morte). On vérifie la présence de la paire ouverture/refermeture ET
+    que l'état **final** du couplage est conforme à la cible (rétabli)."""
+    poste, d, g = _load(_ROMAI, "ROMAIP6")
+    cible = g(d["cible"])
+    r = determiner_manoeuvres_cible_detaillee(poste, cible, mode="smooth")
+    temp_open = [m for m in r.manoeuvres
+                 if m.action == "OPEN" and "temporaire couplage" in m.raison]
+    restore = [m for m in r.manoeuvres
+               if m.action == "CLOSE" and "rétabli" in m.raison]
+    assert temp_open and restore, "ouverture temporaire + refermeture attendues"
+    # État final = cible pour chaque couplage ouvert temporairement (rétabli).
+    from expert_op4grid_recommender.manoeuvre.algo.graph_ops import _is_open, _set_switch
+    G = build_graph_from_fixture("ROMAIP6")
+    for sid, op in d["depart"].items():
+        _set_switch(G, sid, op)
+    for m in r.manoeuvres:
+        _set_switch(G, m.switch_id, m.action == "OPEN")
+    for m in temp_open:
+        assert _is_open(G, m.switch_id) == _is_open(cible, m.switch_id), (
+            f"{m.switch_id} non rétabli à l'état cible")
+
+
 def test_smooth_parking_un_par_un_reduit_les_coupures_simultanees():
     """Le mode smooth gare désormais les départs **un par un** sur le côté
     survivant (boucle courte) au lieu de dé-énergiser une section en bloc : sur

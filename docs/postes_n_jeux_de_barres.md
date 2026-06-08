@@ -87,8 +87,28 @@ redesign ci-dessous.
   de 29. Cohérence **omnibus** : plus d'écart fantôme pour un organe partagé
   (`_ecarts_detailles` compare sur la cellule primaire).
 
+### 2bis. Modes de manœuvre smooth / agressif (cf. R10ter)
+- **Agressif — boucle courte** (`_sequence_detaillee_aggressive`) : switche un
+  départ d'une barre à l'autre **au même potentiel** **sans ouvrir son DJ** ;
+  ne dé-énergise en lot que le non-équipotentiel + l'isolation de section.
+  **Transactionnel** : repli dé-énergisé si la boucle courte n'est pas exacte
+  (jamais de régression). Ex. **CPNIEP6** : 5 manœuvres au lieu de 17.
+- **Smooth — « un seul ouvrage hors tension à la fois »** : pour ouvrir un
+  sectionnement, (a) on **réduit la section morte** en ouvrant **temporairement**
+  les couplages DJ de cross-feed (nœud couplé), (b) on **gare un par un** les
+  départs restants sur le côté survivant (boucle courte) puis on les **ramène**
+  (boucle longue). Ex. **ROMAIP6** : **6 coupures simultanées → 0** (séquence ≈
+  experte, 42 manœuvres). Limite : départs confinés à des sections mono-barre sans
+  cross-feed → batch résiduel signalé par l'alerte.
+- **Vérificateur + alerte** `ouvrages_simultanement_hors_tension` (public,
+  `ResultatManoeuvres.alertes`, **non bloquant**) : signale tout moment où > 1
+  ouvrage est **temporairement** hors tension (hors ouvrages déjà déconnectés / mis
+  hors service). Séquence experte « 1 à la fois » → 0 alerte.
+
 ### 3. IHM — `scripts/manoeuvre_ihm.py`, `…_assets/index.html`
-- Les 7 postes 3-JdB sont **épinglés** (`POSTES_TEST`).
+- Les 7 postes 3-JdB sont **épinglés** (`POSTES_TEST`) ; **sélecteur par typologie**
+  📂 (`POSTES_CATALOG` : ≥5 JdB, sectionnement extrême, faisceau partagé, organes
+  internes, omnibus, départs déconnectés…) — `/api/postes` renvoie `catalog`.
 - `Session.all_postes` = **tous** les VL NODE_BREAKER ; champ de **recherche**
   pour inspecter/tester n'importe quel poste de la situation.
 - Endpoint **`POST /api/load_grid`** : charge dynamiquement une autre situation
@@ -96,6 +116,8 @@ redesign ci-dessous.
 - **Topologie nodale qui suit l'étape** : `GET /api/step` renvoie désormais la
   **partition nodale de l'état détaillé de l'étape** (`step_view` → 6 valeurs) ;
   le volet « cible » se met à jour au fil de l'animation départ → … → cible.
+- **Alerte « 1 ouvrage à la fois »** : `/api/sequence` renvoie `alertes` ; l'IHM
+  affiche un badge ⚠ (bonne pratique, non bloquant).
 
 ### Couverture vérifiée (cibles 3 ET 4 nœuds, manœuvres opérationnelles)
 
@@ -105,15 +127,19 @@ redesign ci-dessous.
 | **Tronçonnage** (demi-rames) | 4 à 8 | **7/7** |
 | **Topologie détaillée exacte** (0 écart, mode `aggressive`) | 3 | `CHESNP7`, `TRI.PP7`, `TAVELP7` (goldens) |
 | **Optimalité nodale→détaillée** (`T_ALGO ≤ T_VISÉE`) | 3 à 7 | `CHESNP7` (8 vs 23), `TAVELP7` (7 = 7, identique), `TRI.PP7` (12 vs 33) |
+| **Agressif boucle courte** (sans déconnexion) | 2 | `CPNIEP6` (5 vs 17) |
+| **Smooth « 1 ouvrage à la fois »** (0 coupure simultanée) | 3 | `ROMAIP6` (= experte, 42) |
 
 Tests : `tests/manoeuvre/test_ssv_op7_3jdb.py`, `test_placement_decomposition.py`,
 `test_postes_3barres_400kv.py`, `test_ihm_postes_3barres.py`,
 `test_ihm_step_nodale.py`, `test_sequences_sauvegardees_3barres.py`,
 `test_cible_detaillee_optimalite.py`, `test_muhlbp7_sequence_minimale.py`,
+`test_mode_agressif_et_un_seul_ouvrage.py`, `test_un_seul_ouvrage_hors_tension.py`,
+`test_romaip6_nodale.py`, `test_postes_caracteristiques_particulieres.py`,
 `test_golden_sequences.py` (goldens `CHESNP7_cible_3noeuds__*`,
 `TRI.PP7_cible_3_noeuds__*`, `TAVELP7_cible_3noeuds__*`).
-**Suite `manoeuvre/` : 853 passed, 7 skipped, 0 régression** (goldens régénérés
-pour le candidat *diff minimal* — réductions de manœuvres, exactitude préservée ;
+**Suite `manoeuvre/` : 873 passed, 7 skipped, 0 régression** (goldens régénérés
+consciemment — réductions de manœuvres / vidage one-by-one, exactitude préservée ;
 dont `MORBRP6` 4-barres).
 
 ### Corpus « caractéristiques particulières » (10 postes réels)
@@ -161,6 +187,14 @@ et couverts par `tests/manoeuvre/test_postes_caracteristiques_particulieres.py`
   barre de réserve fusionnée » (`SSV.OP7` *séparation*) exige d'ouvrir/fermer des
   SA de faisceau **individuels** ; le réalisateur ne bascule que les DJ en bloc.
   (1 test skippé.)
+- **Smooth « 1 ouvrage à la fois » — batch résiduel** : `ROMAIP6` est désormais à
+  **0** coupure simultanée (parking one-by-one + réduction cross-feed). Restent des
+  postes (ex. `SSAVOP3` 12, `CZBEVP3` 2) où les départs à isoler sont **confinés à
+  des sections mono-barre** sans côté survivant atteignable **ni** couplage de
+  cross-feed à ouvrir → dé-énergisation en place groupée inévitable avec les
+  mécanismes actuels (parking / ouverture temporaire). Le **vérificateur les
+  signale** (alerte non bloquante). Résolution : modéliser les points de **piquage**
+  (PIQU) ou fournir une séquence experte de référence par poste.
 
 ### Modèle de données
 - **`CelluleCouplage`** n'enregistre encore que **2 SJB** par composante de
