@@ -348,7 +348,15 @@ class DiscovererBase:
             network = getattr(nm, "network", None)
         if network is not None:
             try:
-                vl_df = network.get_voltage_levels()
+                # Fetch only the two columns we need — fetching all VL columns
+                # (name, voltage limits, …) is materially slower on large grids.
+                try:
+                    vl_df = network.get_voltage_levels(
+                        attributes=["substation_id", "nominal_v"]
+                    )
+                except TypeError:
+                    # Older pypowsybl without the ``attributes`` kwarg.
+                    vl_df = network.get_voltage_levels()
                 site_map = vl_df["substation_id"].to_dict()
                 nomv_map = vl_df["nominal_v"].to_dict()
                 for i in range(n_subs):

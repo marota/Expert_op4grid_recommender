@@ -71,8 +71,12 @@ class RenewableCurtailmentMixin:
         # Same-site higher-voltage (400/225 kV) reference nodes, used to reach
         # renewable generators on a radial ("antenne") voltage level absent
         # from the influence graph. Rare for small renewables (often connected
-        # directly on the meshed-network busbars), but handled symmetrically.
-        higher_refs = self._get_site_higher_voltage_map()
+        # directly on the meshed-network busbars), so only build it (and hit
+        # the network) when a renewable generator actually sits off-graph.
+        needs_higher_ref = any(
+            sub_id not in node_flow_cache for sub_id in subs_with_renewable
+        )
+        higher_refs = self._get_site_higher_voltage_map() if needs_higher_ref else {}
 
         identified, effective, ineffective = {}, [], []
         scores_map, params_map = {}, {}

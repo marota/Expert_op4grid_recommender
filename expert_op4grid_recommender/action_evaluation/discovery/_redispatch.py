@@ -88,8 +88,13 @@ class RedispatchMixin:
 
         # Same-site higher-voltage (400/225 kV) reference nodes, used to reach
         # generators sitting on a radial ("antenne") voltage level absent from
-        # the influence graph.
-        higher_refs = self._get_site_higher_voltage_map()
+        # the influence graph. Only build it (and hit the network) when at
+        # least one dispatchable generator sits on a node outside the graph —
+        # avoids any added cost when every generator is on a meshed busbar.
+        needs_higher_ref = any(
+            sub_id not in node_flow_cache for sub_id in subs_with_dispatchable
+        )
+        higher_refs = self._get_site_higher_voltage_map() if needs_higher_ref else {}
 
         def _influence_of(node_flows, direction):
             if direction == "up":
