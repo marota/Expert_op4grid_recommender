@@ -4,53 +4,53 @@
   "is_verified_detaillee": true,
   "manoeuvres": [
     [
-      "TRI.PP7_TRI.P7COULA.2 DJ_OC",
+      "TRI.PP7_TRI.P7COULA.2 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7COULA.2 SA.3_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7TAVEL.4 SA.3_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7TAVEL.4 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7AT762 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7AT762 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7COUPL.A SA.3_OC",
       "OPEN",
       null
     ],
     [
-      "TRI.PP7_TRI.P7TAVEL.4 DJ_OC",
+      "TRI.PP7_TRI.P7COUPL.A SA.1_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7COUPL.A SA.21_OC",
       "OPEN",
       null
     ],
     [
-      "TRI.PP7_TRI.P7AT762 DJ.HT_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.3 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.1 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT766 DJ.HT_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.5 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT76B DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT765 DJ.HT_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT761 DJ.HT_OC",
-      "OPEN",
+      "TRI.PP7_TRI.P7COUPL.A SA.23_OC",
+      "CLOSE",
       null
     ],
     [
@@ -67,110 +67,10 @@
       "TRI.PP7_TRI.P7TRO.2AB DJ_OC",
       "OPEN",
       null
-    ],
-    [
-      "TRI.PP7_TRI.P7COUPL.A SA.21_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COUPL.A SA.3_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COUPL.A SA.1_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COUPL.A SA.23_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COULA.2 SA.2_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COULA.2 SA.3_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.4 SA.3_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.4 SA.1_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT762 SA.2_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT762 SA.1_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COULA.2 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.5 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.3 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.4 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TAVEL.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT76B DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT761 DJ.HT_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT762 DJ.HT_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT765 DJ.HT_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7AT766 DJ.HT_OC",
-      "CLOSE",
-      null
     ]
   ],
   "mode": "aggressive",
-  "n_manoeuvres": 33,
+  "n_manoeuvres": 13,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [

@@ -35,7 +35,7 @@ _SEQ_DIR = pathlib.Path(__file__).parent / "sequences"
 # Séquences sauvegardées **validées** (postes 3 JdB). Le fichier porte le nom du
 # scénario ; le VL (avec point) est lu dans le JSON, la fixture utilise le stem
 # (underscore).
-_SEQUENCES_3B = ["TRI.PP7_cible_3_noeuds.json"]
+_SEQUENCES_3B = ["TRI.PP7_cible_3_noeuds.json", "MUHLBP7_cible_expert.json"]
 
 
 def _graph_with(stem: str, states: dict):

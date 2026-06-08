@@ -322,6 +322,26 @@ partition nodale), on vise cet état exact :
    coupler) ; les **écarts** résiduels sont consignés (`ecarts`,
    `is_verified_detaillee`).
 
+**Candidat « diff minimal » (anti ferme-puis-rouvre)** : la voie placement
+ci-dessus reconstruit la partition en **fermant des couplers** pour fusionner les
+SJB d'un nœud, que l'alignement (R19) **rouvre** ensuite si la cible les veut
+ouverts — beaucoup de manœuvres inutiles quand la cible n'est qu'un **petit
+delta** de l'état courant. `determiner_manoeuvres_cible_detaillee` calcule donc
+**aussi** un candidat qui ne manœuvre **que les organes dont l'état diffère** de
+la cible : ré-aiguillage des départs concernés (`_reaiguiller_vers_sjb`, règle du
+sectionneur), isolation des départs déconnectés, puis manœuvre **directe** des
+couplers / sectionnements restants. Il est retenu **transactionnellement** s'il
+atteint **exactement** la cible détaillée (un ordre direct dangereux — sectionneur
+sous charge — est consigné en écart, donc rejeté) et qu'il est **plus court**. Ne
+touchant que les organes qui *doivent* changer, il est alors **toujours ≤** la
+voie principale (ex. **MUHLBP7** : **9** manœuvres au lieu de 37 ; CARRIP3 1 nœud :
+2 au lieu de 20 ; TAVELP7 : 7 au lieu de 29).
+
+**Cohérence omnibus** : la barre cible d'un départ est comparée sur **sa propre
+cellule** (primaire). Un organe **partagé** entre cellules (omnibus) n'hérite plus
+de la barre d'une cellule co-locataire → plus d'**écart fantôme** « sur X au lieu
+de Y » alors que le départ n'a pas bougé (`_ecarts_detailles`).
+
 **Réalisation mode-dépendante** (postes > 2 JdB, R19) : le mode `smooth`
 garantit la **partition nodale** exacte (`is_verified`) — d'éventuels écarts de
 faisceau partagé restent consignés ; le mode `aggressive` (alignement d'organes,
@@ -330,10 +350,14 @@ sur les cibles 3 JdB testées. Les tests de scénario sont **mode-conscients** :
 la partition exacte est exigée des deux modes, l'exactitude détaillée d'au moins
 un des deux (`test_scenarios_sauvegardes.py::test_scenario_atteint_topologie_
 detaillee`).
-- **Code** : `algo.determiner_manoeuvres_cible_detaillee`, `_ecarts_detailles`.
+- **Code** : `algo.determiner_manoeuvres_cible_detaillee` (combine voie principale
+  `_determiner_manoeuvres_cible_detaillee_principal` + candidat
+  `_sequence_detaillee_minimal_delta`), `_ecarts_detailles`.
 - **Test** : `test_algo.py::test_cible_detaillee_atteinte_avec_barres_exactes`,
   `::test_cible_detaillee_signale_les_ecarts`,
-  `test_scenarios_sauvegardes.py::test_carrip3_1noeud_requinconcage`.
+  `test_scenarios_sauvegardes.py::test_carrip3_1noeud_minimal_vs_requinconcage`,
+  `test_muhlbp7_sequence_minimale.py` (9 ≤ experte, aucun coupler manœuvré
+  inutilement).
 - **IHM** : la cible éditée étant détaillée, l'IHM appelle ce mode et affiche
   « DÉTAILLÉE VÉRIFIÉE » ou « NODALE OK · N écart(s) ».
 

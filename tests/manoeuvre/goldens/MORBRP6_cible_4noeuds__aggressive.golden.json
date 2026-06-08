@@ -1,19 +1,27 @@
 {
-  "ecarts": [
-    "'MORBRL61REAC.' sur MORBRP6_3B au lieu de MORBRP6_4B"
-  ],
+  "ecarts": [],
   "is_verified": true,
-  "is_verified_detaillee": false,
+  "is_verified_detaillee": true,
   "manoeuvres": [
     [
-      "MORBRP6_MORBR6COSSI.1 DJ_OC",
-      "OPEN",
-      null
+      "MORBRP6_MORBR6COSSI.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
     ],
     [
-      "MORBRP6_MORBR6LANG6.1 DJ_OC",
+      "MORBRP6_MORBR6COSSI.1 SA.1_OC",
       "OPEN",
-      null
+      "COURTE"
+    ],
+    [
+      "MORBRP6_MORBR6LANG6.1 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "MORBRP6_MORBR6LANG6.1 SA.2_OC",
+      "OPEN",
+      "COURTE"
     ],
     [
       "MORBRP6_MORBR6ARRIG.1 DJ_OC",
@@ -21,27 +29,17 @@
       null
     ],
     [
-      "MORBRP6_MORBR6ZLAN8.2 DJ_OC",
+      "MORBRP6_MORBR6ARRIG.1 SA.1_OC",
       "OPEN",
       null
     ],
     [
-      "MORBRP6_MORBR6AT764 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6SONNE.2 DJ_OC",
-      "OPEN",
+      "MORBRP6_MORBR6ARRIG.1 DJ_OC",
+      "CLOSE",
       null
     ],
     [
       "MORBRP6_MORBR6TRO.1AB DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6COUPL.A DJ_OC",
       "OPEN",
       null
     ],
@@ -51,63 +49,13 @@
       null
     ],
     [
-      "MORBRP6_MORBR6COSSI.1 SA.1_OC",
+      "MORBRP6_MORBR6COUPL.A DJ_OC",
       "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6COSSI.1 SA.2_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6LANG6.1 SA.2_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6LANG6.1 SA.1_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6ARRIG.1 SA.1_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6ZLAN8.2 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6COSSI.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6LANG6.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6AT764 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6ARRIG.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6SONNE.2 DJ_OC",
-      "CLOSE",
       null
     ]
   ],
   "mode": "aggressive",
-  "n_manoeuvres": 20,
+  "n_manoeuvres": 10,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [

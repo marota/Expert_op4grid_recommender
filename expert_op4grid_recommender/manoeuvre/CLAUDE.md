@@ -269,6 +269,19 @@ Sequenceur N barres :
   un sectionneur (`SL`) commun au chemin de la barre **cible** (sinon on
   deconnecte le depart de sa propre barre cible — manoeuvre parasite + cible non
   atteinte). Corrige le `OPEN … SL` parasite observe sur TAVELP7.
+- **Candidat « diff minimal »** (`_sequence_detaillee_minimal_delta`, anti
+  ferme-puis-rouvre) : `determiner_manoeuvres_cible_detaillee` combine la voie
+  principale (renommee `_determiner_manoeuvres_cible_detaillee_principal`) avec un
+  candidat qui ne manoeuvre **que les organes differents** de la cible
+  (re-aiguillage des departs concernes + manoeuvre directe des couplers/
+  sectionnements restants). Retenu **transactionnellement** s'il atteint
+  **exactement** la cible detaillee et qu'il est **plus court** (un OPEN dangereux
+  est consigne en ecart -> rejete ; les CLOSE de fusion sont surs). Supprime le
+  « ferme-puis-rouvre » de couplers quand la cible n'est qu'un petit delta de
+  l'etat courant : **MUHLBP7 9 au lieu de 37**, CARRIP3 1 noeud 2 au lieu de 20,
+  TAVELP7 7 au lieu de 29 (cf. `test_muhlbp7_sequence_minimale.py`). Cohérence
+  **omnibus** : `_ecarts_detailles` compare la barre cible sur la cellule
+  **primaire** du départ (plus d'écart fantôme pour un organe partagé).
 
 Limites connues (cf. docstring `algo.py`) :
 - re-aiguillage d'omnibus complexes : partiel ;

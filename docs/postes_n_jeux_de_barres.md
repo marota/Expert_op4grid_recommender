@@ -76,6 +76,16 @@ redesign ci-dessous.
 - **Sectionneur de ligne partagé** (R9bis) : `_reaiguiller_vers_sjb` n'ouvre plus
   un sectionneur (`SL`) commun au chemin de la barre **cible** → supprime le
   `OPEN … SL` parasite observé sur `TAVELP7` (le départ restait sur sa barre cible).
+- **Candidat « diff minimal »** (`_sequence_detaillee_minimal_delta`) : quand la
+  cible n'est qu'un **petit delta** de l'état courant, la voie placement
+  **fermait** des couplers pour reconstruire la partition puis les **rouvrait** à
+  l'alignement (manœuvres inutiles). On calcule désormais **aussi** un candidat
+  qui ne manœuvre **que les organes différents** (ré-aiguillage des départs +
+  manœuvre directe des couplers/sectionnements restants), retenu
+  **transactionnellement** s'il est **exact** et **plus court** → **MUHLBP7 : 9
+  manœuvres au lieu de 37**, CARRIP3 1 nœud : 2 au lieu de 20, TAVELP7 : 7 au lieu
+  de 29. Cohérence **omnibus** : plus d'écart fantôme pour un organe partagé
+  (`_ecarts_detailles` compare sur la cellule primaire).
 
 ### 3. IHM — `scripts/manoeuvre_ihm.py`, `…_assets/index.html`
 - Les 7 postes 3-JdB sont **épinglés** (`POSTES_TEST`).
@@ -99,10 +109,11 @@ redesign ci-dessous.
 Tests : `tests/manoeuvre/test_ssv_op7_3jdb.py`, `test_placement_decomposition.py`,
 `test_postes_3barres_400kv.py`, `test_ihm_postes_3barres.py`,
 `test_ihm_step_nodale.py`, `test_sequences_sauvegardees_3barres.py`,
-`test_cible_detaillee_optimalite.py`,
+`test_cible_detaillee_optimalite.py`, `test_muhlbp7_sequence_minimale.py`,
 `test_golden_sequences.py` (goldens `CHESNP7_cible_3noeuds__*`,
 `TRI.PP7_cible_3_noeuds__*`, `TAVELP7_cible_3noeuds__*`).
-**Suite `manoeuvre/` : 837 passed, 4 skipped, 0 régression** (goldens intacts,
+**Suite `manoeuvre/` : 853 passed, 7 skipped, 0 régression** (goldens régénérés
+pour le candidat *diff minimal* — réductions de manœuvres, exactitude préservée ;
 dont `MORBRP6` 4-barres).
 
 ### Corpus « caractéristiques particulières » (10 postes réels)

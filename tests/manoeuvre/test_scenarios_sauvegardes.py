@@ -92,11 +92,15 @@ def test_scenario_atteint_topologie_detaillee(path):
         f"aggressive écarts {agg.ecarts}")
 
 
-def test_carrip3_1noeud_requinconcage():
-    """Scénario CARRIP3 → 1 nœud : la section 1.2 est dé-énergisée pour fermer
-    le sectionnement, PUIS ses départs sont **requinçonçés** (ramenés) sur 1.2
-    en boucle courte (manœuvres supplémentaires) pour atteindre exactement la
-    topologie détaillée cible."""
+def test_carrip3_1noeud_minimal_vs_requinconcage():
+    """Scénario CARRIP3 → 1 nœud : la cible détaillée est atteinte **exactement**.
+
+    Le résultat **public** emprunte le candidat **diff minimal** (fermeture directe
+    des organes différents — bien plus court). La **voie principale** atteint le même
+    état exact en dé-énergisant la section 1.2 pour fermer le sectionnement PUIS en
+    **requinçonçant** ses départs sur 1.2 (boucle courte) — mécanisme préservé."""
+    from expert_op4grid_recommender.manoeuvre.algo.targets import (
+        _determiner_manoeuvres_cible_detaillee_principal)
     path = SCEN_DIR / "CARRIP3_cible_1noeud.json"
     if not path.exists() or "CARRIP3" not in list_available_fixtures():
         pytest.skip("Scénario/fixture CARRIP3 absent")
@@ -104,21 +108,23 @@ def test_carrip3_1noeud_requinconcage():
     poste = PosteTopologique.from_graph(
         _graph_from_states("CARRIP3", d["depart"]), "CARRIP3")
     cible_graph = _graph_from_states("CARRIP3", d["cible"])
+
+    # Résultat public : diff minimal, exact, court.
     res = determiner_manoeuvres_cible_detaillee(poste, cible_graph)
-
     assert res.is_verified_detaillee, res.ecarts
+    assert res.ecarts == []
 
-    # On ferme le sectionnement après dé-énergisation...
-    idx_sect = next(i for i, m in enumerate(res.manoeuvres)
+    # Voie principale : requinçonçage (dé-énergisation + retour boucle courte).
+    principal = _determiner_manoeuvres_cible_detaillee_principal(poste, cible_graph)
+    assert principal.is_verified_detaillee, principal.ecarts
+    idx_sect = next(i for i, m in enumerate(principal.manoeuvres)
                     if m.action == "CLOSE" and "sectionnement" in m.raison.lower())
-    # ... puis on requinçonçe des départs (ré-aiguillage boucle courte APRÈS)
-    # pour les ramener sur leur barre cible (1.2).
-    retours = [m for m in res.manoeuvres[idx_sect + 1:]
+    retours = [m for m in principal.manoeuvres[idx_sect + 1:]
                if m.type_boucle == "COURTE" and m.action == "CLOSE"
                and "1.2" in m.raison]
     assert retours, "Aucun requinçonçage (retour boucle courte) vers 1.2"
-    # La vérification détaillée (ecarts == []) garantit déjà que chaque départ
-    # finit sur sa barre exacte imposée par la cible.
+    # Le diff minimal public est strictement plus court que le requinçonçage.
+    assert res.nb_manoeuvres < principal.nb_manoeuvres
 
 
 def test_morbrp6_multibarres():

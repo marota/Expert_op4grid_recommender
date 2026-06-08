@@ -4,64 +4,24 @@
   "is_verified_detaillee": true,
   "manoeuvres": [
     [
-      "TAVELP7_TAVEL7ZT.SU.1 DJ_OC",
-      "OPEN",
-      null
+      "TAVELP7_TAVEL7ZT.SU.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
     ],
     [
-      "TAVELP7_TAVEL7TRI.P.1 DJ_OC",
+      "TAVELP7_TAVEL7ZT.SU.1 SA.1_OC",
       "OPEN",
-      null
+      "COURTE"
     ],
     [
-      "TAVELP7_TAVEL7AT763 DJ_OC",
-      "OPEN",
-      null
+      "TAVELP7_TAVEL7TRI.P.1 SA.3_OC",
+      "CLOSE",
+      "COURTE"
     ],
     [
-      "TAVELP7_TAVEL7TRI.P.4 DJ_OC",
+      "TAVELP7_TAVEL7TRI.P.1 SA.2_OC",
       "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRI.P.3 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7REALT.1 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TAMAR.2 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TAMAR.1 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7JONQU.1 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7REALT.2 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRI.P.2 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRO.1AB DJ_OC",
-      "OPEN",
-      null
+      "COURTE"
     ],
     [
       "TAVELP7_TAVEL7LIAISAB DJ_OC",
@@ -74,83 +34,13 @@
       null
     ],
     [
-      "TAVELP7_TAVEL7ZT.SU.1 SA.1_OC",
+      "TAVELP7_TAVEL7TRO.1AB DJ_OC",
       "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7ZT.SU.1 SA.2_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRI.P.1 SA.3_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRI.P.1 SA.2_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7ZT.SU.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TAMAR.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7JONQU.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7AT763 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7REALT.2 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRI.P.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRI.P.4 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRI.P.3 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TRI.P.2 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7REALT.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TAVELP7_TAVEL7TAMAR.2 DJ_OC",
-      "CLOSE",
       null
     ]
   ],
   "mode": "aggressive",
-  "n_manoeuvres": 29,
+  "n_manoeuvres": 7,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [

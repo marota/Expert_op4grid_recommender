@@ -152,10 +152,16 @@ def test_fusion_un_noeud_respecte_regle_sectionneur():
 
 
 def test_cible_detaillee_atteinte_avec_barres_exactes():
-    """Quand la topologie détaillée est imposée, chaque départ doit finir sur
-    sa barre exacte (pas seulement la bonne partition nodale). Les départs de la
-    section dé-énergisée sont ramenés sur leur barre d'origine (manœuvres
-    supplémentaires en boucle courte) et la topologie détaillée est vérifiée."""
+    """Quand la topologie détaillée est imposée, chaque départ doit finir sur sa
+    barre exacte (pas seulement la bonne partition nodale).
+
+    Le résultat **public** emprunte le candidat **diff minimal** (fermeture
+    directe des organes différents) : exact et bien plus court que le
+    requinçonçage. La **voie principale** (placement) atteint le même état exact en
+    ramenant les départs sur leur barre d'origine via des **boucles courtes**
+    (mécanisme préservé)."""
+    from expert_op4grid_recommender.manoeuvre.algo.targets import (
+        _determiner_manoeuvres_cible_detaillee_principal)
     # Départ : couplage + sectionnement barre 1 ouverts (5 nœuds)
     Gd = build_graph_from_fixture("CARRIP3")
     for sid in ("CARRIP3_CARRI3COUPL.1 DJ_OC", "CARRIP3_CARRI3SEC..12 SS.1.12_OC"):
@@ -170,9 +176,13 @@ def test_cible_detaillee_atteinte_avec_barres_exactes():
     assert res.is_verified, res.message
     assert res.is_verified_detaillee, f"écarts: {res.ecarts}"
     assert res.ecarts == []
-    # Des ré-aiguillages boucle courte de retour existent (départs ramenés sur
-    # leur barre d'origine après fermeture du sectionnement).
-    assert any(m.type_boucle == "COURTE" for m in res.manoeuvres)
+
+    # La voie principale atteint le même état exact via le requinçonçage (boucle
+    # courte) ; le diff minimal public est strictement plus court.
+    principal = _determiner_manoeuvres_cible_detaillee_principal(poste, Gc)
+    assert principal.is_verified_detaillee, f"écarts: {principal.ecarts}"
+    assert any(m.type_boucle == "COURTE" for m in principal.manoeuvres)
+    assert res.nb_manoeuvres <= principal.nb_manoeuvres
 
 
 def test_cible_detaillee_signale_les_ecarts(monkeypatch):

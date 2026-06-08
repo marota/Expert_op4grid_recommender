@@ -25,9 +25,17 @@ def _ecarts_detailles(
     sjb_id = {n: G.nodes[n].get("busbar_section_id")
               for n in poste.tronconnement.barre_par_busbar}
     ecarts: list[str] = []
-    # Barre de chaque départ
-    for eq, target in cible_busbar.items():
+    # Barre de chaque départ. **Cohérence omnibus** : la barre cible est recalculée
+    # sur LA MÊME cellule (primaire) que la barre obtenue. Sinon un organe **partagé**
+    # entre plusieurs cellules (omnibus) hérite, dans ``cible_busbar``, de la barre
+    # d'une cellule co-locataire (p.ex. une barre que sa propre cellule n'atteint
+    # même pas) → écart **fantôme** « sur X au lieu de Y » alors que le départ n'a
+    # pas bougé (cf. MUHLBP7 : MUHLBY771/772 partagés).
+    for eq in cible_busbar:
         cell = cells.get_cellule_depart(eq)
+        if cell is None:
+            continue
+        target = _wired_busbar(cell, cible_graph)
         cur = _wired_busbar(cell, G)
         if cur != target:
             ecarts.append(
@@ -585,12 +593,16 @@ def determiner_topo_complete_cible(
     return resultat
 
 
-def determiner_manoeuvres_cible_detaillee(
+def _determiner_manoeuvres_cible_detaillee_principal(
     poste: PosteTopologique,
     cible_graph: nx.Graph,
     mode: str = "smooth",
 ) -> ResultatManoeuvres:
     """
+    Voie **principale** (placement/refine, ou agressif, ou multi-barres selon le
+    poste et le mode) — cf. ``determiner_manoeuvres_cible_detaillee`` qui la combine
+    avec un candidat **diff minimal** transactionnel.
+
     Atteint une **topologie détaillée cible imposée** (état précis de chaque
     organe, donc de la barre de chaque départ), plus spécifique que la seule
     topologie nodale.
@@ -751,3 +763,129 @@ def determiner_manoeuvres_cible_detaillee(
             "résiduel(s) : " + " ; ".join(res.ecarts[:6])
         )
     return res
+
+
+def _sequence_detaillee_minimal_delta(
+    poste: PosteTopologique,
+    cible_graph: nx.Graph,
+    topo_cible: TopologieNodale,
+    cible_busbar: dict[str, int],
+) -> ResultatManoeuvres:
+    """
+    Séquence détaillée par **diff minimal** : ne manœuvre QUE les organes dont
+    l'état diffère entre l'état courant et la cible, **sans reconstruire la
+    partition** (donc sans le « ferme-puis-rouvre » de couplers que produit la voie
+    placement quand la cible n'est qu'un petit delta de l'état courant).
+
+    1. **ré-aiguillage** de chaque départ dont la barre câblée change
+       (``_reaiguiller_vers_sjb`` : règle du sectionneur — DJ ouvert → SA → DJ,
+       boucle courte/longue auto) ;
+    2. **isolation** des départs déconnectés dans la cible (nœud à 0 barre) ;
+    3. **changements de DJ** de départ nets (mise en / hors service) ;
+    4. organes **restants** différents (couplers / sectionnements / SL non portés
+       par une cellule de départ) → manœuvre **directe**.
+
+    **Transactionnel** : l'appelant (``determiner_manoeuvres_cible_detaillee``) ne
+    retient cette séquence que si elle atteint **exactement** la cible détaillée
+    (``is_verified_detaillee``, 0 écart). Un ordre direct dangereux (sectionneur
+    sous charge) est consigné en écart → la séquence est rejetée et l'on retombe
+    sur la voie principale. Comme elle ne touche que les organes qui *doivent*
+    changer (chacun par la primitive sûre minimale), elle est, quand elle vérifie,
+    **toujours ≤** la voie principale en nombre de manœuvres (ex. MUHLBP7 : 9 au
+    lieu de 37).
+    """
+    vl = poste.voltage_level_id
+    cells = poste.cellules
+    organes_fixes = _organes_internes_2bornes(poste)
+    G = poste.graph.copy()
+    manoeuvres: list[Manoeuvre] = []
+
+    # 1-2. Ré-aiguillage / isolation des départs dont la barre câblée diffère.
+    for cell in cells.cellules_depart:
+        eq = cell.equipment_id
+        if eq in organes_fixes:
+            continue
+        bus_cible = cible_busbar.get(eq)
+        if bus_cible is None:
+            manoeuvres += _isoler_depart_hors_barre(G, cell, cible_graph)
+            continue
+        if _wired_busbar(cell, G) == bus_cible:
+            continue
+        _reaiguiller_vers_sjb(G, cells, eq, bus_cible, manoeuvres)
+
+    # 3. Changements de DJ de départ nets (mise en service / hors service).
+    reconnections, disconnections = _departure_dj_changes(poste, cible_graph)
+    manoeuvres += _appliquer_changements_dj(G, reconnections, disconnections)
+
+    # 4. Organes restants différents (couplers / sectionnements / SL) : direct.
+    done = {m.switch_id for m in manoeuvres}
+    for _u, _v, d in cible_graph.edges(data=True):
+        sid = d.get("switch_id")
+        if sid is None or sid in done:
+            continue
+        tgt = bool(d.get("open", False))
+        if _is_open(G, sid) != tgt:
+            _set_switch(G, sid, tgt)
+            manoeuvres.append(Manoeuvre(
+                switch_id=sid, action=("OPEN" if tgt else "CLOSE"),
+                raison="manœuvre directe (diff cible minimal)"))
+
+    res = ResultatManoeuvres(
+        voltage_level_id=vl,
+        topo_initiale=poste.topologie_nodale,
+        topo_cible=topo_cible,
+        manoeuvres=manoeuvres,
+    )
+    res.topo_obtenue = TopologieNodale.from_graph(G, vl)
+    res.is_verified = topo_cible.meme_topologie(res.topo_obtenue)
+    res.is_changed = bool(manoeuvres)
+    res.ecarts = (_ecarts_detailles(poste, G, cible_graph, cible_busbar)
+                  + _verifier_regles(poste, manoeuvres, un_seul=True))
+    res.is_verified_detaillee = res.is_verified and not res.ecarts
+    res.message = ("Topologie détaillée cible atteinte (diff minimal)."
+                   if res.is_verified_detaillee
+                   else "Diff minimal non exact ou non sûr (candidat rejeté).")
+    return res
+
+
+def determiner_manoeuvres_cible_detaillee(
+    poste: PosteTopologique,
+    cible_graph: nx.Graph,
+    mode: str = "smooth",
+) -> ResultatManoeuvres:
+    """
+    Atteint une **topologie détaillée cible imposée** (état précis de chaque
+    organe, donc de la barre de chaque départ).
+
+    Combine **transactionnellement** deux candidats et retient le **meilleur** :
+
+    - la **voie principale** (``_determiner_manoeuvres_cible_detaillee_principal``)
+      selon le ``mode`` (``"smooth"`` = un ouvrage hors tension à la fois ;
+      ``"aggressive"`` = orchestration batch ; voie multi-barres pour > 2 JdB) ;
+    - un candidat **diff minimal** (``_sequence_detaillee_minimal_delta``) qui ne
+      manœuvre que les organes dont l'état diffère de la cible.
+
+    Le candidat diff minimal n'est retenu que s'il atteint **exactement** la cible
+    détaillée et qu'il est **plus court** (ou que la voie principale échoue à
+    vérifier le détaillé). Il **ne peut donc jamais dégrader** le résultat, et
+    élimine le « ferme-puis-rouvre » de couplers quand la cible n'est qu'un petit
+    delta de l'état courant (ex. MUHLBP7 : 9 manœuvres au lieu de 37).
+    """
+    principal = _determiner_manoeuvres_cible_detaillee_principal(
+        poste, cible_graph, mode)
+
+    cible_busbar: dict[str, int] = {}
+    for c in poste.cellules.cellules_depart:
+        for eq in {c.equipment_id} | set(c.shared_equipment_ids):
+            bb = _wired_busbar(c, cible_graph)
+            if bb is not None:
+                cible_busbar[eq] = bb
+    topo_cible = TopologieNodale.from_graph(cible_graph, poste.voltage_level_id)
+    mini = _sequence_detaillee_minimal_delta(
+        poste, cible_graph, topo_cible, cible_busbar)
+
+    if mini.is_verified_detaillee and (
+            not principal.is_verified_detaillee
+            or mini.nb_manoeuvres < principal.nb_manoeuvres):
+        return mini
+    return principal

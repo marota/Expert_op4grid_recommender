@@ -1,21 +1,8 @@
 {
-  "ecarts": [
-    "sectionneur TRI.PP7_TRI.P7COUPL.A SA.3_OC ouvert sous tension (deux côtés énergisés)",
-    "sectionneur TRI.PP7_TRI.P7LIAISAB SA.2A_OC ouvert sous tension (deux côtés énergisés)"
-  ],
+  "ecarts": [],
   "is_verified": true,
-  "is_verified_detaillee": false,
+  "is_verified_detaillee": true,
   "manoeuvres": [
-    [
-      "TRI.PP7_TRI.P7LIAISAB SA.2A_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COUPL.A SA.1_OC",
-      "CLOSE",
-      null
-    ],
     [
       "TRI.PP7_TRI.P7COULA.2 SA.2_OC",
       "CLOSE",
@@ -47,32 +34,12 @@
       "COURTE"
     ],
     [
-      "TRI.PP7_TRI.P7LIAISAB DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7TRO.2AB DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COUPL.A DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "TRI.PP7_TRI.P7COUPL.B DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
       "TRI.PP7_TRI.P7COUPL.A SA.3_OC",
       "OPEN",
       null
     ],
     [
-      "TRI.PP7_TRI.P7COUPL.A DJ_OC",
+      "TRI.PP7_TRI.P7COUPL.A SA.1_OC",
       "CLOSE",
       null
     ],
@@ -87,13 +54,23 @@
       null
     ],
     [
-      "TRI.PP7_TRI.P7LIAISAB SA.2A_OC",
+      "TRI.PP7_TRI.P7LIAISAB DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7COUPL.B DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7TRO.2AB DJ_OC",
       "OPEN",
       null
     ]
   ],
   "mode": "smooth",
-  "n_manoeuvres": 17,
+  "n_manoeuvres": 13,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [
