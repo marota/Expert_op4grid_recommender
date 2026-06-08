@@ -152,6 +152,11 @@ class DiscovererBase:
         self.ineffective_renewable_curtailment = []
         self.scores_renewable_curtailment = {}
         self.params_renewable_curtailment = {}
+        self.identified_redispatch = {}
+        self.effective_redispatch = []
+        self.ineffective_redispatch = []
+        self.scores_redispatch = {}
+        self.params_redispatch = {}
         self.prioritized_actions = {}
 
     def _build_lookup_caches(self):
@@ -254,6 +259,162 @@ class DiscovererBase:
                 if renewable:
                     result[sub_id] = renewable
         self._cached_subs_with_renewable_gens = result
+        return result
+
+    def _get_subs_with_dispatchable_gens(self) -> Dict[int, List[int]]:
+        """Cached mapping of substation_id -> list of dispatchable generator_ids
+        with non-zero power.
+
+        A generator is considered *dispatchable* when its energy source is NOT
+        in ``RENEWABLE_ENERGY_SOURCES`` (i.e. the complement of the renewable
+        set used by curtailment). Built once using vectorized operations
+        instead of per-node ``get_obj_connect_to``."""
+        if hasattr(self, "_cached_subs_with_dispatchable_gens"):
+            return self._cached_subs_with_dispatchable_gens
+        obs = self.obs_defaut
+        renewable_sources = set(
+            s.upper()
+            for s in getattr(config, "RENEWABLE_ENERGY_SOURCES", ["WIND", "SOLAR"])
+        )
+        gen_energy_sources = getattr(obs, "gen_energy_source", getattr(obs, "gen_type", None))
+        min_mw = getattr(config, "REDISPATCH_MIN_MW", 1.0)
+        result: Dict[int, List[int]] = {}
+
+        if gen_energy_sources is not None and hasattr(obs, "gen_to_subid"):
+            gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
+            if gen_p_array is None:
+                self._cached_subs_with_dispatchable_gens = result
+                return result
+            for gid in range(len(gen_energy_sources)):
+                if str(gen_energy_sources[gid]).upper() in renewable_sources:
+                    continue
+                if gid >= len(gen_p_array):
+                    continue
+                gen_p = float(gen_p_array[gid])
+                # Active producer (production stored as negative target terminal
+                # power in pypowsybl); ignore idle/trivial generators.
+                if gen_p > 0 or abs(gen_p) < min_mw:
+                    continue
+                sub_id = int(obs.gen_to_subid[gid])
+                if sub_id not in result:
+                    result[sub_id] = []
+                result[sub_id].append(gid)
+        elif gen_energy_sources is not None:
+            # Fallback without gen_to_subid
+            gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
+            for sub_id in range(len(obs.name_sub)):
+                obj = obs.get_obj_connect_to(substation_id=sub_id)
+                gen_ids = obj.get("generators_id", [])
+                dispatchable = []
+                for gid in gen_ids:
+                    if gid >= len(gen_energy_sources):
+                        continue
+                    if str(gen_energy_sources[gid]).upper() in renewable_sources:
+                        continue
+                    if gen_p_array is not None and gid < len(gen_p_array):
+                        gen_p = float(gen_p_array[gid])
+                        if gen_p > 0 or abs(gen_p) < min_mw:
+                            continue
+                    dispatchable.append(gid)
+                if dispatchable:
+                    result[sub_id] = dispatchable
+        self._cached_subs_with_dispatchable_gens = result
+        return result
+
+    def _get_voltage_level_metadata(self) -> Dict[int, Tuple[str, float]]:
+        """Cached ``{node_idx: (site_id, nominal_v_kV)}``.
+
+        Each discovery node is a *voltage level* (pypowsybl semantics:
+        ``name_sub`` are voltage-level ids). This maps every node to the
+        physical site it belongs to and its nominal voltage, so generator
+        discovery can reason about "the same site at a higher voltage".
+
+        Source of truth is the pypowsybl network
+        (``get_voltage_levels()[['substation_id', 'nominal_v']]``); when the
+        network is unreachable (e.g. grid2op backend) we fall back to the RTE
+        naming convention (site = name without a numeric prefix, truncated to
+        5 chars; voltage encoded by the trailing character — ``7``→400 kV,
+        ``6``→225 kV, ``3``→63 kV, …)."""
+        if hasattr(self, "_cached_vl_metadata"):
+            return self._cached_vl_metadata
+        obs = self.obs_defaut
+        n_subs = len(obs.name_sub)
+        meta: Dict[int, Tuple[str, float]] = {}
+
+        network = None
+        env = getattr(self, "env", None)
+        nm = getattr(env, "network_manager", None)
+        if nm is not None:
+            network = getattr(nm, "network", None)
+        if network is not None:
+            try:
+                # Fetch only the two columns we need — fetching all VL columns
+                # (name, voltage limits, …) is materially slower on large grids.
+                try:
+                    vl_df = network.get_voltage_levels(
+                        attributes=["substation_id", "nominal_v"]
+                    )
+                except TypeError:
+                    # Older pypowsybl without the ``attributes`` kwarg.
+                    vl_df = network.get_voltage_levels()
+                site_map = vl_df["substation_id"].to_dict()
+                nomv_map = vl_df["nominal_v"].to_dict()
+                for i in range(n_subs):
+                    name = str(obs.name_sub[i])
+                    site = site_map.get(name)
+                    nomv = nomv_map.get(name)
+                    if site is not None and nomv is not None:
+                        meta[i] = (str(site), float(nomv))
+            except Exception as e:
+                print(f"Warning: could not read voltage-level metadata from network: {e}")
+                meta = {}
+
+        if not meta:
+            # RTE naming fallback (grid2op backend or missing network).
+            import re
+            digit_to_v = {
+                "7": 400.0, "6": 225.0, "5": 90.0, "4": 150.0,
+                "3": 63.0, "2": 45.0, "1": 20.0, "0": 20.0,
+            }
+            for i in range(n_subs):
+                name = str(obs.name_sub[i])
+                stripped = re.sub(r"^\d+", "", name)
+                site = stripped[:5] if stripped else name
+                nomv = digit_to_v.get(name[-1], 0.0) if name else 0.0
+                meta[i] = (site, nomv)
+
+        self._cached_vl_metadata = meta
+        return meta
+
+    def _get_site_higher_voltage_map(self) -> Dict[int, List[int]]:
+        """Cached ``{node_idx: [higher-voltage same-site node_idx, ...]}``.
+
+        For each voltage-level node, lists the nodes of the **same physical
+        site** whose nominal voltage is strictly higher AND at an EHV/HV
+        reference level (>= 225 kV), sorted by descending nominal voltage.
+
+        Generators usually sit on a radial ("antenne") voltage level that is
+        absent from the influence graph; this map lets generator-targeting
+        discovery borrow the influence of the same site's 400/225 kV busbar
+        when that higher node *is* in the graph."""
+        if hasattr(self, "_cached_site_higher_v"):
+            return self._cached_site_higher_v
+        meta = self._get_voltage_level_metadata()
+        ref_threshold = 220.0  # EHV/HV reference levels: 225 kV and 400 kV
+        by_site: Dict[str, List[Tuple[float, int]]] = {}
+        for idx, (site, nomv) in meta.items():
+            by_site.setdefault(site, []).append((nomv, idx))
+
+        result: Dict[int, List[int]] = {}
+        for idx, (site, nomv) in meta.items():
+            candidates = [
+                (v, n_idx) for (v, n_idx) in by_site.get(site, ())
+                if n_idx != idx and v > nomv and v >= ref_threshold
+            ]
+            if candidates:
+                candidates.sort(key=lambda vc: vc[0], reverse=True)
+                result[idx] = [n_idx for (_v, n_idx) in candidates]
+        self._cached_site_higher_v = result
         return result
 
     def _build_node_flow_cache(self, blue_edge_names_set: Set[str],

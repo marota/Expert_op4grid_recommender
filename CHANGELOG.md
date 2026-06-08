@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Redispatching action type** (`action_evaluation/discovery/_redispatch.py`, `RedispatchMixin`). `find_relevant_redispatch` discovers candidates that **raise** dispatchable production downstream (aval) of the constrained path or on the parallel red dispatch loops, and **lower** it upstream (amont). Dispatchable generators are the complement of `RENEWABLE_ENERGY_SOURCES` (new helper `_get_subs_with_dispatchable_gens` on `DiscovererBase`). Unlike curtailment (which forces `target_p = 0`), redispatching encodes the **real target setpoint** `current ± delta` in `set_gen_p` so the variation is actually simulated. The default delta is `REDISPATCH_DEFAULT_DELTA_MW` (10 MW) and is meant to be edited downstream (Co-Study4Grid).
+  - New config: `MIN_REDISPATCH` (2), `REDISPATCH_DEFAULT_DELTA_MW` (10.0), `REDISPATCH_MARGIN` (0.05), `REDISPATCH_MIN_MW` (1.0), mirrored in `config_basic.py` and `tests/config_test.py`, and exposed in `models/expert.py` `params_spec` (`min_redispatch`, `redispatch_default_delta_mw`).
+  - New `action_scores["redispatch"]` bucket (`scores` + `params` with `direction`, `target_p_MW`, `delta_MW`, `influence_factor`, `coverage_ratio`, …).
+  - `ActionClassifier.identify_action_type` now returns `gen_redispatch` for `redispatch_`-prefixed ids (or `action_mode == "redispatch"`), disambiguating them from renewable `gen_power_reduction`.
+  - **Antenna sites** (`_base.py` `_get_voltage_level_metadata` / `_get_site_higher_voltage_map`): generators sit on a radial voltage level usually absent from the influence graph. When the **same physical site** has a higher-voltage busbar (400/225 kV) that IS in the graph, the generator is now considered of interest and that higher node is used as the influence/score reference (`params["influence_ref_substation"]`, `params["via_higher_voltage"]`). Site grouping + nominal voltage come from the pypowsybl network (`get_voltage_levels()` `substation_id` / `nominal_v`), with an RTE-naming fallback for the grid2op backend. The same same-site higher-voltage reference is also applied to `find_relevant_renewable_curtailment` (less critical there, as small renewables are often connected directly on meshed busbars). Optimized for large grids: the network query is narrowed to `substation_id`/`nominal_v`, the site map is built lazily (and cached) only when a generator actually sits on an off-graph node, so meshed-only cases add no cost.
+
+### Tests
+
+- `tests/test_ActionDiscoverer.py`: new redispatch section (9 tests) — up/down candidate discovery, renewable skip, signed-delta targets, real setpoint encoding, params structure, score range, `action_scores` presence.
+- `tests/test_discovery_package_structure.py`: updated structure guard for the new `RedispatchMixin` + `_get_subs_with_dispatchable_gens` helper (method count 42 → 44).
+
+---
+
 ## [0.2.2.post2] - 2026-05-19
 
 ### Fixed

@@ -68,23 +68,49 @@ class RenewableCurtailmentMixin:
         # Pre-filter: only iterate substations that have renewable generators (huge win on 500+ node networks)
         subs_with_renewable = self._get_subs_with_renewable_gens()
         nodes_set = set(nodes_indices)
-        # Only consider substations in the requested nodes AND that have renewable generators AND non-zero flow
-        relevant_subs = [
-            sub_id for sub_id in subs_with_renewable
-            if sub_id in nodes_set and sub_id in node_flow_cache
-        ]
+        # Same-site higher-voltage (400/225 kV) reference nodes, used to reach
+        # renewable generators on a radial ("antenne") voltage level absent
+        # from the influence graph. Rare for small renewables (often connected
+        # directly on the meshed-network busbars), so only build it (and hit
+        # the network) when a renewable generator actually sits off-graph.
+        needs_higher_ref = any(
+            sub_id not in node_flow_cache for sub_id in subs_with_renewable
+        )
+        higher_refs = self._get_site_higher_voltage_map() if needs_higher_ref else {}
 
         identified, effective, ineffective = {}, [], []
         scores_map, params_map = {}, {}
 
-        for node_idx in relevant_subs:
-            sub_name = str(obs.name_sub[node_idx])
+        for sub_id, renewable_gen_ids in subs_with_renewable.items():
+            sub_name = str(obs.name_sub[sub_id])
 
-            # Use pre-computed renewable generator list (avoids get_obj_connect_to + filtering)
-            renewable_gen_ids = subs_with_renewable[node_idx]
+            # 1) Direct: the generator's own voltage level is a graph node.
+            ref_idx = (
+                sub_id
+                if (sub_id in node_flow_cache and sub_id in nodes_set)
+                else None
+            )
+            via_higher = False
+            # 2) Antenna: borrow the same site's higher-voltage busbar.
+            if ref_idx is None:
+                best_idx, best_flow = None, 0.0
+                for cand in higher_refs.get(sub_id, ()):
+                    if cand in node_flow_cache and cand in nodes_set:
+                        cf = node_flow_cache[cand]
+                        cand_flow = max(
+                            cf["neg_in"], cf["neg_out"], cf["pos_in"], cf["pos_out"]
+                        )
+                        if cand_flow > best_flow:
+                            best_flow, best_idx = cand_flow, cand
+                if best_idx is not None:
+                    ref_idx, via_higher = best_idx, True
+            if ref_idx is None:
+                continue
 
-            # Get pre-computed influence flows (O(1) lookup)
-            node_flows = node_flow_cache[node_idx]
+            ref_name = str(obs.name_sub[ref_idx])
+
+            # Get pre-computed influence flows (O(1) lookup) on the reference node
+            node_flows = node_flow_cache[ref_idx]
             total_neg_in = node_flows["neg_in"]
             total_neg_out = node_flows["neg_out"]
             total_pos_in = node_flows["pos_in"]
@@ -150,6 +176,8 @@ class RenewableCurtailmentMixin:
                     "mw_required": round(mw_required, 2),
                     "gen_p": round(gen_p, 2),
                     "coverage_ratio": round(coverage_ratio, 2),
+                    "influence_ref_substation": ref_name,
+                    "via_higher_voltage": via_higher,
                 }
 
         if self.check_action_simulation and identified:

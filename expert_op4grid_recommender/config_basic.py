@@ -51,6 +51,7 @@ settings: Settings = Settings(
     MIN_PST=0,
     MIN_LOAD_SHEDDING=0,
     MIN_RENEWABLE_CURTAILMENT=0,
+    MIN_REDISPATCH=0,
 )
 
 apply_settings_to_namespace(settings, globals())

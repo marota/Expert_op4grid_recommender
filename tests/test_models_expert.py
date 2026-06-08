@@ -27,9 +27,30 @@ def test_expert_params_spec_includes_all_legacy_knobs():
         "min_pst",
         "min_load_shedding",
         "min_renewable_curtailment_actions",
+        "min_redispatch",
+        "redispatch_default_delta_mw",
         "ignore_reconnections",
     ):
         assert required in names, f"missing param {required!r}"
+
+
+def test_expert_redispatch_params_have_expected_kinds():
+    specs = {p.name: p for p in ExpertRecommender.params_spec()}
+    assert specs["min_redispatch"].kind == "int"
+    assert specs["redispatch_default_delta_mw"].kind == "float"
+
+
+def test_expert_params_spec_robust_to_missing_config_attrs(monkeypatch):
+    """A stale config lacking the redispatch knobs must NOT make
+    params_spec() raise — otherwise a single missing attribute blanks out
+    the entire model registry / Settings UI (regression guard)."""
+    from expert_op4grid_recommender import config as cfg
+    monkeypatch.delattr(cfg, "MIN_REDISPATCH", raising=False)
+    monkeypatch.delattr(cfg, "REDISPATCH_DEFAULT_DELTA_MW", raising=False)
+    specs = {p.name: p for p in ExpertRecommender.params_spec()}
+    # Still present, falling back to safe defaults.
+    assert specs["min_redispatch"].default == 0
+    assert specs["redispatch_default_delta_mw"].default == 10.0
 
 
 def test_expert_n_prioritized_is_an_int_with_min_one():

@@ -318,6 +318,14 @@ class ActionClassifier:
             KeyError: If `by_description` is True and `actions_desc` lacks the expected
                       `content` or `set_bus` structure.
         """
+        # Redispatching (raise/lower a dispatchable generator) is encoded with
+        # set_gen_p like curtailment, so it must be disambiguated before the
+        # power-reduction short-circuit. It is marked either by the
+        # ``redispatch_`` action-id prefix or an explicit ``action_mode``.
+        aid = str(actions_desc.get("id", actions_desc.get("action_id", "")))
+        if aid.startswith("redispatch_") or actions_desc.get("action_mode") == "redispatch":
+            return "gen_redispatch"
+
         # Check for power reduction actions first (these bypass the description/grid2op path)
         pr_type = self._is_power_reduction_action(actions_desc)
         if pr_type == "load_power_reduction":
