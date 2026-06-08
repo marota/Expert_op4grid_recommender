@@ -91,6 +91,39 @@ POSTES_TEST = [
     "SSV.OP7", "TAVELP7", "TRI.PP7", "ARGOEP7", "CHESNP7", "COR.PP7", "CERGYP7",
 ]
 
+# ── Catalogue par TYPOLOGIE de poste ────────────────────────────────────────
+# Sections d'exploration : chaque poste (identifié par son VL réel dans le réseau
+# France 28/08/2024) est rangé sous une ou plusieurs typologies, pour « s'y
+# retrouver » parmi les milliers de VL. Tous ces postes disposent d'une **fixture
+# de test** correspondante (``tests/manoeuvre/fixtures``). L'IHM affiche ces
+# sections dans le sélecteur et marque **disponible** chaque poste dont le VL est
+# présent dans la situation réseau chargée (rendu SLD = pypowsybl, donc requiert
+# le bon réseau ; lancer l'IHM sur ``grid.xiidm`` France les rend tous accessibles).
+# Un même poste peut figurer dans plusieurs sections (navigation par typologie).
+POSTES_CATALOG: list[tuple[str, list[str]]] = [
+    ("3 jeux de barres — 400 kV",
+     ["SSV.OP7", "TAVELP7", "TRI.PP7", "ARGOEP7", "CHESNP7", "COR.PP7", "CERGYP7"]),
+    ("≥ 5 jeux de barres",
+     [".OBER 7", ".VANY 7", ".ZAND 7", "MUHLBP7"]),
+    ("4 jeux de barres",
+     [".LAUF 7", "CPNIEP6", "GUARBP6", "MORBRP6"]),
+    ("Sectionnement extrême (SJB ≫ barres)",
+     [".LAUF 7", "REICHP3", ".ZAND 7", "CARRIP6"]),
+    ("Faisceau de couplage partagé",
+     [".OBER 7", ".ZAND 7", "MUHLBP7", "P.GASP6"]),
+    ("Organes internes 2 bornes (self / réactance)",
+     ["CPNIEP6", ".ZAND 7"]),
+    ("Omnibus / départs multiples",
+     ["ROMAIP6", "CORNIP3", "GUARBP6", "RAN.PP6", "REICHP3"]),
+    ("Départs déconnectés (nœuds 0-barre)",
+     [".MUHL 6"]),
+    ("Gros postes (beaucoup de départs)",
+     ["P.GASP6", ".OBER 7", "REICHP3"]),
+    ("Postes standards / multi-sections",
+     ["CARRIP3", "CARRIP6", "CZTRYP6", "COMPIP3", "BXTO5P3", "BXTO5P6",
+      "CZBEVP3", "PALUNP3", "NOVIOP3", "SSAVOP3", "VIELMP6"]),
+]
+
 SLD_PAR = ppn.SldParameters(topological_coloring=True)
 SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")    # redéfini dans main()
 SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
@@ -283,6 +316,17 @@ class Session:
         self._graph_cache: dict = {}
         self._topo_cache: dict = {}
         self._flow_cache: dict = {}
+
+    def catalog(self) -> list[dict]:
+        """Catalogue par **typologie** : sections de postes (cf. ``POSTES_CATALOG``)
+        avec, pour chaque poste, sa **disponibilité** dans la situation chargée
+        (``available`` = le VL existe → sélectionnable et rendu SLD possible)."""
+        out = []
+        for title, vls in POSTES_CATALOG:
+            postes = [{"vl": v, "available": v in self.vls} for v in vls]
+            n_dispo = sum(1 for p in postes if p["available"])
+            out.append({"title": title, "postes": postes, "n_available": n_dispo})
+        return out
 
     # --- gestion d'état ---------------------------------------------------
     def switches_df(self, vl):
@@ -905,8 +949,10 @@ def index():
 @app.get("/api/postes")
 def api_postes():
     # ``postes`` : liste épinglée (jeu de test + 3 JdB). ``all`` : tous les postes
-    # NODE_BREAKER de la situation chargée (recherche dans l'IHM).
-    return jsonify(postes=SESSION.postes, all=SESSION.all_postes)
+    # NODE_BREAKER de la situation chargée (recherche dans l'IHM). ``catalog`` :
+    # sections par typologie (cf. POSTES_CATALOG) avec disponibilité par poste.
+    return jsonify(postes=SESSION.postes, all=SESSION.all_postes,
+                   catalog=SESSION.catalog())
 
 
 @app.post("/api/load_grid")
@@ -923,7 +969,8 @@ def api_load_grid():
     except Exception as exc:  # pragma: no cover - dépend du fichier fourni
         return jsonify(ok=False, error=f"Échec du chargement : {exc}"), 400
     SESSION = Session(net)
-    return jsonify(ok=True, postes=SESSION.postes, all=SESSION.all_postes)
+    return jsonify(ok=True, postes=SESSION.postes, all=SESSION.all_postes,
+                   catalog=SESSION.catalog())
 
 
 @app.post("/api/load")

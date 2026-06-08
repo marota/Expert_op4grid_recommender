@@ -83,6 +83,13 @@ des variables CSS).
 ## 3. Flux de travail
 
 1. **Choisir un poste** → les deux schémas affichent l'état de départ (pristine).
+   Trois entrées : le **menu épinglé** (jeu de test + 7 postes 3 JdB), le
+   **sélecteur par typologie** 📂 (sections : *≥5 jeux de barres*, *sectionnement
+   extrême*, *faisceau de couplage partagé*, *organes internes*, *omnibus*,
+   *départs déconnectés*, *gros postes*, …) et le **champ de recherche** (tout VL
+   NODE_BREAKER de la situation). Dans le sélecteur par typologie, un poste
+   **grisé** (⚠) n'est pas présent dans la situation chargée → charger la grille
+   France (`grid.xiidm`) pour y accéder (le rendu détaillé SLD requiert le réseau).
 2. **Éditer la cible** : cliquer un disjoncteur/sectionneur dans le schéma du
    bas pour basculer son état (ouvert/fermé). Le nombre de nœuds cible évolue en
    direct.
@@ -244,8 +251,8 @@ navigateur).
 | Méthode & route | Corps | Réponse | Rôle |
 |-----------------|-------|---------|------|
 | `GET /` | — | HTML | Page de l'IHM |
-| `GET /api/postes` | — | `{postes:[…], all:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) |
-| `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
+| `GET /api/postes` | — | `{postes:[…], all:[…], catalog:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) ; `catalog` = **sections par typologie** (cf. ci-dessous) |
+| `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…], catalog:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) — **n'importe quel** VL NODE_BREAKER ; inclut les partitions nodales |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds, nodale}` | Bascule un OC (cible) ; `nodale` = vue nodale resynchronisée |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds, nodale}` | Réinitialise la cible = départ |
@@ -361,6 +368,7 @@ assert res.ecarts == []
 | **Topologie nodale qui suit l'étape** d'animation | Volet nodal « cible » rendu en lecture seule depuis `nodale` de `/api/step` (titre « Étape k/n (vue) ») ; restauré à « Cible (éditable) » à la sortie |
 | Voir **départ en haut** et **cible éditable en bas** | Deux schémas empilés |
 | Couleurs **natives** par niveau de tension (63 kV violet) | `topological_coloring`, rendu navigateur |
+| **Explorer les postes par typologie** (sections) | Sélecteur 📂 `#posteCat` : un `<optgroup>` par typologie (≥5 JdB, sectionnement extrême, faisceau partagé, organes internes, omnibus, départs déconnectés, gros postes…) ; entrées grisées = absentes de la situation (`catalog` de `/api/postes`) |
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
 | Choisir l'**état de départ** depuis une topologie sauvegardée | « ⇧ Comme départ » |
 | **Sauvegarder la séquence** avec lien vers ses topologies | `/api/save_sequence` (JSON autonome + champ `scenario`) |

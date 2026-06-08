@@ -100,6 +100,11 @@
   <h2>Poste</h2>
   <select id="poste" title="Postes épinglés (jeu de test + 3 jeux de barres identifiés)"></select>
   <div style="margin-top:6px">
+    <select id="posteCat" title="Explorer les postes par typologie (sections). Les postes grisés ne sont pas dans la situation chargée — charger la grille France pour y accéder."
+            style="width:100%;padding:6px"></select>
+    <div style="font-size:10px;color:#888;margin-top:2px">📂 par typologie — grisé = absent de la situation chargée</div>
+  </div>
+  <div style="margin-top:6px">
     <input id="posteSearch" list="allPostes" placeholder="🔎 rechercher un poste (tous)…"
            style="width:100%;padding:6px" autocomplete="off"
            title="Inspecter n'importe quel poste NODE_BREAKER de la situation chargée">
@@ -213,10 +218,26 @@ function populatePostes(r){
   const sel=document.getElementById('poste');sel.innerHTML='';
   (r.postes||[]).forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
   const dl=document.getElementById('allPostes');dl.innerHTML='';
-  ALL_POSTES.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});}
+  ALL_POSTES.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
+  populateCatalog(r.catalog||[]);}
+// Sélecteur « par typologie » : un <optgroup> par section ; postes absents de la
+// situation chargée grisés (option disabled).
+function populateCatalog(catalog){
+  const cs=document.getElementById('posteCat');cs.innerHTML='';
+  const ph=document.createElement('option');ph.value='';ph.text='📂 explorer par typologie…';
+  ph.disabled=true;ph.selected=true;cs.add(ph);
+  catalog.forEach(sec=>{
+    const og=document.createElement('optgroup');
+    og.label=`${sec.title}  (${sec.n_available}/${sec.postes.length})`;
+    sec.postes.forEach(p=>{const o=document.createElement('option');
+      o.value=p.vl;o.text=(p.available?'':'⚠ ')+p.vl;o.disabled=!p.available;
+      if(!p.available)o.title='absent de la situation chargée — charger la grille France';
+      og.appendChild(o);});
+    cs.appendChild(og);});}
 async function init(){const r=await (await fetch('/api/postes')).json();
   populatePostes(r);
   const sel=document.getElementById('poste');sel.onchange=()=>load(sel.value);
+  const cs=document.getElementById('posteCat');cs.onchange=()=>{if(cs.value)load(cs.value);};
   // Recherche « tous postes » : datalist de tous les VL NODE_BREAKER de la situation.
   const search=document.getElementById('posteSearch');
   const go=()=>{const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);};

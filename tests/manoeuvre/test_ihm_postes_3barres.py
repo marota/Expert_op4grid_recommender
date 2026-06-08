@@ -121,3 +121,50 @@ def test_load_grid_chemin_invalide(monkeypatch):
     assert body["ok"] is False and "error" in body
     # En cas d'échec, la session courante n'est PAS modifiée.
     assert ihm.SESSION is s0
+
+
+# --------------------------------------------------------------------------
+# 5. Catalogue par typologie (sections du sélecteur de poste)
+# --------------------------------------------------------------------------
+
+# Les 10 postes « caractéristiques particulières » (VL réels) doivent figurer
+# au catalogue, comme les 7 postes 3 JdB.
+POSTES_PARTICULIERS = [".OBER 7", ".VANY 7", ".ZAND 7", "MUHLBP7", ".LAUF 7",
+                       "P.GASP6", "CPNIEP6", "ROMAIP6", "REICHP3", ".MUHL 6"]
+
+
+def test_catalog_structure_et_couverture():
+    """``Session.catalog()`` : sections {title, postes:[{vl, available}], n_available}
+    couvrant **tous** les postes 3 JdB et les 10 postes particuliers."""
+    cat = ihm.Session(_net()).catalog()
+    assert isinstance(cat, list) and cat
+    tous = set()
+    for sec in cat:
+        assert {"title", "postes", "n_available"} <= set(sec)
+        for p in sec["postes"]:
+            assert {"vl", "available"} <= set(p)
+            tous.add(p["vl"])
+        assert sec["n_available"] == sum(1 for p in sec["postes"] if p["available"])
+    for vl in POSTES_3JDB + POSTES_PARTICULIERS:
+        assert vl in tous, f"{vl} absent du catalogue par typologie"
+
+
+def test_catalog_disponibilite_reflete_la_situation(monkeypatch):
+    """``available`` est vrai ssi le VL est présent dans la situation chargée."""
+    s = ihm.Session(_net())
+    # Le réseau de test ne contient aucun poste du catalogue → tout indisponible.
+    cat = s.catalog()
+    assert all(not p["available"] for sec in cat for p in sec["postes"])
+    assert all(sec["n_available"] == 0 for sec in cat)
+    # On simule une situation contenant 2 postes du catalogue.
+    s.vls = {".OBER 7", "P.GASP6", "AUTRE"}
+    dispo = {p["vl"] for sec in s.catalog() for p in sec["postes"] if p["available"]}
+    assert dispo == {".OBER 7", "P.GASP6"}
+
+
+def test_api_postes_inclut_catalog(monkeypatch):
+    s = ihm.Session(_net())
+    monkeypatch.setattr(ihm, "SESSION", s)
+    r = ihm.app.test_client().get("/api/postes").get_json()
+    assert "catalog" in r and isinstance(r["catalog"], list)
+    assert r["catalog"] == s.catalog()
