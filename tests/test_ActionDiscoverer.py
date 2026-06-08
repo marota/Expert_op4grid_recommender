@@ -2459,3 +2459,53 @@ def test_site_higher_voltage_map_from_pypowsybl_network():
     assert higher.get(1) == [0]
     assert 0 not in higher          # 400kV has no higher same-site node
     assert 2 not in higher          # MID site has a single VL
+
+
+def test_renewable_curtailment_antenna_uses_higher_voltage_reference():
+    # WIND generator on a 63kV antenna VL (node3, NOT a graph node) whose
+    # same physical site has a 400kV busbar (node2) present in the graph.
+    mock_obs = MockObservation(
+        name_sub=np.array(["AMONTP6", "CONSTP6", "ZSITEP7", "ZSITEP3"]),
+        name_line=np.array(["L1", "L2"]),
+        name_load=np.array([]),
+        name_gen=np.array(["WIND_ant"]),
+        line_or_to_subid=np.array([0, 1]),
+        line_ex_to_subid=np.array([1, 2]),
+        line_or_bus=np.array([1, 1]),
+        line_ex_bus=np.array([1, 1]),
+        rho=np.array([1.2, 0.5]),
+        load_to_subid=np.array([], dtype=int),
+        gen_to_subid=np.array([3]),
+        load_values=[],
+        gen_values=[-40.0],
+        gen_energy_sources=["WIND"],
+        sub_topologies={0: [1, 1], 1: [1, 1], 2: [1, 1], 3: [1, 1]},
+        sub_info=np.array([2, 2, 2, 2]),
+        topo_vect=np.array([1, 1, 1, 1, 1, 1, 1, 1]),
+    )
+    mock_env = MockEnv(name_line=list(mock_obs.name_line), name_sub=list(mock_obs.name_sub))
+    mock_g_overflow = MockOverflowGraph(edge_data={
+        (0, 1): {0: {"name": "L1", "capacity": 100.0, "label": "-80"}},
+        (1, 2): {0: {"name": "L2", "capacity": 60.0, "label": "-60"}},
+    })
+    mock_g_dist = MockDistributionGraphWithPath(
+        constrained_edges=["L1", "L2"], aval_nodes=[2], amont_nodes=[0],
+    )
+    d = ActionDiscoverer(
+        env=mock_env, obs=mock_obs, obs_defaut=mock_obs,
+        classifier=ActionClassifier(MockActionSpace()),
+        timestep=0, lines_defaut=["L1"], lines_overloaded_ids=[0],
+        act_reco_maintenance=MockActionObject(),
+        non_connected_reconnectable_lines=[], all_disconnected_lines=[],
+        dict_action={}, actions_unfiltered=set(), hubs=[],
+        g_overflow=mock_g_overflow, g_distribution_graph=mock_g_dist,
+        simulator_data={}, check_action_simulation=False,
+    )
+    # Curtailment is called with all nodes by the orchestrator.
+    d.find_relevant_renewable_curtailment([0, 1, 2, 3])
+    assert "curtail_WIND_ant" in d.identified_renewable_curtailment
+    p = d.params_renewable_curtailment["curtail_WIND_ant"]
+    assert p["substation"] == "ZSITEP3"
+    assert p["influence_ref_substation"] == "ZSITEP7"
+    assert p["via_higher_voltage"] is True
+    assert p["target_p_MW"] == 0.0
