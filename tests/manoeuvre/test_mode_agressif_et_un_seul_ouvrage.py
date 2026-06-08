@@ -113,16 +113,14 @@ def test_verif_un_seul_ouvrage_propre_si_boucle_courte():
     assert r.alertes == []
 
 
-def test_verif_un_seul_ouvrage_detecte_la_violation():
-    """ROMAIP6 smooth ré-aiguille plusieurs ouvrages en parallèle : le vérificateur
-    **détecte** la violation (auparavant manquée car non taguée « boucle longue »),
-    et l'alerte est **surfacée** dans ``res.alertes`` (non bloquante)."""
+def test_smooth_romaip6_un_ouvrage_a_la_fois():
+    """ROMAIP6 smooth atteint désormais le **« un seul ouvrage hors tension à la
+    fois »** (0 alerte) : la réduction de section morte (ouverture temporaire du
+    couplage ``COUPL.1`` pour couper le cross-feed) ramène les coupures à un ouvrage
+    à la fois — séquence ≈ experte (``ROMAIP6_cible_3noeuds_1ouvrageDeconnecteAlaFois``)."""
     poste, d, g = _load(_ROMAI, "ROMAIP6")
     r = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="smooth")
-    viol = ouvrages_simultanement_hors_tension(poste, r.manoeuvres)
-    assert viol, "le vérificateur aurait dû détecter > 1 ouvrage hors tension"
-    assert r.alertes == viol
-    assert all("plus d'un ouvrage" in v for v in viol)
+    assert r.alertes == [], f"coupures simultanées résiduelles : {r.alertes}"
 
 
 def test_mode_agressif_exempt_de_l_alerte_un_seul():

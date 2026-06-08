@@ -172,17 +172,12 @@
       "LONGUE"
     ],
     [
+      "ROMAIP6_ROMAI6COUPL.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
       "ROMAIP6_ROMAI6FLAND.1 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "ROMAIP6_ROMAI6TR611 DJ.HT_OC.ROMAI TR611",
-      "OPEN",
-      null
-    ],
-    [
-      "ROMAIP6_ROMAI6TR611 DJ.HT_OC",
       "OPEN",
       null
     ],
@@ -197,12 +192,7 @@
       null
     ],
     [
-      "ROMAIP6_ROMAI6TR611 DJ.HT_OC.ROMAI TR611",
-      "CLOSE",
-      null
-    ],
-    [
-      "ROMAIP6_ROMAI6TR611 DJ.HT_OC",
+      "ROMAIP6_ROMAI6COUPL.1 DJ_OC",
       "CLOSE",
       null
     ],
@@ -233,7 +223,7 @@
     ]
   ],
   "mode": "smooth",
-  "n_manoeuvres": 44,
+  "n_manoeuvres": 42,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [

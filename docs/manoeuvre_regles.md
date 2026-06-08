@@ -252,11 +252,19 @@ propose deux stratégies pour ouvrir un sectionnement de barre :
     **gare un par un** sur le **côté survivant** (boucle courte, équipotentiel tant
     que le sectionnement est fermé → *aucune* coupure), on ouvre le sectionnement
     (section vidée), puis on **ramène** chaque ouvrage un par un (boucle longue).
-    Évite le « batch » de N ouvrages hors tension simultanément (ex. **ROMAIP6** :
-    6 coupures simultanées → 1). Repli : si **tous** les ouvrages ne peuvent pas
-    atteindre le côté survivant, dé-énergisation **en place** (inchangée), et les
-    ouvrages sans parking peuvent rester hors tension simultanément (exception
-    assumée, **signalée par l'alerte** ci-dessous).
+    Repli : si **tous** les ouvrages ne peuvent pas atteindre le côté survivant,
+    dé-énergisation **en place** (inchangée).
+  - **Réduction de la section morte (cross-feed)** : si le côté à isoler est un
+    **nœud couplé** (plusieurs barres reliées par un couplage DJ encore **fermé**,
+    ex. 1.1+2.1 via `COUPL.1`), il suffit de rendre morte la **seule section
+    adjacente** au sectionnement. On ouvre donc **temporairement** les couplages DJ
+    frontières (hors charge) — puis on les **referme** —, ne dé-énergisant que les
+    départs de cette section (souvent **un seul**). Combiné au vidage one-by-one,
+    **ROMAIP6** passe de **6** coupures simultanées à **0** (séquence ≈ experte
+    « 1 ouvrage à la fois », 42 manœuvres).
+  - **Limite** : un poste sans côté survivant atteignable **ni** couplage de
+    cross-feed à ouvrir (départs confinés à des sections mono-barre) garde une
+    dé-énergisation en place groupée — **signalée par l'alerte** ci-dessous.
 - **agressif** (`_sequence_detaillee_aggressive`) — minimiser les **bascules de
   DJ**. D'abord (1) **fermer** les couplages/sectionnements destinés à fusionner
   (équipotentialité), puis (2) **switcher en boucle courte** — **sans ouvrir le

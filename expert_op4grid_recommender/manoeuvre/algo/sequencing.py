@@ -583,13 +583,61 @@ def determiner_manoeuvres_avec_sections(
         a_isol = a if a in side_isol else b
         side_isol = ((nx.node_connected_component(H2, a_isol)
                       if a_isol in H2 else {a_isol}) & all_sjb)
+
+        # Réduction de la **section morte** au strict nécessaire (R10ter). Si le
+        # côté à isoler est un **nœud couplé** (plusieurs barres reliées par des
+        # couplages DJ encore fermés, ex. 1.1+2.1 via COUPL.1), il suffit, pour
+        # ouvrir le sectionnement, de rendre morte la **seule section adjacente**
+        # (a_isol). On ouvre donc TEMPORAIREMENT les couplages DJ frontières (hors
+        # charge) qui relient cette section au reste du nœud — puis on les REFERME
+        # après —, afin de ne dé-énergiser QUE les départs de la section adjacente
+        # (souvent un seul) au lieu de tout le nœud couplé.
+        couplages_temp: list[str] = []
+        _coupler_brk = [s for c2 in couplers if not c2.is_sectionnement
+                        for s in c2.breaker_ids]
+        H_sect = _live_graph_sans(G, list(cp.switch_ids) + _coupler_brk)
+        minimal_dead = ((nx.node_connected_component(H_sect, a_isol)
+                         if a_isol in H_sect else {a_isol}) & all_sjb)
+        if minimal_dead < side_isol:
+            to_open_brk = {s for c2 in to_open if not c2.is_sectionnement
+                           for s in c2.breaker_ids}
+            for c2 in couplers:
+                if c2.is_sectionnement:
+                    continue
+                if (c2.sjb_a in minimal_dead) ^ (c2.sjb_b in minimal_dead):
+                    for sid in c2.breaker_ids:
+                        if not _is_open(G, sid):
+                            _set_switch(G, sid, True)
+                            manoeuvres.append(Manoeuvre(
+                                sid, "OPEN",
+                                "ouverture temporaire couplage "
+                                "(réduction de la section à dé-énergiser)"))
+                            if sid not in to_open_brk:
+                                couplages_temp.append(sid)
+            H2 = _live_graph_sans(G, cp.switch_ids)
+            side_isol = ((nx.node_connected_component(H2, a_isol)
+                          if a_isol in H2 else {a_isol}) & all_sjb)
+
+        def _restaurer_couplages_temp() -> None:
+            """Referme les couplages ouverts **temporairement** pour réduire la
+            section morte (le sectionnement étant désormais ouvert, la refermeture
+            est sûre ; la cible les veut fermés)."""
+            for sid in couplages_temp:
+                if _is_open(G, sid):
+                    _set_switch(G, sid, False)
+                    manoeuvres.append(Manoeuvre(
+                        sid, "CLOSE",
+                        "refermeture couplage (rétabli après isolement de section)"))
+
         liv_isol = _ouvrages_energises_sur(G, cells, side_isol, H2)
         if not liv_isol:
             _ouvrir("ouverture sectionnement de barre (section hors tension)")
+            _restaurer_couplages_temp()
             continue
         if not all(brk for _, brk in liv_isol):
             # Ouvrage sans DJ propre : dé-énergisation impossible.
             _ouvrir("ouverture sectionnement de barre (section ATTENTION sous tension)")
+            _restaurer_couplages_temp()
             continue
 
         # R10ter (mode smooth) : « un seul ouvrage hors tension à la fois ».
@@ -647,6 +695,7 @@ def determiner_manoeuvres_avec_sections(
         for eq, retour in gares:               # ramener un par un (boucle longue)
             if _reaiguiller_vers_sjb(G, cells, eq, retour, manoeuvres):
                 reaiguilles.add(eq)
+        _restaurer_couplages_temp()
 
     # --- Phase D : ouverture des couplages (DJ) ----------------------------
     for cp in to_open:

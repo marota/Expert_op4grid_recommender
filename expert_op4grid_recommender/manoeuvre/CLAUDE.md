@@ -284,11 +284,16 @@ Sequenceur N barres :
   **déjà déconnectés** et **mis hors service** (DJ final ouvert). Robuste (capte
   les voies multi-barres/connectivité, pas seulement le tag « boucle longue »).
   Mode agressif exempté. Séquence experte « 1 à la fois » → 0 alerte.
-- **Vidage one-by-one du côté à isoler** (`determiner_manoeuvres_avec_sections`,
-  phase C) : pour ouvrir un sectionnement à deux côtés sous tension avec **≥2**
-  ouvrages, on les gare **un par un** sur le côté survivant (boucle courte, sans
-  coupure) puis on les ramène (boucle longue) → plus de batch de N coupures
-  simultanées (ROMAIP6 6→1). Repli en place si tous ne peuvent pas se garer.
+- **Vidage one-by-one + réduction cross-feed du côté à isoler**
+  (`determiner_manoeuvres_avec_sections`, phase C) : pour ouvrir un sectionnement à
+  deux côtés sous tension, (a) si le côté à isoler est un **nœud couplé**, on ouvre
+  **temporairement** les couplages DJ frontières (hors charge) pour réduire la
+  section morte à la **seule section adjacente** au sectionnement, puis on les
+  referme ; (b) les ouvrages restants sont garés **un par un** sur le côté survivant
+  (boucle courte) puis ramenés (boucle longue) ; sinon repli dé-énergisation en
+  place. → **ROMAIP6 6 coupures simultanées → 0** (séquence ≈ experte 42 manœuvres).
+  Limite : départs confinés à des sections mono-barre sans cross-feed → batch
+  résiduel (signalé par l'alerte).
 - **Candidat « diff minimal »** (`_sequence_detaillee_minimal_delta`, anti
   ferme-puis-rouvre) : `determiner_manoeuvres_cible_detaillee` combine la voie
   principale (renommee `_determiner_manoeuvres_cible_detaillee_principal`) avec un
