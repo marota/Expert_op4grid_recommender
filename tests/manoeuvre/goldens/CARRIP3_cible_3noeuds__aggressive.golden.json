@@ -1,10 +1,21 @@
 {
   "ecarts": [
-    "CARRIP3_CARRI3TR312 SA.2_OC : sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur"
+    "sectionneur CARRIP3_CARRI3SEC..12 SS.1.12_OC ouvert sous tension (deux côtés énergisés)",
+    "CARRIP3_CARRI3SEC..12 SS.1.12_OC : sectionneur de barre manœuvré sous charge — mettre la section de barre hors tension (ré-aiguiller ses départs sur l'autre section) avant d'ouvrir ce sectionnement"
   ],
   "is_verified": true,
   "is_verified_detaillee": false,
   "manoeuvres": [
+    [
+      "CARRIP3_CARRI3TR312 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "CARRIP3_CARRI3TR312 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
     [
       "CARRIP3_CARRI3V.PAU.1 DJ_OC",
       "OPEN",
@@ -22,16 +33,6 @@
     ],
     [
       "CARRIP3_CARRI3SEC..12 SS.1.12_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "CARRIP3_CARRI3TR312 SA.1_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "CARRIP3_CARRI3TR312 SA.2_OC",
       "OPEN",
       null
     ],

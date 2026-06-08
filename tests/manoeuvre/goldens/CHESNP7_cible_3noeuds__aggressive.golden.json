@@ -4,6 +4,16 @@
   "is_verified_detaillee": true,
   "manoeuvres": [
     [
+      "CHESNP7_CHESN7COUPL.A SA.3_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7COUPL.A SA.21_OC",
+      "CLOSE",
+      null
+    ],
+    [
       "CHESNP7_CHESN7TABAR.3 DJ_OC",
       "OPEN",
       null
@@ -34,6 +44,26 @@
       null
     ],
     [
+      "CHESNP7_CHESN7TABAR.3 SA.2_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7TABAR.3 SA.1_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7VLECH.1 SA.2_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7VLECH.1 SA.1_OC",
+      "CLOSE",
+      null
+    ],
+    [
       "CHESNP7_CHESN7LIAISAB DJ_OC",
       "OPEN",
       null
@@ -56,36 +86,6 @@
     [
       "CHESNP7_CHESN7COUPL.A SA.23_OC",
       "OPEN",
-      null
-    ],
-    [
-      "CHESNP7_CHESN7COUPL.A SA.3_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "CHESNP7_CHESN7COUPL.A SA.21_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "CHESNP7_CHESN7TABAR.3 SA.2_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "CHESNP7_CHESN7TABAR.3 SA.1_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "CHESNP7_CHESN7VLECH.1 SA.2_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "CHESNP7_CHESN7VLECH.1 SA.1_OC",
-      "CLOSE",
       null
     ],
     [

@@ -269,6 +269,20 @@ Sequenceur N barres :
   un sectionneur (`SL`) commun au chemin de la barre **cible** (sinon on
   deconnecte le depart de sa propre barre cible — manoeuvre parasite + cible non
   atteinte). Corrige le `OPEN … SL` parasite observe sur TAVELP7.
+- **Mode agressif — boucle courte** (`_sequence_detaillee_aggressive` =
+  wrapper transactionnel ; `_aggressive_impl(boucle_courte=…)`) : switche un départ
+  d'une barre à une autre **au même potentiel** en **boucle courte** (CLOSE SA cible
+  / OPEN ancien SA) **sans ouvrir son DJ** ; ne dé-énergise en lot que les ouvrages
+  non équipotentiels + ceux à isoler pour ouvrir un sectionnement. Si la variante
+  boucle courte n'est pas exacte (section devant être morte) → repli
+  dé-énergisation groupée (jamais de régression). CPNIEP6 5 au lieu de 17.
+- **Vérificateur « un seul ouvrage hors tension à la fois »** (R10ter,
+  `ouvrages_simultanement_hors_tension`, public) : alerte **non bloquante** (mode
+  smooth) listée dans `ResultatManoeuvres.alertes` quand > 1 ouvrage **ré-aiguillé**
+  est temporairement hors tension (hors ouvrages déjà déconnectés ; hors
+  dé-énergisations de **section**, où l'ouvrage ne change pas de barre). Robuste :
+  capte aussi les voies multi-barres/connectivité (plus seulement le tag « boucle
+  longue »). Mode agressif exempté.
 - **Candidat « diff minimal »** (`_sequence_detaillee_minimal_delta`, anti
   ferme-puis-rouvre) : `determiner_manoeuvres_cible_detaillee` combine la voie
   principale (renommee `_determiner_manoeuvres_cible_detaillee_principal`) avec un

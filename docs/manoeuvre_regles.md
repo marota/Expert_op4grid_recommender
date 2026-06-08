@@ -249,24 +249,38 @@ propose deux stratégies pour ouvrir un sectionnement de barre :
   un ouvrage, il est dé-énergisé **en place** (les ouvrages sans parking peuvent
   alors être hors tension simultanément). `target_sjb` est amorcé avec la barre
   cible exacte (`cible_busbar`) pour éviter les déplacements inutiles.
-- **agressif** (`_sequence_detaillee_aggressive`) — dé-énergiser **en lot** :
-  ouvrir en une fois les DJ de tous les ouvrages concernés (côté le plus petit
-  de chaque sectionnement + ouvrages dont un SA change), commuter
-  couplages/sectionnements et SA **hors tension**, puis ré-alimenter **une seule
-  fois**. Bien moins de manœuvres, au prix de **plusieurs ouvrages momentanément
-  hors tension** simultanément.
+- **agressif** (`_sequence_detaillee_aggressive`) — minimiser les **bascules de
+  DJ**. D'abord (1) **fermer** les couplages/sectionnements destinés à fusionner
+  (équipotentialité), puis (2) **switcher en boucle courte** — **sans ouvrir le
+  DJ** — tout départ dont les barres source/cible sont **au même potentiel**
+  (cœur du mode : un départ équipotentiel se déplace sous tension) ; (3) ne
+  **dé-énergiser en lot** que les ouvrages **non** réalisables en boucle courte
+  **et** ceux à isoler pour ouvrir un sectionnement ; (4) ouvrir les
+  splits, ré-alimenter une fois. **Transactionnel** : si la variante boucle courte
+  n'atteint pas la cible **exactement** (typiquement une section devant être morte
+  pour ouvrir un sectionnement, ce que la boucle courte empêcherait), on **retombe**
+  sur la dé-énergisation groupée intégrale — jamais de régression de sûreté ni
+  d'exactitude. Ex. **CPNIEP6** (barres couplées) : **5** manœuvres en boucle courte
+  (≈ séquence experte) au lieu de 17 ; **ROMAIP6** (re-sectionnement) : repli
+  dé-énergisé exact.
 
 Les deux modes atteignent la **même** topologie détaillée cible, sectionneurs
-ouverts hors tension (`_verifier_securite_sectionneurs`). Ordres de grandeur :
-SSAVOP3 → 6 nœuds : smooth **62**, agressif **30** ; CZTRYP6 → 3 nœuds : smooth
-**20**, agressif **8**.
+ouverts hors tension (`_verifier_securite_sectionneurs`).
 - **Code** : `algo.determiner_manoeuvres_cible_detaillee` (param `mode`),
   `determiner_manoeuvres_avec_sections` (parking `parking_sjb`, param
-  `cible_busbar`), `_sequence_detaillee_aggressive`.
-- **Vérification** : `_verifier_un_seul_hors_tension` (smooth) rejoue la séquence
-  et signale tout chevauchement de ré-aiguillages (> 1 ouvrage hors tension par
-  parking) — intégré aux `ecarts` du mode smooth.
-- **Test** : `test_ssavop3_modes.py`, `test_cztryp6_3noeuds.py`.
+  `cible_busbar`), `_sequence_detaillee_aggressive` (wrapper transactionnel
+  boucle courte / dé-énergisé), `_aggressive_impl(boucle_courte=…)`.
+- **Vérification + alerte (smooth)** : `ouvrages_simultanement_hors_tension`
+  (public) rejoue la séquence et signale tout moment où **plus d'un** ouvrage
+  **ré-aiguillé** (déconnexion → manip SA → reconnexion) est **temporairement hors
+  tension** — **hors** ouvrages déjà déconnectés et **hors** dé-énergisations de
+  section (ouvrage qui ne change pas de barre). C'est une **alerte de bonne
+  pratique non bloquante** (n'affecte pas `is_verified*`), portée par
+  `ResultatManoeuvres.alertes` (mode agressif **exempté**, il batch volontairement).
+  L'IHM peut la surfacer comme avertissement.
+- **Test** : `test_mode_agressif_et_un_seul_ouvrage.py` (boucle courte CPNIEP6,
+  repli ROMAIP6, alerte un-seul détectée/propre), `test_ssavop3_modes.py`,
+  `test_cztryp6_3noeuds.py`.
 - **IHM** : sélecteur « Mode : Smooth / Agressif » avant le calcul.
 
 ### R11 — Ordonnancement de la séquence (`listeDordre`)

@@ -854,6 +854,9 @@ class Session:
             "verified": res.is_verified,
             "verified_detaillee": res.is_verified_detaillee,
             "ecarts": res.ecarts,
+            # Alertes de **bonne pratique** non bloquantes (mode smooth) : > 1
+            # ouvrage ré-aiguillé temporairement hors tension à la fois (R10ter).
+            "alertes": res.alertes,
             "message": res.message,
             **self._seq_payload(),   # manoeuvres / n_steps / labels / nb_final / …
         }

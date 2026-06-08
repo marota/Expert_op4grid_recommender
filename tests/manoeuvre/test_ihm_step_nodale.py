@@ -74,6 +74,16 @@ def test_step_view_renvoie_la_nodale_de_letape():
         assert len(nodL["groups"]) > len(nod0["groups"])
 
 
+def test_api_sequence_inclut_alertes(monkeypatch):
+    """``POST /api/sequence`` surface les **alertes** de bonne pratique (R10ter :
+    un seul ouvrage hors tension à la fois) — clé toujours présente (liste)."""
+    s = _session_avec_cible_scindee()
+    monkeypatch.setattr(ihm, "SESSION", s)
+    r = ihm.app.test_client().post(
+        "/api/sequence", json={"mode": "smooth"}).get_json()
+    assert "alertes" in r and isinstance(r["alertes"], list)
+
+
 def test_api_step_inclut_la_nodale(monkeypatch):
     s = _session_avec_cible_scindee()
     monkeypatch.setattr(ihm, "SESSION", s)

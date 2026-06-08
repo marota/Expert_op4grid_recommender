@@ -68,6 +68,7 @@ from .algo import (
     determiner_manoeuvres_avec_sections,
     determiner_manoeuvres_cible_detaillee,
     sectionneurs_sous_charge_par_manoeuvre,
+    ouvrages_simultanement_hors_tension,
 )
 
 __all__ = [
@@ -89,4 +90,5 @@ __all__ = [
     "Manoeuvre", "ResultatManoeuvres", "determiner_topo_complete_cible",
     "determiner_manoeuvres_avec_sections", "determiner_manoeuvres_cible_detaillee",
     "sectionneurs_sous_charge_par_manoeuvre",
+    "ouvrages_simultanement_hors_tension",
 ]

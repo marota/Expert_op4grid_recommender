@@ -14,16 +14,6 @@
       null
     ],
     [
-      "PALUNP3_PALUN3COUPL.2 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "PALUNP3_PALUN3SEC..12 SS.1.12_OC",
-      "OPEN",
-      null
-    ],
-    [
       "PALUNP3_PALUN3ENSOL.1 SA.2_OC",
       "OPEN",
       null
@@ -31,6 +21,16 @@
     [
       "PALUNP3_PALUN3ENSOL.1 SA.1_OC",
       "CLOSE",
+      null
+    ],
+    [
+      "PALUNP3_PALUN3COUPL.2 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "PALUNP3_PALUN3SEC..12 SS.1.12_OC",
+      "OPEN",
       null
     ],
     [

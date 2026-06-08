@@ -1,0 +1,133 @@
+"""
+tests/manoeuvre/test_mode_agressif_et_un_seul_ouvrage.py
+--------------------------------------------------------
+Deux exigences sur le séquenceur détaillé :
+
+1. **Mode AGRESSIF — boucle courte sans déconnexion.** Quand deux barres sont au
+   **même potentiel** (couplage fermé), un départ doit pouvoir être switché d'une
+   barre à l'autre en **boucle courte** (fermer le SA cible, ouvrir l'ancien)
+   **sans ouvrir son disjoncteur**. Réf. ``CPNIEP6`` : la séquence experte
+   (``CPNIEP6_cible_2noeuds_agressif_expert.json``) tient en ~5 manœuvres, là où
+   l'ancien mode agressif dé-énergisait tous les ouvrages (≈ 17, *_wrong*).
+
+2. **Mode SMOOTH — un seul ouvrage hors tension à la fois (bonne pratique).** Le
+   ré-aiguillage (déconnexion → manip SA → reconnexion) doit privilégier de n'avoir
+   qu'**un** ouvrage temporairement hors tension à la fois (hors ouvrages déjà
+   déconnectés). Le vérificateur ``ouvrages_simultanement_hors_tension`` le contrôle
+   et l'alerte (non bloquante) est surfacée dans ``res.alertes``. Réf. ``ROMAIP6``.
+
+Sans dépendance pypowsybl (fixtures + scénarios sauvegardés).
+"""
+from __future__ import annotations
+
+import json
+import pathlib
+
+import pytest
+
+from expert_op4grid_recommender.manoeuvre import (
+    PosteTopologique,
+    determiner_manoeuvres_cible_detaillee,
+    ouvrages_simultanement_hors_tension,
+)
+from expert_op4grid_recommender.manoeuvre.algo.graph_ops import _set_switch
+
+from .fixture_loader import build_graph_from_fixture, list_available_fixtures
+
+_SEQ = pathlib.Path(__file__).parent / "sequences"
+_CPNIE = "CPNIEP6_cible_2noeuds_agressif_expert.json"
+_ROMAI = "ROMAIP6_cible_3noeuds.json"
+
+
+def _load(name: str, stem: str):
+    path = _SEQ / name
+    if not path.exists() or stem not in list_available_fixtures():
+        pytest.skip(f"Scénario/fixture absent : {name}")
+    d = json.loads(path.read_text())
+
+    def g(states: dict):
+        G = build_graph_from_fixture(stem)
+        for sid, op in states.items():
+            _set_switch(G, sid, op)
+        return G
+
+    poste = PosteTopologique.from_graph(g(d["depart"]), d["voltage_level_id"])
+    return poste, d, g
+
+
+# --------------------------------------------------------------------------
+# 1. Mode agressif : boucle courte (sans déconnexion) quand équipotentiel
+# --------------------------------------------------------------------------
+
+def test_agressif_boucle_courte_sans_ouvrir_les_dj():
+    """CPNIEP6 (barres couplées) : le mode agressif switche les départs en boucle
+    courte **sans ouvrir leur DJ** ; aucune « dé-énergisation groupée »."""
+    poste, d, g = _load(_CPNIE, "CPNIEP6")
+    r = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="aggressive")
+
+    assert r.is_verified_detaillee, r.ecarts
+    assert r.nb_manoeuvres <= 6, (
+        f"{r.nb_manoeuvres} manœuvres — le mode agressif ne doit pas dé-énergiser "
+        "tous les ouvrages (régression boucle courte)")
+    # Aucun DJ d'ouvrage (hors couplage) n'est ouvert : tout se fait sous tension.
+    dj_ouvrage_ouverts = [
+        m.switch_id for m in r.manoeuvres
+        if m.action == "OPEN" and " DJ" in m.switch_id and "COUPL" not in m.switch_id]
+    assert not dj_ouvrage_ouverts, (
+        f"DJ d'ouvrage ouverts (devrait être boucle courte) : {dj_ouvrage_ouverts}")
+    # Des bascules de SA en boucle courte ont bien eu lieu.
+    assert any(m.type_boucle == "COURTE" for m in r.manoeuvres)
+    # Aucune alerte « un seul ouvrage » : rien n'est dé-énergisé.
+    assert r.alertes == []
+
+
+def test_agressif_jamais_plus_long_que_smooth():
+    """Le mode agressif ne doit jamais être plus verbeux que le smooth (CPNIEP6)."""
+    poste, d, g = _load(_CPNIE, "CPNIEP6")
+    agg = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="aggressive")
+    smo = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="smooth")
+    assert agg.is_verified_detaillee and smo.is_verified_detaillee
+    assert agg.nb_manoeuvres <= smo.nb_manoeuvres
+
+
+def test_agressif_repli_sur_de_energisation_si_necessaire():
+    """ROMAIP6 (re-sectionnement) : la boucle courte ne suffit pas (une section doit
+    être morte pour ouvrir un sectionnement) → le mode agressif **retombe** sur la
+    dé-énergisation groupée, mais reste **exact** (aucun écart) — pas de régression
+    de sûreté/exactitude."""
+    poste, d, g = _load(_ROMAI, "ROMAIP6")
+    r = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="aggressive")
+    assert r.is_verified_detaillee, r.ecarts
+    assert r.ecarts == []
+
+
+# --------------------------------------------------------------------------
+# 2. Vérificateur « un seul ouvrage hors tension à la fois » (smooth)
+# --------------------------------------------------------------------------
+
+def test_verif_un_seul_ouvrage_propre_si_boucle_courte():
+    """CPNIEP6 smooth = boucle courte (aucun ouvrage hors tension) → 0 alerte."""
+    poste, d, g = _load(_CPNIE, "CPNIEP6")
+    r = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="smooth")
+    assert ouvrages_simultanement_hors_tension(poste, r.manoeuvres) == []
+    assert r.alertes == []
+
+
+def test_verif_un_seul_ouvrage_detecte_la_violation():
+    """ROMAIP6 smooth ré-aiguille plusieurs ouvrages en parallèle : le vérificateur
+    **détecte** la violation (auparavant manquée car non taguée « boucle longue »),
+    et l'alerte est **surfacée** dans ``res.alertes`` (non bloquante)."""
+    poste, d, g = _load(_ROMAI, "ROMAIP6")
+    r = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="smooth")
+    viol = ouvrages_simultanement_hors_tension(poste, r.manoeuvres)
+    assert viol, "le vérificateur aurait dû détecter > 1 ouvrage hors tension"
+    assert r.alertes == viol
+    assert all("plus d'un ouvrage" in v for v in viol)
+
+
+def test_mode_agressif_exempt_de_l_alerte_un_seul():
+    """Le mode agressif batch-dé-énergise **volontairement** → exempté de l'alerte
+    « un seul ouvrage à la fois » (``res.alertes`` vide)."""
+    poste, d, g = _load(_ROMAI, "ROMAIP6")
+    r = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="aggressive")
+    assert r.alertes == []

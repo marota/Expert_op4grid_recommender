@@ -4,16 +4,6 @@
   "is_verified_detaillee": true,
   "manoeuvres": [
     [
-      "BXTO5P3_BXTO53SINCE.2 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "BXTO5P3_BXTO53COUPL.1 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
       "BXTO5P3_BXTO53SEC..23 SS.2.23_OC",
       "CLOSE",
       null
@@ -21,31 +11,31 @@
     [
       "BXTO5P3_BXTO53SINCE.2 SA.2_OC",
       "CLOSE",
-      null
+      "COURTE"
     ],
     [
       "BXTO5P3_BXTO53SINCE.2 SA.1_OC",
       "OPEN",
-      null
+      "COURTE"
     ],
     [
       "BXTO5P3_BXTO53HAM.1 SA.2_OC",
       "CLOSE",
-      null
+      "COURTE"
     ],
     [
       "BXTO5P3_BXTO53TR317 SA.2_OC",
       "CLOSE",
-      null
+      "COURTE"
     ],
     [
       "BXTO5P3_BXTO53TR317 SA.1_OC",
       "OPEN",
-      null
+      "COURTE"
     ],
     [
-      "BXTO5P3_BXTO53SINCE.2 DJ_OC",
-      "CLOSE",
+      "BXTO5P3_BXTO53COUPL.1 DJ_OC",
+      "OPEN",
       null
     ],
     [
@@ -55,7 +45,7 @@
     ]
   ],
   "mode": "aggressive",
-  "n_manoeuvres": 10,
+  "n_manoeuvres": 8,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [
