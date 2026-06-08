@@ -59,18 +59,17 @@ def _rejeu_securite(
             if b.switch_id not in coupling_sids:
                 dj_eq[b.switch_id] = c.equipment_id
 
-    # Équipements **ré-aiguillés** = ceux dont un SA propre (hors couplage) est
-    # manœuvré dans la séquence. La règle « un seul ouvrage hors tension à la fois »
-    # ne vise QUE le **ré-aiguillage** (déconnexion → manip SA → reconnexion). Les
-    # dé-énergisations de **section** (mettre une section morte pour ouvrir un
-    # sectionnement — l'ouvrage ne change PAS de barre) en sont exclues.
-    dep_sa_eq: dict[str, str] = {}
-    for c in cells.cellules_depart:
-        for s in c.disconnectors:
-            if s.switch_id not in coupling_sids:
-                dep_sa_eq[s.switch_id] = c.equipment_id
-    reaiguilles = {dep_sa_eq[m.switch_id]
-                   for m in manoeuvres if m.switch_id in dep_sa_eq}
+    # État **final** de chaque DJ de départ (dernière action l'emporte). Un DJ qui
+    # finit **ouvert** correspond à une **mise hors service** (déconnexion voulue),
+    # pas à une coupure *temporaire* → exclu de la règle « un seul à la fois ». Un
+    # DJ initialement ouvert (ouvrage **déjà déconnecté**) est aussi exclu (aucune
+    # transition d'ouverture). On compte donc toute coupure **temporaire** (DJ
+    # initialement fermé, ouvert puis refermé) — ré-aiguillage comme isolation de
+    # section.
+    final_open = {sid: _is_open(poste.graph, sid) for sid in dj_eq}
+    for m in manoeuvres:
+        if m.switch_id in final_open:
+            final_open[m.switch_id] = (m.action == "OPEN")
 
     securite: list[str] = []
     sous_charge: list[Optional[str]] = []
@@ -124,10 +123,10 @@ def _rejeu_securite(
         # : capte aussi les dé-énergisations des voies multi-barres / connectivité
         # (pas seulement les boucles longues taguées « boucle longue »).
         eq = dj_eq.get(m.switch_id)
-        if eq is not None and eq in reaiguilles:
+        if eq is not None and not final_open.get(m.switch_id, True):
             was_open = _is_open(G, m.switch_id)
             if m.action == "OPEN" and not was_open:
-                temp_parking.add(eq)        # nouvelle déconnexion (était sous tension)
+                temp_parking.add(eq)        # déconnexion TEMPORAIRE (était sous tension)
             elif m.action == "CLOSE" and was_open:
                 temp_parking.discard(eq)    # ré-alimentation
             if len(temp_parking) > 1:

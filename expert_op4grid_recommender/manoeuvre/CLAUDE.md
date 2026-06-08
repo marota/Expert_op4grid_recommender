@@ -278,11 +278,17 @@ Sequenceur N barres :
   dé-énergisation groupée (jamais de régression). CPNIEP6 5 au lieu de 17.
 - **Vérificateur « un seul ouvrage hors tension à la fois »** (R10ter,
   `ouvrages_simultanement_hors_tension`, public) : alerte **non bloquante** (mode
-  smooth) listée dans `ResultatManoeuvres.alertes` quand > 1 ouvrage **ré-aiguillé**
-  est temporairement hors tension (hors ouvrages déjà déconnectés ; hors
-  dé-énergisations de **section**, où l'ouvrage ne change pas de barre). Robuste :
-  capte aussi les voies multi-barres/connectivité (plus seulement le tag « boucle
-  longue »). Mode agressif exempté.
+  smooth) listée dans `ResultatManoeuvres.alertes` quand > 1 ouvrage est
+  **temporairement** hors tension (DJ propre initialement fermé, ouvert puis
+  refermé) — **ré-aiguillage OU dé-énergisation de section**. Exclus : ouvrages
+  **déjà déconnectés** et **mis hors service** (DJ final ouvert). Robuste (capte
+  les voies multi-barres/connectivité, pas seulement le tag « boucle longue »).
+  Mode agressif exempté. Séquence experte « 1 à la fois » → 0 alerte.
+- **Vidage one-by-one du côté à isoler** (`determiner_manoeuvres_avec_sections`,
+  phase C) : pour ouvrir un sectionnement à deux côtés sous tension avec **≥2**
+  ouvrages, on les gare **un par un** sur le côté survivant (boucle courte, sans
+  coupure) puis on les ramène (boucle longue) → plus de batch de N coupures
+  simultanées (ROMAIP6 6→1). Repli en place si tous ne peuvent pas se garer.
 - **Candidat « diff minimal »** (`_sequence_detaillee_minimal_delta`, anti
   ferme-puis-rouvre) : `determiner_manoeuvres_cible_detaillee` combine la voie
   principale (renommee `_determiner_manoeuvres_cible_detaillee_principal`) avec un

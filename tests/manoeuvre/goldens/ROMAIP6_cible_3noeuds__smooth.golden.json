@@ -5,7 +5,8 @@
     "organe ROMAIP6_ROMAI6LIAIS23 DJ_OC ouvert au lieu de fermé",
     "organe ROMAIP6_ROMAI6SEC..23 SS.2.23_OC ouvert au lieu de fermé",
     "organe ROMAIP6_ROMAI6LIAIS23 DJ_OC ouvert au lieu de fermé",
-    "organe ROMAIP6_ROMAI6SEC..34 SS.2.34_OC fermé au lieu de ouvert"
+    "organe ROMAIP6_ROMAI6SEC..34 SS.2.34_OC fermé au lieu de ouvert",
+    "ROMAIP6_ROMAI6PIQU.1 SA.2_OC : sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur"
   ],
   "is_verified": true,
   "is_verified_detaillee": false,
@@ -46,34 +47,44 @@
       null
     ],
     [
-      "ROMAIP6_ROMAI6TR633 DJ_OC",
-      "OPEN",
-      null
+      "ROMAIP6_ROMAI6PIQU.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
     ],
     [
-      "ROMAIP6_ROMAI6REAC.1 DJ.MCOMP_OC",
+      "ROMAIP6_ROMAI6PIQU.1 SA.1_OC",
       "OPEN",
-      null
+      "COURTE"
     ],
     [
-      "ROMAIP6_ROMAI6NOISY.2 DJ_OC",
-      "OPEN",
-      null
+      "ROMAIP6_ROMAI6TR612 SA.2_OC",
+      "CLOSE",
+      "COURTE"
     ],
     [
-      "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "ROMAIP6_ROMAI6TR612 SA.1_OC",
       "OPEN",
-      null
+      "COURTE"
     ],
     [
-      "ROMAIP6_ROMAI6TR612 DJ.HT_OC",
-      "OPEN",
-      null
+      "ROMAIP6_ROMAI6TR613 SA.2_OC",
+      "CLOSE",
+      "COURTE"
     ],
     [
-      "ROMAIP6_ROMAI6TR612 DJ.HT_OC.ROMAI TR612",
+      "ROMAIP6_ROMAI6TR613 SA.1_OC",
       "OPEN",
-      null
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.2 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.2 SA.1_OC",
+      "OPEN",
+      "COURTE"
     ],
     [
       "ROMAIP6_ROMAI6SEC..34 SS.1.34_OC",
@@ -81,34 +92,84 @@
       null
     ],
     [
-      "ROMAIP6_ROMAI6TR633 DJ_OC",
-      "CLOSE",
-      null
+      "ROMAIP6_ROMAI6NOISY.2 DJ_OC",
+      "OPEN",
+      "LONGUE"
     ],
     [
-      "ROMAIP6_ROMAI6REAC.1 DJ.MCOMP_OC",
+      "ROMAIP6_ROMAI6PIQU.1 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.1 SA.1_OC",
       "CLOSE",
-      null
+      "LONGUE"
     ],
     [
       "ROMAIP6_ROMAI6NOISY.2 DJ_OC",
       "CLOSE",
-      null
+      "LONGUE"
     ],
     [
-      "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "ROMAIP6_ROMAI6TR612 DJ.HT_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR612 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR612 SA.1_OC",
       "CLOSE",
-      null
+      "LONGUE"
     ],
     [
       "ROMAIP6_ROMAI6TR612 DJ.HT_OC",
       "CLOSE",
-      null
+      "LONGUE"
     ],
     [
-      "ROMAIP6_ROMAI6TR612 DJ.HT_OC.ROMAI TR612",
+      "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 SA.1_OC",
       "CLOSE",
-      null
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR633 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.2 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.2 SA.1_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR633 DJ_OC",
+      "CLOSE",
+      "LONGUE"
     ],
     [
       "ROMAIP6_ROMAI6FLAND.1 DJ_OC",
@@ -172,7 +233,7 @@
     ]
   ],
   "mode": "smooth",
-  "n_manoeuvres": 32,
+  "n_manoeuvres": 44,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [

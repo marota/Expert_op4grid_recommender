@@ -592,20 +592,61 @@ def determiner_manoeuvres_avec_sections(
             _ouvrir("ouverture sectionnement de barre (section ATTENTION sous tension)")
             continue
 
+        # R10ter (mode smooth) : « un seul ouvrage hors tension à la fois ».
+        # Plutôt que de dé-énergiser EN BLOC tous les ouvrages de la section à
+        # isoler (plusieurs hors tension simultanément), on les **gare un par un**
+        # sur le côté **survivant** : tant que le sectionnement est fermé les deux
+        # côtés sont équipotentiels → ré-aiguillage en **boucle courte** (sans
+        # coupure). La section vidée, on ouvre le sectionnement (un côté mort), puis
+        # on **ramène** chaque ouvrage (un par un, boucle longue) sur sa cible.
+        # Repli : un ouvrage n'atteignant PAS le côté survivant est dé-énergisé en
+        # place (coupure inévitable, exception assumée).
+        b_surv = b if a_isol == a else a
+        side_surv = ((nx.node_connected_component(H2, b_surv)
+                      if b_surv in H2 else {b_surv}) & all_sjb)
+        # Section tampon (côté survivant) atteignable par chaque ouvrage à isoler.
+        bufs: dict[str, int] = {}
+        for eq, _brk in liv_isol:
+            cell = cells.get_cellule_depart(eq)
+            buf = next((bb for bb in (cell.busbar_nodes if cell else [])
+                        if bb in side_surv), None)
+            if buf is not None:
+                bufs[eq] = buf
+        # Parking « un par un » seulement si **≥ 2** ouvrages **et TOUS** peuvent se
+        # garer sur le côté survivant : la section se vide alors **entièrement** →
+        # le batch (plusieurs hors tension à la fois) est totalement évité. Sinon
+        # (un seul ouvrage, ou bénéfice partiel), dé-énergisation **en place**
+        # inchangée → pas de churn de séquence quand le gain n'est pas total.
+        _park = len(liv_isol) >= 2 and len(bufs) == len(liv_isol)
+        gares: list[tuple[str, int]] = []      # (eq, SJB de retour) à ramener
         djs_rouverts: list[str] = []
-        for eq, brk in liv_isol:
-            for sid in brk:
-                if not _is_open(G, sid):
-                    _set_switch(G, sid, True)
-                    manoeuvres.append(Manoeuvre(
-                        sid, "OPEN",
-                        f"mise hors tension '{eq}' (avant ouverture sectionneur)"))
-                    djs_rouverts.append(sid)
+        for eq, brk in sorted(liv_isol, key=lambda x: x[0]):   # ordre déterministe
+            if _park:
+                cell = cells.get_cellule_depart(eq)
+                # Retour = cible si sur le côté isolé, sinon section câblée actuelle.
+                retour = target_sjb.get(eq)
+                if retour is None or retour not in side_isol:
+                    retour = _wired_busbar(cell, G)
+                if _reaiguiller_vers_sjb(G, cells, eq, bufs[eq], manoeuvres):
+                    reaiguilles.add(eq)
+                if retour is not None and retour != bufs[eq]:
+                    gares.append((eq, retour))
+            else:
+                for sid in brk:
+                    if not _is_open(G, sid):
+                        _set_switch(G, sid, True)
+                        manoeuvres.append(Manoeuvre(
+                            sid, "OPEN",
+                            f"mise hors tension '{eq}' (avant ouverture sectionneur)"))
+                        djs_rouverts.append(sid)
         _ouvrir("ouverture sectionnement de barre (section hors tension)")
         for sid in djs_rouverts:
             _set_switch(G, sid, False)
             manoeuvres.append(Manoeuvre(
                 sid, "CLOSE", "remise sous tension (après ouverture sectionneur)"))
+        for eq, retour in gares:               # ramener un par un (boucle longue)
+            if _reaiguiller_vers_sjb(G, cells, eq, retour, manoeuvres):
+                reaiguilles.add(eq)
 
     # --- Phase D : ouverture des couplages (DJ) ----------------------------
     for cp in to_open:

@@ -131,3 +131,54 @@ def test_mode_agressif_exempt_de_l_alerte_un_seul():
     poste, d, g = _load(_ROMAI, "ROMAIP6")
     r = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="aggressive")
     assert r.alertes == []
+
+
+# --------------------------------------------------------------------------
+# 3. Vérificateur vs séquences de référence + amélioration du parking smooth
+# --------------------------------------------------------------------------
+
+def _replay_manoeuvres(seqfile: str, stem: str):
+    """Charge (poste de départ, manœuvres) depuis une séquence sauvegardée."""
+    from expert_op4grid_recommender.manoeuvre.algo.results import Manoeuvre
+    path = _SEQ / seqfile
+    if not path.exists() or stem not in list_available_fixtures():
+        pytest.skip(f"Séquence/fixture absente : {seqfile}")
+    d = json.loads(path.read_text())
+    G = build_graph_from_fixture(stem)
+    for sid, op in d["depart"].items():
+        _set_switch(G, sid, op)
+    poste = PosteTopologique.from_graph(G, d["voltage_level_id"])
+    manos = [Manoeuvre(m["switch_id"], m["action"], m.get("raison", ""))
+             for m in d["manoeuvres"]]
+    return poste, manos
+
+
+def test_verificateur_reconnait_la_sequence_experte_un_a_la_fois():
+    """Le vérificateur distingue correctement la **séquence experte** « 1 ouvrage
+    déconnecté à la fois » (→ **0** alerte) de l'ancienne séquence smooth **batch**
+    (→ alertes), réglant le défaut signalé (l'ancien vérificateur ne détectait pas
+    les dé-énergisations de section)."""
+    poste_x, expert = _replay_manoeuvres(
+        "ROMAIP6_cible_3noeuds_1ouvrageDeconnecteAlaFois.json", "ROMAIP6")
+    assert ouvrages_simultanement_hors_tension(poste_x, expert) == []
+
+    poste_b, batch = _replay_manoeuvres(
+        "ROMAIP6_cible_3noeuds_smooths.json", "ROMAIP6")
+    assert ouvrages_simultanement_hors_tension(poste_b, batch), (
+        "l'ancienne séquence batch déconnecte plusieurs ouvrages à la fois")
+
+
+def test_smooth_parking_un_par_un_reduit_les_coupures_simultanees():
+    """Le mode smooth gare désormais les départs **un par un** sur le côté
+    survivant (boucle courte) au lieu de dé-énergiser une section en bloc : sur
+    ROMAIP6 le nombre de moments à > 1 ouvrage hors tension est **strictement
+    inférieur** à celui de l'ancienne séquence batch."""
+    poste_b, batch = _replay_manoeuvres(
+        "ROMAIP6_cible_3noeuds_smooths.json", "ROMAIP6")
+    n_batch = len(ouvrages_simultanement_hors_tension(poste_b, batch))
+
+    poste, d, g = _load(_ROMAI, "ROMAIP6")
+    r = determiner_manoeuvres_cible_detaillee(poste, g(d["cible"]), mode="smooth")
+    assert len(r.alertes) < n_batch, (
+        f"smooth actuel {len(r.alertes)} alerte(s) vs ancienne batch {n_batch} : "
+        "le parking un-par-un devrait réduire les coupures simultanées")

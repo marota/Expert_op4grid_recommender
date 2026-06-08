@@ -245,10 +245,18 @@ propose deux stratégies pour ouvrir un sectionnement de barre :
   section isolée** de préférence, et **équipotentielle** si possible — auquel cas
   le ré-aiguillage est en **boucle courte** et l'ouvrage n'est **pas** déconnecté
   du tout (`parking_sjb`). Les ouvrages garés sont **ramenés** ensuite (boucle
-  longue) sur la section isolée. **Exception** : si aucun parking n'existe pour
-  un ouvrage, il est dé-énergisé **en place** (les ouvrages sans parking peuvent
-  alors être hors tension simultanément). `target_sjb` est amorcé avec la barre
-  cible exacte (`cible_busbar`) pour éviter les déplacements inutiles.
+  longue) sur la section isolée. `target_sjb` est amorcé avec la barre cible
+  exacte (`cible_busbar`) pour éviter les déplacements inutiles.
+  - **Vidage one-by-one du côté à isoler** : quand l'ouverture d'un sectionnement
+    a **les deux côtés sous tension** avec **plusieurs** ouvrages à isoler, on les
+    **gare un par un** sur le **côté survivant** (boucle courte, équipotentiel tant
+    que le sectionnement est fermé → *aucune* coupure), on ouvre le sectionnement
+    (section vidée), puis on **ramène** chaque ouvrage un par un (boucle longue).
+    Évite le « batch » de N ouvrages hors tension simultanément (ex. **ROMAIP6** :
+    6 coupures simultanées → 1). Repli : si **tous** les ouvrages ne peuvent pas
+    atteindre le côté survivant, dé-énergisation **en place** (inchangée), et les
+    ouvrages sans parking peuvent rester hors tension simultanément (exception
+    assumée, **signalée par l'alerte** ci-dessous).
 - **agressif** (`_sequence_detaillee_aggressive`) — minimiser les **bascules de
   DJ**. D'abord (1) **fermer** les couplages/sectionnements destinés à fusionner
   (équipotentialité), puis (2) **switcher en boucle courte** — **sans ouvrir le
@@ -271,13 +279,16 @@ ouverts hors tension (`_verifier_securite_sectionneurs`).
   `cible_busbar`), `_sequence_detaillee_aggressive` (wrapper transactionnel
   boucle courte / dé-énergisé), `_aggressive_impl(boucle_courte=…)`.
 - **Vérification + alerte (smooth)** : `ouvrages_simultanement_hors_tension`
-  (public) rejoue la séquence et signale tout moment où **plus d'un** ouvrage
-  **ré-aiguillé** (déconnexion → manip SA → reconnexion) est **temporairement hors
-  tension** — **hors** ouvrages déjà déconnectés et **hors** dé-énergisations de
-  section (ouvrage qui ne change pas de barre). C'est une **alerte de bonne
-  pratique non bloquante** (n'affecte pas `is_verified*`), portée par
-  `ResultatManoeuvres.alertes` (mode agressif **exempté**, il batch volontairement).
-  L'IHM peut la surfacer comme avertissement.
+  (public) rejoue la séquence et signale tout moment où **plus d'un** ouvrage est
+  **temporairement hors tension** — c.-à-d. dont le **DJ propre**, initialement
+  **fermé**, est ouvert **puis refermé** (coupure temporaire) — qu'il s'agisse d'un
+  **ré-aiguillage** *ou* d'une **dé-énergisation de section**. Sont **exclus** : les
+  ouvrages **déjà déconnectés** au départ et ceux **mis hors service** (DJ final
+  ouvert). C'est une **alerte de bonne pratique non bloquante** (n'affecte pas
+  `is_verified*`), portée par `ResultatManoeuvres.alertes` (mode agressif
+  **exempté**, il batch volontairement). L'IHM la surface en badge ⚠. La séquence
+  experte « 1 ouvrage à la fois » lève **0** alerte ; un batch en lève autant que
+  de chevauchements.
 - **Test** : `test_mode_agressif_et_un_seul_ouvrage.py` (boucle courte CPNIEP6,
   repli ROMAIP6, alerte un-seul détectée/propre), `test_ssavop3_modes.py`,
   `test_cztryp6_3noeuds.py`.
