@@ -60,10 +60,11 @@ class ExpertRecommender(RecommenderModel):
                       "Min Renewable Curtailment", "int",
                       default=config.MIN_RENEWABLE_CURTAILMENT, min=0, max=20),
             ParamSpec("min_redispatch", "Min Redispatching", "int",
-                      default=config.MIN_REDISPATCH, min=0, max=20),
+                      default=getattr(config, "MIN_REDISPATCH", 0), min=0, max=20),
             ParamSpec("redispatch_default_delta_mw",
                       "Redispatch Default Delta (MW)", "float",
-                      default=config.REDISPATCH_DEFAULT_DELTA_MW, min=0.1, max=1000.0,
+                      default=getattr(config, "REDISPATCH_DEFAULT_DELTA_MW", 10.0),
+                      min=0.1, max=1000.0,
                       description="Default MW step applied when raising/lowering a "
                                   "dispatchable generator (editable per action)"),
             ParamSpec("ignore_reconnections", "Ignore Reconnections", "bool",
