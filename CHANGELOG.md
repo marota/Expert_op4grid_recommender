@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.3.post1] - 2026-06-09
+
+### Fixed
+
+- **Per-type `MIN_*` floors are no longer starved when their sum exceeds `n_action_max`** (`action_evaluation/discovery/_orchestrator.py`). The per-type `MIN_*` counts are GUARANTEED floors, but the minimum-enforcement phase previously capped each `add_prioritized_actions` call at `n_action_max`. When the floors summed above `n_action_max` (e.g. reco 2 + close 3 + open 2 + disco 3 + ls 2 = 12 > 10), the types added last (load shedding, redispatch) were silently starved once the earlier types filled the budget — so `load_shedding_*` never surfaced despite `MIN_LOAD_SHEDDING=2`. The minimum phase now uses `min_phase_cap = max(n_action_max, sum of all floors)` so every floor is honored; only the fill phase keeps `n_action_max` as the target. The result may exceed `n_action_max` when floors demand it (correct semantics). Reproduced on the `small_grid` demo (Co-Study4Grid PR #162 CI).
+- **Overflow-graph visualization is now non-fatal in `run_analysis_step2_graph`** (`main.py`). Its rendering goes through alphaDeesp + external tooling (graphviz); when that fails (e.g. `AssertionError` in `display_geo`) it must not abort step 2 — action discovery only needs the graph data, not the picture. The visualization call is now wrapped in `try`/`except` with a warning.
+
+### Tests
+
+- `tests/test_min_action_counts.py`: new `test_floors_honored_when_min_sum_exceeds_total` and a `_run_two_pass` helper that mirrors `min_phase_cap`. Existing `MIN_*` and discoverer tests still pass (132).
+
+---
+
 ## [0.2.3] - 2026-06-08
 
 ### Added
