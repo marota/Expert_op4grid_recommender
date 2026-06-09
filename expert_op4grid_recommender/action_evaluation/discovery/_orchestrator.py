@@ -202,23 +202,44 @@ class OrchestratorMixin:
             # 1. Add minimum required actions using a high per-type limit exactly equal to the min required
             from expert_op4grid_recommender import config
 
+            # The per-type MIN_* counts are GUARANTEED floors: at least this
+            # many actions of each type must be returned when candidates exist.
+            # Their sum can exceed ``n_action_max`` (the fill target). If we
+            # capped the minimum-enforcement phase at ``n_action_max``, the
+            # types added last (load shedding, redispatch) would be starved
+            # once the earlier types already filled the budget — silently
+            # dropping a requested floor. So the minimum phase uses a cap that
+            # admits every floor; only the fill phase (step 2 below) honours
+            # ``n_action_max`` as the overall target.
+            min_phase_cap = max(
+                n_action_max,
+                config.MIN_LINE_RECONNECTIONS
+                + config.MIN_CLOSE_COUPLING
+                + config.MIN_PST
+                + config.MIN_OPEN_COUPLING
+                + config.MIN_LINE_DISCONNECTIONS
+                + config.MIN_RENEWABLE_CURTAILMENT
+                + config.MIN_LOAD_SHEDDING
+                + getattr(config, "MIN_REDISPATCH", 0),
+            )
+
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_reconnections,
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=config.MIN_LINE_RECONNECTIONS,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_merges,
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=config.MIN_CLOSE_COUPLING,
             )
             # Step 1.3: Add minimum required PST actions
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 getattr(self, "identified_pst_actions", {}),
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=config.MIN_PST,
             )
 
@@ -226,37 +247,37 @@ class OrchestratorMixin:
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_splits,
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=config.MIN_OPEN_COUPLING,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_disconnections,
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_renewable_curtailment,
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_load_shedding,
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=config.MIN_LOAD_SHEDDING,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_redispatch,
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=getattr(config, "MIN_REDISPATCH", 0),
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_renewable_curtailment,
-                n_action_max,
+                min_phase_cap,
                 n_action_max_per_type=getattr(config, "MIN_RENEWABLE_CURTAILMENT", 0),
             )
 

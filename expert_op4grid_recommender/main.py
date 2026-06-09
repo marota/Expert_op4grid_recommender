@@ -507,16 +507,28 @@ def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
                 nodes_red_loops = list(rl_nodes)
             except Exception as exc:
                 print("Could not pre-compute red-loop dispatch paths for overflow viewer: " + str(exc))
-            make_overflow_graph_visualization(
-                env, overflow_sim, g_overflow, hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped,
-                custom_layout, lines_we_care_about=lines_we_care_about,
-                monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
-                lines_constrained_path=lines_constrained_path,
-                nodes_constrained_path=nodes_constrained_path,
-                lines_red_loops=lines_red_loops,
-                nodes_red_loops=nodes_red_loops,
-                extra_lines_to_cut_ids=extra_lines_to_cut_ids,
-            )
+            # The overflow-graph visualization is a presentational artifact
+            # (PDF/HTML overlay). Its rendering goes through alphaDeesp +
+            # external tooling (graphviz `dot`/`neato`); when that tooling
+            # fails or is missing, alphaDeesp raises (e.g. AssertionError in
+            # display_geo). That must NOT abort step-2: the downstream action
+            # discovery only needs the graph data structures, not the picture.
+            try:
+                make_overflow_graph_visualization(
+                    env, overflow_sim, g_overflow, hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped,
+                    custom_layout, lines_we_care_about=lines_we_care_about,
+                    monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
+                    lines_constrained_path=lines_constrained_path,
+                    nodes_constrained_path=nodes_constrained_path,
+                    lines_red_loops=lines_red_loops,
+                    nodes_red_loops=nodes_red_loops,
+                    extra_lines_to_cut_ids=extra_lines_to_cut_ids,
+                )
+            except Exception as exc:
+                print(
+                    "Overflow-graph visualization failed (continuing without it): "
+                    f"{type(exc).__name__}: {exc}"
+                )
     else:
         print("Skipping visualization (DO_VISUALIZATION=False)")
 

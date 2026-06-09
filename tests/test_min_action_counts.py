@@ -133,18 +133,22 @@ class TestMinActionCountEnforcement:
         """Replicate the two-pass logic from discovery.py for unit-testing."""
         prioritized = {}
 
-        # Pass 1 – minimum guarantees
+        # Pass 1 – minimum guarantees. The MIN_* counts are GUARANTEED floors,
+        # so the minimum phase is capped at max(n_total, sum of floors): a floor
+        # listed late must not be starved because earlier types already filled
+        # n_total. Mirrors `min_phase_cap` in discovery/_orchestrator.py.
+        min_cap = max(n_total, min_reco + min_close + min_open + min_deco)
         prioritized = self.add_prioritized_actions(
-            prioritized, reconnections, n_total, n_action_max_per_type=min_reco
+            prioritized, reconnections, min_cap, n_action_max_per_type=min_reco
         )
         prioritized = self.add_prioritized_actions(
-            prioritized, merges, n_total, n_action_max_per_type=min_close
+            prioritized, merges, min_cap, n_action_max_per_type=min_close
         )
         prioritized = self.add_prioritized_actions(
-            prioritized, splits, n_total, n_action_max_per_type=min_open
+            prioritized, splits, min_cap, n_action_max_per_type=min_open
         )
         prioritized = self.add_prioritized_actions(
-            prioritized, disconnections, n_total, n_action_max_per_type=min_deco
+            prioritized, disconnections, min_cap, n_action_max_per_type=min_deco
         )
 
         # Pass 2 – fill remaining slots
@@ -213,6 +217,32 @@ class TestMinActionCountEnforcement:
         deco = _make_identified([f"D{i}" for i in range(3)])
         result = self._run_two_pass(reco, merges, splits, deco, 1, 1, 1, 1, n_total=5)
         assert len(result) <= 5
+
+    def test_floors_honored_when_min_sum_exceeds_total(self):
+        """When the per-type floors sum to MORE than n_total, EVERY floor is
+        still honored (the result may exceed n_total).
+
+        Regression for the small_grid demo: with mins
+        reco2+close3+open2+disco3 = 10 > n_total, the floors added last
+        (load shedding) were silently dropped because the earlier types had
+        already filled the n_total budget. The minimum phase must admit all
+        floors; only the fill phase honours n_total as the target.
+        """
+        reco = _make_identified([f"R{i}" for i in range(3)])
+        merges = _make_identified([f"M{i}" for i in range(4)])
+        splits = _make_identified([f"S{i}" for i in range(3)])
+        deco = _make_identified([f"D{i}" for i in range(4)])
+        # floors sum to 2+3+2+3 = 10, well above n_total=5
+        result = self._run_two_pass(
+            reco, merges, splits, deco,
+            min_reco=2, min_close=3, min_open=2, min_deco=3, n_total=5,
+        )
+        assert len([k for k in result if k.startswith("R")]) >= 2
+        assert len([k for k in result if k.startswith("M")]) >= 3
+        assert len([k for k in result if k.startswith("S")]) >= 2
+        assert len([k for k in result if k.startswith("D")]) >= 3
+        # All floors honored even though their sum exceeds n_total.
+        assert len(result) >= 10
 
     def test_min_more_than_available_does_not_crash(self):
         """MIN_* larger than number of available actions should not crash."""
