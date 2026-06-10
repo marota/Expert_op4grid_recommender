@@ -60,12 +60,15 @@ def _timeline_depuis_sequence(path: pathlib.Path,
     etat = {k: bool(v) for k, v in data["depart"].items()}
     snaps, t = [], 0
     for _ in range(stable):
-        snaps.append(_snap(t, etat)); t += 1
+        snaps.append(_snap(t, etat))
+        t += 1
     for m in sorted(data["manoeuvres"], key=lambda m: m["ordre"]):
         etat[m["switch_id"]] = (m["action"] == "OPEN")
-        snaps.append(_snap(t, etat)); t += 1
+        snaps.append(_snap(t, etat))
+        t += 1
     for _ in range(stable - 1):
-        snaps.append(_snap(t, etat)); t += 1
+        snaps.append(_snap(t, etat))
+        t += 1
     return TimelinePoste(data["voltage_level_id"], snaps), data
 
 

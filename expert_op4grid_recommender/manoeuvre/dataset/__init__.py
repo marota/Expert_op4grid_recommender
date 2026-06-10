@@ -42,7 +42,12 @@ from .extraction import (
     ecrire_dataset,
     stats_blocs,
 )
-from .structure import graph_from_fixture_json, poste_from_fixture_json
+from .structure import (
+    couverture_structure,
+    graph_from_fixture_json,
+    poste_from_fixture_json,
+    postes_depuis_xiidm,
+)
 
 __all__ = [
     "Snapshot", "BlocTransition", "Oscillation", "TimelinePoste",
@@ -50,5 +55,6 @@ __all__ = [
     "taguer_bloc", "taguer_blocs",
     "bloc_to_scenario", "bloc_to_sequence_observee", "ecrire_dataset",
     "stats_blocs",
-    "graph_from_fixture_json", "poste_from_fixture_json",
+    "couverture_structure", "graph_from_fixture_json",
+    "poste_from_fixture_json", "postes_depuis_xiidm",
 ]

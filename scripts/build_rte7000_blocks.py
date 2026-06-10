@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import pathlib
 import sys
 
@@ -45,8 +46,10 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from expert_op4grid_recommender.manoeuvre.dataset import (   # noqa: E402
     Snapshot,
     TimelinePoste,
+    couverture_structure,
     ecrire_dataset,
     poste_from_fixture_json,
+    postes_depuis_xiidm,
     stats_blocs,
     taguer_blocs,
 )
@@ -55,6 +58,11 @@ from expert_op4grid_recommender.manoeuvre.dataset.extraction import (  # noqa: E
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
+
+#: en deçà de cette part d'organes du bloc connus de la structure, la
+#: structure est jugée incompatible avec les données (autre convention d'ids,
+#: autre version) et écartée — tagging par nommage à la place
+SEUIL_COUVERTURE_STRUCTURE = 0.5
 
 
 def _charger_postes(fixtures_dir: pathlib.Path, vls: set[str]) -> dict:
@@ -72,6 +80,60 @@ def _charger_postes(fixtures_dir: pathlib.Path, vls: set[str]) -> dict:
                 except Exception as exc:   # fixture incompatible : tag par nommage
                     print(f"  ! structure {vl} illisible ({exc}) — repli nommage")
                 break
+    return postes
+
+
+def _premier_xiidm(input_dir: pathlib.Path) -> pathlib.Path | None:
+    """Premier instantané XIIDM (chronologiquement) du dataset — la structure
+    de référence des postes pour la période traitée."""
+    from expert_op4grid_recommender.manoeuvre.dataset.dgitt import (
+        _fichiers_xiidm, horodatage_depuis_nom,
+    )
+    dates = []
+    for f in _fichiers_xiidm(input_dir):
+        try:
+            dates.append((horodatage_depuis_nom(f.name), f))
+        except ValueError:
+            continue
+    return min(dates)[1] if dates else None
+
+
+def _assembler_structures(
+    vls: set[str],
+    fixtures_dir: pathlib.Path,
+    structures_xiidm: pathlib.Path | None,
+    bloc_ref: dict,
+) -> dict:
+    """Structures des postes à blocs : d'abord depuis l'instantané XIIDM
+    (ids garantis cohérents avec les données), puis fixtures JSON pour les VL
+    restants. Une structure est écartée (repli nommage) si ses organes ne
+    recouvrent pas ceux du bloc de référence (``couverture_structure`` <
+    seuil) ou si la partition nodale n'est pas calculable dessus."""
+    from expert_op4grid_recommender.manoeuvre.plugins import CibleDetaillee
+
+    postes: dict = {}
+    if structures_xiidm is not None:
+        construits, echecs = postes_depuis_xiidm(structures_xiidm, vls)
+        postes.update(construits)
+        print(f"structures depuis {structures_xiidm.name} : "
+              f"{len(construits)} construite(s), {len(echecs)} échec(s)")
+    restants = vls - set(postes)
+    if restants:
+        postes.update(_charger_postes(fixtures_dir, restants))
+
+    for vl in sorted(set(postes) & set(bloc_ref)):
+        c = couverture_structure(postes[vl], bloc_ref[vl])
+        if c < SEUIL_COUVERTURE_STRUCTURE:
+            print(f"  ! structure {vl} incompatible avec les données "
+                  f"(couverture {c:.0%}) — repli nommage")
+            del postes[vl]
+            continue
+        try:    # sonde : partition nodale calculable (servira aux scénarios)
+            CibleDetaillee(vl, bloc_ref[vl]).topologie_nodale(postes[vl])
+        except Exception as exc:                            # noqa: BLE001
+            print(f"  ! structure {vl} : partition nodale incalculable "
+                  f"({exc}) — repli nommage")
+            del postes[vl]
     return postes
 
 
@@ -117,6 +179,10 @@ def main() -> int:
                     default=REPO / "tests" / "manoeuvre" / "fixtures",
                     help="Dossier des structures de postes (fixtures JSON) "
                          "pour le tagging structurel")
+    ap.add_argument("--structures-xiidm", type=pathlib.Path, default=None,
+                    help="Instantané XIIDM d'où extraire les structures de "
+                         "postes (ids cohérents avec les données). Défaut : "
+                         "le premier instantané de --input quand il y en a")
     ap.add_argument("--vl", action="append", default=None,
                     help="Limiter à ce(s) poste(s) (répétable)")
     ap.add_argument("--min-stabilite", type=int, default=2,
@@ -131,7 +197,11 @@ def main() -> int:
                     help="Chronologies reconstruites depuis les séquences du "
                          "dépôt (aucune donnée externe requise)")
     args = ap.parse_args()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
+    structures_xiidm = args.structures_xiidm
     if args.demo:
         timelines = [(nom, tl) for nom, tl in _timelines_demo()]
     else:
@@ -145,20 +215,32 @@ def main() -> int:
                      for tl in charger_timelines(
                          args.input, vl_filter,
                          sous_echantillon=args.sous_echantillon)]
+        if structures_xiidm is None:
+            structures_xiidm = _premier_xiidm(args.input)
 
-    vls = {tl.voltage_level_id for _, tl in timelines}
-    postes = _charger_postes(args.fixtures, vls)
-    print(f"{len(timelines)} chronologie(s), {len(postes)} structure(s) de "
-          f"poste pour le tagging structurel")
-
-    tous_blocs, toutes_osc = [], []
+    # Phase 1 — détection des blocs (les structures ne servent qu'au tagging :
+    # on ne les construit que pour les postes ayant effectivement des blocs).
+    tous_blocs, toutes_osc, noms_blocs = [], [], []
     for nom, tl in timelines:
         blocs, osc = tl.detecter_blocs(min_stabilite=args.min_stabilite)
-        taguer_blocs(blocs, postes, seuil_durable=args.seuil_durable)
         tous_blocs.extend(blocs)
         toutes_osc.extend(osc)
-        for b in blocs:
-            print(f"  [{nom}] {b.resume()}")
+        noms_blocs.extend(nom for _ in blocs)
+
+    # Phase 2 — structures des postes à blocs (XIIDM du dataset prioritaire,
+    # fixtures en complément, garde de couverture d'identifiants).
+    bloc_ref = {}
+    for b in tous_blocs:
+        bloc_ref.setdefault(b.voltage_level_id, b.etats_depart)
+    postes = _assembler_structures(set(bloc_ref), args.fixtures,
+                                   structures_xiidm, bloc_ref)
+    print(f"{len(timelines)} chronologie(s), {len(bloc_ref)} poste(s) à blocs, "
+          f"{len(postes)} structure(s) pour le tagging structurel")
+
+    # Phase 3 — tagging.
+    taguer_blocs(tous_blocs, postes, seuil_durable=args.seuil_durable)
+    for nom, b in zip(noms_blocs, tous_blocs):
+        print(f"  [{nom}] {b.resume()}")
 
     out = args.output
     out.mkdir(parents=True, exist_ok=True)

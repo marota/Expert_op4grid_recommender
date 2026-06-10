@@ -88,13 +88,18 @@ def horodatage_depuis_nom(
     return dt.strftime("%Y-%m-%dT%H:%M")
 
 
+#: extensions reconnues d'un instantané (compressé ou non) — un suffixe
+#: surnuméraire (``.md5`` jumeau du dataset, ``.lock``/``.metadata``/
+#: ``.incomplete`` du cache ``hf download``…) disqualifie le fichier
+_EXTENSIONS_XIIDM = tuple(
+    base + comp
+    for base in (".xiidm", ".iidm")
+    for comp in ("", ".bz2", ".gz"))
+
+
 def _est_xiidm(p: Path) -> bool:
-    """Le fichier est-il un instantané XIIDM/IIDM (compressé ou non) ?
-    Les fichiers de somme de contrôle ``.md5`` jumeaux sont exclus."""
-    n = p.name.lower()
-    if n.endswith(".md5"):
-        return False
-    return ".xiidm" in n or ".iidm" in n
+    """Le fichier est-il un instantané XIIDM/IIDM (compressé ou non) ?"""
+    return p.name.lower().endswith(_EXTENSIONS_XIIDM)
 
 
 def _a_des_xiidm(input_dir: Path) -> bool:

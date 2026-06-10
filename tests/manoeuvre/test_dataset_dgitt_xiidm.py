@@ -84,6 +84,10 @@ def test_est_xiidm_exclut_md5(tmp_path):
     assert _est_xiidm(tmp_path / "x.iidm.gz")
     assert not _est_xiidm(tmp_path / "x.xiidm.bz2.md5")
     assert not _est_xiidm(tmp_path / "x.csv")
+    # artefacts du cache `hf download` (constatés sur le dataset réel)
+    assert not _est_xiidm(tmp_path / "x.xiidm.bz2.lock")
+    assert not _est_xiidm(tmp_path / "x.xiidm.bz2.metadata")
+    assert not _est_xiidm(tmp_path / "h=.aaaa.bbbb.incomplete")
 
 
 def test_fichiers_xiidm_recursif_et_md5_ignores(tmp_path):
