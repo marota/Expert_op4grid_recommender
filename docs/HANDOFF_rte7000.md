@@ -77,62 +77,71 @@ complète : **918 passed**.
 
 ---
 
-## 2. Le point bloquant (résolu pour les nouvelles sessions)
+## 2. Accès réseau (résolu) et première passe réelle (faite, 2026-06-10)
 
-`huggingface.co` était hors allowlist réseau de l'environnement → impossible
-de télécharger `OpenSynth/D-GITT-RTE7000-2021` dans la session précédente.
-L'utilisateur a **ajouté `huggingface.co` + `cdn-lfs.huggingface.co` à
-l'allowlist** ; le changement s'applique aux **nouvelles sessions** (rebuild
-du cache d'environnement). Si le téléchargement échoue encore : vérifier
-l'environnement modifié, et ajouter aussi `cas-bridge.xethub.hf.co` /
-`transfer.xethub.hf.co` (backend de stockage Xet de HF).
+L'allowlist couvre `huggingface.co` **et** le backend Xet
+(`cas-bridge.xethub.hf.co`) : téléchargement opérationnel. Les anciennes
+étapes 1-6 de ce document sont **exécutées** sur la journée 2021-01-03
+complète — résultats, échantillons et reproduction dans
+`docs/dataset_rte7000/2021-01-03/README.md`, synthèse dans le plan
+(« Première passe réelle exécutée »).
 
-## 3. Prochaine tâche (nouvelle session)
+À savoir pour reproduire/étendre :
 
-1. **Vérifier l'accès** :
-   `curl -s https://huggingface.co/api/datasets/OpenSynth/D-GITT-RTE7000-2021`.
-2. **Télécharger** (taille à vérifier d'abord via l'API `/tree/main`) :
-   ```bash
-   pip install -U huggingface_hub
-   hf download OpenSynth/D-GITT-RTE7000-2021 --repo-type dataset \
-       --local-dir data/dgitt_rte7000_2021
-   ```
-   Ne **pas** commiter les données brutes dans le dépôt.
-3. **Inspecter le schéma réel** (fichiers, colonnes, pas temporel, période,
-   les états SA sont-ils présents ?) et **ajuster
-   `manoeuvre/dataset/dgitt.py`** (alias de colonnes, format long vs large,
-   conversion des états). Documenter le schéma constaté dans
-   `docs/plan_dataset_rte7000.md` (section « État d'avancement »).
-4. **Pilote** sur les postes ayant une fixture (tagging structurel) :
-   ```bash
-   python scripts/build_rte7000_blocks.py --input data/dgitt_rte7000_2021 \
-       --fixtures tests/manoeuvre/fixtures --output out_pilote \
-       --vl CARRIP3 --vl MORBRP6 --vl TAVELP7 --vl ROMAIP6 --vl MUHLBP7
-   ```
-   Vérifier la cohérence des blocs/tags (au besoin via l'IHM).
-5. **Passe complète** (tous postes ; tagging par nommage là où la structure
-   manque), produire `blocs.jsonl`, `scenarios/`, `sequences/`, `stats.json`.
-   Commiter les **stats + un échantillon** de scénarios (pas les données
-   brutes), + les ajustements de `dgitt.py` avec tests.
-6. **Benchmark (phase 4 du plan)** : sur les blocs à structure connue, lancer
-   le séquenceur via la façade (`PlanificateurTopologie().sequencer`, modes
-   smooth/aggressive) vers chaque cible et comparer aux **séquences
-   observées** (nb manœuvres, verdicts `is_verified_detaillee`, écarts,
-   alertes). Script suggéré : `scripts/run_benchmark.py`.
+- **Téléchargement** : utiliser `scripts/download_dgitt_subset.py` (md5,
+  reprise, retries) — le client officiel `hf download` se bloque dans cet
+  environnement ;
+- **Structures** : extraire du **dataset lui-même** (`postes_depuis_xiidm`,
+  auto par défaut dans `build_rte7000_blocks.py`) — les fixtures du dépôt ont
+  d'autres ids d'organes (export normalisé `_OC`) et sont écartées par la
+  garde `couverture_structure` ;
+- **Mémoire** : la passe journée entière tient en < 4 Go grâce au partage
+  structurel des états (`charger_timelines_xiidm`) — ne pas le casser
+  (test `test_charger_timelines_xiidm_partage_structurel_des_etats`) ;
+- **Benchmark** : `scripts/run_benchmark.py --dataset … --structures-xiidm …`
+  (filtres `--tag`, `--min-organes`, `--vl`, `--limit`).
+
+Chiffres de référence (journée 2021-01-03) : 6 233 blocs / 1 861 postes,
+36 reconfigurations structurelles ; benchmark sur ces 31 blocs (≥ 1 tag
+structurel) : partition 31/31, détaillée exacte 30-31/31, manœuvres vs
+opérateur ×1,10 (smooth) / ×1,06 (aggressive).
+
+## 3. Prochaines tâches
+
+1. **Étendre l'échantillon temporel** : traiter quelques journées/semaines
+   réparties (saisonnalité, jours ouvrés vs week-end — 2021-01-03 est un
+   dimanche) avec les mêmes commandes ; comparer les distributions de tags.
+2. **Benchmark élargi** : la passe `--min-organes 2` (2 842 blocs) donne la
+   distribution de référence ; analyser les écarts (KERHEP3, JUINEP4 :
+   l'opérateur fait mieux/différemment — comprendre les règles en jeu),
+   creuser les `inclasse` (2 138 : probablement organes hors cellules de
+   départ — affiner la taxonomie).
+3. **Versionnage structurel** (décision B du plan) : sur plusieurs jours,
+   détecter les changements de structure entre instantanés (hash du graphe
+   hors états) et segmenter par version au lieu de supposer la structure du
+   1er instantané.
+4. **Jeu d'or** : faire valider un échantillon stratifié de tags via l'IHM
+   (chargement scénario départ/cible), figer `calibration`/`test`.
+5. **CI** : geler quelques blocs réels (échantillon committé) en goldens du
+   séquenceur ; marqueur pytest `dataset` pour la suite longue.
 
 ## 4. Repères
 
 | Quoi | Où |
 |---|---|
 | Plan publication 6 phases | `docs/plan_dataset_rte7000.md` |
+| Résultats première passe réelle (2021-01-03) | `docs/dataset_rte7000/2021-01-03/` |
 | Doc couche pluggable | `docs/manoeuvre_plugins.md` |
 | Doc module manoeuvre (conventions, invariants) | `expert_op4grid_recommender/manoeuvre/CLAUDE.md` |
 | Pipeline dataset | `expert_op4grid_recommender/manoeuvre/dataset/` |
+| Téléchargeur dataset HF | `scripts/download_dgitt_subset.py` |
 | CLI pipeline | `scripts/build_rte7000_blocks.py` (`--demo` marche sans données) |
-| Tests | `pytest tests/manoeuvre/` (918 ✓ ; deps : `pip install pytest networkx pandas pypowsybl flask`) |
+| Benchmark séquenceur vs opérateur | `scripts/run_benchmark.py` |
+| Tests | `pytest tests/manoeuvre/` (deps : `pip install pytest networkx pandas pypowsybl flask`) |
 | Formats scénario/séquence | `tests/manoeuvre/scenarios/`, `tests/manoeuvre/sequences/` |
 | Fixtures structurelles de postes | `tests/manoeuvre/fixtures/` |
 
-Conventions : développer sur `claude/clever-curie-ly6jcx`, commits descriptifs
-en français (style des commits existants), ne jamais muter `poste.graph`,
-suite `tests/manoeuvre/` verte avant chaque push.
+Conventions : la branche de travail historique `claude/clever-curie-ly6jcx`
+est fusionnée dans `claude/trusting-darwin-9c3ud7` (développement courant) ;
+commits descriptifs en français (style des commits existants), ne jamais
+muter `poste.graph`, suite `tests/manoeuvre/` verte avant chaque push.

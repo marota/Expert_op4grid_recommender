@@ -282,7 +282,7 @@ résultats, tests CI.
 | J5 | Phase 4 : dataset de test + benchmark exécuté | 2–3 sem. |
 | J6 | Phase 5 : dépôt de données + draft de papier | 3–4 sem. |
 
-## État d'avancement — pipeline implémenté (phases 1–3 + amorce 4)
+## État d'avancement — phases 1–4 exécutées sur données réelles (1 journée)
 
 Le dataset visé est ``OpenSynth/D-GITT-RTE7000-2021`` (Hugging Face). Le
 **pipeline complet est implémenté et testé** dans
@@ -330,40 +330,67 @@ reconstruction nodale→détaillée systématique). **Atout n°1 du papier sécu
 (pas de 5 min → séquences réelles capturables). L'adaptateur `dgitt.py` est
 **réécrit en conséquence** (chemin XIIDM par défaut) et testé hors-ligne.
 
-**Blocage résiduel — backend de stockage Xet (action infra requise)** : les
-**octets** des fichiers ne sont *pas* servis par `huggingface.co`/`cdn-lfs`
-mais par le backend **Xet** de HF. La résolution
-`…/resolve/main/<fichier>` renvoie un `302` vers
-`cas-bridge.xethub.hf.co`, **hors allowlist** (`curl` → `403 Host not in
-allowlist`). Le téléchargement échoue donc tant que ces domaines ne sont pas
-ajoutés. **À ajouter à l'allowlist réseau de l'environnement** :
+### Première passe réelle exécutée (2026-06-10) — journée 2021-01-03 complète
 
-```
-cas-bridge.xethub.hf.co
-cas-server.xethub.hf.co
-transfer.xethub.hf.co
-```
+L'allowlist Xet est **ouverte** (`cas-bridge.xethub.hf.co` joignable) : le
+blocage réseau est levé. Constats et résultats de la première passe France
+entière (détail, échantillons et reproduction :
+**`docs/dataset_rte7000/2021-01-03/README.md`**) :
 
-(`HF_HUB_DISABLE_XET=1` ne suffit pas : la *résolution côté serveur* redirige
-vers Xet, le dataset n'étant pas stocké en LFS classique.) Une fois l'accès
-ouvert, télécharger un échantillon ciblé (ne **pas** committer les données
-brutes) puis lancer le pipeline :
+- **Téléchargement** : le client officiel `hf download` se bloque
+  indéfiniment dans cet environnement (protocole xet partiellement joignable)
+  → `scripts/download_dgitt_subset.py` (HTTP simple via `/resolve`, suivi de
+  la redirection Xet, **vérification md5** contre les jumeaux `*.md5`,
+  reprise idempotente, retries sur les `403` épisodiques du rate-limiter).
+  287/287 instantanés de la journée vérifiés.
+- **Incompatibilité d'identifiants fixtures ↔ dataset** : les ids d'organes
+  des fixtures du dépôt (export normalisé, suffixe `_OC`, espaces repliés)
+  ne recouvrent **pas** ceux des instantanés D-GITT (champs RTE à largeur
+  fixe, ex. `CARRIP3_CARRI   3U.MON.2  SA.1`) — couverture 0-3 % sur les
+  postes pilotes. Le tagging structurel extrait donc les structures **du
+  dataset lui-même** (`postes_depuis_xiidm`, une par version structurelle —
+  phase 1 du plan) ; une garde `couverture_structure` écarte toute structure
+  inadaptée (repli nommage). Résultat : **1 861/1 861 structures construites,
+  0 échec**, partitions nodales pour 100 % des blocs.
+- **Volumétrie réelle d'une journée** : **6 233 blocs** sur **1 861 postes**
+  (toutes les transitions ont leur séquence observée), 2 249 oscillations
+  repliées. Tags : 2 138 `inclasse`, 2 053 `consignation_ouvrage`, 2 034
+  `remise_en_service`, 36 reconfigurations structurelles (scission/fusion/
+  ré-aiguillage/sectionnement). Cycles journaliers visibles (remise matinale
+  ~08-09 h / consignation vespérale ~17-18 h sur les mêmes postes).
+- **Mémoire** : la première tentative a été tuée par l'OOM killer (~15 Go) —
+  corrigé par **partage structurel des états** dans `charger_timelines_xiidm`
+  (deux snapshots consécutifs identiques partagent le même dict, ids
+  internés : mémoire en O(changements)) + libération des chronologies après
+  détection. Pic observé < 4 Go pour la journée entière.
+- **Benchmark phase 4 exécuté** (`scripts/run_benchmark.py`, façade
+  pluggable, vérification indépendante) sur les **31 reconfigurations
+  réelles** : partition atteinte **31/31** dans les deux modes ; détaillée
+  exacte 30/31 (smooth) et **31/31 (aggressive)** ; manœuvres vs **séquence
+  opérateur réelle** : **×1,10 (smooth)** / **×1,06 (aggressive)**. Le
+  ré-aiguillage de 16 organes (CONCAP3) est reproduit à l'identique ;
+  les 2 écarts notables (KERHEP3 3→9/11, JUINEP4 7→7/11) sont les premiers
+  cas d'analyse d'échec du papier.
+
+Reproduction :
 
 ```bash
-hf download OpenSynth/D-GITT-RTE7000-2021 --repo-type dataset \
-    --include "2021/01/03/*.xiidm.bz2" \
-    --local-dir data/dgitt_rte7000_2021
+python scripts/download_dgitt_subset.py --prefix 2021/01/03 \
+    --output data/dgitt_rte7000_2021      # ≈ 430 Mo, ne pas committer
 python scripts/build_rte7000_blocks.py --input data/dgitt_rte7000_2021 \
-    --fixtures tests/manoeuvre/fixtures --output out_rte7000 \
-    --vl CARRIP3 --vl MORBRP6 --vl TAVELP7 --vl ROMAIP6 --vl MUHLBP7
+    --output out_rte7000_20210103         # structures auto depuis le 1er instantané
+python scripts/run_benchmark.py --dataset out_rte7000_20210103 \
+    --structures-xiidm data/dgitt_rte7000_2021/2021/01/03/recollement-auto-20210103-0000-enrichi.xiidm.bz2 \
+    --min-organes 2
 ```
 
 ## Questions ouvertes (à trancher pour démarrer la phase 0)
 
-1. ~~**Format et accès** du dataset RTE 7000~~ → **TRANCHÉ** : XIIDM par
-   instantané, bzip2, node-breaker (cf. « Schéma réel constaté »). Accès
-   métadonnées OK ; **reste à ouvrir l'allowlist Xet** pour télécharger les
-   octets (`*.xethub.hf.co`).
+1. ~~**Format et accès** du dataset RTE 7000~~ → **TRANCHÉ et OPÉRATIONNEL** :
+   XIIDM par instantané, bzip2, node-breaker (cf. « Schéma réel constaté »).
+   Allowlist Xet ouverte, téléchargement vérifié md5
+   (`scripts/download_dgitt_subset.py`), première journée complète traitée
+   bout-en-bout (cf. « Première passe réelle exécutée »).
 2. ~~**Pas temporel** et période~~ → **TRANCHÉ** : 5 min, 2021 (+ 2022/2023
    jumeaux). Séquences réelles capturables.
 3. ~~États des **sectionneurs (SA)**~~ → **TRANCHÉ** : présents (DJ + SA,

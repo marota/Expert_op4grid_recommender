@@ -97,6 +97,11 @@ def main() -> int:
     ap.add_argument("--modes", nargs="+", default=["smooth", "aggressive"])
     ap.add_argument("--vl", action="append", default=None,
                     help="Limiter à ce(s) poste(s) (répétable)")
+    ap.add_argument("--min-organes", type=int, default=None,
+                    help="Ne garder que les blocs changeant ≥ N organes")
+    ap.add_argument("--tag", action="append", default=None,
+                    help="Ne garder que les blocs portant ≥ 1 de ces tags "
+                         "(répétable)")
     ap.add_argument("--limit", type=int, default=None,
                     help="Plafond de blocs (essais)")
     ap.add_argument("--output", type=pathlib.Path, default=None,
@@ -113,6 +118,12 @@ def main() -> int:
              for line in blocs_path.read_text().splitlines() if line.strip()]
     if args.vl:
         blocs = [b for b in blocs if b["voltage_level_id"] in set(args.vl)]
+    if args.min_organes:
+        blocs = [b for b in blocs
+                 if (b["meta"].get("nb_organes_changes") or 0) >= args.min_organes]
+    if args.tag:
+        voulus = set(args.tag)
+        blocs = [b for b in blocs if voulus & set(b["meta"].get("tags", []))]
     if args.limit:
         blocs = blocs[: args.limit]
 
