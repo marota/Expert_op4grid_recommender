@@ -125,6 +125,74 @@ def ecrire_dataset(
     return ecrits
 
 
+def generer_combinaisons(
+    catalogue: Iterable,
+    max_par_poste: int = 6,
+    min_organes: int = 2,
+) -> list[dict]:
+    """Scénarios **combinés** depuis le catalogue de topologies (phase 1) :
+    toute paire ordonnée (topologie stable A → topologie stable B, A ≠ B) d'un
+    même poste est un scénario réaliste (les deux états ont réellement été
+    occupés) potentiellement **jamais observé** — et souvent plus « dur »
+    (diff plus grand) que les blocs réels.
+
+    - seules les topologies **stables** sont combinées ;
+    - une paire n'est émise que si les deux états portent **le même ensemble
+      d'organes** (sinon la structure a changé entre les deux : hors périmètre,
+      cf. décision B du plan) ;
+    - paires triées par taille de diff décroissante (les plus dures d'abord),
+      plafonnées à ``max_par_poste`` par poste ; diff < ``min_organes`` ignoré ;
+    - format de sortie : identique aux lignes de ``blocs.jsonl`` (consommable
+      par ``scripts/run_benchmark.py``), avec ``meta.source = "combinaison"``
+      et **sans** séquence observée (référence opérateur indisponible par
+      construction — comparaison à la borne basse seulement).
+
+    ``catalogue`` : itérable de ``TopologieRencontree`` (éventuellement
+    plusieurs journées concaténées — les topologies identiques, même
+    ``topologie_id``, sont dédoublonnées).
+    """
+    par_vl: dict[str, dict[str, object]] = {}
+    for e in catalogue:
+        if not getattr(e, "stable", False):
+            continue
+        par_vl.setdefault(e.voltage_level_id, {}).setdefault(e.topologie_id, e)
+
+    scenarios: list[dict] = []
+    for vl in sorted(par_vl):
+        entrees = list(par_vl[vl].values())
+        paires = []
+        for a in entrees:
+            for b in entrees:
+                if a.topologie_id == b.topologie_id:
+                    continue
+                if set(a.etats) != set(b.etats):
+                    continue        # structure différente entre les deux états
+                diff = sum(1 for k, v in a.etats.items() if b.etats[k] != v)
+                if diff < min_organes:
+                    continue
+                paires.append((diff, a, b))
+        paires.sort(key=lambda t: (-t[0], t[1].topologie_id, t[2].topologie_id))
+        for diff, a, b in paires[:max_par_poste]:
+            scenarios.append({
+                "voltage_level_id": vl,
+                "name": _safe(f"{vl}_{a.topologie_id[:8]}_vers_"
+                              f"{b.topologie_id[:8]}_combinaison"),
+                "depart": dict(a.etats),
+                "cible": dict(b.etats),
+                "meta": {
+                    "source": "combinaison",
+                    "tags": [],
+                    "topologie_depart_id": a.topologie_id,
+                    "topologie_cible_id": b.topologie_id,
+                    "nb_organes_changes": diff,
+                    "nb_manoeuvres_observees": None,
+                    "depart_vue": [a.premiere, a.derniere],
+                    "cible_vue": [b.premiere, b.derniere],
+                },
+            })
+    return scenarios
+
+
 def stats_blocs(blocs: Iterable[BlocTransition]) -> dict:
     """Statistiques agrégées (contenu descriptif du papier) : volumes par tag,
     par poste, et distribution des tailles de transition."""

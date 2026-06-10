@@ -33,6 +33,7 @@ from .timeline import (
     BlocTransition,
     Oscillation,
     TimelinePoste,
+    TopologieRencontree,
     topologie_id,
 )
 from .tagging import taguer_bloc, taguer_blocs
@@ -40,6 +41,7 @@ from .extraction import (
     bloc_to_scenario,
     bloc_to_sequence_observee,
     ecrire_dataset,
+    generer_combinaisons,
     stats_blocs,
 )
 from .structure import (
@@ -51,10 +53,10 @@ from .structure import (
 
 __all__ = [
     "Snapshot", "BlocTransition", "Oscillation", "TimelinePoste",
-    "topologie_id",
+    "TopologieRencontree", "topologie_id",
     "taguer_bloc", "taguer_blocs",
     "bloc_to_scenario", "bloc_to_sequence_observee", "ecrire_dataset",
-    "stats_blocs",
+    "generer_combinaisons", "stats_blocs",
     "couverture_structure", "graph_from_fixture_json",
     "poste_from_fixture_json", "postes_depuis_xiidm",
 ]

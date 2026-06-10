@@ -219,13 +219,18 @@ def main() -> int:
             structures_xiidm = _premier_xiidm(args.input)
 
     # Phase 1 — détection des blocs (les structures ne servent qu'au tagging :
-    # on ne les construit que pour les postes ayant effectivement des blocs).
-    tous_blocs, toutes_osc, noms_blocs = [], [], []
+    # on ne les construit que pour les postes ayant effectivement des blocs)
+    # + catalogue des topologies distinctes (combinables en nouveaux
+    # scénarios départ → cible, cf. scripts/build_combination_scenarios.py).
+    tous_blocs, toutes_osc, noms_blocs, catalogue = [], [], [], []
     for nom, tl in timelines:
         blocs, osc = tl.detecter_blocs(min_stabilite=args.min_stabilite)
         tous_blocs.extend(blocs)
         toutes_osc.extend(osc)
         noms_blocs.extend(nom for _ in blocs)
+        entrees = tl.catalogue(min_stabilite=args.min_stabilite)
+        if sum(e.stable for e in entrees) >= 2:   # poste combinable
+            catalogue.extend(entrees)
     nb_timelines = len(timelines)
     # Les chronologies complètes ne servent plus : les blocs portent leurs
     # bornes et transitoires. Libérer avant la phase structures (mémoire).
@@ -258,16 +263,34 @@ def main() -> int:
         for b in tous_blocs:
             f.write(json.dumps(bloc_to_scenario(
                 b, postes.get(b.voltage_level_id)), ensure_ascii=False) + "\n")
+    with (out / "topologies.jsonl").open("w") as f:
+        for e in catalogue:
+            f.write(json.dumps({
+                "voltage_level_id": e.voltage_level_id,
+                "topologie_id": e.topologie_id,
+                "etats": e.etats,
+                "premiere": e.premiere, "derniere": e.derniere,
+                "nb_snapshots": e.nb_snapshots, "nb_episodes": e.nb_episodes,
+                "stable": e.stable,
+            }, ensure_ascii=False) + "\n")
     ecrire_dataset(tous_blocs, out, postes)
     stats = stats_blocs(tous_blocs)
     stats["oscillations_repliees"] = len(toutes_osc)
+    vls_catalogue = {e.voltage_level_id for e in catalogue}
+    stats["catalogue_topologies"] = {
+        "postes_combinables": len(vls_catalogue),
+        "topologies_distinctes": len(catalogue),
+        "topologies_stables": sum(1 for e in catalogue if e.stable),
+    }
     (out / "stats.json").write_text(json.dumps(stats, indent=2,
                                                ensure_ascii=False))
     print(f"\n→ {stats['nb_blocs']} bloc(s) ({stats['nb_postes']} poste(s)), "
           f"{stats['blocs_avec_sequence_observee']} avec séquence observée, "
           f"{len(toutes_osc)} oscillation(s) repliée(s)")
-    print(f"→ dataset écrit dans {out} (blocs.jsonl, scenarios/, sequences/, "
-          f"stats.json)")
+    print(f"→ catalogue : {len(catalogue)} topologie(s) distincte(s) sur "
+          f"{len(vls_catalogue)} poste(s) combinable(s)")
+    print(f"→ dataset écrit dans {out} (blocs.jsonl, topologies.jsonl, "
+          f"scenarios/, sequences/, stats.json)")
     return 0
 
 

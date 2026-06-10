@@ -228,3 +228,47 @@ class TimelinePoste:
         for s in self.snapshots:
             out[s.topologie_id] = out.get(s.topologie_id, 0) + 1
         return out
+
+    def catalogue(self, min_stabilite: int = 2) -> list["TopologieRencontree"]:
+        """Catalogue **dédoublonné** des topologies détaillées rencontrées
+        (phase 1 du plan) : pour chaque topologie distincte, son état d'organes,
+        ses occurrences (snapshots, épisodes/plateaux, première/dernière vue)
+        et si elle a été **stable** (≥ 1 plateau de ``min_stabilite`` snapshots).
+
+        Les topologies stables d'un poste sont les états réels combinables en
+        nouveaux scénarios « topologie de départ → topologie cible »
+        (transitions jamais observées, potentiellement plus longues que les
+        blocs réels). Trié par nb de snapshots décroissant."""
+        snaps = self.snapshots
+        entrees: dict[str, TopologieRencontree] = {}
+        for r in self._runs():
+            tid = r.tid
+            e = entrees.get(tid)
+            if e is None:
+                e = entrees[tid] = TopologieRencontree(
+                    voltage_level_id=self.voltage_level_id,
+                    topologie_id=tid,
+                    etats=snaps[r.debut].etats,
+                    premiere=snaps[r.debut].timestamp,
+                    derniere=snaps[r.fin].timestamp,
+                )
+            e.nb_snapshots += r.longueur
+            e.nb_episodes += 1
+            e.derniere = snaps[r.fin].timestamp
+            if r.longueur >= min_stabilite:
+                e.stable = True
+        return sorted(entrees.values(), key=lambda e: -e.nb_snapshots)
+
+
+@dataclass
+class TopologieRencontree:
+    """Une topologie détaillée distincte d'un poste, avec ses occurrences
+    (entrée du catalogue de la phase 1)."""
+    voltage_level_id: str
+    topologie_id: str
+    etats: dict[str, bool]
+    premiere: str
+    derniere: str
+    nb_snapshots: int = 0
+    nb_episodes: int = 0
+    stable: bool = False

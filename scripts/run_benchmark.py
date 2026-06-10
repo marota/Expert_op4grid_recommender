@@ -88,6 +88,11 @@ def main() -> int:
     ap.add_argument("--dataset", type=pathlib.Path, required=True,
                     help="Dossier produit par build_rte7000_blocks.py "
                          "(contenant blocs.jsonl)")
+    ap.add_argument("--blocs", type=pathlib.Path, default=None,
+                    help="Fichier de blocs à benchmarker (défaut : "
+                         "<dataset>/blocs.jsonl ; p. ex. un "
+                         "blocs_combinaisons.jsonl de "
+                         "build_combination_scenarios.py)")
     ap.add_argument("--structures-xiidm", type=pathlib.Path, required=True,
                     help="Instantané XIIDM d'où extraire les structures de "
                          "postes (ids cohérents avec les blocs)")
@@ -110,7 +115,7 @@ def main() -> int:
     args = ap.parse_args()
     logging.basicConfig(level=logging.WARNING)
 
-    blocs_path = args.dataset / "blocs.jsonl"
+    blocs_path = args.blocs or (args.dataset / "blocs.jsonl")
     if not blocs_path.exists():
         ap.error(f"{blocs_path} introuvable — lancer build_rte7000_blocks.py "
                  "d'abord")
