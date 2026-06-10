@@ -18,6 +18,7 @@ de couplage.
 | `troncons.py`  | Etapes 1.3-1.4 : `construire_tronconnement()` — barres, troncons, attribution |
 | `topologie.py` | Etapes 1.5-1.6 : `TopologieNodale`, `PosteTopologique`, `attribuer_noeuds()` |
 | `algo/`        | Phase 2 : `determiner_topo_complete_cible()` — package en couches (voir ci-dessous) |
+| `plugins/`     | Couche **pluggable** : contrats des 3 phases (identification nodale→détaillée, séquencement détaillée→manœuvres, planification bout-en-bout), registre + entry points, façade `PlanificateurTopologie` avec vérification indépendante. Doc : `docs/manoeuvre_plugins.md` |
 | `__init__.py`  | API publique                                     |
 
 ### Package `algo/` (Phase 2, eclate depuis l'ancien `algo.py`)
@@ -37,6 +38,22 @@ Sous-modules en couches, **dependances strictement descendantes** (sans cycle) :
 
 Couches : `_constants`/`results` → `graph_ops` → `placement`/`verification` →
 `sequencing` → `targets`.
+
+### Package `plugins/` (algorithmes substituables)
+
+Permet de plugger des algorithmes tiers sur l'une ou toutes les phases :
+**A** identification (nodale → détaillée, contrat
+`IdentificateurTopologieDetaillee`), **B** séquencement (détaillée → manœuvres,
+`SequenceurManoeuvres`), **C** bout-en-bout (`PlanificateurNodal`). Type pivot
+sérialisable `CibleDetaillee` (`switch_id -> ouvert ?`). Les natifs libTOPO
+sont enregistrés sous `"libtopo"` (adaptateurs minces dans `plugins/builtin.py`).
+La façade `PlanificateurTopologie` compose les phases manquantes et applique
+`verifier_sequence` (vérification **indépendante** : partition, écarts
+détaillés, règle du sectionneur, alertes R10ter) à tout résultat, y compris
+tiers. Plugins externes par entry points (groupe
+`expert_op4grid_recommender.manoeuvre`, nom `<phase>.<nom>`). Détails et
+exemples : `docs/manoeuvre_plugins.md` ; tests :
+`tests/manoeuvre/test_plugins_interface.py`.
 
 ## Commandes
 
