@@ -109,7 +109,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--input", type=pathlib.Path,
-                    help="Dossier du dataset téléchargé (parquet/CSV)")
+                    help="Dossier du dataset téléchargé : instantanés XIIDM "
+                         "(*.xiidm.bz2, format réel RTE 7000) ou tabulaire "
+                         "parquet/CSV (format auto-détecté)")
     ap.add_argument("--output", type=pathlib.Path, required=True)
     ap.add_argument("--fixtures", type=pathlib.Path,
                     default=REPO / "tests" / "manoeuvre" / "fixtures",
@@ -119,6 +121,9 @@ def main() -> int:
                     help="Limiter à ce(s) poste(s) (répétable)")
     ap.add_argument("--min-stabilite", type=int, default=2,
                     help="Nb min de snapshots consécutifs d'un état stable")
+    ap.add_argument("--sous-echantillon", type=int, default=None,
+                    help="Ne garder qu'un instantané XIIDM sur N (allègement "
+                         "mémoire/CPU ; perd la résolution fine des séquences)")
     ap.add_argument("--seuil-durable", type=int, default=None,
                     help="Plateau cible ≥ N snapshots → tag "
                          "reconfiguration_durable")
@@ -137,7 +142,9 @@ def main() -> int:
         )
         vl_filter = set(args.vl) if args.vl else None
         timelines = [(tl.voltage_level_id, tl)
-                     for tl in charger_timelines(args.input, vl_filter)]
+                     for tl in charger_timelines(
+                         args.input, vl_filter,
+                         sous_echantillon=args.sous_echantillon)]
 
     vls = {tl.voltage_level_id for _, tl in timelines}
     postes = _charger_postes(args.fixtures, vls)

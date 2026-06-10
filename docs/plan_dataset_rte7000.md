@@ -296,9 +296,13 @@ Le dataset visé est ``OpenSynth/D-GITT-RTE7000-2021`` (Hugging Face). Le
 - `extraction.py` — scénarios (format `tests/manoeuvre/scenarios`) +
   **séquences observées** (format `sequences`, la référence « opérateur » du
   benchmark) + stats ;
-- `dgitt.py` — adaptateur de lecture du dataset (parquet/CSV long,
-  auto-détection de colonnes, erreurs explicites) — **à valider sur le schéma
-  réel à la première exécution** ;
+- `dgitt.py` — adaptateur de lecture du dataset. **Aligné sur le schéma réel
+  (cf. ci-dessous) : lecture des instantanés XIIDM** (`charger_timelines_xiidm`,
+  via pypowsybl `get_switches`), horodatage depuis le nom de fichier,
+  auto-détection du format (`charger_timelines`) ; le chemin tabulaire
+  parquet/CSV est conservé en repli. Testé bout-en-bout **sans réseau**
+  (`tests/manoeuvre/test_dataset_dgitt_xiidm.py`, instantanés XIIDM réels
+  fabriqués depuis un réseau pypowsybl) ;
 - `scripts/build_rte7000_blocks.py` — CLI bout-en-bout, avec un mode
   `--demo` (chronologies reconstruites depuis les 18 séquences réelles du
   dépôt) : 19 blocs détectés sur 11 postes, tags plausibles validés
@@ -308,29 +312,66 @@ Le dataset visé est ``OpenSynth/D-GITT-RTE7000-2021`` (Hugging Face). Le
   reproduction exacte d'une séquence réelle de 20 manœuvres depuis la
   chronologie).
 
-**Blocage d'accès aux données depuis l'environnement d'exécution distant** :
-`huggingface.co` n'est pas dans l'allowlist réseau de l'environnement. Pour
-exécuter sur les vraies données : (a) ajouter `huggingface.co` (+
-`cdn-lfs.huggingface.co`) à la politique réseau de l'environnement Claude
-Code, ou (b) télécharger localement puis fournir les fichiers :
+### Schéma réel constaté (inspecté le 2026-06-10)
+
+Accès à l'**API métadonnées** de Hugging Face vérifié (`huggingface.co`
+désormais dans l'allowlist). Le dataset a été inspecté (arborescence, README,
+listings de dossiers) — **les questions ouvertes 1/2/3 de la phase 0 sont
+tranchées** :
+
+| Question | Réponse constatée |
+|---|---|
+| **Format** (Q1) | **Un fichier XIIDM par instantané**, compressé **bzip2** (`*.xiidm.bz2`, ~1,5 Mo), lisible par pypowsybl. *Pas* de parquet/CSV ni d'observations grid2op. |
+| **Pas / période** (Q2) | **5 minutes** ; arborescence `2021/MM/JJ/recollement-auto-YYYYMMDD-HHMM-enrichi.xiidm.bz2` (+ `.md5` jumeau). Année 2021 publiée (12 mois présents) ; 2022/2023 dans des dépôts jumeaux. ~288 fichiers/jour. |
+| **États SA** (Q3) | **Oui** : topologie *node-breaker* complète, `get_switches()` renvoie BREAKER **et** DISCONNECTOR (DJ + SA). IDs d'organes stables dans le temps (README). |
+
+→ **Décision A tranchée** : niveau détaillé disponible partout (pas de
+reconstruction nodale→détaillée systématique). **Atout n°1 du papier sécurisé**
+(pas de 5 min → séquences réelles capturables). L'adaptateur `dgitt.py` est
+**réécrit en conséquence** (chemin XIIDM par défaut) et testé hors-ligne.
+
+**Blocage résiduel — backend de stockage Xet (action infra requise)** : les
+**octets** des fichiers ne sont *pas* servis par `huggingface.co`/`cdn-lfs`
+mais par le backend **Xet** de HF. La résolution
+`…/resolve/main/<fichier>` renvoie un `302` vers
+`cas-bridge.xethub.hf.co`, **hors allowlist** (`curl` → `403 Host not in
+allowlist`). Le téléchargement échoue donc tant que ces domaines ne sont pas
+ajoutés. **À ajouter à l'allowlist réseau de l'environnement** :
+
+```
+cas-bridge.xethub.hf.co
+cas-server.xethub.hf.co
+transfer.xethub.hf.co
+```
+
+(`HF_HUB_DISABLE_XET=1` ne suffit pas : la *résolution côté serveur* redirige
+vers Xet, le dataset n'étant pas stocké en LFS classique.) Une fois l'accès
+ouvert, télécharger un échantillon ciblé (ne **pas** committer les données
+brutes) puis lancer le pipeline :
 
 ```bash
 hf download OpenSynth/D-GITT-RTE7000-2021 --repo-type dataset \
+    --include "2021/01/03/*.xiidm.bz2" \
     --local-dir data/dgitt_rte7000_2021
 python scripts/build_rte7000_blocks.py --input data/dgitt_rte7000_2021 \
-    --fixtures tests/manoeuvre/fixtures --output out_rte7000
+    --fixtures tests/manoeuvre/fixtures --output out_rte7000 \
+    --vl CARRIP3 --vl MORBRP6 --vl TAVELP7 --vl ROMAIP6 --vl MUHLBP7
 ```
 
 ## Questions ouvertes (à trancher pour démarrer la phase 0)
 
-1. **Format et accès** du dataset RTE 7000 : XIIDM par snapshot ? observations
-   grid2op `.gz` (comme `load_training_data`) ? autre export ? Où est-il
-   stocké et quelle volumétrie ?
-2. **Pas temporel** réel et période couverte (conditionne la capture des
-   séquences réelles — l'atout n°1 du papier).
-3. Les **états des sectionneurs (SA)** sont-ils présents partout, ou seulement
-   les DJ / la topologie nodale ?
+1. ~~**Format et accès** du dataset RTE 7000~~ → **TRANCHÉ** : XIIDM par
+   instantané, bzip2, node-breaker (cf. « Schéma réel constaté »). Accès
+   métadonnées OK ; **reste à ouvrir l'allowlist Xet** pour télécharger les
+   octets (`*.xethub.hf.co`).
+2. ~~**Pas temporel** et période~~ → **TRANCHÉ** : 5 min, 2021 (+ 2022/2023
+   jumeaux). Séquences réelles capturables.
+3. ~~États des **sectionneurs (SA)**~~ → **TRANCHÉ** : présents (DJ + SA,
+   node-breaker complet).
 4. **Publiabilité** : noms réels des postes/organes et horodatages exacts
-   autorisés ? (sinon : pseudonymisation cohérente, prévue au plan).
+   autorisés ? (sinon : pseudonymisation cohérente, prévue au plan). *Le
+   dataset RTE 7000 étant lui-même public sous licence CDLA-permissive-2.0,
+   les ids de postes/organes le sont a priori ; à confirmer pour l'usage
+   benchmark.*
 5. **Venue visée** pour la publication (papier dataset vs papier méthode) —
    cela arbitre l'équilibre phases 3/4 vs 5.

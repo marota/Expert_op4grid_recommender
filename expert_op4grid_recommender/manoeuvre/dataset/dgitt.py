@@ -3,37 +3,239 @@ manoeuvre/dataset/dgitt.py — Adaptateur de lecture du dataset
 ``OpenSynth/D-GITT-RTE7000-2021`` (Hugging Face) vers les chronologies du
 pipeline (``TimelinePoste``).
 
-Téléchargement (hors de ce module — nécessite l'accès réseau à huggingface.co) ::
+Schéma réel du dataset (inspecté le 2026-06-10, cf.
+``docs/plan_dataset_rte7000.md`` § « État d'avancement ») :
+
+- **un fichier = un instantané** complet du réseau français en topologie
+  *node-breaker*, au format **XIIDM** compressé **bzip2**, lisible par
+  pypowsybl ;
+- arborescence ``2021/MM/JJ/recollement-auto-YYYYMMDD-HHMM-enrichi.xiidm.bz2``
+  (+ un ``.md5`` jumeau, ignoré), **pas de temps 5 min** ;
+- les **états d'organes** (DJ *et* SA — ``get_switches`` retourne BREAKER et
+  DISCONNECTOR) sont présents ; les identifiants d'organes sont stables dans le
+  temps (cf. README du dataset).
+
+L'adaptateur lit donc chaque instantané XIIDM, en extrait l'état détaillé
+``{switch_id: ouvert ?}`` **par voltage level** (``get_switches``), horodate
+depuis le nom de fichier, et reconstitue les ``TimelinePoste``. C'est le
+**chemin par défaut** (auto-détecté dès qu'un ``*.xiidm`` est présent).
+
+Un **chemin tabulaire** générique est conservé en repli (format **long** —
+une ligne = un état/changement d'organe : ``(horodatage, poste, organe,
+ouvert ?)`` — avec auto-détection des colonnes ``_ALIASES``), au cas où une
+ré-exportation parquet/CSV du dataset serait fournie.
+
+Téléchargement du dataset (hors de ce module — nécessite l'accès réseau à
+``huggingface.co`` **et** au backend de stockage **Xet**
+``*.xethub.hf.co``) ::
 
     pip install -U huggingface_hub
     hf download OpenSynth/D-GITT-RTE7000-2021 --repo-type dataset \
+        --include "2021/01/03/*.xiidm.bz2" \
         --local-dir data/dgitt_rte7000_2021
 
-Puis ::
+puis ::
 
     python scripts/build_rte7000_blocks.py --input data/dgitt_rte7000_2021 ...
 
-**Écrit défensivement** : le schéma exact du dataset n'ayant pas pu être
-inspecté depuis cet environnement (huggingface.co hors allowlist réseau),
-l'adaptateur normalise un format **long** générique — une ligne = un état (ou
-changement d'état) d'organe :
-
-    (horodatage, poste/voltage level, organe, état ouvert ?)
-
-avec auto-détection des noms de colonnes usuels et conversion des valeurs
-(bool, 0/1, OPEN/CLOSED…). À la première exécution sur les vraies données :
-si l'auto-détection échoue, l'erreur liste les colonnes trouvées — compléter
-alors les alias ci-dessous (`_ALIASES`) ou passer un ``mapping`` explicite.
+**Ne pas committer les données brutes** dans le dépôt.
 """
 from __future__ import annotations
 
+import bz2
+import gzip
 import logging
+import os
+import re
+import tempfile
+from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Optional
 
 from .timeline import Snapshot, TimelinePoste
 
 logger = logging.getLogger(__name__)
+
+
+# ===========================================================================
+# Chemin XIIDM (format réel du dataset RTE 7000) — chemin par défaut
+# ===========================================================================
+
+#: horodatage RTE dans les noms de fichiers : ``…-YYYYMMDD-HHMM-…``
+_MOTIF_HORODATAGE = re.compile(r"(\d{8})[-_]?(\d{4})(?:\D|$)")
+
+
+def horodatage_depuis_nom(
+    nom: str, motif: re.Pattern = _MOTIF_HORODATAGE,
+) -> str:
+    """Horodatage ISO 8601 (``YYYY-MM-DDTHH:MM``) extrait du nom de fichier.
+
+    L'ordre lexicographique de la chaîne retournée est l'ordre temporel.
+    Lève ``ValueError`` si aucun motif date+heure n'est reconnu (ou si la
+    date/heure est invalide)."""
+    m = motif.search(nom)
+    if not m:
+        raise ValueError(
+            f"Nom de fichier non horodaté : {nom!r} "
+            f"(motif attendu : …YYYYMMDD-HHMM…). Passez un autre `motif` si "
+            "le nommage diffère.")
+    try:
+        dt = datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M")
+    except ValueError as exc:
+        raise ValueError(
+            f"Date/heure invalide dans {nom!r} : {exc}") from exc
+    return dt.strftime("%Y-%m-%dT%H:%M")
+
+
+def _est_xiidm(p: Path) -> bool:
+    """Le fichier est-il un instantané XIIDM/IIDM (compressé ou non) ?
+    Les fichiers de somme de contrôle ``.md5`` jumeaux sont exclus."""
+    n = p.name.lower()
+    if n.endswith(".md5"):
+        return False
+    return ".xiidm" in n or ".iidm" in n
+
+
+def _a_des_xiidm(input_dir: Path) -> bool:
+    """Y a-t-il au moins un instantané XIIDM sous ``input_dir`` ? (court-circuit
+    au premier trouvé — peu coûteux même sur de très gros dossiers)."""
+    for p in Path(input_dir).rglob("*"):
+        if p.is_file() and _est_xiidm(p):
+            return True
+    return False
+
+
+def _fichiers_xiidm(input_dir: Path) -> list[Path]:
+    """Tous les instantanés XIIDM sous ``input_dir`` (récursif, ``.md5`` exclus)."""
+    return [p for p in Path(input_dir).rglob("*")
+            if p.is_file() and _est_xiidm(p)]
+
+
+def _octets_decompresses(path: Path) -> bytes:
+    """Contenu décompressé d'un instantané (bzip2/gzip/non compressé)."""
+    n = path.name.lower()
+    if n.endswith(".bz2"):
+        with bz2.open(path, "rb") as fh:
+            return fh.read()
+    if n.endswith(".gz"):
+        with gzip.open(path, "rb") as fh:
+            return fh.read()
+    return path.read_bytes()
+
+
+def _charger_reseau(path: Path):
+    """Charge un instantané XIIDM avec pypowsybl (décompression transparente).
+
+    pypowsybl déduit le format de l'extension : pour un fichier compressé, on
+    décompresse vers un ``.xiidm`` temporaire (bzip2 n'est pas géré nativement),
+    chargé puis supprimé."""
+    import pypowsybl as pp   # paresseux : seul le chemin XIIDM dépend de pypowsybl
+
+    n = path.name.lower()
+    if not (n.endswith(".bz2") or n.endswith(".gz")):
+        return pp.network.load(str(path))
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".xiidm", delete=False)
+    try:
+        tmp.write(_octets_decompresses(path))
+        tmp.close()
+        return pp.network.load(tmp.name)
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+
+def _etats_switches_par_vl(
+    net, vl_filter: Optional[set[str]] = None,
+) -> dict[str, dict[str, bool]]:
+    """État détaillé ``{switch_id: ouvert ?}`` par voltage level d'un réseau.
+
+    Utilise ``get_switches(all_attributes=True)`` (colonnes ``voltage_level_id``
+    et ``open``, index = id d'organe). ``vl_filter`` restreint aux postes voulus."""
+    sw = net.get_switches(all_attributes=True)
+    for col in ("voltage_level_id", "open"):
+        if col not in sw.columns:
+            raise ValueError(
+                f"Colonne '{col}' absente de get_switches() — version de "
+                f"pypowsybl ? Colonnes : {sorted(map(str, sw.columns))}")
+    if vl_filter:
+        sw = sw[sw["voltage_level_id"].isin(vl_filter)]
+    out: dict[str, dict[str, bool]] = {}
+    for vl, grp in sw.groupby("voltage_level_id", sort=False):
+        out[str(vl)] = {str(sid): bool(o)
+                        for sid, o in zip(grp.index, grp["open"])}
+    return out
+
+
+def charger_timelines_xiidm(
+    input_dir: Path,
+    vl_filter: Optional[set[str]] = None,
+    sous_echantillon: Optional[int] = None,
+    motif_horodatage: re.Pattern = _MOTIF_HORODATAGE,
+    sur_erreur: str = "lever",
+) -> Iterator[TimelinePoste]:
+    """Itère les ``TimelinePoste`` reconstruites depuis des instantanés XIIDM.
+
+    Chaque instantané (un fichier ``*.xiidm[.bz2/.gz]``) est chargé via
+    pypowsybl ; ses organes sont extraits **par poste** et horodatés depuis le
+    nom de fichier. Les snapshots d'un même poste sont assemblés en chronologie.
+
+    Paramètres
+    ----------
+    vl_filter:
+        restreint aux voltage levels donnés (recommandé : charger 7000 postes
+        sur de longues périodes est coûteux en mémoire — cf. plan, stockage
+        parquet incrémental hors de ce module).
+    sous_echantillon:
+        ne garder qu'un instantané sur ``N`` (allègement ; perd la résolution
+        fine des séquences observées).
+    sur_erreur:
+        ``"lever"`` (défaut) propage toute erreur d'horodatage/lecture ;
+        ``"ignorer"`` saute l'instantané fautif (en le journalisant).
+    """
+    fichiers = _fichiers_xiidm(input_dir)
+    if not fichiers:
+        raise FileNotFoundError(
+            f"Aucun instantané XIIDM (*.xiidm[.bz2/.gz]) sous {input_dir} — "
+            "le dataset est-il téléchargé ? (cf. docstring du module).")
+
+    horodates: list[tuple[str, Path]] = []
+    for f in fichiers:
+        try:
+            horodates.append((horodatage_depuis_nom(f.name, motif_horodatage), f))
+        except ValueError:
+            if sur_erreur != "ignorer":
+                raise
+            logger.warning("Nom non horodaté, ignoré : %s", f)
+    horodates.sort(key=lambda t: t[0])
+    if sous_echantillon and sous_echantillon > 1:
+        horodates = horodates[::sous_echantillon]
+
+    par_vl: dict[str, list[Snapshot]] = defaultdict(list)
+    for i, (ts, f) in enumerate(horodates):
+        try:
+            net = _charger_reseau(f)
+            etats = _etats_switches_par_vl(net, vl_filter)
+        except Exception as exc:                      # noqa: BLE001
+            if sur_erreur != "ignorer":
+                raise
+            logger.warning("Instantané illisible, ignoré (%s) : %s", exc, f)
+            continue
+        for vl, e in etats.items():
+            par_vl[vl].append(Snapshot(timestamp=ts, etats=e))
+        if (i + 1) % 100 == 0:
+            logger.info("… %d/%d instantanés lus", i + 1, len(horodates))
+
+    for vl in sorted(par_vl):
+        yield TimelinePoste(vl, par_vl[vl])
+
+
+# ===========================================================================
+# Chemin tabulaire générique (repli — parquet/CSV format long)
+# ===========================================================================
 
 #: alias de colonnes reconnus (insensibles à la casse), par champ normalisé
 _ALIASES: dict[str, tuple[str, ...]] = {
@@ -95,12 +297,12 @@ def _fichiers_tabulaires(input_dir: Path) -> list[Path]:
                                       or "".join(p.suffixes[-2:]) in exts))
 
 
-def charger_timelines(
+def charger_timelines_tabulaire(
     input_dir: Path,
     vl_filter: Optional[set[str]] = None,
     mapping: Optional[dict] = None,
 ) -> Iterator[TimelinePoste]:
-    """Itère les ``TimelinePoste`` des postes du dataset (un par VL).
+    """Itère les ``TimelinePoste`` depuis des fichiers parquet/CSV format long.
 
     Lit tous les fichiers parquet/CSV de ``input_dir`` (récursif), concatène,
     trie par horodatage et reconstruit, par poste, les snapshots successifs en
@@ -144,3 +346,33 @@ def charger_timelines(
             snapshots.append(Snapshot(timestamp=str(ts), etats=etat))
         if snapshots:
             yield TimelinePoste(vl, snapshots)
+
+
+# ===========================================================================
+# Point d'entrée — auto-détection du format
+# ===========================================================================
+
+def charger_timelines(
+    input_dir: Path,
+    vl_filter: Optional[set[str]] = None,
+    mapping: Optional[dict] = None,
+    sous_echantillon: Optional[int] = None,
+) -> Iterator[TimelinePoste]:
+    """Itère les ``TimelinePoste`` du dataset, **format auto-détecté**.
+
+    - si des instantanés XIIDM sont présents (format réel du dataset RTE 7000)
+      → ``charger_timelines_xiidm`` ;
+    - sinon, repli sur le format tabulaire parquet/CSV
+      → ``charger_timelines_tabulaire``.
+    """
+    input_dir = Path(input_dir)
+    if _a_des_xiidm(input_dir):
+        yield from charger_timelines_xiidm(
+            input_dir, vl_filter, sous_echantillon=sous_echantillon)
+    elif _fichiers_tabulaires(input_dir):
+        yield from charger_timelines_tabulaire(input_dir, vl_filter, mapping)
+    else:
+        raise FileNotFoundError(
+            f"Aucun instantané reconnu sous {input_dir} : ni XIIDM "
+            "(*.xiidm[.bz2/.gz]) ni tabulaire (*.parquet/*.csv). Le dataset "
+            "est-il téléchargé ? (cf. docstring de manoeuvre/dataset/dgitt.py)")
