@@ -60,6 +60,23 @@ versionnée : elle se reconstruit à l'identique avec les commandes ci-dessus.
 | libtopo smooth | 31/31 | 30/31 | ×1,17 | **×1,10** |
 | libtopo aggressive | 31/31 | 31/31 | ×1,11 | **×1,06** |
 
+## Benchmark élargi (2 842 blocs ≥ 2 organes)
+
+`benchmark_min2organes.resume.json` (résumé + les 66 blocs « non triviaux » ;
+le JSON complet, 2,3 Mo, se régénère avec `--min-organes 2`) :
+
+| Algo | Partition atteinte | Détaillée exacte | Manœuvres / borne basse | Manœuvres / **opérateur** |
+|---|---|---|---|---|
+| libtopo smooth | **2 842/2 842** | 2 841/2 842 | ×1,00 | ×0,99 |
+| libtopo aggressive | **2 842/2 842** | **2 842/2 842** | ×1,00 | ×0,99 |
+
+0 erreur d'exécution ; **2 777/2 842 blocs résolus avec exactement le nombre
+de manœuvres de l'opérateur** (médiane ×1,00). Le seul bloc où l'algorithme
+fait plus que l'opérateur est `KERHEP3 09:10` (9 vs 3, cf. ci-dessous) ; sur
+une soixantaine de blocs, l'algorithme trouve une séquence **plus courte**
+que celle observée (étapes opérateur supplémentaires réelles, ou artefacts
+de la fenêtre de 5 min).
+
 Cas remarquables (dans l'échantillon) :
 
 - `CONCAP3 … reaiguillage_departs` : ré-aiguillage de **16 organes** —

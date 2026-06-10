@@ -1,0 +1,2080 @@
+{
+  "source": "benchmark_min2organes.json (2 842 blocs ≥ 2 organes — régénérable, cf. README)",
+  "algo": "libtopo",
+  "modes": [
+    "smooth",
+    "aggressive"
+  ],
+  "nb_blocs_dataset": 2842,
+  "blocs_sans_structure": 0,
+  "resume": {
+    "libtopo/smooth": {
+      "blocs_executes": 2842,
+      "erreurs": 0,
+      "partition_atteinte (is_verified)": 2842,
+      "detaillee_exacte (is_verified_detaillee)": 2841,
+      "manoeuvres/borne_basse (moy. sur vérifiés)": 1.0,
+      "manoeuvres/observees (moy. sur vérifiés)": 0.99
+    },
+    "libtopo/aggressive": {
+      "blocs_executes": 2842,
+      "erreurs": 0,
+      "partition_atteinte (is_verified)": 2842,
+      "detaillee_exacte (is_verified_detaillee)": 2842,
+      "manoeuvres/borne_basse (moy. sur vérifiés)": 1.0,
+      "manoeuvres/observees (moy. sur vérifiés)": 0.99
+    }
+  },
+  "blocs_non_triviaux (≠ opérateur ou non exacte)": [
+    {
+      "bloc": "AMIENP6_2021-01-03T09_15_remise_en_service",
+      "voltage_level_id": "AMIENP6",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "AMIENP6_2021-01-03T17_00_consignation_ouvrage",
+      "voltage_level_id": "AMIENP6",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "ANGERP4_2021-01-03T18_15_consignation_ouvrage",
+      "voltage_level_id": "ANGERP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 7,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "ANSERP6_2021-01-03T09_10_remise_en_service",
+      "voltage_level_id": "ANSERP6",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "AUBERP4_2021-01-03T09_20_remise_en_service",
+      "voltage_level_id": "AUBERP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "AUTUNP3_2021-01-03T17_00_consignation_ouvrage",
+      "voltage_level_id": "AUTUNP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.151
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BXCOUP4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "BXCOUP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "C.BOIP3_2021-01-03T17_05_consignation_ouvrage",
+      "voltage_level_id": "C.BOIP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "COGNAP4_2021-01-03T08_10_remise_en_service",
+      "voltage_level_id": "COGNAP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "COLO5P3_2021-01-03T08_20_remise_en_service",
+      "voltage_level_id": "COLO5P3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "CXMONP4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "CXMONP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "DIGOIP3_2021-01-03T08_10_remise_en_service",
+      "voltage_level_id": "DIGOIP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "E.BOTP6_2021-01-03T08_20_remise_en_service",
+      "voltage_level_id": "E.BOTP6",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.011
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "EGLANP3_2021-01-03T08_10_remise_en_service",
+      "voltage_level_id": "EGLANP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 5,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "EGLANP3_2021-01-03T17_10_consignation_ouvrage",
+      "voltage_level_id": "EGLANP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "FLECHP4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "FLECHP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "FONCLP3_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "FONCLP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "G.NOBP3_2021-01-03T08_10_remise_en_service",
+      "voltage_level_id": "G.NOBP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "G.NOBP3_2021-01-03T18_05_consignation_ouvrage",
+      "voltage_level_id": "G.NOBP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "GOUR5P3_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "GOUR5P3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 7,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "HENINP4_2021-01-03T09_15_remise_en_service",
+      "voltage_level_id": "HENINP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 5,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "HENINP4_2021-01-03T17_30_consignation_ouvrage",
+      "voltage_level_id": "HENINP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 8,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "HOSPIP6_2021-01-03T18_45_remise_en_service",
+      "voltage_level_id": "HOSPIP6",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "I.TETP3_2021-01-03T08_10_remise_en_service",
+      "voltage_level_id": "I.TETP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "I.TETP3_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "I.TETP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "J.BRUP3_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "J.BRUP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 5,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "J.CLAP4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "J.CLAP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "JUINEP4_2021-01-03T15_20_scission_noeud",
+      "voltage_level_id": "JUINEP4",
+      "tags": [
+        "scission_noeud",
+        "sectionnement_barre",
+        "reaiguillage_departs"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 7,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        }
+      }
+    },
+    {
+      "bloc": "KERHEP3_2021-01-03T09_10_remise_en_service",
+      "voltage_level_id": "KERHEP3",
+      "tags": [
+        "remise_en_service",
+        "scission_noeud",
+        "sectionnement_barre"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 3,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "LAVANP3_2021-01-03T08_20_remise_en_service",
+      "voltage_level_id": "LAVANP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "LINXEP3_2021-01-03T08_30_remise_en_service",
+      "voltage_level_id": "LINXEP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "LONG8P4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "LONG8P4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MALL6P3_2021-01-03T17_10_consignation_ouvrage",
+      "voltage_level_id": "MALL6P3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MAYENP4_2021-01-03T09_15_remise_en_service",
+      "voltage_level_id": "MAYENP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MAYENP4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "MAYENP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "MEDE_P3_2021-01-03T08_15_remise_en_service",
+      "voltage_level_id": "MEDE P3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 8,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "MEDE_P3_2021-01-03T17_00_consignation_ouvrage",
+      "voltage_level_id": "MEDE P3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "MTAGNP3_2021-01-03T08_15_remise_en_service",
+      "voltage_level_id": "MTAGNP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "P.SEPP4_2021-01-03T09_10_remise_en_service",
+      "voltage_level_id": "P.SEPP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "P.SEPP4_2021-01-03T17_00_consignation_ouvrage",
+      "voltage_level_id": "P.SEPP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "PARENP3_2021-01-03T08_20_remise_en_service",
+      "voltage_level_id": "PARENP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "PARENP3_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "PARENP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "PERCYP4_2021-01-03T09_20_remise_en_service",
+      "voltage_level_id": "PERCYP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "RABIOP4_2021-01-03T08_35_remise_en_service",
+      "voltage_level_id": "RABIOP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 8,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "REVI5P7_2021-01-03T00_40_remise_en_service",
+      "voltage_level_id": "REVI5P7",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 5,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "REVI5P7_2021-01-03T13_40_remise_en_service",
+      "voltage_level_id": "REVI5P7",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "ROSERP4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "ROSERP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "RUFFEP3_2021-01-03T08_15_remise_en_service",
+      "voltage_level_id": "RUFFEP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 7,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "S.BISP7_2021-01-03T13_10_remise_en_service",
+      "voltage_level_id": "S.BISP7",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "SUZE_P4_2021-01-03T09_15_remise_en_service",
+      "voltage_level_id": "SUZE P4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "SUZE_P4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "SUZE P4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "T.VICP3_2021-01-03T08_15_remise_en_service",
+      "voltage_level_id": "T.VICP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.01
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "T.VICP3_2021-01-03T17_15_consignation_ouvrage",
+      "voltage_level_id": "T.VICP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "TAUTAP3_2021-01-03T08_15_remise_en_service",
+      "voltage_level_id": "TAUTAP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "TAUTAP3_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "TAUTAP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "TOURSP4_2021-01-03T08_10_remise_en_service",
+      "voltage_level_id": "TOURSP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 7,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "TOURSP4_2021-01-03T18_00_consignation_ouvrage",
+      "voltage_level_id": "TOURSP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "VALDAP3_2021-01-03T08_20_remise_en_service",
+      "voltage_level_id": "VALDAP3",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "VALDAP3_2021-01-03T17_10_consignation_ouvrage",
+      "voltage_level_id": "VALDAP3",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 5,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "VAUJAP1_2021-01-03T01_20_remise_en_service",
+      "voltage_level_id": "VAUJAP1",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 9,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.016
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "VAUJAP1_2021-01-03T02_25_remise_en_service",
+      "voltage_level_id": "VAUJAP1",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": 9,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.015
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "VAUJAP1_2021-01-03T15_30_remise_en_service",
+      "voltage_level_id": "VAUJAP1",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.016
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "VIRE_P4_2021-01-03T09_15_remise_en_service",
+      "voltage_level_id": "VIRE P4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 4,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "VIRE_P4_2021-01-03T17_10_consignation_ouvrage",
+      "voltage_level_id": "VIRE P4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "WARHEP4_2021-01-03T09_20_remise_en_service",
+      "voltage_level_id": "WARHEP4",
+      "tags": [
+        "remise_en_service"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "WARHEP4_2021-01-03T17_05_consignation_ouvrage",
+      "voltage_level_id": "WARHEP4",
+      "tags": [
+        "consignation_ouvrage"
+      ],
+      "borne_basse": 2,
+      "nb_manoeuvres_observees": 6,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    }
+  ]
+}
