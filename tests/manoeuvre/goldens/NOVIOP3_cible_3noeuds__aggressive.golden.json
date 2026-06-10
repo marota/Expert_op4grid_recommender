@@ -1,33 +1,31 @@
 {
-  "ecarts": [
-    "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC : sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur"
-  ],
+  "ecarts": [],
   "is_verified": true,
-  "is_verified_detaillee": false,
+  "is_verified_detaillee": true,
   "manoeuvres": [
     [
       "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
       "OPEN",
-      null
-    ],
-    [
-      "NOVIOP3_NOVIO3COUPL.A DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "NOVIOP3_NOVIO3ASNIE.1 SA.2_OC",
-      "CLOSE",
-      null
+      "LONGUE"
     ],
     [
       "NOVIOP3_NOVIO3ASNIE.1 SA.1_OC",
       "OPEN",
-      null
+      "LONGUE"
+    ],
+    [
+      "NOVIOP3_NOVIO3ASNIE.1 SA.2_OC",
+      "CLOSE",
+      "LONGUE"
     ],
     [
       "NOVIOP3_NOVIO3ASNIE.1 DJ_OC",
       "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "NOVIOP3_NOVIO3COUPL.A DJ_OC",
+      "OPEN",
       null
     ]
   ],

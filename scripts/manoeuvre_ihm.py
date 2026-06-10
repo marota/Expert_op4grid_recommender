@@ -20,7 +20,11 @@ Fonctionnalités
    (départ + cible détaillés + partitions nodales). La validation est requise
    avant de pouvoir calculer la séquence.
 5. Demander la **séquence de manœuvres** (module ``manoeuvre``) pour passer de
-   la topologie de départ à la cible.
+   la topologie de départ à la cible. Les calculs passent par la **façade
+   pluggable** (``manoeuvre.plugins.PlanificateurTopologie``, vérification
+   indépendante) : l'**algorithme de chaque phase** (identification nodale →
+   détaillée, séquencement) se choisit dans l'IHM parmi ceux du registre —
+   natifs « libtopo » et plugins tiers (``GET/POST /api/algos``).
 6. Afficher la séquence **textuellement** et l'**animer** sur le schéma cible,
    manœuvre par manœuvre, l'organe manipulé étant mis en évidence.
 6bis. **Sauvegarder la séquence générée** (``--sequences-dir``, défaut
@@ -76,9 +80,12 @@ from expert_op4grid_recommender.manoeuvre.topologie import (
 )
 from expert_op4grid_recommender.manoeuvre.algo import (
     Manoeuvre,
-    determiner_topo_complete_cible,
-    determiner_manoeuvres_cible_detaillee,
     sectionneurs_sous_charge_par_manoeuvre,
+)
+from expert_op4grid_recommender.manoeuvre.plugins import (
+    CibleDetaillee,
+    PlanificateurTopologie,
+    disponibles as algos_disponibles,
 )
 
 # Postes de test retenus (intersectés avec les VL réellement présents)
@@ -86,6 +93,42 @@ POSTES_TEST = [
     "CARRIP3", "CARRIP6", "CZTRYP6", "COMPIP3", "BXTO5P3", "BXTO5P6",
     "CZBEVP3", "PALUNP3", "NOVIOP3", "SSAVOP3", "VIELMP6",
     "CORNIP3", "GUARBP6", "MORBRP6",
+    # Postes 400 kV à **3 jeux de barres** identifiés (réseau France 28/08/2024),
+    # gérés par le placement N-barres + le réalisateur connectivité-based.
+    "SSV.OP7", "TAVELP7", "TRI.PP7", "ARGOEP7", "CHESNP7", "COR.PP7", "CERGYP7",
+]
+
+# ── Catalogue par TYPOLOGIE de poste ────────────────────────────────────────
+# Sections d'exploration : chaque poste (identifié par son VL réel dans le réseau
+# France 28/08/2024) est rangé sous une ou plusieurs typologies, pour « s'y
+# retrouver » parmi les milliers de VL. Tous ces postes disposent d'une **fixture
+# de test** correspondante (``tests/manoeuvre/fixtures``). L'IHM affiche ces
+# sections dans le sélecteur et marque **disponible** chaque poste dont le VL est
+# présent dans la situation réseau chargée (rendu SLD = pypowsybl, donc requiert
+# le bon réseau ; lancer l'IHM sur ``grid.xiidm`` France les rend tous accessibles).
+# Un même poste peut figurer dans plusieurs sections (navigation par typologie).
+POSTES_CATALOG: list[tuple[str, list[str]]] = [
+    ("3 jeux de barres — 400 kV",
+     ["SSV.OP7", "TAVELP7", "TRI.PP7", "ARGOEP7", "CHESNP7", "COR.PP7", "CERGYP7"]),
+    ("≥ 5 jeux de barres",
+     [".OBER 7", ".VANY 7", ".ZAND 7", "MUHLBP7"]),
+    ("4 jeux de barres",
+     [".LAUF 7", "CPNIEP6", "GUARBP6", "MORBRP6"]),
+    ("Sectionnement extrême (SJB ≫ barres)",
+     [".LAUF 7", "REICHP3", ".ZAND 7", "CARRIP6"]),
+    ("Faisceau de couplage partagé",
+     [".OBER 7", ".ZAND 7", "MUHLBP7", "P.GASP6"]),
+    ("Organes internes 2 bornes (self / réactance)",
+     ["CPNIEP6", ".ZAND 7"]),
+    ("Omnibus / départs multiples",
+     ["ROMAIP6", "CORNIP3", "GUARBP6", "RAN.PP6", "REICHP3"]),
+    ("Départs déconnectés (nœuds 0-barre)",
+     [".MUHL 6"]),
+    ("Gros postes (beaucoup de départs)",
+     ["P.GASP6", ".OBER 7", "REICHP3"]),
+    ("Postes standards / multi-sections",
+     ["CARRIP3", "CARRIP6", "CZTRYP6", "COMPIP3", "BXTO5P3", "BXTO5P6",
+      "CZBEVP3", "PALUNP3", "NOVIOP3", "SSAVOP3", "VIELMP6"]),
 ]
 
 SLD_PAR = ppn.SldParameters(topological_coloring=True)
@@ -245,7 +288,19 @@ class Session:
     def __init__(self, network):
         self.net = network
         self.vls = set(network.get_voltage_levels().index)
+        # Postes « épinglés » (jeu de test + 3 JdB identifiés) présents dans le réseau.
         self.postes = [p for p in POSTES_TEST if p in self.vls]
+        # **Tous** les postes inspectables = voltage levels en topologie
+        # NODE_BREAKER (ceux qui possèdent des sections de jeux de barres). Permet
+        # d'inspecter / tester n'importe quel poste de la situation chargée, pas
+        # seulement la liste épinglée. Trié, postes épinglés en tête.
+        try:
+            bbs = network.get_busbar_sections(all_attributes=True)
+            nb_vls = set(bbs["voltage_level_id"]) if "voltage_level_id" in bbs else set()
+        except Exception:
+            nb_vls = set()
+        autres = sorted(nb_vls - set(self.postes))
+        self.all_postes = self.postes + autres
         # État pristine des organes (référence stable pour « état de départ »,
         # indépendant des modifications appliquées en cours de session).
         df = network.get_switches(all_attributes=True)
@@ -261,6 +316,17 @@ class Session:
         self.seq_labels: list[str] = []
         self.seq_edited: bool = False
         self.seq_mode: str = "smooth"
+        # Algorithme sélectionné pour chaque phase pluggable (cf.
+        # ``manoeuvre.plugins`` et docs/manoeuvre_plugins.md) :
+        # - "identificateur" : nodale -> détaillée (« calculer la topologie
+        #   détaillée d'intérêt ») ;
+        # - "sequenceur"     : détaillée -> séquence de manœuvres ;
+        # - "planificateur"  : bout-en-bout (repli de composition de la façade).
+        # Les plugins tiers enregistrés (registre / entry points) apparaissent
+        # automatiquement dans ``algos_disponibles()`` et l'IHM.
+        self.algos: dict[str, str] = {p: "libtopo" for p in
+                                      ("identificateur", "sequenceur",
+                                       "planificateur")}
         # Caches mémoïsés par état détaillé (cf. _graph / _topo / _flows).
         # Le graphe NX, la topologie nodale et le résultat de load flow d'un VL
         # ne dépendent que du VL et de l'état des organes — purs vis-à-vis de
@@ -268,6 +334,38 @@ class Session:
         self._graph_cache: dict = {}
         self._topo_cache: dict = {}
         self._flow_cache: dict = {}
+
+    # --- algorithmes pluggables (sélection par phase) -----------------------
+    def set_algos(self, choix: dict[str, str]) -> dict[str, str]:
+        """Met à jour la sélection d'algorithme par phase. Les phases inconnues
+        et les noms absents du registre sont ignorés (la sélection courante est
+        retournée, le front se resynchronise dessus)."""
+        dispo = algos_disponibles()
+        for phase, nom in (choix or {}).items():
+            if phase in self.algos and nom in dispo.get(phase, []):
+                self.algos[phase] = nom
+        return self.algos
+
+    def _pipe(self) -> PlanificateurTopologie:
+        """Façade d'orchestration configurée avec les algorithmes sélectionnés
+        (vérification indépendante active : les verdicts affichés par l'IHM ne
+        dépendent pas des déclarations de l'algorithme branché)."""
+        return PlanificateurTopologie(
+            identificateur=self.algos["identificateur"],
+            sequenceur=self.algos["sequenceur"],
+            planificateur=self.algos["planificateur"],
+        )
+
+    def catalog(self) -> list[dict]:
+        """Catalogue par **typologie** : sections de postes (cf. ``POSTES_CATALOG``)
+        avec, pour chaque poste, sa **disponibilité** dans la situation chargée
+        (``available`` = le VL existe → sélectionnable et rendu SLD possible)."""
+        out = []
+        for title, vls in POSTES_CATALOG:
+            postes = [{"vl": v, "available": v in self.vls} for v in vls]
+            n_dispo = sum(1 for p in postes if p["available"])
+            out.append({"title": title, "postes": postes, "n_available": n_dispo})
+        return out
 
     # --- gestion d'état ---------------------------------------------------
     def switches_df(self, vl):
@@ -407,7 +505,7 @@ class Session:
         ``reached`` indique si l'état affiché **est déjà la topologie cible**
         (même partition nodale) — pour mettre en évidence la vue du poste."""
         if not self.seq_states:
-            return "", [], 0, 0, False
+            return "", [], 0, 0, False, None
         i = max(0, min(i, len(self.seq_states) - 1))
         state = self.seq_states[i]
         with self.applied(state):
@@ -417,7 +515,11 @@ class Session:
             nb = self._topo(state).nb_noeuds
         # ``applied`` a restauré le réseau sur ``self.current``.
         reached = self._topo(self.current).meme_topologie(self._topo(state))
-        return _highlight(svg.svg, self.seq_highlights[i]), switches, nb, i, reached
+        # Vue nodale de l'**état détaillé de l'étape** : permet à l'IHM de faire
+        # « suivre » la topologie nodale (partition) au fil de l'animation.
+        nodale = self.nodale_state(state)
+        return (_highlight(svg.svg, self.seq_highlights[i]),
+                switches, nb, i, reached, nodale)
 
     # --- séquence éditable (navigation + édition par l'expert) ------------
     def _rebuild_seq(self):
@@ -685,6 +787,9 @@ class Session:
         ``isolated`` liste les départs à **laisser déconnectés** (hors partition
         cible : non placés sur un nœud ; ils conservent leur état de départ).
 
+        Phase **A** de la couche pluggable (``identifier_topologie_detaillee``
+        de la façade), avec l'algorithme sélectionné (``self.algos``).
+
         Renvoie la vue détaillée mise à jour + un statut de réalisabilité
         (dégradation gracieuse de l'algorithme remontée à l'IHM)."""
         # Poste à l'état de départ.
@@ -698,23 +803,29 @@ class Session:
             univers, [[e for e in g if e not in iso] for g in (groups or [])])
         topo_cible = TopologieNodale.from_node_groups(self.vl, groups)
 
-        res = determiner_topo_complete_cible(poste, topo_cible)
+        ident = self._pipe().identifier_topologie_detaillee(poste, topo_cible)
 
-        # État détaillé final = rejeu des manœuvres depuis l'état de départ.
-        manos = [{"switch_id": m.switch_id, "action": m.action}
-                 for m in res.manoeuvres]
-        self.current = _replay_states(self.initial, manos)[-1]
+        # Cible détaillée identifiée -> nouvel état cible courant (les organes
+        # non mentionnés par la cible gardent leur état de départ).
+        if ident.cible is not None:
+            etats = ident.cible.etats_organes
+            self.current = {k: bool(etats.get(k, v))
+                            for k, v in self.initial.items()}
+        else:
+            self.current = dict(self.initial)
         self.scenario_name = None   # cible à revalider avant calcul de séquence
 
         svg, switches, nb = self.view(self.current)
+        seq = ident.sequence   # sous-produit éventuel (écarts détaillés)
         return {
             "svg": svg, "switches": switches, "nb_noeuds": nb,
-            "is_verified": res.is_verified,
-            "message": res.message,
-            "ecarts": res.ecarts,
-            "noeuds_non_realisables": res.noeuds_non_realisables,
-            "nb_obtenu": res.topo_obtenue.nb_noeuds if res.topo_obtenue else nb,
+            "is_verified": ident.is_realisable,
+            "message": ident.message,
+            "ecarts": seq.ecarts if seq is not None else [],
+            "noeuds_non_realisables": ident.noeuds_non_realisables,
+            "nb_obtenu": nb,
             "nb_vise": topo_cible.nb_noeuds,
+            "algo": self.algos["identificateur"],
             # Vue nodale **réalisée** (partition + couleurs + isolés) pour
             # resynchroniser le volet nodal cible avec le détail obtenu.
             "nodale": self.nodale_state(self.current),
@@ -767,17 +878,20 @@ class Session:
 
     # --- calcul de séquence ----------------------------------------------
     def sequence(self, mode: str = "smooth"):
+        """Phase **B** de la couche pluggable (``sequencer`` de la façade),
+        avec l'algorithme sélectionné (``self.algos``)."""
         # Poste à l'état de départ (A)
         self.apply(self.initial)
         poste = PosteTopologique.from_graph(self._graph(self.initial), self.vl)
         # Topologie détaillée cible (B) imposée : on vise la barre exacte de
         # chaque départ, pas seulement la partition nodale.
-        self.apply(self.current)
-        cible_graph = self._graph(self.current)
+        cible = CibleDetaillee(
+            voltage_level_id=self.vl,
+            etats_organes={k: bool(v) for k, v in self.current.items()})
 
         mode = "aggressive" if mode == "aggressive" else "smooth"
         self.seq_mode = mode
-        res = determiner_manoeuvres_cible_detaillee(poste, cible_graph, mode=mode)
+        res = self._pipe().sequencer(poste, cible, mode=mode)
 
         # Séquence éditable initialisée depuis le résultat de l'algorithme.
         self.seq_manoeuvres = [{
@@ -791,7 +905,11 @@ class Session:
             "verified": res.is_verified,
             "verified_detaillee": res.is_verified_detaillee,
             "ecarts": res.ecarts,
+            # Alertes de **bonne pratique** non bloquantes (mode smooth) : > 1
+            # ouvrage ré-aiguillé temporairement hors tension à la fois (R10ter).
+            "alertes": res.alertes,
             "message": res.message,
+            "algo": self.algos["sequenceur"],
             **self._seq_payload(),   # manoeuvres / n_steps / labels / nb_final / …
         }
         return payload
@@ -885,7 +1003,29 @@ def index():
 
 @app.get("/api/postes")
 def api_postes():
-    return jsonify(postes=SESSION.postes)
+    # ``postes`` : liste épinglée (jeu de test + 3 JdB). ``all`` : tous les postes
+    # NODE_BREAKER de la situation chargée (recherche dans l'IHM). ``catalog`` :
+    # sections par typologie (cf. POSTES_CATALOG) avec disponibilité par poste.
+    return jsonify(postes=SESSION.postes, all=SESSION.all_postes,
+                   catalog=SESSION.catalog())
+
+
+@app.post("/api/load_grid")
+def api_load_grid():
+    """Charge une **situation réseau** quelconque (chemin ``.xiidm`` côté serveur)
+    et réinitialise la session. Permet d'inspecter/tester n'importe quel poste
+    d'une situation arbitraire sans relancer le serveur."""
+    global SESSION
+    path = ((request.json or {}).get("path") or "").strip()
+    if not path or not pathlib.Path(path).expanduser().exists():
+        return jsonify(ok=False, error=f"Fichier introuvable : {path}"), 400
+    try:
+        net = pp.network.load(str(pathlib.Path(path).expanduser()))
+    except Exception as exc:  # pragma: no cover - dépend du fichier fourni
+        return jsonify(ok=False, error=f"Échec du chargement : {exc}"), 400
+    SESSION = Session(net)
+    return jsonify(ok=True, postes=SESSION.postes, all=SESSION.all_postes,
+                   catalog=SESSION.catalog())
 
 
 @app.post("/api/load")
@@ -929,6 +1069,23 @@ def api_nodale():
     """Partitions nodales de départ et cible (cible initialisée = départ)."""
     nodale = SESSION.nodale_payload(SESSION.initial)
     return jsonify(nodale_depart=nodale, nodale_cible=nodale)
+
+
+@app.get("/api/algos")
+def api_algos():
+    """Algorithmes pluggables **disponibles** (registre ``manoeuvre.plugins``,
+    natifs « libtopo » + plugins tiers enregistrés / entry points), par phase,
+    et **sélection courante** de la session."""
+    return jsonify(disponibles=algos_disponibles(), selection=SESSION.algos)
+
+
+@app.post("/api/algos")
+def api_algos_set():
+    """Sélectionne l'algorithme d'une ou plusieurs phases, p. ex.
+    ``{"sequenceur": "mon_algo"}``. Les noms inconnus du registre sont ignorés ;
+    la sélection effective est renvoyée."""
+    selection = SESSION.set_algos(request.json or {})
+    return jsonify(disponibles=algos_disponibles(), selection=selection)
 
 
 @app.post("/api/nodale_to_detaillee")
@@ -987,8 +1144,9 @@ def api_save_sequence():
 @app.get("/api/step")
 def api_step():
     i = int(request.args.get("i", 0))
-    svg, switches, nb, i, reached = SESSION.step_view(i)
-    return jsonify(svg=svg, switches=switches, nb_noeuds=nb, i=i, reached=reached)
+    svg, switches, nb, i, reached, nodale = SESSION.step_view(i)
+    return jsonify(svg=svg, switches=switches, nb_noeuds=nb, i=i,
+                   reached=reached, nodale=nodale)
 
 
 @app.post("/api/seq_insert")

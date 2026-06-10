@@ -91,8 +91,25 @@
  #nodstatus.kov{color:#92400e;background:#fffbeb}
 </style></head><body>
 <div id="side">
+  <h2>Situation réseau</h2>
+  <input id="gridPath" placeholder="chemin .xiidm (situation réseau)" style="width:72%;padding:5px"
+         title="Charge une autre situation réseau côté serveur, puis liste ses postes">
+  <button onclick="loadGrid()">Charger</button>
+  <div id="gridMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
+
   <h2>Poste</h2>
-  <select id="poste"></select>
+  <select id="poste" title="Postes épinglés (jeu de test + 3 jeux de barres identifiés)"></select>
+  <div style="margin-top:6px">
+    <select id="posteCat" title="Explorer les postes par typologie (sections). Les postes grisés ne sont pas dans la situation chargée — charger la grille France pour y accéder."
+            style="width:100%;padding:6px"></select>
+    <div style="font-size:10px;color:#888;margin-top:2px">📂 par typologie — grisé = absent de la situation chargée</div>
+  </div>
+  <div style="margin-top:6px">
+    <input id="posteSearch" list="allPostes" placeholder="🔎 rechercher un poste (tous)…"
+           style="width:100%;padding:6px" autocomplete="off"
+           title="Inspecter n'importe quel poste NODE_BREAKER de la situation chargée">
+    <datalist id="allPostes"></datalist>
+  </div>
   <div style="margin-top:6px"><button onclick="reset()">↺ État de départ</button></div>
 
   <h2>1 · Valider la cible</h2>
@@ -106,6 +123,9 @@
       <option value="smooth">Smooth (sûr, en place)</option>
       <option value="aggressive">Agressif (batch, plus court)</option>
     </select>
+  </div>
+  <div style="font-size:12px;margin:2px 0">Algo :
+    <select id="seqAlgo" style="width:auto;padding:3px" title="Algorithme de séquencement (phase B de manoeuvre.plugins) : « libtopo » natif + plugins enregistrés. Les verdicts affichés sont recalculés indépendamment de l'algorithme."></select>
   </div>
   <button id="bcalc" class="primary" onclick="sequence()" disabled>⚙ Calculer la séquence</button>
   <button id="bmanual" onclick="manualSeq()" disabled title="Construire la séquence à la main : cliquez les organes du schéma (départ → …), la cible s'affiche en référence">✋ Séquence manuelle</button>
@@ -170,7 +190,7 @@
       <div class="nodiso ro" id="ndDepartIso" style="display:none"></div>
     </div>
     <div class="nsec" style="flex:2">
-      <div class="stitle"><span>Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
+      <div class="stitle"><span id="ndCibTitle">Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
       <div class="ntools">
         <button onclick="nodNewNode()" title="Créer un nœud vide (puis y glisser des départs ; ou avec la sélection courante)">＋ Nœud</button>
         <button onclick="nodReset()" title="Réinitialiser la cible nodale = départ">= départ</button>
@@ -179,6 +199,9 @@
       <div style="font-size:10px;color:#64748b;padding:0 8px">Glisser un <b>départ</b> (ou une sélection : clic pour (dé)sélectionner) sur une autre barre = réaiguillage. Glisser une <b>barre</b> sur une autre = fusion. Flux en MW (état de départ).</div>
       <div class="nbody" id="ndCible"></div>
       <div class="nodiso ed" id="ndCibleIso" style="display:none"></div>
+    </div>
+    <div style="font-size:11px;color:#555;margin:4px 8px 0">Algo :
+      <select id="nodAlgo" style="width:auto;padding:2px" title="Algorithme d'identification de la topologie détaillée depuis la cible nodale (phase A de manoeuvre.plugins) : « libtopo » natif + plugins enregistrés."></select>
     </div>
     <button class="primary" style="margin:6px 8px" onclick="nodCompute()">⚙ Calculer la topologie détaillée d'intérêt</button>
     <div id="nodstatus"></div>
@@ -195,10 +218,67 @@ const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/jso
 function setValidated(v){document.getElementById('bcalc').disabled=!v;
   document.getElementById('bmanual').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
-async function init(){const r=await (await fetch('/api/postes')).json();const sel=document.getElementById('poste');
-  r.postes.forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
-  sel.onchange=()=>load(sel.value); initNodalResize(); initNodalDnD(); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
+let ALL_POSTES=[];
+function populatePostes(r){
+  ALL_POSTES=r.all||r.postes||[];
+  const sel=document.getElementById('poste');sel.innerHTML='';
+  (r.postes||[]).forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
+  const dl=document.getElementById('allPostes');dl.innerHTML='';
+  ALL_POSTES.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
+  populateCatalog(r.catalog||[]);}
+// Sélecteur « par typologie » : un <optgroup> par section ; postes absents de la
+// situation chargée grisés (option disabled).
+function populateCatalog(catalog){
+  const cs=document.getElementById('posteCat');cs.innerHTML='';
+  const ph=document.createElement('option');ph.value='';ph.text='📂 explorer par typologie…';
+  ph.disabled=true;ph.selected=true;cs.add(ph);
+  catalog.forEach(sec=>{
+    const og=document.createElement('optgroup');
+    og.label=`${sec.title}  (${sec.n_available}/${sec.postes.length})`;
+    sec.postes.forEach(p=>{const o=document.createElement('option');
+      o.value=p.vl;o.text=(p.available?'':'⚠ ')+p.vl;o.disabled=!p.available;
+      if(!p.available)o.title='absent de la situation chargée — charger la grille France';
+      og.appendChild(o);});
+    cs.appendChild(og);});}
+// Sélecteurs d'algorithme pluggable (manoeuvre.plugins) : phase A (nodale →
+// détaillée, volet nodal) et phase B (séquencement, panneau latéral). Les
+// plugins tiers enregistrés (registre / entry points) y apparaissent d'office.
+async function refreshAlgos(){
+  const r=await (await fetch('/api/algos')).json();
+  fillAlgoSel('nodAlgo','identificateur',r);
+  fillAlgoSel('seqAlgo','sequenceur',r);}
+function fillAlgoSel(id,phase,r){
+  const sel=document.getElementById(id);if(!sel)return;sel.innerHTML='';
+  ((r.disponibles||{})[phase]||[]).forEach(n=>{
+    const o=document.createElement('option');o.value=n;o.text=n;sel.add(o);});
+  sel.value=(r.selection||{})[phase]||'libtopo';
+  sel.onchange=async()=>{const b={};b[phase]=sel.value;
+    const rr=await api('/api/algos',b);
+    sel.value=(rr.selection||{})[phase]||sel.value;};  // resync si nom refusé
+  sel.disabled=sel.options.length<2;
+  sel.title=sel.disabled?sel.title+' (un seul algorithme disponible)':sel.title;}
+async function init(){const r=await (await fetch('/api/postes')).json();
+  populatePostes(r);await refreshAlgos();
+  const sel=document.getElementById('poste');sel.onchange=()=>load(sel.value);
+  const cs=document.getElementById('posteCat');cs.onchange=()=>{if(cs.value)load(cs.value);};
+  // Recherche « tous postes » : datalist de tous les VL NODE_BREAKER de la situation.
+  const search=document.getElementById('posteSearch');
+  const go=()=>{const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);};
+  search.onchange=go;search.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+  initNodalResize(); initNodalDnD(); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
+// Charger une **situation réseau** quelconque (chemin .xiidm côté serveur).
+async function loadGrid(){
+  const path=document.getElementById('gridPath').value.trim();if(!path)return;
+  const msg=document.getElementById('gridMsg');msg.textContent='Chargement du réseau…';
+  let r;try{r=await fetch('/api/load_grid',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path})}).then(x=>x.json());}catch(e){msg.textContent='erreur réseau';return;}
+  if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
+  populatePostes(r);await refreshAlgos();   // nouvelle session => sélection d'algos réinitialisée
+  msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
+  if(r.postes.length)load(r.postes[0]);else if(ALL_POSTES.length)load(ALL_POSTES[0]);}
 async function load(vl){stopAnim();const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
+  document.getElementById('poste').value=vl;            // sync menu épinglé (vide si non listé)
+  document.getElementById('posteSearch').value=vl;      // sync champ de recherche
   document.getElementById('scenName').value=vl+'_cible';}
 async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
   syncNodalCible(d.nodale);hideSeq();setValidated(false);}
@@ -296,7 +376,7 @@ function bind(switches){const root=document.getElementById('diagBottom');
 async function sequence(){stopAnim();S.manual=false;resetEditTarget();clearSeqStale();
   const d=await api('/api/sequence',{mode:document.getElementById('seqMode').value});
   document.getElementById('seqwrap').style.display='block';
-  S.algo={message:d.message,ecarts:d.ecarts||[],verified:d.verified,verified_detaillee:d.verified_detaillee,mode:d.mode};
+  S.algo={message:d.message,ecarts:d.ecarts||[],alertes:d.alertes||[],verified:d.verified,verified_detaillee:d.verified_detaillee,mode:d.mode,algoName:d.algo};
   document.getElementById('seqName').value=(document.getElementById('scenName').value||'sequence');
   document.getElementById('seqsavemsg').textContent='';
   renderSeq(d);
@@ -324,9 +404,18 @@ function renderSeq(d){
   else if(S.algo.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>'+(S.algo.mode?' <span class="badge">mode '+(S.algo.mode==='aggressive'?'agressif':'smooth')+'</span>':'');}
   else if(S.algo.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">NODALE OK · '+(S.algo.ecarts?S.algo.ecarts.length:'?')+' écart(s) détaillé(s)</span>';}
   else{st.innerHTML='<span class="badge ko">NON VÉRIFIÉE</span>';}
+  // Algorithme de séquencement utilisé (phase B pluggable).
+  if(!d.edited&&S.algo.algoName){
+    st.innerHTML+=' <span class="badge" title="Algorithme de séquencement (manoeuvre.plugins)">algo '+S.algo.algoName+'</span>';}
+  // Alerte bonne pratique (non bloquante) : > 1 ouvrage hors tension à la fois.
+  if(S.algo.alertes&&S.algo.alertes.length){
+    st.innerHTML+=' <span class="badge" style="background:#d97706;color:#fff" '+
+      'title="Bonne pratique : privilégier un seul ouvrage hors tension à la fois (mode smooth)">'+
+      '⚠ '+S.algo.alertes.length+' alerte(s) « 1 ouvrage à la fois »</span>';}
   const seq=document.getElementById('seq');seq.innerHTML='';
   let headtxt=(S.algo.message||'')+(d.manoeuvres.length?'':'\n(aucune manœuvre)');
   if(S.algo.ecarts&&S.algo.ecarts.length){headtxt+='\nÉcarts détaillés : '+S.algo.ecarts.join(' ; ');}
+  if(S.algo.alertes&&S.algo.alertes.length){headtxt+='\n⚠ Bonne pratique (1 ouvrage hors tension à la fois) : '+S.algo.alertes.join(' ; ');}
   if(d.edited){headtxt+='\n(séquence éditée manuellement)';}
   const viols=d.violations||[];
   const nbViol=viols.filter(Boolean).length;
@@ -389,6 +478,15 @@ async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
   const ln=document.getElementById('ln'+S.idx);if(ln)ln.classList.add('cur');
   // Halo jaune autour de la vue du poste quand l'état affiché EST la topologie cible.
   document.getElementById('paneBot').classList.toggle('reached', !!r.reached);
+  // La topologie nodale **suit l'étape** : on affiche (en lecture seule) la
+  // partition de l'état détaillé courant dans le volet « cible ». L'état éditable
+  // (NOD.groups) n'est pas modifié ; il est restauré par renderNodaleCible().
+  if(r.nodale){
+    renderNodaleSVG('ndCible', r.nodale.groups||[], false, r.nodale.colors||{});
+    renderIso('ndCibleIso', r.nodale.isolated||[], false);
+    document.getElementById('ndCibN').textContent=(r.nodale.groups||[]).length;
+    document.getElementById('ndCibTitle').textContent='Étape '+S.idx+'/'+(S.n-1)+' (vue)';
+  }
   document.getElementById('bprev').disabled=(S.idx<=0);document.getElementById('bnext').disabled=(S.idx>=S.n-1);}
 function step(d){stopAnim();showStep(S.idx+d);}
 function play(){stopAnim();S.timer=setInterval(async()=>{if(S.idx>=S.n-1){stopAnim();return;}await showStep(S.idx+1);},1000);}
@@ -515,6 +613,7 @@ function renderNodaleDepart(){const gs=NOD.depart.groups||[];
   renderNodaleSVG('ndDepart',gs,false,NOD.colors);
   renderIso('ndDepartIso',NOD.departIso,false);}
 function renderNodaleCible(){nodNormalize();
+  document.getElementById('ndCibTitle').textContent='Cible (éditable)';  // restaure le mode édition
   document.getElementById('ndCibN').textContent=NOD.groups.length;
   renderNodaleSVG('ndCible',NOD.groups,true,NOD.colorsCible);
   renderIso('ndCibleIso',NOD.isolated,true);}
@@ -597,7 +696,7 @@ async function nodCompute(){
   // (partition + couleurs + isolés des nœuds obtenus).
   syncNodalCible(d.nodale);
   let msg='';
-  if(d.is_verified){st.className='okv';msg='✓ Topologie détaillée d\'intérêt chargée comme cible ('+d.nb_obtenu+' nœud(s)). Validez puis calculez la séquence.';}
+  if(d.is_verified){st.className='okv';msg='✓ Topologie détaillée d\'intérêt chargée comme cible ('+d.nb_obtenu+' nœud(s)'+(d.algo?', algo '+d.algo:'')+'). Validez puis calculez la séquence.';}
   else{st.className='kov';msg='⚠ Cible partiellement réalisable (obtenu '+d.nb_obtenu+' / visé '+d.nb_vise+' nœud(s)). '+(d.message||'');
     if(d.noeuds_non_realisables&&d.noeuds_non_realisables.length)msg+=' Nœuds non réalisables : '+d.noeuds_non_realisables.map(g=>g.join(',')).join(' | ')+'.';}
   if(d.ecarts&&d.ecarts.length)msg+=' Écarts : '+d.ecarts.join(' ; ')+'.';

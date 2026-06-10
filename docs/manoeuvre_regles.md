@@ -71,9 +71,24 @@ au groupe sont fermés (un seul potentiel), ceux entre groupes ouverts.
   privilégié quand cela suffit (cf. R6).
 - une cible demandant plus de nœuds que physiquement réalisable (p.ex. nœuds
   mixtes > barres) n'a aucune affectation valide → **infaisable**.
-- **Code** : `algo._placement_automatique`.
+- **Postes > 2 barres — pénalité multi-barres + double candidat « origin-preserving »** :
+  à coût égal, une pénalité **dominante** (`POIDS_NOEUD_MULTIBARRE`) écarte les
+  nœuds « exotiques » (demi-rames croisées, ex. `{1A,2B}`) que les faisceaux de
+  couplage **partagés** rendent faussement réalisables. Mais cette pénalité peut
+  forcer un placement **mono-barre** qui *multiplie les ré-aiguillages* là où un
+  nœud multi-barres **légitime** (barres entièrement couplées) serait moins
+  coûteux. Parade : `determiner_topo_complete_cible` réalise **deux** placements —
+  pénalisé **et** de coût brut minimal (`penaliser_multibarre=False`) — et retient
+  **transactionnellement** la réalisation **vérifiée** la **moins coûteuse en
+  manœuvres** (le placement exotique non réalisable n'étant jamais vérifié, il est
+  écarté → **aucune régression**). Garantie : à partition nodale égale, la cible
+  détaillée **auto-déterminée** coûte **≤** la cible détaillée faite main.
+- **Code** : `algo._placement_automatique(..., penaliser_multibarre)`,
+  `algo._recherche_exhaustive`, `algo.determiner_topo_complete_cible` (double candidat).
 - **Test** : `test_carrip3_3noeuds.py::test_point_entree_unique_cree_3eme_noeud_automatiquement`,
-  `::test_infaisable_trois_noeuds_mixtes`, `test_algo.py::test_trois_noeuds_sur_deux_barres_infaisable`.
+  `::test_infaisable_trois_noeuds_mixtes`, `test_algo.py::test_trois_noeuds_sur_deux_barres_infaisable`,
+  `test_postes_3barres_400kv.py::test_placement_mono_barre_pour_separation`,
+  `test_cible_detaillee_optimalite.py` (garantie `T_ALGO ≤ T_VISÉE` ; convergence TAVELP7).
 
 ### R6 — Évaluation de l'état de couplage (utiliser les barres disponibles)
 Lorsqu'il y a **moins de nœuds que de barres**, on **utilise les barres
@@ -164,6 +179,16 @@ pont entre deux barres de tensions différentes = court-circuit).
   `::test_boucle_longue_ouvre_ancien_sa_avant_fermer_nouveau`,
   `::test_boucle_longue_jamais_deux_sa_fermes_simultanement`.
 
+### R9bis — Sectionneur **partagé** avec la barre cible (sectionneur de ligne)
+Certaines cellules ont un **sectionneur de ligne** (`SL`) **commun** au chemin
+vers *toutes* les barres (la sélection de barre se fait par les SA `SA.1/SA.2/…`
+en aval). En quittant une ancienne barre, on **n'ouvre pas** un sectionneur qui
+appartient aussi au chemin de la **barre cible** : sinon on déconnecte le départ
+de sa barre cible elle-même (manœuvre parasite + cible non atteinte). On n'ouvre
+que les sectionneurs **propres** à l'ancienne barre.
+- **Code** : `algo._reaiguiller_vers_sjb._ouvrir_sa_anciens` (filtre `sa_cible`).
+- **Test** : `test_postes_3barres_400kv.py` (TAVELP7, cible 3 nœuds).
+
 ### R10 — Règle du sectionneur de barre (dé-énergisation)
 Un sectionneur de barre ne se manœuvre que **hors charge**. Pour scinder une
 barre en deux nœuds (créer un nœud au-delà du nombre de barres) :
@@ -220,28 +245,61 @@ propose deux stratégies pour ouvrir un sectionnement de barre :
   section isolée** de préférence, et **équipotentielle** si possible — auquel cas
   le ré-aiguillage est en **boucle courte** et l'ouvrage n'est **pas** déconnecté
   du tout (`parking_sjb`). Les ouvrages garés sont **ramenés** ensuite (boucle
-  longue) sur la section isolée. **Exception** : si aucun parking n'existe pour
-  un ouvrage, il est dé-énergisé **en place** (les ouvrages sans parking peuvent
-  alors être hors tension simultanément). `target_sjb` est amorcé avec la barre
-  cible exacte (`cible_busbar`) pour éviter les déplacements inutiles.
-- **agressif** (`_sequence_detaillee_aggressive`) — dé-énergiser **en lot** :
-  ouvrir en une fois les DJ de tous les ouvrages concernés (côté le plus petit
-  de chaque sectionnement + ouvrages dont un SA change), commuter
-  couplages/sectionnements et SA **hors tension**, puis ré-alimenter **une seule
-  fois**. Bien moins de manœuvres, au prix de **plusieurs ouvrages momentanément
-  hors tension** simultanément.
+  longue) sur la section isolée. `target_sjb` est amorcé avec la barre cible
+  exacte (`cible_busbar`) pour éviter les déplacements inutiles.
+  - **Vidage one-by-one du côté à isoler** : quand l'ouverture d'un sectionnement
+    a **les deux côtés sous tension** avec **plusieurs** ouvrages à isoler, on les
+    **gare un par un** sur le **côté survivant** (boucle courte, équipotentiel tant
+    que le sectionnement est fermé → *aucune* coupure), on ouvre le sectionnement
+    (section vidée), puis on **ramène** chaque ouvrage un par un (boucle longue).
+    Repli : si **tous** les ouvrages ne peuvent pas atteindre le côté survivant,
+    dé-énergisation **en place** (inchangée).
+  - **Réduction de la section morte (cross-feed)** : si le côté à isoler est un
+    **nœud couplé** (plusieurs barres reliées par un couplage DJ encore **fermé**,
+    ex. 1.1+2.1 via `COUPL.1`), il suffit de rendre morte la **seule section
+    adjacente** au sectionnement. On ouvre donc **temporairement** les couplages DJ
+    frontières (hors charge) — puis on les **referme** —, ne dé-énergisant que les
+    départs de cette section (souvent **un seul**). Combiné au vidage one-by-one,
+    **ROMAIP6** passe de **6** coupures simultanées à **0** (séquence ≈ experte
+    « 1 ouvrage à la fois », 42 manœuvres).
+  - **Limite** : un poste sans côté survivant atteignable **ni** couplage de
+    cross-feed à ouvrir (départs confinés à des sections mono-barre) garde une
+    dé-énergisation en place groupée — **signalée par l'alerte** ci-dessous.
+- **agressif** (`_sequence_detaillee_aggressive`) — minimiser les **bascules de
+  DJ**. D'abord (1) **fermer** les couplages/sectionnements destinés à fusionner
+  (équipotentialité), puis (2) **switcher en boucle courte** — **sans ouvrir le
+  DJ** — tout départ dont les barres source/cible sont **au même potentiel**
+  (cœur du mode : un départ équipotentiel se déplace sous tension) ; (3) ne
+  **dé-énergiser en lot** que les ouvrages **non** réalisables en boucle courte
+  **et** ceux à isoler pour ouvrir un sectionnement ; (4) ouvrir les
+  splits, ré-alimenter une fois. **Transactionnel** : si la variante boucle courte
+  n'atteint pas la cible **exactement** (typiquement une section devant être morte
+  pour ouvrir un sectionnement, ce que la boucle courte empêcherait), on **retombe**
+  sur la dé-énergisation groupée intégrale — jamais de régression de sûreté ni
+  d'exactitude. Ex. **CPNIEP6** (barres couplées) : **5** manœuvres en boucle courte
+  (≈ séquence experte) au lieu de 17 ; **ROMAIP6** (re-sectionnement) : repli
+  dé-énergisé exact.
 
 Les deux modes atteignent la **même** topologie détaillée cible, sectionneurs
-ouverts hors tension (`_verifier_securite_sectionneurs`). Ordres de grandeur :
-SSAVOP3 → 6 nœuds : smooth **62**, agressif **30** ; CZTRYP6 → 3 nœuds : smooth
-**20**, agressif **8**.
+ouverts hors tension (`_verifier_securite_sectionneurs`).
 - **Code** : `algo.determiner_manoeuvres_cible_detaillee` (param `mode`),
   `determiner_manoeuvres_avec_sections` (parking `parking_sjb`, param
-  `cible_busbar`), `_sequence_detaillee_aggressive`.
-- **Vérification** : `_verifier_un_seul_hors_tension` (smooth) rejoue la séquence
-  et signale tout chevauchement de ré-aiguillages (> 1 ouvrage hors tension par
-  parking) — intégré aux `ecarts` du mode smooth.
-- **Test** : `test_ssavop3_modes.py`, `test_cztryp6_3noeuds.py`.
+  `cible_busbar`), `_sequence_detaillee_aggressive` (wrapper transactionnel
+  boucle courte / dé-énergisé), `_aggressive_impl(boucle_courte=…)`.
+- **Vérification + alerte (smooth)** : `ouvrages_simultanement_hors_tension`
+  (public) rejoue la séquence et signale tout moment où **plus d'un** ouvrage est
+  **temporairement hors tension** — c.-à-d. dont le **DJ propre**, initialement
+  **fermé**, est ouvert **puis refermé** (coupure temporaire) — qu'il s'agisse d'un
+  **ré-aiguillage** *ou* d'une **dé-énergisation de section**. Sont **exclus** : les
+  ouvrages **déjà déconnectés** au départ et ceux **mis hors service** (DJ final
+  ouvert). C'est une **alerte de bonne pratique non bloquante** (n'affecte pas
+  `is_verified*`), portée par `ResultatManoeuvres.alertes` (mode agressif
+  **exempté**, il batch volontairement). L'IHM la surface en badge ⚠. La séquence
+  experte « 1 ouvrage à la fois » lève **0** alerte ; un batch en lève autant que
+  de chevauchements.
+- **Test** : `test_mode_agressif_et_un_seul_ouvrage.py` (boucle courte CPNIEP6,
+  repli ROMAIP6, alerte un-seul détectée/propre), `test_ssavop3_modes.py`,
+  `test_cztryp6_3noeuds.py`.
 - **IHM** : sélecteur « Mode : Smooth / Agressif » avant le calcul.
 
 ### R11 — Ordonnancement de la séquence (`listeDordre`)
@@ -296,10 +354,43 @@ partition nodale), on vise cet état exact :
 3. **vérifier la topologie détaillée** (barre de chaque départ + état de chaque
    coupler) ; les **écarts** résiduels sont consignés (`ecarts`,
    `is_verified_detaillee`).
-- **Code** : `algo.determiner_manoeuvres_cible_detaillee`, `_ecarts_detailles`.
+
+**Candidat « diff minimal » (anti ferme-puis-rouvre)** : la voie placement
+ci-dessus reconstruit la partition en **fermant des couplers** pour fusionner les
+SJB d'un nœud, que l'alignement (R19) **rouvre** ensuite si la cible les veut
+ouverts — beaucoup de manœuvres inutiles quand la cible n'est qu'un **petit
+delta** de l'état courant. `determiner_manoeuvres_cible_detaillee` calcule donc
+**aussi** un candidat qui ne manœuvre **que les organes dont l'état diffère** de
+la cible : ré-aiguillage des départs concernés (`_reaiguiller_vers_sjb`, règle du
+sectionneur), isolation des départs déconnectés, puis manœuvre **directe** des
+couplers / sectionnements restants. Il est retenu **transactionnellement** s'il
+atteint **exactement** la cible détaillée (un ordre direct dangereux — sectionneur
+sous charge — est consigné en écart, donc rejeté) et qu'il est **plus court**. Ne
+touchant que les organes qui *doivent* changer, il est alors **toujours ≤** la
+voie principale (ex. **MUHLBP7** : **9** manœuvres au lieu de 37 ; CARRIP3 1 nœud :
+2 au lieu de 20 ; TAVELP7 : 7 au lieu de 29).
+
+**Cohérence omnibus** : la barre cible d'un départ est comparée sur **sa propre
+cellule** (primaire). Un organe **partagé** entre cellules (omnibus) n'hérite plus
+de la barre d'une cellule co-locataire → plus d'**écart fantôme** « sur X au lieu
+de Y » alors que le départ n'a pas bougé (`_ecarts_detailles`).
+
+**Réalisation mode-dépendante** (postes > 2 JdB, R19) : le mode `smooth`
+garantit la **partition nodale** exacte (`is_verified`) — d'éventuels écarts de
+faisceau partagé restent consignés ; le mode `aggressive` (alignement d'organes,
+R19) atteint la **topologie détaillée exacte** (`is_verified_detaillee`, 0 écart)
+sur les cibles 3 JdB testées. Les tests de scénario sont **mode-conscients** :
+la partition exacte est exigée des deux modes, l'exactitude détaillée d'au moins
+un des deux (`test_scenarios_sauvegardes.py::test_scenario_atteint_topologie_
+detaillee`).
+- **Code** : `algo.determiner_manoeuvres_cible_detaillee` (combine voie principale
+  `_determiner_manoeuvres_cible_detaillee_principal` + candidat
+  `_sequence_detaillee_minimal_delta`), `_ecarts_detailles`.
 - **Test** : `test_algo.py::test_cible_detaillee_atteinte_avec_barres_exactes`,
   `::test_cible_detaillee_signale_les_ecarts`,
-  `test_scenarios_sauvegardes.py::test_carrip3_1noeud_requinconcage`.
+  `test_scenarios_sauvegardes.py::test_carrip3_1noeud_minimal_vs_requinconcage`,
+  `test_muhlbp7_sequence_minimale.py` (9 ≤ experte, aucun coupler manœuvré
+  inutilement).
 - **IHM** : la cible éditée étant détaillée, l'IHM appelle ce mode et affiche
   « DÉTAILLÉE VÉRIFIÉE » ou « NODALE OK · N écart(s) ».
 
@@ -338,6 +429,12 @@ Trois mécanismes complètent ce chemin :
 Correctif associé du séquenceur : un couplage n'est mis en `to_open` que s'il est
 **réellement fermé** (conducteur), pour ne pas ouvrir un organe partagé avec un
 couplage à garder fermé (DJ commun sur trois barres).
+
+Sur les postes à **faisceau de couplage partagé** (DJ atteignant > 2 barres), ce
+chemin est complété **transactionnellement** par le **réalisateur par
+connectivité** et l'**alignement détaillé des faisceaux** (cf. **R19**), qui
+réalisent les séparations/fusions/tronçonnages de demi-rames non couverts par le
+ré-aiguillage SJB-par-SJB.
 
 Si la cible n'est pas atteinte en totalité, dégradation gracieuse (R16) : nodale
 partielle + écarts pour complétion manuelle.
@@ -389,6 +486,44 @@ sectionneur, puis ré-alimenter.
   `test_message_sectionnement_de_barre_specifique` (message « section de barre »
   sur CZBEVP3) et `test_morbrp6_multibarres` (ordre DJ→SA→DJ vérifié).
 
+### R19 — Réalisateur par connectivité + alignement détaillé des faisceaux (postes > 2 JdB, faisceaux partagés)
+Sur les postes à **faisceau de couplage partagé** (un même DJ atteignant > 2
+barres — ex. `COUPL.A`/`COUPL.B`/`LIAIS` sur les postes 400 kV à 3 barres), le
+ré-aiguillage SJB-par-SJB (R8/R9) ne suffit pas à séparer/fusionner proprement
+les nœuds : `_inter_sjb_couplers` peut **mal attribuer** un faisceau partagé. Deux
+mécanismes, branchés **transactionnellement** (retenus seulement s'ils vérifient
+**exactement** la cible — sinon revert, jamais de dégradation), complètent R17 :
+
+1. **Réalisateur par connectivité** (`determiner_manoeuvres_par_connectivite`) —
+   repli du chemin nodal *et* du chemin détaillé multi-barres. Au lieu de
+   raisonner faisceau par faisceau, il agit sur la **connectivité réelle** :
+   (a) ré-aiguillage des départs (maintien en place si déjà dans le bon nœud),
+   (b) **sectionnements intra-barre** par état direct, (c) **séparation** par
+   ouverture du **lot minimal** de DJ de couplage qui sépare deux nœuds, (d)
+   **fusion** par fermeture des faisceaux requis. Réalise les manœuvres
+   opérationnelles (séparer des barres couplées ; tronçonner un JdB en
+   demi-rames) sur les 7 postes 400 kV à 3 barres testés.
+2. **Alignement détaillé des faisceaux** (`_aligner_couplers_sur_cible`) — une
+   fois la **partition nodale** atteinte, ramène chaque **faisceau** (bay de
+   couplage) à l'**état d'organes exact** de la cible détaillée, faisceau par
+   faisceau : dé-énergiser (ouvrir le DJ) → positionner les SA **hors charge** →
+   refermer le DJ à l'état cible (faisceaux actifs d'abord). Garde
+   **transactionnelle de préservation de partition** : tout réalignement qui
+   changerait la partition nodale est **annulé en bloc**. Supprime les écarts de
+   faisceau « cosmétiques » (faisceau électriquement équivalent mais d'organes
+   différents).
+- **Mode `aggressive`** : atteint la topologie détaillée **exacte** (0 écart) sur
+  les cibles 3 JdB testées. **Mode `smooth`** : atteint la **partition nodale**
+  exacte ; un réalignement de faisceau partagé peut émettre une **alerte
+  sectionneur** (R18) consignée en écart plutôt que manœuvré sous charge.
+- **Code** : `algo.determiner_manoeuvres_par_connectivite`,
+  `algo._aligner_couplers_sur_cible`, `algo._sequence_detaillee_multibarres`
+  (repli only-on-failure), `algo.determiner_topo_complete_cible` (branche nodale).
+- **Tests** : `test_postes_3barres_400kv.py` (7 postes, cibles 3-7 nœuds),
+  `test_golden_sequences.py` (goldens `CHESNP7_cible_3noeuds__{smooth,aggressive}`,
+  `TRI.PP7_cible_3_noeuds__{smooth,aggressive}`, `TAVELP7_cible_3noeuds__*`),
+  `test_sequences_sauvegardees_3barres.py`.
+
 ---
 
 ## Postes multi-sections
@@ -411,6 +546,8 @@ vérifiée).
 | Topologies de couplers non chaînées (≥ 3 barres en anneau) | partiel |
 | Nœuds mêlant départs connectés et déconnectés | partiel |
 | Postes > 2 jeux de barres (niveaux 3B/4B, organes internes à 2 bornes, nœuds à 0 barre) | géré via placement par composantes (R17) ; fallback nodal-only : scoping 2 JdB |
+| Postes 3 JdB à **faisceau de couplage partagé** (séparation/fusion/tronçonnage de demi-rames) | géré via réalisateur connectivité + alignement détaillé (R19) — exact en `aggressive` ; `smooth` exact en nodal, écart faisceau possible |
+| Cible **arbitraire** (round-robin) exigeant la *reconnexion* de départs déjà déconnectés | partiel |
 
 ---
 

@@ -1,0 +1,464 @@
+{
+  "voltage_level_id": "ROMAIP6",
+  "name": "ROMAIP6_cible_3noeuds",
+  "scenario": "ROMAIP6_cible_3noeuds",
+  "edited": false,
+  "mode": "smooth",
+  "matches_cible": true,
+  "nb_final": 10,
+  "depart": {
+    "ROMAIP6_ROMAI6COND.1 SI_OC": false,
+    "ROMAIP6_ROMAI6SEC..12 SS.1.12_OC": false,
+    "ROMAIP6_ROMAI6PIQU.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6AVENI.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6AVENI.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6PIQU.2 SA.1_OC": false,
+    "ROMAIP6_ROMAI6PIQU.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6COUPL.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6COUPL.2 SA.2_OC": false,
+    "ROMAIP6_ROMAI6MALA6.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6FLAND.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6TR631 SA.2_OC": false,
+    "ROMAIP6_ROMAI6VLEVA.2 SA.1_OC": true,
+    "ROMAIP6_ROMAI6PIQU.2 SA.2_OC": true,
+    "ROMAIP6_ROMAI6TR633 SI_OC": false,
+    "ROMAIP6_ROMAI6FLAND.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6SEC..34 SS.1.34_OC": false,
+    "ROMAIP6_ROMAI6TR613 SA.1_OC": true,
+    "ROMAIP6_ROMAI6TR631 SA.1_OC": true,
+    "ROMAIP6_ROMAI6TR612 SA.2_OC": true,
+    "ROMAIP6_ROMAI6VLEVA.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6SEC..23 SS.1.23_OC": false,
+    "ROMAIP6_ROMAI6LIAIS23 SA.23_OC": false,
+    "ROMAIP6_ROMAI6LIAIS23 SA.13_OC": true,
+    "ROMAIP6_ROMAI6VLEVA.2 SA.2_OC": false,
+    "ROMAIP6_ROMAI6NOISY.1 SA.1_OC": true,
+    "ROMAIP6_ROMAI6REAC.1 SI_OC": false,
+    "ROMAIP6_ROMAI6SEC..34 SS.2.34_OC": false,
+    "ROMAIP6_ROMAI6TR611 SA.1_OC": true,
+    "ROMAIP6_ROMAI6NOISY.2 SI.1_OC": false,
+    "ROMAIP6_ROMAI6VLEVA.1 SA.1_OC": true,
+    "ROMAIP6_ROMAI6TR611 SA.2_OC": false,
+    "ROMAIP6_ROMAI6COUPL.2 SA.1_OC": false,
+    "ROMAIP6_ROMAI6PLAIS.1 SA.1_OC": true,
+    "ROMAIP6_ROMAI6SEC..12 SS.2.12_OC": false,
+    "ROMAIP6_ROMAI6MALA6.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6ZGALE.4 SA.2_OC": false,
+    "ROMAIP6_ROMAI6B.CHA.1 SA.2_OC": false,
+    "ROMAIP6_ROMAI6PLAIS.1 SA.2_OC": false,
+    "ROMAIP6_ROMAI6TR613 SA.2_OC": false,
+    "ROMAIP6_ROMAI6NOISY.1 SA.2_OC": false,
+    "ROMAIP6_ROMAI6ZGALE.4 SA.1_OC": true,
+    "ROMAIP6_ROMAI6SEC..23 SS.2.23_OC": true,
+    "ROMAIP6_ROMAI6B.CHA.1 SA.1_OC": true,
+    "ROMAIP6_ROMAI6TR612 SA.1_OC": false,
+    "ROMAIP6_ROMAI6COUPL.1 SA.2_OC": false,
+    "ROMAIP6_ROMAI6TR633 DJ_OC": false,
+    "ROMAIP6_ROMAI6AVENI.1 DJ_OC": true,
+    "ROMAIP6_ROMAI6NOISY.2 DJ_OC": false,
+    "ROMAIP6_ROMAI6LIAIS23 DJ_OC": false,
+    "ROMAIP6_ROMAI6VLEVA.2 DJ_OC": false,
+    "ROMAIP6_ROMAI6COND.1 DJ.MCOMP_OC": true,
+    "ROMAIP6_ROMAI6PLAIS.1 DJ_OC": true,
+    "ROMAIP6_ROMAI6COUPL.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6B.CHA.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6TR613 DJ.HT_OC": false,
+    "ROMAIP6_ROMAI6TR612 DJ.HT_OC": false,
+    "ROMAIP6_ROMAI6MALA6.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6TR611 DJ.HT_OC": false,
+    "ROMAIP6_ROMAI6VLEVA.1 DJ_OC": true,
+    "ROMAIP6_ROMAI6NOISY.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6REAC.1 DJ.MCOMP_OC": false,
+    "ROMAIP6_ROMAI6FLAND.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6TR631 DJ_OC": false,
+    "ROMAIP6_ROMAI6ZGALE.4 DJ_OC": false,
+    "ROMAIP6_ROMAI6COUPL.2 DJ_OC": false,
+    "ROMAIP6_ROMAI6LIAIS23 SRB.12_OC": true,
+    "ROMAIP6_ROMAI6LIAIS23 SRB.22_OC": false,
+    "ROMAIP6_ROMAIP6-ROMAIP6.BTS.2.2-ROMAIP6LI51SA_F": false,
+    "ROMAIP6_ROMAIP6-ROMAIP6.BTS.1.2-ROMAIP6LI50SA_F": false,
+    "ROMAIP6_ROMAI6TR611 DJ.HT_OC.ROMAI TR611": false,
+    "ROMAIP6_Disj ROMAIINF": true,
+    "ROMAIP6_ROMAI6TR612 DJ.HT_OC.ROMAI TR612": false,
+    "ROMAIP6_Disj ROMAIING": true
+  },
+  "cible": {
+    "ROMAIP6_ROMAI6COND.1 SI_OC": false,
+    "ROMAIP6_ROMAI6SEC..12 SS.1.12_OC": true,
+    "ROMAIP6_ROMAI6PIQU.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6AVENI.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6AVENI.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6PIQU.2 SA.1_OC": false,
+    "ROMAIP6_ROMAI6PIQU.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6COUPL.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6COUPL.2 SA.2_OC": false,
+    "ROMAIP6_ROMAI6MALA6.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6FLAND.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6TR631 SA.2_OC": false,
+    "ROMAIP6_ROMAI6VLEVA.2 SA.1_OC": true,
+    "ROMAIP6_ROMAI6PIQU.2 SA.2_OC": true,
+    "ROMAIP6_ROMAI6TR633 SI_OC": false,
+    "ROMAIP6_ROMAI6FLAND.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6SEC..34 SS.1.34_OC": true,
+    "ROMAIP6_ROMAI6TR613 SA.1_OC": false,
+    "ROMAIP6_ROMAI6TR631 SA.1_OC": true,
+    "ROMAIP6_ROMAI6TR612 SA.2_OC": true,
+    "ROMAIP6_ROMAI6VLEVA.1 SA.2_OC": true,
+    "ROMAIP6_ROMAI6SEC..23 SS.1.23_OC": false,
+    "ROMAIP6_ROMAI6LIAIS23 SA.23_OC": false,
+    "ROMAIP6_ROMAI6LIAIS23 SA.13_OC": true,
+    "ROMAIP6_ROMAI6VLEVA.2 SA.2_OC": false,
+    "ROMAIP6_ROMAI6NOISY.1 SA.1_OC": true,
+    "ROMAIP6_ROMAI6REAC.1 SI_OC": false,
+    "ROMAIP6_ROMAI6SEC..34 SS.2.34_OC": true,
+    "ROMAIP6_ROMAI6TR611 SA.1_OC": true,
+    "ROMAIP6_ROMAI6NOISY.2 SI.1_OC": false,
+    "ROMAIP6_ROMAI6VLEVA.1 SA.1_OC": true,
+    "ROMAIP6_ROMAI6TR611 SA.2_OC": false,
+    "ROMAIP6_ROMAI6COUPL.2 SA.1_OC": false,
+    "ROMAIP6_ROMAI6PLAIS.1 SA.1_OC": true,
+    "ROMAIP6_ROMAI6SEC..12 SS.2.12_OC": true,
+    "ROMAIP6_ROMAI6MALA6.1 SA.1_OC": false,
+    "ROMAIP6_ROMAI6ZGALE.4 SA.2_OC": false,
+    "ROMAIP6_ROMAI6B.CHA.1 SA.2_OC": false,
+    "ROMAIP6_ROMAI6PLAIS.1 SA.2_OC": false,
+    "ROMAIP6_ROMAI6TR613 SA.2_OC": true,
+    "ROMAIP6_ROMAI6NOISY.1 SA.2_OC": false,
+    "ROMAIP6_ROMAI6ZGALE.4 SA.1_OC": true,
+    "ROMAIP6_ROMAI6SEC..23 SS.2.23_OC": false,
+    "ROMAIP6_ROMAI6B.CHA.1 SA.1_OC": true,
+    "ROMAIP6_ROMAI6TR612 SA.1_OC": false,
+    "ROMAIP6_ROMAI6COUPL.1 SA.2_OC": false,
+    "ROMAIP6_ROMAI6TR633 DJ_OC": false,
+    "ROMAIP6_ROMAI6AVENI.1 DJ_OC": true,
+    "ROMAIP6_ROMAI6NOISY.2 DJ_OC": false,
+    "ROMAIP6_ROMAI6LIAIS23 DJ_OC": false,
+    "ROMAIP6_ROMAI6VLEVA.2 DJ_OC": false,
+    "ROMAIP6_ROMAI6COND.1 DJ.MCOMP_OC": true,
+    "ROMAIP6_ROMAI6PLAIS.1 DJ_OC": true,
+    "ROMAIP6_ROMAI6COUPL.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6B.CHA.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6TR613 DJ.HT_OC": false,
+    "ROMAIP6_ROMAI6TR612 DJ.HT_OC": false,
+    "ROMAIP6_ROMAI6MALA6.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6TR611 DJ.HT_OC": false,
+    "ROMAIP6_ROMAI6VLEVA.1 DJ_OC": true,
+    "ROMAIP6_ROMAI6NOISY.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6REAC.1 DJ.MCOMP_OC": false,
+    "ROMAIP6_ROMAI6FLAND.1 DJ_OC": false,
+    "ROMAIP6_ROMAI6TR631 DJ_OC": false,
+    "ROMAIP6_ROMAI6ZGALE.4 DJ_OC": false,
+    "ROMAIP6_ROMAI6COUPL.2 DJ_OC": false,
+    "ROMAIP6_ROMAI6LIAIS23 SRB.12_OC": true,
+    "ROMAIP6_ROMAI6LIAIS23 SRB.22_OC": false,
+    "ROMAIP6_ROMAIP6-ROMAIP6.BTS.2.2-ROMAIP6LI51SA_F": false,
+    "ROMAIP6_ROMAIP6-ROMAIP6.BTS.1.2-ROMAIP6LI50SA_F": false,
+    "ROMAIP6_ROMAI6TR611 DJ.HT_OC.ROMAI TR611": false,
+    "ROMAIP6_Disj ROMAIINF": true,
+    "ROMAIP6_ROMAI6TR612 DJ.HT_OC.ROMAI TR612": false,
+    "ROMAIP6_Disj ROMAIING": true
+  },
+  "depart_nodale": [
+    [
+      "AVENIL61ROMAI"
+    ],
+    [
+      "B.CHAL61ROMAI",
+      "FLANDL61ROMAI",
+      "MALA6L61ROMAI",
+      "NOISYL61ROMAI",
+      "NOISYL62ROMAI",
+      "ROMAI6REAC.1",
+      "ROMAI6T611",
+      "ROMAI6T612",
+      "ROMAI6T613",
+      "ROMAIL62VLEVA",
+      "ROMAIL64ZGALE",
+      "ROMAIY631",
+      "ROMAIY663"
+    ],
+    [
+      "PLAISL61ROMAI"
+    ],
+    [
+      "ROMAI6COND.1"
+    ],
+    [
+      "ROMAIINF"
+    ],
+    [
+      "ROMAIING"
+    ],
+    [
+      "ROMAIL61VLEVA"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "AVENIL61ROMAI"
+    ],
+    [
+      "B.CHAL61ROMAI",
+      "MALA6L61ROMAI",
+      "NOISYL61ROMAI",
+      "ROMAIL64ZGALE",
+      "ROMAIY631"
+    ],
+    [
+      "FLANDL61ROMAI",
+      "ROMAI6T611"
+    ],
+    [
+      "NOISYL62ROMAI",
+      "ROMAI6REAC.1",
+      "ROMAI6T612",
+      "ROMAI6T613",
+      "ROMAIY663"
+    ],
+    [
+      "PLAISL61ROMAI"
+    ],
+    [
+      "ROMAI6COND.1"
+    ],
+    [
+      "ROMAIINF"
+    ],
+    [
+      "ROMAIING"
+    ],
+    [
+      "ROMAIL61VLEVA"
+    ],
+    [
+      "ROMAIL62VLEVA"
+    ]
+  ],
+  "nb_manoeuvres": 32,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "ROMAIP6_ROMAI6FLAND.1 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'FLANDL61ROMAI' vers ROMAIP6_2.1",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 2,
+      "switch_id": "ROMAIP6_ROMAI6FLAND.1 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'FLANDL61ROMAI' quitte ROMAIP6_1.1",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 3,
+      "switch_id": "ROMAIP6_ROMAI6TR611 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'ROMAI6T611' vers ROMAIP6_1.1",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 4,
+      "switch_id": "ROMAIP6_ROMAI6TR611 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'ROMAI6T611' quitte ROMAIP6_2.1",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 5,
+      "switch_id": "ROMAIP6_ROMAI6TR613 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'ROMAI6T613' vers ROMAIP6_1.3",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 6,
+      "switch_id": "ROMAIP6_ROMAI6TR613 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'ROMAI6T613' quitte ROMAIP6_2.3",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 7,
+      "switch_id": "ROMAIP6_ROMAI6SEC..12 SS.1.12_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (boucle, chemin parallèle)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "ROMAIP6_ROMAI6TR633 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ROMAIY663' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "ROMAIP6_ROMAI6REAC.1 DJ.MCOMP_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'NOISYL62ROMAI' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "ROMAIP6_ROMAI6NOISY.2 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'NOISYL62ROMAI' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ROMAI6T613' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "ROMAIP6_ROMAI6TR612 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ROMAI6T612' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "ROMAIP6_ROMAI6TR612 DJ.HT_OC.ROMAI TR612",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ROMAI6T612' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "ROMAIP6_ROMAI6SEC..34 SS.1.34_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (section hors tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "ROMAIP6_ROMAI6TR633 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "ROMAIP6_ROMAI6REAC.1 DJ.MCOMP_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "ROMAIP6_ROMAI6NOISY.2 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 19,
+      "switch_id": "ROMAIP6_ROMAI6TR612 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 20,
+      "switch_id": "ROMAIP6_ROMAI6TR612 DJ.HT_OC.ROMAI TR612",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 21,
+      "switch_id": "ROMAIP6_ROMAI6FLAND.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'FLANDL61ROMAI' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 22,
+      "switch_id": "ROMAIP6_ROMAI6TR611 DJ.HT_OC.ROMAI TR611",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ROMAI6T611' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 23,
+      "switch_id": "ROMAIP6_ROMAI6TR611 DJ.HT_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'ROMAI6T611' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 24,
+      "switch_id": "ROMAIP6_ROMAI6SEC..12 SS.2.12_OC",
+      "action": "OPEN",
+      "raison": "ouverture sectionnement de barre (section hors tension)",
+      "boucle": null
+    },
+    {
+      "ordre": 25,
+      "switch_id": "ROMAIP6_ROMAI6FLAND.1 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 26,
+      "switch_id": "ROMAIP6_ROMAI6TR611 DJ.HT_OC.ROMAI TR611",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 27,
+      "switch_id": "ROMAIP6_ROMAI6TR611 DJ.HT_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
+      "boucle": null
+    },
+    {
+      "ordre": 28,
+      "switch_id": "ROMAIP6_ROMAI6LIAIS23 DJ_OC",
+      "action": "OPEN",
+      "raison": "ouverture couplage de barres",
+      "boucle": null
+    },
+    {
+      "ordre": 29,
+      "switch_id": "ROMAIP6_ROMAI6FLAND.1 SA.1_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'FLANDL61ROMAI' vers ROMAIP6_1.1",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 30,
+      "switch_id": "ROMAIP6_ROMAI6FLAND.1 SA.2_OC",
+      "action": "OPEN",
+      "raison": "'FLANDL61ROMAI' quitte ROMAIP6_2.1",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 31,
+      "switch_id": "ROMAIP6_ROMAI6TR611 SA.2_OC",
+      "action": "CLOSE",
+      "raison": "ré-aiguillage 'ROMAI6T611' vers ROMAIP6_2.1",
+      "boucle": "COURTE"
+    },
+    {
+      "ordre": 32,
+      "switch_id": "ROMAIP6_ROMAI6TR611 SA.1_OC",
+      "action": "OPEN",
+      "raison": "'ROMAI6T611' quitte ROMAIP6_1.1",
+      "boucle": "COURTE"
+    }
+  ]
+}

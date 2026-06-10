@@ -1,0 +1,1043 @@
+{
+  "voltage_level_id": "P.GASP6",
+  "substation_id": "P.GAS",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "P.GASP6_P.GAS6AT761 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT764 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 33,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT764 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 33,
+      "node2": 3,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT764 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 33,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZFANA.3 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT763 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6GOUVI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZBRIC.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEINE.3 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 38,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZBRI5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 39,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT765 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 40,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6GONES.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 41,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZBRIC.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT765 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 40,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZBRI5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 39,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEINE.4 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 42,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZFANA.3 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT762 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 43,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZBRI5.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 39,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6H.BOR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 44,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6H.BOR.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 44,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZLIE5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 45,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZLIE5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 45,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6LIAIS.3 SA.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 46,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COND.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 47,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6V.BEL.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 48,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6TILLI.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 49,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEINE.4 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 42,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.1 SA.21_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 50,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEINE.4 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 42,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEINE.3 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6PERSA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 51,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 50,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6PERSA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 51,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COND.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 52,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.2 SA.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 53,
+      "node2": 3,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZFANA.3 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6SAUS5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 54,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6V.BEL.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 48,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 55,
+      "node2": 4,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT761 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZB.FR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 56,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZBRIC.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6GONES.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 41,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6GOUVI.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEINE.3 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZFAN5.4 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 57,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6LIAIS.3 SA.22_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 46,
+      "node2": 3,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZB.FR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 56,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6V.BEL.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 48,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.1 SA.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 55,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZV.BE.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 58,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6MOIMO.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 59,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SAUS5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 54,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6TILLI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 49,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZLIE5.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 45,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT765 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 40,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6LIAIS.3 SA.32_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 46,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZGONE.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 60,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6MOIMO.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 59,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6COND.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 47,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COND.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 47,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COND.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 52,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6TILLI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 49,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZB.FR.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 56,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SAUS5.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 54,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6LIAIS.3 SA.11_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 61,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COND.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 52,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZV.BE.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 58,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZFAN5.4 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 57,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6V.BEL.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 62,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6H.BOR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 44,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEC..12 SS.3.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6V.BEL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 62,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6GOUVI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 36,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZGONE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 60,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT763 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT763 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6LIAIS.3 SA.21_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 61,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZGONE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 60,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6GONES.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 41,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZFAN5.4 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 57,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6LIAIS.3 SA.31_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 61,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6PERSA.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 51,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 63,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.2 SA.21_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 63,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT762 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 43,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 53,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6V.BEL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 62,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT761 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6MOIMO.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 59,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZV.BE.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 58,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT762 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 43,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZFAN5.4 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 57,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT764 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 33,
+      "node2": 11,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZB.FR.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 56,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6V.BEL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 62,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT761 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 9,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEINE.4 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 42,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZBRIC.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 37,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6MOIMO.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 59,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZBRI5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 39,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6GOUVI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6SEINE.3 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 38,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COND.1 DJ.MCOMP_OC",
+      "kind": "BREAKER",
+      "node1": 47,
+      "node2": 6,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6H.BOR.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 44,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZGONE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 60,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZFANA.3 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 34,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZV.BE.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 58,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6PERSA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 51,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6SAUS5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 54,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6TILLI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 49,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT765 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 40,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 63,
+      "node2": 53,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 50,
+      "node2": 55,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6V.BEL.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 48,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6COND.2 DJ.MCOMP_OC",
+      "kind": "BREAKER",
+      "node1": 52,
+      "node2": 7,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6LIAIS.3 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 61,
+      "node2": 46,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6GONES.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 41,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6ZLIE5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 45,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT762 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 43,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "P.GASP6_P.GAS6AT763 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 12,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "P.GASP6_1.1",
+      "node": 0
+    },
+    {
+      "id": "P.GASP6_1.2",
+      "node": 1
+    },
+    {
+      "id": "P.GASP6_2.1",
+      "node": 2
+    },
+    {
+      "id": "P.GASP6_2.2",
+      "node": 3
+    },
+    {
+      "id": "P.GASP6_3.1",
+      "node": 4
+    },
+    {
+      "id": "P.GASP6_3.2",
+      "node": 5
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "P.GAS6COND.1",
+      "type": "SHUNT_COMPENSATOR",
+      "node": 6
+    },
+    {
+      "id": "P.GAS6COND.2",
+      "type": "SHUNT_COMPENSATOR",
+      "node": 7
+    },
+    {
+      "id": "P.GASL61PERSA",
+      "type": "LINE_SIDE1",
+      "node": 19
+    },
+    {
+      "id": "P.GASL61SAUS5",
+      "type": "LINE_SIDE1",
+      "node": 22
+    },
+    {
+      "id": "P.GASL61TILLI",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "P.GASL61V.BEL",
+      "type": "LINE_SIDE1",
+      "node": 17
+    },
+    {
+      "id": "P.GASL61ZB.FR",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": "P.GASL61ZBRI5",
+      "type": "LINE_SIDE1",
+      "node": 25
+    },
+    {
+      "id": "P.GASL61ZGONE",
+      "type": "LINE_SIDE1",
+      "node": 13
+    },
+    {
+      "id": "P.GASL61ZLIE5",
+      "type": "LINE_SIDE1",
+      "node": 23
+    },
+    {
+      "id": "P.GASL62V.BEL",
+      "type": "LINE_SIDE1",
+      "node": 14
+    },
+    {
+      "id": "P.GASL62ZBRIC",
+      "type": "LINE_SIDE1",
+      "node": 30
+    },
+    {
+      "id": "P.GASL62ZV.BE",
+      "type": "LINE_SIDE1",
+      "node": 27
+    },
+    {
+      "id": "P.GASL63SEINE",
+      "type": "LINE_SIDE1",
+      "node": 29
+    },
+    {
+      "id": "P.GASL63ZFANA",
+      "type": "LINE_SIDE1",
+      "node": 20
+    },
+    {
+      "id": "P.GASL64SEINE",
+      "type": "LINE_SIDE1",
+      "node": 24
+    },
+    {
+      "id": "P.GASL64ZFAN5",
+      "type": "LINE_SIDE1",
+      "node": 31
+    },
+    {
+      "id": "GONESL61P.GAS",
+      "type": "LINE_SIDE2",
+      "node": 28
+    },
+    {
+      "id": "GOUVIL61P.GAS",
+      "type": "LINE_SIDE2",
+      "node": 26
+    },
+    {
+      "id": "H.BORL61P.GAS",
+      "type": "LINE_SIDE2",
+      "node": 21
+    },
+    {
+      "id": "MOIMOL61P.GAS",
+      "type": "LINE_SIDE2",
+      "node": 18
+    },
+    {
+      "id": "P.GASY761",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 9
+    },
+    {
+      "id": "P.GASY762",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 10
+    },
+    {
+      "id": "P.GASY763",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 12
+    },
+    {
+      "id": "P.GASY764",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 11
+    },
+    {
+      "id": "P.GASY765",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 8
+    }
+  ],
+  "stats": {
+    "nb_switches": 124,
+    "nb_busbar_sections": 6,
+    "nb_internal_connections": 0,
+    "nb_equipment": 26,
+    "nb_breakers": 29,
+    "nb_disconnectors": 95
+  }
+}

@@ -1,19 +1,30 @@
 {
   "ecarts": [
+    "MORBRP6_MORBRP6-MORBRP6.SJB.3.1-MORBR6REAC.1SA_F : sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur",
     "MORBRP6_MORBRP6-MORBRP6.SJB.3.2-MORBR6REAC.1SA_F : sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur"
   ],
   "is_verified": true,
   "is_verified_detaillee": false,
   "manoeuvres": [
     [
-      "MORBRP6_MORBR6COSSI.1 DJ_OC",
-      "OPEN",
-      null
+      "MORBRP6_MORBR6COSSI.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
     ],
     [
-      "MORBRP6_MORBR6LANG6.1 DJ_OC",
+      "MORBRP6_MORBR6COSSI.1 SA.1_OC",
       "OPEN",
-      null
+      "COURTE"
+    ],
+    [
+      "MORBRP6_MORBR6LANG6.1 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "MORBRP6_MORBR6LANG6.1 SA.2_OC",
+      "OPEN",
+      "COURTE"
     ],
     [
       "MORBRP6_MORBR6ARRIG.1 DJ_OC",
@@ -36,41 +47,6 @@
       null
     ],
     [
-      "MORBRP6_MORBR6TRO.1AB DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6COUPL.A DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6COUPL.B DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6COSSI.1 SA.1_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6COSSI.1 SA.2_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6LANG6.1 SA.2_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6LANG6.1 SA.1_OC",
-      "CLOSE",
-      null
-    ],
-    [
       "MORBRP6_MORBR6ARRIG.1 SA.1_OC",
       "OPEN",
       null
@@ -86,17 +62,22 @@
       null
     ],
     [
+      "MORBRP6_MORBR6TRO.1AB DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "MORBRP6_MORBR6COUPL.A DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "MORBRP6_MORBR6COUPL.B DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
       "MORBRP6_MORBR6ZLAN8.2 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6COSSI.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "MORBRP6_MORBR6LANG6.1 DJ_OC",
       "CLOSE",
       null
     ],
@@ -117,7 +98,7 @@
     ]
   ],
   "mode": "aggressive",
-  "n_manoeuvres": 22,
+  "n_manoeuvres": 18,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [

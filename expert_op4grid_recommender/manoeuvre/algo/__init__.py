@@ -126,6 +126,7 @@ from .verification import (
     _rejeu_securite as _rejeu_securite,
     _verifier_securite_sectionneurs as _verifier_securite_sectionneurs,
     _verifier_un_seul_hors_tension as _verifier_un_seul_hors_tension,
+    ouvrages_simultanement_hors_tension as ouvrages_simultanement_hors_tension,
     sectionneurs_sous_charge_par_manoeuvre as sectionneurs_sous_charge_par_manoeuvre,
     _verifier_regles as _verifier_regles,
     _verifier_sectionneurs_hors_charge as _verifier_sectionneurs_hors_charge,
@@ -154,4 +155,5 @@ __all__ = [
     "determiner_manoeuvres_avec_sections",
     "determiner_manoeuvres_cible_detaillee",
     "sectionneurs_sous_charge_par_manoeuvre",
+    "ouvrages_simultanement_hors_tension",
 ]

@@ -59,71 +59,61 @@
   "nb_manoeuvres": 10,
   "manoeuvres": [
     {
-      "ordre": 1,
-      "switch_id": "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
-      "action": "OPEN",
-      "raison": "mise hors tension 'CZBEVL32FALLO' (avant ouverture sectionneur)",
-      "boucle": null
-    },
-    {
-      "ordre": 2,
       "switch_id": "CZBEVP3_CZBEV3TR311 DJ.HT_OC",
       "action": "OPEN",
       "raison": "mise hors tension 'CZBEV3T311' (avant ouverture sectionneur)",
       "boucle": null
     },
     {
-      "ordre": 3,
+      "switch_id": "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZBEVL32FALLO' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
       "switch_id": "CZBEVP3_CZBEV3CBO.1 SS.1.12_OC",
       "action": "OPEN",
       "raison": "ouverture sectionnement de barre (section hors tension)",
       "boucle": null
     },
     {
-      "ordre": 4,
-      "switch_id": "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
-      "action": "CLOSE",
-      "raison": "remise sous tension (après ouverture sectionneur)",
-      "boucle": null
-    },
-    {
-      "ordre": 5,
       "switch_id": "CZBEVP3_CZBEV3TR311 DJ.HT_OC",
       "action": "CLOSE",
       "raison": "remise sous tension (après ouverture sectionneur)",
       "boucle": null
     },
     {
-      "ordre": 6,
-      "switch_id": "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
-      "action": "OPEN",
-      "raison": "mise hors tension 'CZBEVL31DANT5' (avant ouverture sectionneur)",
+      "switch_id": "CZBEVP3_CZBEV3FALLO.2 DJ_OC",
+      "action": "CLOSE",
+      "raison": "remise sous tension (après ouverture sectionneur)",
       "boucle": null
     },
     {
-      "ordre": 7,
       "switch_id": "CZBEVP3_CZBEV3TR312 DJ.HT_OC",
       "action": "OPEN",
       "raison": "mise hors tension 'CZBEV3T312' (avant ouverture sectionneur)",
       "boucle": null
     },
     {
-      "ordre": 8,
+      "switch_id": "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
+      "action": "OPEN",
+      "raison": "mise hors tension 'CZBEVL31DANT5' (avant ouverture sectionneur)",
+      "boucle": null
+    },
+    {
       "switch_id": "CZBEVP3_CZBEV3CBO.1 SS.1.23_OC",
       "action": "OPEN",
       "raison": "ouverture sectionnement de barre (section hors tension)",
       "boucle": null
     },
     {
-      "ordre": 9,
-      "switch_id": "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
+      "switch_id": "CZBEVP3_CZBEV3TR312 DJ.HT_OC",
       "action": "CLOSE",
       "raison": "remise sous tension (après ouverture sectionneur)",
       "boucle": null
     },
     {
-      "ordre": 10,
-      "switch_id": "CZBEVP3_CZBEV3TR312 DJ.HT_OC",
+      "switch_id": "CZBEVP3_CZBEV3DANT5.1 DJ_OC",
       "action": "CLOSE",
       "raison": "remise sous tension (après ouverture sectionneur)",
       "boucle": null

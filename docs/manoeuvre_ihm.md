@@ -83,6 +83,13 @@ des variables CSS).
 ## 3. Flux de travail
 
 1. **Choisir un poste** → les deux schémas affichent l'état de départ (pristine).
+   Trois entrées : le **menu épinglé** (jeu de test + 7 postes 3 JdB), le
+   **sélecteur par typologie** 📂 (sections : *≥5 jeux de barres*, *sectionnement
+   extrême*, *faisceau de couplage partagé*, *organes internes*, *omnibus*,
+   *départs déconnectés*, *gros postes*, …) et le **champ de recherche** (tout VL
+   NODE_BREAKER de la situation). Dans le sélecteur par typologie, un poste
+   **grisé** (⚠) n'est pas présent dans la situation chargée → charger la grille
+   France (`grid.xiidm`) pour y accéder (le rendu détaillé SLD requiert le réseau).
 2. **Éditer la cible** : cliquer un disjoncteur/sectionneur dans le schéma du
    bas pour basculer son état (ouvert/fermé). Le nombre de nœuds cible évolue en
    direct.
@@ -115,8 +122,10 @@ des variables CSS).
 Plutôt que de basculer les organes un à un, l'expert peut raisonner au niveau
 **nodal** (quelles branches sur quel nœud électrique) dans le **volet de droite**,
 puis demander un **calcul de la topologie détaillée d'intérêt** réalisant cette
-partition. Le pont nodal → détaillé s'appuie sur l'algorithme
-`determiner_topo_complete_cible(poste, topo_cible)`.
+partition. Le pont nodal → détaillé passe par la **façade pluggable**
+(`manoeuvre.plugins.PlanificateurTopologie.identifier_topologie_detaillee`,
+phase A) avec l'**algorithme sélectionné** dans le volet — « libtopo » par
+défaut (qui délègue à `determiner_topo_complete_cible(poste, topo_cible)`).
 
 - **Représentation** : rendu **schématique en SVG, en « vue bus »** comparable au
   schéma détaillé. Chaque nœud électrique est une **barre horizontale** dont la
@@ -244,15 +253,16 @@ navigateur).
 | Méthode & route | Corps | Réponse | Rôle |
 |-----------------|-------|---------|------|
 | `GET /` | — | HTML | Page de l'IHM |
-| `GET /api/postes` | — | `{postes:[…]}` | Liste des postes de test |
-| `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) ; inclut les partitions nodales |
+| `GET /api/postes` | — | `{postes:[…], all:[…], catalog:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) ; `catalog` = **sections par typologie** (cf. ci-dessous) |
+| `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…], catalog:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
+| `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) — **n'importe quel** VL NODE_BREAKER ; inclut les partitions nodales |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds, nodale}` | Bascule un OC (cible) ; `nodale` = vue nodale resynchronisée |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds, nodale}` | Réinitialise la cible = départ |
 | `POST /api/cible` | — | `{svg, switches, nb_noeuds, nodale}` | Vue de la cible détaillée **courante** (sans la modifier) — pour revenir l'éditer alors qu'une séquence est calculée |
 | `POST /api/nodale` | — | `{nodale_depart, nodale_cible}` | Partitions nodales (cible initialisée = départ) ; `nodale_*` = `{groups[[…]], labels{id:nom}, types{id:type}, flows{id:MW}, dirs{id:TOP\|BOTTOM}, order{id:x}, colors{id:#hex}, isolated[…]}`. `labels`/`dirs`/`order`/`colors` sont **extraits du SLD** (libellés, côté, ordre horizontal et **couleur du nœud `topological_coloring`** identiques à la vue détaillée) ; `flows` provient d'une charge de réseau ; `isolated` liste les départs **déconnectés** (composante sans barre) |
 | `POST /api/nodale_to_detaillee` | `{groups, isolated?}` | `{svg, switches, nb_noeuds, is_verified, message, ecarts[], noeuds_non_realisables[[…]], nb_obtenu, nb_vise, nodale}` | Calcule la **topologie détaillée d'intérêt** réalisant la cible nodale `groups` (les `isolated` sont laissés hors partition) et la charge comme cible détaillée ; `nodale` = `{groups, colors, isolated}` de la topologie **réalisée** (resynchronise le volet nodal) |
-| `POST /api/sequence` | `{mode?}` | `{verified, verified_detaillee, ecarts[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited, mode}` | Calcule la séquence (cible **détaillée**) ; `mode` = `"smooth"` (défaut) ou `"aggressive"` |
-| `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i, reached}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** ; `reached` = l'état affiché est la topologie cible |
+| `POST /api/sequence` | `{mode?}` | `{verified, verified_detaillee, ecarts[], alertes[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited, mode}` | Calcule la séquence (cible **détaillée**) ; `mode` = `"smooth"` (défaut) ou `"aggressive"` ; `alertes` = **bonne pratique non bloquante** (R10ter : > 1 ouvrage ré-aiguillé hors tension à la fois, mode smooth), affichée en badge ⚠ |
+| `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i, reached, nodale}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** ; `reached` = l'état affiché est la topologie cible ; `nodale` = **partition nodale de l'état détaillé de l'étape** (`{groups, colors, isolated}`) → le volet nodal **suit l'étape** (départ → … → cible) ; `null` si aucune séquence |
 | `POST /api/seq_insert` | `{step, id}` | `{goto, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Insère une manœuvre basculant `id` **après** l'étape `step` (conserve la suite) |
 | `POST /api/seq_delete` | `{index}` | idem `seq_insert` | Supprime la manœuvre n°`index` (1-based) |
 | `POST /api/seq_delete_many` | `{indices:[…]}` | idem `seq_insert` | Supprime en une fois plusieurs manœuvres (sélection / bloc) |
@@ -354,15 +364,19 @@ assert res.ecarts == []
 | Modifier **manuellement et interactivement** l'état des DJ/SA depuis une topologie de départ | Clic sur l'organe du schéma cible → `/api/toggle` |
 | **Valider** la topologie cible avant de calculer | Étape 1 « Valider & sauvegarder » ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
 | **Sauvegarder** la cible pour des tests par ailleurs | Scénario JSON (`/api/save`) avec topologies détaillées + nodales |
-| Demander la **séquence de manœuvres** départ → cible | `/api/sequence` (module `determiner_topo_complete_cible`) |
+| Demander la **séquence de manœuvres** départ → cible | `/api/sequence` → façade pluggable (`PlanificateurTopologie.sequencer`, phase B ; « libtopo » = `determiner_manoeuvres_cible_detaillee`) |
+| **Choisir l'algorithme** de chaque phase de calcul (natif « libtopo » + plugins enregistrés) | Sélecteurs « Algo » (panneau Séquence = phase B ; volet nodal = phase A) ; `GET/POST /api/algos` (disponibles par phase + sélection de session) ; badge `algo <nom>` dans le statut de séquence. Les plugins tiers (registre / entry points `expert_op4grid_recommender.manoeuvre`) apparaissent automatiquement — cf. `docs/manoeuvre_plugins.md` |
+| **Verdicts indépendants de l'algorithme branché** | La façade revérifie chaque résultat (`verifier_sequence` : partition, écarts détaillés, règle du sectionneur, alertes R10ter) — un plugin déclarant à tort « vérifié » est démasqué dans l'IHM |
 | Affichage **textuel** de la séquence | Panneau « Séquence » |
 | **Animation** sur le SLD, manœuvre par manœuvre, organe mis en évidence | Contrôles ◀ ▶ ▶| + surlignage rouge (`/api/step`) |
+| **Topologie nodale qui suit l'étape** d'animation | Volet nodal « cible » rendu en lecture seule depuis `nodale` de `/api/step` (titre « Étape k/n (vue) ») ; restauré à « Cible (éditable) » à la sortie |
 | Voir **départ en haut** et **cible éditable en bas** | Deux schémas empilés |
 | Couleurs **natives** par niveau de tension (63 kV violet) | `topological_coloring`, rendu navigateur |
+| **Explorer les postes par typologie** (sections) | Sélecteur 📂 `#posteCat` : un `<optgroup>` par typologie (≥5 JdB, sectionnement extrême, faisceau partagé, organes internes, omnibus, départs déconnectés, gros postes…) ; entrées grisées = absentes de la situation (`catalog` de `/api/postes`) |
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
 | Choisir l'**état de départ** depuis une topologie sauvegardée | « ⇧ Comme départ » |
 | **Sauvegarder la séquence** avec lien vers ses topologies | `/api/save_sequence` (JSON autonome + champ `scenario`) |
-| Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | `determiner_manoeuvres_cible_detaillee` ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
+| Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | façade `sequencer` (« libtopo » = `determiner_manoeuvres_cible_detaillee`) ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
 | **Avertissement d'écrasement** d'un fichier de sauvegarde existant | Confirmation / renommage (réponse `{exists:true}`) |
 | **Replier** un schéma pour agrandir l'autre (grands postes) | Bouton ▾/▸ par en-tête de schéma |
 | **Aller directement** à l'état d'une manœuvre (sans balayer) | Clic sur une ligne de séquence → `/api/step` |
@@ -375,7 +389,7 @@ assert res.ecarts == []
 | **Élargir** le volet nodal pour afficher tous les nœuds | Séparateur déplaçable entre colonnes 2 et 3 (`#ndresize`) |
 | **Ouvrages déconnectés** présentés en liste (pas en nœud), reconnectables | Liste « ⚠ Ouvrages isolés » (chips) ; glisser sur une barre = reconnexion ; `isolated` dans `/api/nodale*` |
 | **Re-éditer la cible détaillée** après calcul de séquence + signaler l'obsolescence | Bouton **✎ Modifier la cible** (`/api/cible`) ; bandeau « la séquence n'atteint plus cet état cible » |
-| Demander un **calcul de topologie détaillée d'intérêt** depuis la cible nodale | `/api/nodale_to_detaillee` → `determiner_topo_complete_cible` + rejeu, chargé comme cible détaillée |
+| Demander un **calcul de topologie détaillée d'intérêt** depuis la cible nodale | `/api/nodale_to_detaillee` → façade `identifier_topologie_detaillee` (phase A, algo sélectionné), cible détaillée chargée |
 
 ---
 
@@ -419,9 +433,15 @@ assert res.ecarts == []
 ## 8. Limites
 
 - Mono-utilisateur (serveur de développement Flask, mono-thread).
-- `RAN_PP6` (fixture) est absent du réseau France de référence (nommé
-  `RAN.PP6`) : 14 des 15 postes de test sont disponibles.
+- **Postes à ≥ 3 jeux de barres** : gérés (placement N-barres + réalisateur
+  connectivité-based). Les 7 postes 400 kV à 3 JdB identifiés (`SSV.OP7`,
+  `TAVELP7`, `TRI.PP7`, `ARGOEP7`, `CHESNP7`, `COR.PP7`, `CERGYP7`) sont épinglés ;
+  le champ de **recherche** donne accès à tout poste NODE_BREAKER de la situation.
+  État détaillé et limites restantes : `docs/postes_n_jeux_de_barres.md`.
+- **Chargement de situation** : `/api/load_grid` recharge un `.xiidm` côté
+  serveur ; l'upload de fichier depuis le navigateur n'est pas (encore) géré.
 - Les postes multi-sections (ex. CARRIP6, 2 barres × 3 sections) sont gérés ;
   les écarts détaillés résiduels éventuels sont affichés (dégradation gracieuse).
 - Les limites de l'algorithme lui-même sont documentées dans
-  `docs/manoeuvre_regles.md` (omnibus complexes, couplers non chaînés, etc.).
+  `docs/manoeuvre_regles.md` (omnibus complexes, couplers non chaînés, etc.) et
+  `docs/postes_n_jeux_de_barres.md` (reste à faire séquenceur / discovery).
