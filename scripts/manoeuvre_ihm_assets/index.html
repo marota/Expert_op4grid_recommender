@@ -124,6 +124,9 @@
       <option value="aggressive">Agressif (batch, plus court)</option>
     </select>
   </div>
+  <div style="font-size:12px;margin:2px 0">Algo :
+    <select id="seqAlgo" style="width:auto;padding:3px" title="Algorithme de séquencement (phase B de manoeuvre.plugins) : « libtopo » natif + plugins enregistrés. Les verdicts affichés sont recalculés indépendamment de l'algorithme."></select>
+  </div>
   <button id="bcalc" class="primary" onclick="sequence()" disabled>⚙ Calculer la séquence</button>
   <button id="bmanual" onclick="manualSeq()" disabled title="Construire la séquence à la main : cliquez les organes du schéma (départ → …), la cible s'affiche en référence">✋ Séquence manuelle</button>
   <div id="calchint" style="font-size:11px;color:#b45309">Validez d'abord la cible pour activer le calcul.</div>
@@ -197,6 +200,9 @@
       <div class="nbody" id="ndCible"></div>
       <div class="nodiso ed" id="ndCibleIso" style="display:none"></div>
     </div>
+    <div style="font-size:11px;color:#555;margin:4px 8px 0">Algo :
+      <select id="nodAlgo" style="width:auto;padding:2px" title="Algorithme d'identification de la topologie détaillée depuis la cible nodale (phase A de manoeuvre.plugins) : « libtopo » natif + plugins enregistrés."></select>
+    </div>
     <button class="primary" style="margin:6px 8px" onclick="nodCompute()">⚙ Calculer la topologie détaillée d'intérêt</button>
     <div id="nodstatus"></div>
   </div>
@@ -234,8 +240,25 @@ function populateCatalog(catalog){
       if(!p.available)o.title='absent de la situation chargée — charger la grille France';
       og.appendChild(o);});
     cs.appendChild(og);});}
+// Sélecteurs d'algorithme pluggable (manoeuvre.plugins) : phase A (nodale →
+// détaillée, volet nodal) et phase B (séquencement, panneau latéral). Les
+// plugins tiers enregistrés (registre / entry points) y apparaissent d'office.
+async function refreshAlgos(){
+  const r=await (await fetch('/api/algos')).json();
+  fillAlgoSel('nodAlgo','identificateur',r);
+  fillAlgoSel('seqAlgo','sequenceur',r);}
+function fillAlgoSel(id,phase,r){
+  const sel=document.getElementById(id);if(!sel)return;sel.innerHTML='';
+  ((r.disponibles||{})[phase]||[]).forEach(n=>{
+    const o=document.createElement('option');o.value=n;o.text=n;sel.add(o);});
+  sel.value=(r.selection||{})[phase]||'libtopo';
+  sel.onchange=async()=>{const b={};b[phase]=sel.value;
+    const rr=await api('/api/algos',b);
+    sel.value=(rr.selection||{})[phase]||sel.value;};  // resync si nom refusé
+  sel.disabled=sel.options.length<2;
+  sel.title=sel.disabled?sel.title+' (un seul algorithme disponible)':sel.title;}
 async function init(){const r=await (await fetch('/api/postes')).json();
-  populatePostes(r);
+  populatePostes(r);await refreshAlgos();
   const sel=document.getElementById('poste');sel.onchange=()=>load(sel.value);
   const cs=document.getElementById('posteCat');cs.onchange=()=>{if(cs.value)load(cs.value);};
   // Recherche « tous postes » : datalist de tous les VL NODE_BREAKER de la situation.
@@ -250,7 +273,7 @@ async function loadGrid(){
   let r;try{r=await fetch('/api/load_grid',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({path})}).then(x=>x.json());}catch(e){msg.textContent='erreur réseau';return;}
   if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
-  populatePostes(r);
+  populatePostes(r);await refreshAlgos();   // nouvelle session => sélection d'algos réinitialisée
   msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
   if(r.postes.length)load(r.postes[0]);else if(ALL_POSTES.length)load(ALL_POSTES[0]);}
 async function load(vl){stopAnim();const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
@@ -353,7 +376,7 @@ function bind(switches){const root=document.getElementById('diagBottom');
 async function sequence(){stopAnim();S.manual=false;resetEditTarget();clearSeqStale();
   const d=await api('/api/sequence',{mode:document.getElementById('seqMode').value});
   document.getElementById('seqwrap').style.display='block';
-  S.algo={message:d.message,ecarts:d.ecarts||[],alertes:d.alertes||[],verified:d.verified,verified_detaillee:d.verified_detaillee,mode:d.mode};
+  S.algo={message:d.message,ecarts:d.ecarts||[],alertes:d.alertes||[],verified:d.verified,verified_detaillee:d.verified_detaillee,mode:d.mode,algoName:d.algo};
   document.getElementById('seqName').value=(document.getElementById('scenName').value||'sequence');
   document.getElementById('seqsavemsg').textContent='';
   renderSeq(d);
@@ -381,6 +404,9 @@ function renderSeq(d){
   else if(S.algo.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>'+(S.algo.mode?' <span class="badge">mode '+(S.algo.mode==='aggressive'?'agressif':'smooth')+'</span>':'');}
   else if(S.algo.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">NODALE OK · '+(S.algo.ecarts?S.algo.ecarts.length:'?')+' écart(s) détaillé(s)</span>';}
   else{st.innerHTML='<span class="badge ko">NON VÉRIFIÉE</span>';}
+  // Algorithme de séquencement utilisé (phase B pluggable).
+  if(!d.edited&&S.algo.algoName){
+    st.innerHTML+=' <span class="badge" title="Algorithme de séquencement (manoeuvre.plugins)">algo '+S.algo.algoName+'</span>';}
   // Alerte bonne pratique (non bloquante) : > 1 ouvrage hors tension à la fois.
   if(S.algo.alertes&&S.algo.alertes.length){
     st.innerHTML+=' <span class="badge" style="background:#d97706;color:#fff" '+
@@ -670,7 +696,7 @@ async function nodCompute(){
   // (partition + couleurs + isolés des nœuds obtenus).
   syncNodalCible(d.nodale);
   let msg='';
-  if(d.is_verified){st.className='okv';msg='✓ Topologie détaillée d\'intérêt chargée comme cible ('+d.nb_obtenu+' nœud(s)). Validez puis calculez la séquence.';}
+  if(d.is_verified){st.className='okv';msg='✓ Topologie détaillée d\'intérêt chargée comme cible ('+d.nb_obtenu+' nœud(s)'+(d.algo?', algo '+d.algo:'')+'). Validez puis calculez la séquence.';}
   else{st.className='kov';msg='⚠ Cible partiellement réalisable (obtenu '+d.nb_obtenu+' / visé '+d.nb_vise+' nœud(s)). '+(d.message||'');
     if(d.noeuds_non_realisables&&d.noeuds_non_realisables.length)msg+=' Nœuds non réalisables : '+d.noeuds_non_realisables.map(g=>g.join(',')).join(' | ')+'.';}
   if(d.ecarts&&d.ecarts.length)msg+=' Écarts : '+d.ecarts.join(' ; ')+'.';

@@ -55,6 +55,10 @@ tiers. Plugins externes par entry points (groupe
 exemples : `docs/manoeuvre_plugins.md` ; tests :
 `tests/manoeuvre/test_plugins_interface.py`.
 
+L'**IHM est migrée sur cette façade** : sélecteurs « Algo » par phase
+(`GET/POST /api/algos`), payloads portant l'algo utilisé, verdicts recalculés
+indépendamment (tests : `tests/manoeuvre/test_ihm_algo_selection.py`).
+
 ## Commandes
 
 ```bash

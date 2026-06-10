@@ -20,7 +20,11 @@ Fonctionnalités
    (départ + cible détaillés + partitions nodales). La validation est requise
    avant de pouvoir calculer la séquence.
 5. Demander la **séquence de manœuvres** (module ``manoeuvre``) pour passer de
-   la topologie de départ à la cible.
+   la topologie de départ à la cible. Les calculs passent par la **façade
+   pluggable** (``manoeuvre.plugins.PlanificateurTopologie``, vérification
+   indépendante) : l'**algorithme de chaque phase** (identification nodale →
+   détaillée, séquencement) se choisit dans l'IHM parmi ceux du registre —
+   natifs « libtopo » et plugins tiers (``GET/POST /api/algos``).
 6. Afficher la séquence **textuellement** et l'**animer** sur le schéma cible,
    manœuvre par manœuvre, l'organe manipulé étant mis en évidence.
 6bis. **Sauvegarder la séquence générée** (``--sequences-dir``, défaut
@@ -76,9 +80,12 @@ from expert_op4grid_recommender.manoeuvre.topologie import (
 )
 from expert_op4grid_recommender.manoeuvre.algo import (
     Manoeuvre,
-    determiner_topo_complete_cible,
-    determiner_manoeuvres_cible_detaillee,
     sectionneurs_sous_charge_par_manoeuvre,
+)
+from expert_op4grid_recommender.manoeuvre.plugins import (
+    CibleDetaillee,
+    PlanificateurTopologie,
+    disponibles as algos_disponibles,
 )
 
 # Postes de test retenus (intersectés avec les VL réellement présents)
@@ -309,6 +316,17 @@ class Session:
         self.seq_labels: list[str] = []
         self.seq_edited: bool = False
         self.seq_mode: str = "smooth"
+        # Algorithme sélectionné pour chaque phase pluggable (cf.
+        # ``manoeuvre.plugins`` et docs/manoeuvre_plugins.md) :
+        # - "identificateur" : nodale -> détaillée (« calculer la topologie
+        #   détaillée d'intérêt ») ;
+        # - "sequenceur"     : détaillée -> séquence de manœuvres ;
+        # - "planificateur"  : bout-en-bout (repli de composition de la façade).
+        # Les plugins tiers enregistrés (registre / entry points) apparaissent
+        # automatiquement dans ``algos_disponibles()`` et l'IHM.
+        self.algos: dict[str, str] = {p: "libtopo" for p in
+                                      ("identificateur", "sequenceur",
+                                       "planificateur")}
         # Caches mémoïsés par état détaillé (cf. _graph / _topo / _flows).
         # Le graphe NX, la topologie nodale et le résultat de load flow d'un VL
         # ne dépendent que du VL et de l'état des organes — purs vis-à-vis de
@@ -316,6 +334,27 @@ class Session:
         self._graph_cache: dict = {}
         self._topo_cache: dict = {}
         self._flow_cache: dict = {}
+
+    # --- algorithmes pluggables (sélection par phase) -----------------------
+    def set_algos(self, choix: dict[str, str]) -> dict[str, str]:
+        """Met à jour la sélection d'algorithme par phase. Les phases inconnues
+        et les noms absents du registre sont ignorés (la sélection courante est
+        retournée, le front se resynchronise dessus)."""
+        dispo = algos_disponibles()
+        for phase, nom in (choix or {}).items():
+            if phase in self.algos and nom in dispo.get(phase, []):
+                self.algos[phase] = nom
+        return self.algos
+
+    def _pipe(self) -> PlanificateurTopologie:
+        """Façade d'orchestration configurée avec les algorithmes sélectionnés
+        (vérification indépendante active : les verdicts affichés par l'IHM ne
+        dépendent pas des déclarations de l'algorithme branché)."""
+        return PlanificateurTopologie(
+            identificateur=self.algos["identificateur"],
+            sequenceur=self.algos["sequenceur"],
+            planificateur=self.algos["planificateur"],
+        )
 
     def catalog(self) -> list[dict]:
         """Catalogue par **typologie** : sections de postes (cf. ``POSTES_CATALOG``)
@@ -748,6 +787,9 @@ class Session:
         ``isolated`` liste les départs à **laisser déconnectés** (hors partition
         cible : non placés sur un nœud ; ils conservent leur état de départ).
 
+        Phase **A** de la couche pluggable (``identifier_topologie_detaillee``
+        de la façade), avec l'algorithme sélectionné (``self.algos``).
+
         Renvoie la vue détaillée mise à jour + un statut de réalisabilité
         (dégradation gracieuse de l'algorithme remontée à l'IHM)."""
         # Poste à l'état de départ.
@@ -761,23 +803,29 @@ class Session:
             univers, [[e for e in g if e not in iso] for g in (groups or [])])
         topo_cible = TopologieNodale.from_node_groups(self.vl, groups)
 
-        res = determiner_topo_complete_cible(poste, topo_cible)
+        ident = self._pipe().identifier_topologie_detaillee(poste, topo_cible)
 
-        # État détaillé final = rejeu des manœuvres depuis l'état de départ.
-        manos = [{"switch_id": m.switch_id, "action": m.action}
-                 for m in res.manoeuvres]
-        self.current = _replay_states(self.initial, manos)[-1]
+        # Cible détaillée identifiée -> nouvel état cible courant (les organes
+        # non mentionnés par la cible gardent leur état de départ).
+        if ident.cible is not None:
+            etats = ident.cible.etats_organes
+            self.current = {k: bool(etats.get(k, v))
+                            for k, v in self.initial.items()}
+        else:
+            self.current = dict(self.initial)
         self.scenario_name = None   # cible à revalider avant calcul de séquence
 
         svg, switches, nb = self.view(self.current)
+        seq = ident.sequence   # sous-produit éventuel (écarts détaillés)
         return {
             "svg": svg, "switches": switches, "nb_noeuds": nb,
-            "is_verified": res.is_verified,
-            "message": res.message,
-            "ecarts": res.ecarts,
-            "noeuds_non_realisables": res.noeuds_non_realisables,
-            "nb_obtenu": res.topo_obtenue.nb_noeuds if res.topo_obtenue else nb,
+            "is_verified": ident.is_realisable,
+            "message": ident.message,
+            "ecarts": seq.ecarts if seq is not None else [],
+            "noeuds_non_realisables": ident.noeuds_non_realisables,
+            "nb_obtenu": nb,
             "nb_vise": topo_cible.nb_noeuds,
+            "algo": self.algos["identificateur"],
             # Vue nodale **réalisée** (partition + couleurs + isolés) pour
             # resynchroniser le volet nodal cible avec le détail obtenu.
             "nodale": self.nodale_state(self.current),
@@ -830,17 +878,20 @@ class Session:
 
     # --- calcul de séquence ----------------------------------------------
     def sequence(self, mode: str = "smooth"):
+        """Phase **B** de la couche pluggable (``sequencer`` de la façade),
+        avec l'algorithme sélectionné (``self.algos``)."""
         # Poste à l'état de départ (A)
         self.apply(self.initial)
         poste = PosteTopologique.from_graph(self._graph(self.initial), self.vl)
         # Topologie détaillée cible (B) imposée : on vise la barre exacte de
         # chaque départ, pas seulement la partition nodale.
-        self.apply(self.current)
-        cible_graph = self._graph(self.current)
+        cible = CibleDetaillee(
+            voltage_level_id=self.vl,
+            etats_organes={k: bool(v) for k, v in self.current.items()})
 
         mode = "aggressive" if mode == "aggressive" else "smooth"
         self.seq_mode = mode
-        res = determiner_manoeuvres_cible_detaillee(poste, cible_graph, mode=mode)
+        res = self._pipe().sequencer(poste, cible, mode=mode)
 
         # Séquence éditable initialisée depuis le résultat de l'algorithme.
         self.seq_manoeuvres = [{
@@ -858,6 +909,7 @@ class Session:
             # ouvrage ré-aiguillé temporairement hors tension à la fois (R10ter).
             "alertes": res.alertes,
             "message": res.message,
+            "algo": self.algos["sequenceur"],
             **self._seq_payload(),   # manoeuvres / n_steps / labels / nb_final / …
         }
         return payload
@@ -1017,6 +1069,23 @@ def api_nodale():
     """Partitions nodales de départ et cible (cible initialisée = départ)."""
     nodale = SESSION.nodale_payload(SESSION.initial)
     return jsonify(nodale_depart=nodale, nodale_cible=nodale)
+
+
+@app.get("/api/algos")
+def api_algos():
+    """Algorithmes pluggables **disponibles** (registre ``manoeuvre.plugins``,
+    natifs « libtopo » + plugins tiers enregistrés / entry points), par phase,
+    et **sélection courante** de la session."""
+    return jsonify(disponibles=algos_disponibles(), selection=SESSION.algos)
+
+
+@app.post("/api/algos")
+def api_algos_set():
+    """Sélectionne l'algorithme d'une ou plusieurs phases, p. ex.
+    ``{"sequenceur": "mon_algo"}``. Les noms inconnus du registre sont ignorés ;
+    la sélection effective est renvoyée."""
+    selection = SESSION.set_algos(request.json or {})
+    return jsonify(disponibles=algos_disponibles(), selection=selection)
 
 
 @app.post("/api/nodale_to_detaillee")

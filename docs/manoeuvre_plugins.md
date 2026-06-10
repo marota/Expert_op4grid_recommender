@@ -226,12 +226,15 @@ les autres plugins ni les natifs).
 
 ## 8. Intégration aux consommateurs existants
 
-- **IHM** (`scripts/manoeuvre_ihm.py`) : les endpoints
-  `/api/nodale_to_detaillee` (phase A), `/api/sequence` (phases B/C)
-  correspondent exactement aux méthodes de la façade — la migration consiste à
-  remplacer les appels directs par `pipe.identifier_topologie_detaillee` /
-  `pipe.sequencer` / `pipe.planifier`, ce qui ouvre la porte à un sélecteur
-  d'algorithme dans l'interface (`disponibles()`).
+- **IHM** (`scripts/manoeuvre_ihm.py`) : **migrée sur la façade**.
+  `/api/nodale_to_detaillee` appelle `pipe.identifier_topologie_detaillee`
+  (phase A) et `/api/sequence` appelle `pipe.sequencer` (phase B), avec
+  l'algorithme **sélectionné par phase** dans l'interface (sélecteurs « Algo »
+  du volet nodal et du panneau Séquence, alimentés par `GET /api/algos` ;
+  sélection via `POST /api/algos`). Les plugins tiers enregistrés (registre /
+  entry points) y apparaissent automatiquement ; les payloads portent l'`algo`
+  utilisé et les verdicts affichés sont ceux de la vérification indépendante.
+  Tests : `tests/manoeuvre/test_ihm_algo_selection.py`.
 - **Recommandeur** : une action nodale priorisée (partition `set_bus` /
   groupes de départs) se convertit en cible via
   `TopologieNodale.from_node_groups(vl, groups)` ou `from_bus_assignment`,

@@ -122,8 +122,10 @@ des variables CSS).
 Plutôt que de basculer les organes un à un, l'expert peut raisonner au niveau
 **nodal** (quelles branches sur quel nœud électrique) dans le **volet de droite**,
 puis demander un **calcul de la topologie détaillée d'intérêt** réalisant cette
-partition. Le pont nodal → détaillé s'appuie sur l'algorithme
-`determiner_topo_complete_cible(poste, topo_cible)`.
+partition. Le pont nodal → détaillé passe par la **façade pluggable**
+(`manoeuvre.plugins.PlanificateurTopologie.identifier_topologie_detaillee`,
+phase A) avec l'**algorithme sélectionné** dans le volet — « libtopo » par
+défaut (qui délègue à `determiner_topo_complete_cible(poste, topo_cible)`).
 
 - **Représentation** : rendu **schématique en SVG, en « vue bus »** comparable au
   schéma détaillé. Chaque nœud électrique est une **barre horizontale** dont la
@@ -362,7 +364,9 @@ assert res.ecarts == []
 | Modifier **manuellement et interactivement** l'état des DJ/SA depuis une topologie de départ | Clic sur l'organe du schéma cible → `/api/toggle` |
 | **Valider** la topologie cible avant de calculer | Étape 1 « Valider & sauvegarder » ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
 | **Sauvegarder** la cible pour des tests par ailleurs | Scénario JSON (`/api/save`) avec topologies détaillées + nodales |
-| Demander la **séquence de manœuvres** départ → cible | `/api/sequence` (module `determiner_topo_complete_cible`) |
+| Demander la **séquence de manœuvres** départ → cible | `/api/sequence` → façade pluggable (`PlanificateurTopologie.sequencer`, phase B ; « libtopo » = `determiner_manoeuvres_cible_detaillee`) |
+| **Choisir l'algorithme** de chaque phase de calcul (natif « libtopo » + plugins enregistrés) | Sélecteurs « Algo » (panneau Séquence = phase B ; volet nodal = phase A) ; `GET/POST /api/algos` (disponibles par phase + sélection de session) ; badge `algo <nom>` dans le statut de séquence. Les plugins tiers (registre / entry points `expert_op4grid_recommender.manoeuvre`) apparaissent automatiquement — cf. `docs/manoeuvre_plugins.md` |
+| **Verdicts indépendants de l'algorithme branché** | La façade revérifie chaque résultat (`verifier_sequence` : partition, écarts détaillés, règle du sectionneur, alertes R10ter) — un plugin déclarant à tort « vérifié » est démasqué dans l'IHM |
 | Affichage **textuel** de la séquence | Panneau « Séquence » |
 | **Animation** sur le SLD, manœuvre par manœuvre, organe mis en évidence | Contrôles ◀ ▶ ▶| + surlignage rouge (`/api/step`) |
 | **Topologie nodale qui suit l'étape** d'animation | Volet nodal « cible » rendu en lecture seule depuis `nodale` de `/api/step` (titre « Étape k/n (vue) ») ; restauré à « Cible (éditable) » à la sortie |
@@ -372,7 +376,7 @@ assert res.ecarts == []
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
 | Choisir l'**état de départ** depuis une topologie sauvegardée | « ⇧ Comme départ » |
 | **Sauvegarder la séquence** avec lien vers ses topologies | `/api/save_sequence` (JSON autonome + champ `scenario`) |
-| Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | `determiner_manoeuvres_cible_detaillee` ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
+| Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | façade `sequencer` (« libtopo » = `determiner_manoeuvres_cible_detaillee`) ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
 | **Avertissement d'écrasement** d'un fichier de sauvegarde existant | Confirmation / renommage (réponse `{exists:true}`) |
 | **Replier** un schéma pour agrandir l'autre (grands postes) | Bouton ▾/▸ par en-tête de schéma |
 | **Aller directement** à l'état d'une manœuvre (sans balayer) | Clic sur une ligne de séquence → `/api/step` |
@@ -385,7 +389,7 @@ assert res.ecarts == []
 | **Élargir** le volet nodal pour afficher tous les nœuds | Séparateur déplaçable entre colonnes 2 et 3 (`#ndresize`) |
 | **Ouvrages déconnectés** présentés en liste (pas en nœud), reconnectables | Liste « ⚠ Ouvrages isolés » (chips) ; glisser sur une barre = reconnexion ; `isolated` dans `/api/nodale*` |
 | **Re-éditer la cible détaillée** après calcul de séquence + signaler l'obsolescence | Bouton **✎ Modifier la cible** (`/api/cible`) ; bandeau « la séquence n'atteint plus cet état cible » |
-| Demander un **calcul de topologie détaillée d'intérêt** depuis la cible nodale | `/api/nodale_to_detaillee` → `determiner_topo_complete_cible` + rejeu, chargé comme cible détaillée |
+| Demander un **calcul de topologie détaillée d'intérêt** depuis la cible nodale | `/api/nodale_to_detaillee` → façade `identifier_topologie_detaillee` (phase A, algo sélectionné), cible détaillée chargée |
 
 ---
 
