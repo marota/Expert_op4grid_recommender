@@ -47,6 +47,7 @@ import gzip
 import logging
 import os
 import re
+import sys
 import tempfile
 from collections import defaultdict
 from datetime import datetime
@@ -159,7 +160,12 @@ def _etats_switches_par_vl(
     """État détaillé ``{switch_id: ouvert ?}`` par voltage level d'un réseau.
 
     Utilise ``get_switches(all_attributes=True)`` (colonnes ``voltage_level_id``
-    et ``open``, index = id d'organe). ``vl_filter`` restreint aux postes voulus."""
+    et ``open``, index = id d'organe). ``vl_filter`` restreint aux postes voulus.
+
+    Les identifiants (VL et organes) sont **internés** (``sys.intern``) : ils
+    se répètent à l'identique d'un instantané à l'autre — sur une journée du
+    réseau France (288 instantanés × ~86 000 organes), l'interning évite des
+    gigaoctets de chaînes dupliquées."""
     sw = net.get_switches(all_attributes=True)
     for col in ("voltage_level_id", "open"):
         if col not in sw.columns:
@@ -170,8 +176,8 @@ def _etats_switches_par_vl(
         sw = sw[sw["voltage_level_id"].isin(vl_filter)]
     out: dict[str, dict[str, bool]] = {}
     for vl, grp in sw.groupby("voltage_level_id", sort=False):
-        out[str(vl)] = {str(sid): bool(o)
-                        for sid, o in zip(grp.index, grp["open"])}
+        out[sys.intern(str(vl))] = {sys.intern(str(sid)): bool(o)
+                                    for sid, o in zip(grp.index, grp["open"])}
     return out
 
 
@@ -220,6 +226,7 @@ def charger_timelines_xiidm(
         horodates = horodates[::sous_echantillon]
 
     par_vl: dict[str, list[Snapshot]] = defaultdict(list)
+    derniers: dict[str, dict[str, bool]] = {}
     for i, (ts, f) in enumerate(horodates):
         try:
             net = _charger_reseau(f)
@@ -230,6 +237,16 @@ def charger_timelines_xiidm(
             logger.warning("Instantané illisible, ignoré (%s) : %s", exc, f)
             continue
         for vl, e in etats.items():
+            # Partage structurel : un état identique au précédent réutilise le
+            # MÊME dict (les Snapshot ne sont jamais mutés) — la mémoire d'une
+            # chronologie est en O(changements), pas O(instantanés). Sur une
+            # journée France entière, c'est ce qui rend la passe complète
+            # tenable (~15 Go → ~1 Go).
+            prec = derniers.get(vl)
+            if prec is not None and prec == e:
+                e = prec
+            else:
+                derniers[vl] = e
             par_vl[vl].append(Snapshot(timestamp=ts, etats=e))
         if (i + 1) % 100 == 0:
             logger.info("… %d/%d instantanés lus", i + 1, len(horodates))

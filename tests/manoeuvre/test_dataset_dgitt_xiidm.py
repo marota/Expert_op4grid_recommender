@@ -165,6 +165,23 @@ def test_charger_timelines_xiidm_bout_en_bout(tmp_path):
         assert tls[vl].detecter_blocs(min_stabilite=2)[0] == []
 
 
+def test_charger_timelines_xiidm_partage_structurel_des_etats(tmp_path):
+    """Mémoire O(changements) : deux snapshots consécutifs d'état identique
+    partagent le MÊME dict ``etats`` (jamais muté en aval) — sur une journée
+    France entière, c'est ce qui rend la passe complète tenable."""
+    pytest.importorskip("pypowsybl")
+    racine = _ecrire_serie(tmp_path)
+    tls = {tl.voltage_level_id: tl for tl in charger_timelines_xiidm(racine)}
+
+    s = tls["S1VL1"].snapshots          # A A B B (bascule entre 0005 et 0010)
+    assert s[0].etats is s[1].etats
+    assert s[2].etats is s[3].etats
+    assert s[1].etats is not s[2].etats
+
+    stable = tls["S2VL1"].snapshots     # aucun changement : un seul dict
+    assert all(x.etats is stable[0].etats for x in stable)
+
+
 def test_charger_timelines_xiidm_vl_filter(tmp_path):
     pytest.importorskip("pypowsybl")
     racine = _ecrire_serie(tmp_path)

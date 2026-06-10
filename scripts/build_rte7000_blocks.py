@@ -226,15 +226,25 @@ def main() -> int:
         tous_blocs.extend(blocs)
         toutes_osc.extend(osc)
         noms_blocs.extend(nom for _ in blocs)
+    nb_timelines = len(timelines)
+    # Les chronologies complètes ne servent plus : les blocs portent leurs
+    # bornes et transitoires. Libérer avant la phase structures (mémoire).
+    del timelines
 
     # Phase 2 — structures des postes à blocs (XIIDM du dataset prioritaire,
     # fixtures en complément, garde de couverture d'identifiants).
     bloc_ref = {}
     for b in tous_blocs:
         bloc_ref.setdefault(b.voltage_level_id, b.etats_depart)
+    # Construire des centaines de structures journalise un INFO par VL
+    # (cellules/tronçons) : passer ces modules en WARNING le temps de la phase.
+    for mod in ("cellules", "troncons", "topologie"):
+        logging.getLogger(
+            f"expert_op4grid_recommender.manoeuvre.{mod}").setLevel(
+            logging.WARNING)
     postes = _assembler_structures(set(bloc_ref), args.fixtures,
                                    structures_xiidm, bloc_ref)
-    print(f"{len(timelines)} chronologie(s), {len(bloc_ref)} poste(s) à blocs, "
+    print(f"{nb_timelines} chronologie(s), {len(bloc_ref)} poste(s) à blocs, "
           f"{len(postes)} structure(s) pour le tagging structurel")
 
     # Phase 3 — tagging.
