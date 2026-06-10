@@ -282,6 +282,45 @@ résultats, tests CI.
 | J5 | Phase 4 : dataset de test + benchmark exécuté | 2–3 sem. |
 | J6 | Phase 5 : dépôt de données + draft de papier | 3–4 sem. |
 
+## État d'avancement — pipeline implémenté (phases 1–3 + amorce 4)
+
+Le dataset visé est ``OpenSynth/D-GITT-RTE7000-2021`` (Hugging Face). Le
+**pipeline complet est implémenté et testé** dans
+`expert_op4grid_recommender/manoeuvre/dataset/` :
+
+- `timeline.py` — chronologies par poste, états stables (`min_stabilite`),
+  **blocs de transition** (départ → cible détaillées, états transitoires,
+  **manœuvres observées** ordonnées), oscillations repliées, réversibilité ;
+- `tagging.py` — tags d'intervention (taxonomie du plan) en régime
+  **structurel** (fixture du poste) ou repli **par nommage** RTE ;
+- `extraction.py` — scénarios (format `tests/manoeuvre/scenarios`) +
+  **séquences observées** (format `sequences`, la référence « opérateur » du
+  benchmark) + stats ;
+- `dgitt.py` — adaptateur de lecture du dataset (parquet/CSV long,
+  auto-détection de colonnes, erreurs explicites) — **à valider sur le schéma
+  réel à la première exécution** ;
+- `scripts/build_rte7000_blocks.py` — CLI bout-en-bout, avec un mode
+  `--demo` (chronologies reconstruites depuis les 18 séquences réelles du
+  dépôt) : 19 blocs détectés sur 11 postes, tags plausibles validés
+  (CARRIP3 1 nœud → `fusion_noeuds` ; PALUNP3 expert → 2 blocs avec
+  `consignation_ouvrage` puis `remise_en_service`).
+- Tests : `tests/manoeuvre/test_dataset_timeline.py` (13 cas, dont la
+  reproduction exacte d'une séquence réelle de 20 manœuvres depuis la
+  chronologie).
+
+**Blocage d'accès aux données depuis l'environnement d'exécution distant** :
+`huggingface.co` n'est pas dans l'allowlist réseau de l'environnement. Pour
+exécuter sur les vraies données : (a) ajouter `huggingface.co` (+
+`cdn-lfs.huggingface.co`) à la politique réseau de l'environnement Claude
+Code, ou (b) télécharger localement puis fournir les fichiers :
+
+```bash
+hf download OpenSynth/D-GITT-RTE7000-2021 --repo-type dataset \
+    --local-dir data/dgitt_rte7000_2021
+python scripts/build_rte7000_blocks.py --input data/dgitt_rte7000_2021 \
+    --fixtures tests/manoeuvre/fixtures --output out_rte7000
+```
+
 ## Questions ouvertes (à trancher pour démarrer la phase 0)
 
 1. **Format et accès** du dataset RTE 7000 : XIIDM par snapshot ? observations
