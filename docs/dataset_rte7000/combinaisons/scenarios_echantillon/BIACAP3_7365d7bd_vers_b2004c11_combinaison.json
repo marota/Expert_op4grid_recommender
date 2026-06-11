@@ -1,0 +1,72 @@
+{
+  "voltage_level_id": "BIACAP3",
+  "name": "BIACAP3_7365d7bd_vers_b2004c11_combinaison",
+  "depart": {
+    "BIACAP3_BIACA3ZBIA7.1SA.1F": false,
+    "BIACAP3_BIACA   3CBO.1    SS.1.12": false,
+    "BIACAP3_BIACA3TR311SA.1F": false,
+    "BIACAP3_BIACA3VIOLE.1SA.1F": false,
+    "BIACAP3_BIACA3TR312SA.1F": false,
+    "BIACAP3_BIACA   3TR311    SRB.1": false,
+    "BIACAP3_BIACA   3TR311    SRB.1.BIACA3TR311": false,
+    "BIACAP3_BIACA   3TR311    SRB.1.BIACAINA": true,
+    "BIACAP3_BIACA   3TR312    SRB.1": false,
+    "BIACAP3_BIACA   3VIOLE.1  INTERRUP": true,
+    "BIACAP3_BIACA   3ZBIA7.1  INTERRUP": false,
+    "BIACAP3_Disj BIACAINF": true,
+    "BIACAP3_Disj BIACAING": true
+  },
+  "cible": {
+    "BIACAP3_BIACA3ZBIA7.1SA.1F": false,
+    "BIACAP3_BIACA   3CBO.1    SS.1.12": true,
+    "BIACAP3_BIACA3TR311SA.1F": false,
+    "BIACAP3_BIACA3VIOLE.1SA.1F": false,
+    "BIACAP3_BIACA3TR312SA.1F": false,
+    "BIACAP3_BIACA   3TR311    SRB.1": false,
+    "BIACAP3_BIACA   3TR311    SRB.1.BIACA3TR311": false,
+    "BIACAP3_BIACA   3TR311    SRB.1.BIACAINA": true,
+    "BIACAP3_BIACA   3TR312    SRB.1": false,
+    "BIACAP3_BIACA   3VIOLE.1  INTERRUP": false,
+    "BIACAP3_BIACA   3ZBIA7.1  INTERRUP": true,
+    "BIACAP3_Disj BIACAINF": false,
+    "BIACAP3_Disj BIACAING": false
+  },
+  "meta": {
+    "source": "combinaison",
+    "tags": [],
+    "topologie_depart_id": "7365d7bdd86bad5c",
+    "topologie_cible_id": "b2004c11886dff00",
+    "nb_organes_changes": 5,
+    "nb_manoeuvres_observees": null,
+    "depart_vue": [
+      "2021-01-03T08:05",
+      "2021-01-03T18:00"
+    ],
+    "cible_vue": [
+      "2021-04-14T08:15",
+      "2021-04-14T20:55"
+    ],
+    "benchmark": {
+      "libtopo/smooth": {
+        "statut": "ok",
+        "nb_manoeuvres": 3,
+        "is_verified": false,
+        "is_verified_detaillee": false,
+        "nb_ecarts": 2,
+        "nb_alertes": 0,
+        "noeuds_non_realisables": 1,
+        "temps_s": 0.005
+      },
+      "libtopo/aggressive": {
+        "statut": "ok",
+        "nb_manoeuvres": 3,
+        "is_verified": false,
+        "is_verified_detaillee": false,
+        "nb_ecarts": 2,
+        "nb_alertes": 0,
+        "noeuds_non_realisables": 0,
+        "temps_s": 0.003
+      }
+    }
+  }
+}

@@ -1,0 +1,4641 @@
+{
+  "note": "2 277 combinaisons inter-saisons 2021 (5 journées fusionnées, min 4 organes, max 3/poste) — régénérable",
+  "algo": "libtopo",
+  "modes": [
+    "smooth",
+    "aggressive"
+  ],
+  "nb_blocs": 2277,
+  "sans_structure": 3,
+  "resume": {
+    "libtopo/smooth": {
+      "blocs_executes": 2274,
+      "erreurs": 0,
+      "partition_atteinte (is_verified)": 2166,
+      "detaillee_exacte (is_verified_detaillee)": 2118,
+      "manoeuvres/borne_basse (moy. sur vérifiés)": 1.07,
+      "manoeuvres/observees (moy. sur vérifiés)": null
+    },
+    "libtopo/aggressive": {
+      "blocs_executes": 2274,
+      "erreurs": 0,
+      "partition_atteinte (is_verified)": 2264,
+      "detaillee_exacte (is_verified_detaillee)": 2215,
+      "manoeuvres/borne_basse (moy. sur vérifiés)": 1.07,
+      "manoeuvres/observees (moy. sur vérifiés)": null
+    }
+  },
+  "blocs_non_triviaux": [
+    {
+      "bloc": "ARGOEP4_177ffddb_vers_046018cc_combinaison",
+      "voltage_level_id": "ARGOEP4",
+      "tags": [],
+      "borne_basse": 26,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 15,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 42,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.011
+        }
+      }
+    },
+    {
+      "bloc": "ARRIGP6_00c8b0b8_vers_47758f82_combinaison",
+      "voltage_level_id": "ARRIGP6",
+      "tags": [],
+      "borne_basse": 24,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 28,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 7,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.052
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 22,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.017
+        }
+      }
+    },
+    {
+      "bloc": "ARRIGP6_23a82e01_vers_dd203548_combinaison",
+      "voltage_level_id": "ARRIGP6",
+      "tags": [],
+      "borne_basse": 24,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 26,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 14,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.024
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 22,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.015
+        }
+      }
+    },
+    {
+      "bloc": "ARRIGP6_47758f82_vers_00c8b0b8_combinaison",
+      "voltage_level_id": "ARRIGP6",
+      "tags": [],
+      "borne_basse": 24,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 34,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.049
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 34,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.012
+        }
+      }
+    },
+    {
+      "bloc": "AUTUNP3_3878f9ce_vers_4b08cf93_combinaison",
+      "voltage_level_id": "AUTUNP3",
+      "tags": [],
+      "borne_basse": 9,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.772
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "AUTUNP3_4f080189_vers_791cfb00_combinaison",
+      "voltage_level_id": "AUTUNP3",
+      "tags": [],
+      "borne_basse": 9,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.77
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "AVELIP6_0821cb8f_vers_86cde1b9_combinaison",
+      "voltage_level_id": "AVELIP6",
+      "tags": [],
+      "borne_basse": 26,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 30,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 11,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.058
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 30,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.011
+        }
+      }
+    },
+    {
+      "bloc": "AVELIP6_86cde1b9_vers_0821cb8f_combinaison",
+      "voltage_level_id": "AVELIP6",
+      "tags": [],
+      "borne_basse": 26,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 47,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.021
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 32,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        }
+      }
+    },
+    {
+      "bloc": "AVELIP6_42770672_vers_86cde1b9_combinaison",
+      "voltage_level_id": "AVELIP6",
+      "tags": [],
+      "borne_basse": 25,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 30,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 10,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.056
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 29,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.01
+        }
+      }
+    },
+    {
+      "bloc": "AYTREP4_1ed33612_vers_4fea5220_combinaison",
+      "voltage_level_id": "AYTREP4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 3,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BALARP3_6fd28867_vers_ae0fc2c9_combinaison",
+      "voltage_level_id": "BALARP3",
+      "tags": [],
+      "borne_basse": 17,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 7,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 21,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "BARCEP3_9e9b7953_vers_fbc3f895_combinaison",
+      "voltage_level_id": "BARCEP3",
+      "tags": [],
+      "borne_basse": 7,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BARCEP3_3be564e3_vers_fbc3f895_combinaison",
+      "voltage_level_id": "BARCEP3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BESSEP3_1f931f4b_vers_d8f9253b_combinaison",
+      "voltage_level_id": "BESSEP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "BEZONP3_1a50ae54_vers_22e4cceb_combinaison",
+      "voltage_level_id": "BEZONP3",
+      "tags": [],
+      "borne_basse": 13,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 39,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 6,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 3,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 23,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        }
+      }
+    },
+    {
+      "bloc": "BIACAP3_7365d7bd_vers_b2004c11_combinaison",
+      "voltage_level_id": "BIACAP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BIACAP3_7365d7bd_vers_e2d8d1e7_combinaison",
+      "voltage_level_id": "BIACAP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BIACAP3_74b58c50_vers_e2d8d1e7_combinaison",
+      "voltage_level_id": "BIACAP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "BOSCHP6_1990c0bd_vers_af571355_combinaison",
+      "voltage_level_id": "BOSCHP6",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BRABOP3_ba3b248d_vers_d6f893de_combinaison",
+      "voltage_level_id": "BRABOP3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "BRABOP3_3e4c697f_vers_d6f893de_combinaison",
+      "voltage_level_id": "BRABOP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "BRESSP4_0ba451d5_vers_b4bb1b47_combinaison",
+      "voltage_level_id": "BRESSP4",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.011
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "BRESSP4_38f0009f_vers_b4bb1b47_combinaison",
+      "voltage_level_id": "BRESSP4",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.01
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "BREV6P3_4d17422b_vers_0ba21de5_combinaison",
+      "voltage_level_id": "BREV6P3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BREV6P3_4d17422b_vers_f7225c50_combinaison",
+      "voltage_level_id": "BREV6P3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "BRILLP3_cdcee1ea_vers_5fa69457_combinaison",
+      "voltage_level_id": "BRILLP3",
+      "tags": [],
+      "borne_basse": 16,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 30,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "BRILLP3_5728bb5a_vers_5fa69457_combinaison",
+      "voltage_level_id": "BRILLP3",
+      "tags": [],
+      "borne_basse": 15,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 21,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "BXTO5P3_03bf1050_vers_2ea03882_combinaison",
+      "voltage_level_id": "BXTO5P3",
+      "tags": [],
+      "borne_basse": 23,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 33,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 10,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.064
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 47,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.017
+        }
+      }
+    },
+    {
+      "bloc": "BXTO5P3_03bf1050_vers_3395acae_combinaison",
+      "voltage_level_id": "BXTO5P3",
+      "tags": [],
+      "borne_basse": 23,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 29,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 8,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.063
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 51,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.018
+        }
+      }
+    },
+    {
+      "bloc": "BXTO5P3_131a6124_vers_50a880bb_combinaison",
+      "voltage_level_id": "BXTO5P3",
+      "tags": [],
+      "borne_basse": 23,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 34,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 10,
+          "nb_alertes": 4,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.13
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 47,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.011
+        }
+      }
+    },
+    {
+      "bloc": "BXTO5P6_87fb64ac_vers_f6cd641c_combinaison",
+      "voltage_level_id": "BXTO5P6",
+      "tags": [],
+      "borne_basse": 23,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 32,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.015
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 23,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        }
+      }
+    },
+    {
+      "bloc": "C.SEIP3_71289c60_vers_f04b7684_combinaison",
+      "voltage_level_id": "C.SEIP3",
+      "tags": [],
+      "borne_basse": 12,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 21,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "C.SEIP3_c0606331_vers_e5fc645d_combinaison",
+      "voltage_level_id": "C.SEIP3",
+      "tags": [],
+      "borne_basse": 12,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 21,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 20,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "C.SEIP3_e5fc645d_vers_c0606331_combinaison",
+      "voltage_level_id": "C.SEIP3",
+      "tags": [],
+      "borne_basse": 12,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 21,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "CERGYP6_7cc830c7_vers_fad68590_combinaison",
+      "voltage_level_id": "CERGYP6",
+      "tags": [],
+      "borne_basse": 33,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 36,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 7,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.028
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 39,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.026
+        }
+      }
+    },
+    {
+      "bloc": "CERGYP6_fad68590_vers_7cc830c7_combinaison",
+      "voltage_level_id": "CERGYP6",
+      "tags": [],
+      "borne_basse": 33,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 40,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 6,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.037
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 61,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.025
+        }
+      }
+    },
+    {
+      "bloc": "CERGYP6_739a4c7d_vers_fad68590_combinaison",
+      "voltage_level_id": "CERGYP6",
+      "tags": [],
+      "borne_basse": 32,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 35,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 7,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.026
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 38,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.256
+        }
+      }
+    },
+    {
+      "bloc": "CERIZP4_2e7c0dfd_vers_c186a9c7_combinaison",
+      "voltage_level_id": "CERIZP4",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "CHATIP6_146eb66e_vers_7128d0cd_combinaison",
+      "voltage_level_id": "CHATIP6",
+      "tags": [],
+      "borne_basse": 8,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 5,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "CHATIP6_146eb66e_vers_9b6edba2_combinaison",
+      "voltage_level_id": "CHATIP6",
+      "tags": [],
+      "borne_basse": 8,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "CHATIP6_7128d0cd_vers_146eb66e_combinaison",
+      "voltage_level_id": "CHATIP6",
+      "tags": [],
+      "borne_basse": 8,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "CHESNP7_b2a48c82_vers_b9711023_combinaison",
+      "voltage_level_id": "CHESNP7",
+      "tags": [],
+      "borne_basse": 25,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 39,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.029
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 31,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.027
+        }
+      }
+    },
+    {
+      "bloc": "CHEV5P3_504a2ea4_vers_77009874_combinaison",
+      "voltage_level_id": "CHEV5P3",
+      "tags": [],
+      "borne_basse": 7,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.011
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "CHEVIP6_066e1784_vers_627cea71_combinaison",
+      "voltage_level_id": "CHEVIP6",
+      "tags": [],
+      "borne_basse": 32,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 71,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 5,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.034
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 38,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.013
+        }
+      }
+    },
+    {
+      "bloc": "CHEVIP6_066e1784_vers_9fac88f8_combinaison",
+      "voltage_level_id": "CHEVIP6",
+      "tags": [],
+      "borne_basse": 32,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 50,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 13,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.132
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 38,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        }
+      }
+    },
+    {
+      "bloc": "CHEVIP6_0f38c0f7_vers_9fac88f8_combinaison",
+      "voltage_level_id": "CHEVIP6",
+      "tags": [],
+      "borne_basse": 32,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 39,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 14,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.303
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 40,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        }
+      }
+    },
+    {
+      "bloc": "CNNAYP3_5d79776a_vers_76badadd_combinaison",
+      "voltage_level_id": "CNNAYP3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 1,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 3,
+          "temps_s": 0.015
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "COR.PP7_444d77b2_vers_b8437d3e_combinaison",
+      "voltage_level_id": "COR.PP7",
+      "tags": [],
+      "borne_basse": 28,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 39,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.02
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 28,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        }
+      }
+    },
+    {
+      "bloc": "CORMEP6_030486dd_vers_5b0535f6_combinaison",
+      "voltage_level_id": "CORMEP6",
+      "tags": [],
+      "borne_basse": 27,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 17,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 15,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 3.556
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 41,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.013
+        }
+      }
+    },
+    {
+      "bloc": "CORMEP6_4b9bca84_vers_5b0535f6_combinaison",
+      "voltage_level_id": "CORMEP6",
+      "tags": [],
+      "borne_basse": 27,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 53,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 8,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.046
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 39,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.013
+        }
+      }
+    },
+    {
+      "bloc": "CREC6P6_18de6966_vers_1722a818_combinaison",
+      "voltage_level_id": "CREC6P6",
+      "tags": [],
+      "borne_basse": 8,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "DAMBRP4_d627fca3_vers_ff87607d_combinaison",
+      "voltage_level_id": "DAMBRP4",
+      "tags": [],
+      "borne_basse": 7,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 29,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.016
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 17,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        }
+      }
+    },
+    {
+      "bloc": "DAMVIP4_1ae28ba8_vers_0289462d_combinaison",
+      "voltage_level_id": "DAMVIP4",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 3,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "DIEP5P4_5b1140f4_vers_5b520a12_combinaison",
+      "voltage_level_id": "DIEP5P4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "DISTRP7_16b2c9f9_vers_d3eecff0_combinaison",
+      "voltage_level_id": "DISTRP7",
+      "tags": [],
+      "borne_basse": 9,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 12,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.009
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 25,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "DISTRP7_b09f3796_vers_124e237a_combinaison",
+      "voltage_level_id": "DISTRP7",
+      "tags": [],
+      "borne_basse": 9,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 24,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 10,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.013
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 25,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "EGET_P3_9dfb08a4_vers_e2f0ec9c_combinaison",
+      "voltage_level_id": "EGET P3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "EPER5P4_bf80c8a2_vers_0337c311_combinaison",
+      "voltage_level_id": "EPER5P4",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 3,
+          "noeuds_non_realisables": 3,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "ERRONP3_09baf7d0_vers_d75d99e9_combinaison",
+      "voltage_level_id": "ERRONP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 13,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "GAEL_P4_36b998c5_vers_93b77de3_combinaison",
+      "voltage_level_id": "GAEL P4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "GAEL_P4_605758a8_vers_38519428_combinaison",
+      "voltage_level_id": "GAEL P4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "GAUC5P3_8155c6c6_vers_7a6b45b1_combinaison",
+      "voltage_level_id": "GAUC5P3",
+      "tags": [],
+      "borne_basse": 13,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 20,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.01
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 17,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "GAVREP4_7f0d7862_vers_4b1dc7b4_combinaison",
+      "voltage_level_id": "GAVREP4",
+      "tags": [],
+      "borne_basse": 34,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 71,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.025
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 32,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.015
+        }
+      }
+    },
+    {
+      "bloc": "GAVREP4_07cb2475_vers_4b1dc7b4_combinaison",
+      "voltage_level_id": "GAVREP4",
+      "tags": [],
+      "borne_basse": 33,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 72,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.025
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 31,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        }
+      }
+    },
+    {
+      "bloc": "GENISP6_1d1b0cb5_vers_79ba69e4_combinaison",
+      "voltage_level_id": "GENISP6",
+      "tags": [],
+      "borne_basse": 9,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.644
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "GENISP6_3b19ac5a_vers_aecf50c8_combinaison",
+      "voltage_level_id": "GENISP6",
+      "tags": [],
+      "borne_basse": 9,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.595
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "GENISP6_79ba69e4_vers_1d1b0cb5_combinaison",
+      "voltage_level_id": "GENISP6",
+      "tags": [],
+      "borne_basse": 9,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 4,
+          "temps_s": 4.478
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        }
+      }
+    },
+    {
+      "bloc": "GRIBOP4_1a3c1f3e_vers_ac3b837a_combinaison",
+      "voltage_level_id": "GRIBOP4",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "GRIBOP4_4c7febc3_vers_df3d38ca_combinaison",
+      "voltage_level_id": "GRIBOP4",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "HAMBAP3_f7c4768f_vers_5f635321_combinaison",
+      "voltage_level_id": "HAMBAP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "KERHEP3_5d747a1d_vers_9209054d_combinaison",
+      "voltage_level_id": "KERHEP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "KERHEP3_7d6c7cbc_vers_ec2552f4_combinaison",
+      "voltage_level_id": "KERHEP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 14,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "LANDRP6_3e9d37b1_vers_68d8053b_combinaison",
+      "voltage_level_id": "LANDRP6",
+      "tags": [],
+      "borne_basse": 9,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 30,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 5,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.024
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        }
+      }
+    },
+    {
+      "bloc": "LANDRP6_3e9d37b1_vers_85cda8f9_combinaison",
+      "voltage_level_id": "LANDRP6",
+      "tags": [],
+      "borne_basse": 8,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 29,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 5,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.025
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 14,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        }
+      }
+    },
+    {
+      "bloc": "LATENP7_0fa3c08c_vers_9b4253e9_combinaison",
+      "voltage_level_id": "LATENP7",
+      "tags": [],
+      "borne_basse": 16,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.01
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 20,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "LATENP7_28f625d2_vers_9b4253e9_combinaison",
+      "voltage_level_id": "LATENP7",
+      "tags": [],
+      "borne_basse": 16,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.011
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 18,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "LAUNAP6_b60cf059_vers_bd2b170f_combinaison",
+      "voltage_level_id": "LAUNAP6",
+      "tags": [],
+      "borne_basse": 16,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 25,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 24,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "LAUNAP6_bd2b170f_vers_b60cf059_combinaison",
+      "voltage_level_id": "LAUNAP6",
+      "tags": [],
+      "borne_basse": 16,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 24,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 24,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "LAUNAP6_a5473af3_vers_b60cf059_combinaison",
+      "voltage_level_id": "LAUNAP6",
+      "tags": [],
+      "borne_basse": 15,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 27,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 23,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "LOUVEP3_c74fea66_vers_16d70775_combinaison",
+      "voltage_level_id": "LOUVEP3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "MAGNAP4_39482216_vers_f33d6f1f_combinaison",
+      "voltage_level_id": "MAGNAP4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "MAGNAP4_7012279c_vers_f33d6f1f_combinaison",
+      "voltage_level_id": "MAGNAP4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "MARIEP3_6998329f_vers_98edc3e8_combinaison",
+      "voltage_level_id": "MARIEP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "MARMAP7_61a3f205_vers_c3c6f73d_combinaison",
+      "voltage_level_id": "MARMAP7",
+      "tags": [],
+      "borne_basse": 19,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 14,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 8,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.01
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 17,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "MARMAP7_75615225_vers_27207a33_combinaison",
+      "voltage_level_id": "MARMAP7",
+      "tags": [],
+      "borne_basse": 19,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 38,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 7,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.015
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 17,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "MASTAP6_1d118ad6_vers_10582d94_combinaison",
+      "voltage_level_id": "MASTAP6",
+      "tags": [],
+      "borne_basse": 11,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 33,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 21,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "MASTAP6_3d467a91_vers_6d53d50e_combinaison",
+      "voltage_level_id": "MASTAP6",
+      "tags": [],
+      "borne_basse": 11,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.009
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 21,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "MEDE_P3_4cd2ef3e_vers_218b2e15_combinaison",
+      "voltage_level_id": "MEDE P3",
+      "tags": [],
+      "borne_basse": 7,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 18,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.011
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 13,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "MEXY_P3_1c708a2c_vers_c79c7368_combinaison",
+      "voltage_level_id": "MEXY P3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "MEZE5P1_22eea032_vers_d859e1f5_combinaison",
+      "voltage_level_id": "MEZE5P1",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.003
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MEZE5P1_28671585_vers_667e568d_combinaison",
+      "voltage_level_id": "MEZE5P1",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.003
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MEZE5P1_4c27e102_vers_82aaaec5_combinaison",
+      "voltage_level_id": "MEZE5P1",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.003
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MIEGEP1_5ec937ba_vers_d20bfa92_combinaison",
+      "voltage_level_id": "MIEGEP1",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MIONSP7_46d6b7be_vers_2a0025d9_combinaison",
+      "voltage_level_id": "MIONSP7",
+      "tags": [],
+      "borne_basse": 12,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 15,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        }
+      }
+    },
+    {
+      "bloc": "MORBRP1_6fb58737_vers_dd01e09f_combinaison",
+      "voltage_level_id": "MORBRP1",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.003
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MORBRP1_97827114_vers_0a6ce852_combinaison",
+      "voltage_level_id": "MORBRP1",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.002
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "MQISEP4_81b53139_vers_46d8927c_combinaison",
+      "voltage_level_id": "MQISEP4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "NEGREP3_84266d4d_vers_3852ef0f_combinaison",
+      "voltage_level_id": "NEGREP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 3,
+          "temps_s": 0.562
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "NEUBOP4_491cb27d_vers_af1fa269_combinaison",
+      "voltage_level_id": "NEUBOP4",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "NEUBOP4_616a0c7a_vers_af1fa269_combinaison",
+      "voltage_level_id": "NEUBOP4",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "P.BERP3_6a0e1a06_vers_2fd33316_combinaison",
+      "voltage_level_id": "P.BERP3",
+      "tags": [],
+      "borne_basse": 12,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 26,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 8,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.013
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 22,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "P.GASP1_0f8b7034_vers_86bfe08a_combinaison",
+      "voltage_level_id": "P.GASP1",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.003
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "P.GASP1_20bdbe20_vers_4b9c42a5_combinaison",
+      "voltage_level_id": "P.GASP1",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.002
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "P.SIMP3_1a82befd_vers_268208ac_combinaison",
+      "voltage_level_id": "P.SIMP3",
+      "tags": [],
+      "borne_basse": 11,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 8,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.017
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 47,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.01
+        }
+      }
+    },
+    {
+      "bloc": "PAROYP3_f2a68212_vers_a972ea68_combinaison",
+      "voltage_level_id": "PAROYP3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "PECQ_P3_95faf8bb_vers_0206dd28_combinaison",
+      "voltage_level_id": "PECQ P3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 19,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.011
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "PELOUP4_44dcea9e_vers_d50b0708_combinaison",
+      "voltage_level_id": "PELOUP4",
+      "tags": [],
+      "borne_basse": 20,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 11,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.01
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 20,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "PESSAP6_09e0302d_vers_611f7171_combinaison",
+      "voltage_level_id": "PESSAP6",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 22,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "PESSAP6_611f7171_vers_09e0302d_combinaison",
+      "voltage_level_id": "PESSAP6",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 2,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "PHELIP4_1b364e29_vers_8018a369_combinaison",
+      "voltage_level_id": "PHELIP4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "PLOURP3_c753d186_vers_961f3b8f_combinaison",
+      "voltage_level_id": "PLOURP3",
+      "tags": [],
+      "borne_basse": 7,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "PREMYP3_09533856_vers_b3c50d54_combinaison",
+      "voltage_level_id": "PREMYP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "PREMYP3_2de360f9_vers_bd1ec3f7_combinaison",
+      "voltage_level_id": "PREMYP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "PREMYP3_b3c50d54_vers_09533856_combinaison",
+      "voltage_level_id": "PREMYP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "PUTE5P3_05605226_vers_c5779193_combinaison",
+      "voltage_level_id": "PUTE5P3",
+      "tags": [],
+      "borne_basse": 20,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 17,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 18,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        }
+      }
+    },
+    {
+      "bloc": "R.LANP3_3330dee3_vers_7eddbdff_combinaison",
+      "voltage_level_id": "R.LANP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "RANTIP3_040bd016_vers_1415c244_combinaison",
+      "voltage_level_id": "RANTIP3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 17,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 2,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 18,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "RANVIP6_055a7871_vers_8ec0df49_combinaison",
+      "voltage_level_id": "RANVIP6",
+      "tags": [],
+      "borne_basse": 11,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 32,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 5,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 23,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "ROISEP3_84e59768_vers_1fce059b_combinaison",
+      "voltage_level_id": "ROISEP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "ROMAIP6_1ee37cfe_vers_09773a8d_combinaison",
+      "voltage_level_id": "ROMAIP6",
+      "tags": [],
+      "borne_basse": 27,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 46,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 20,
+          "nb_alertes": 8,
+          "noeuds_non_realisables": 1,
+          "temps_s": 3.666
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 31,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.018
+        }
+      }
+    },
+    {
+      "bloc": "ROMAIP6_1ee37cfe_vers_3331dc22_combinaison",
+      "voltage_level_id": "ROMAIP6",
+      "tags": [],
+      "borne_basse": 27,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 43,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 22,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.069
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 51,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.02
+        }
+      }
+    },
+    {
+      "bloc": "ROSS5P3_06e8a35b_vers_756dae8c_combinaison",
+      "voltage_level_id": "ROSS5P3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.009
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "ROSS5P3_1b87bd1a_vers_756dae8c_combinaison",
+      "voltage_level_id": "ROSS5P3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "RUSSYP3_2113d9a6_vers_fde82c9a_combinaison",
+      "voltage_level_id": "RUSSYP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.006
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "S.FOUP3_401a70c2_vers_225e73f0_combinaison",
+      "voltage_level_id": "S.FOUP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "SAUILP3_680ef701_vers_3156059a_combinaison",
+      "voltage_level_id": "SAUILP3",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "SAUS5P6_16048533_vers_476e8212_combinaison",
+      "voltage_level_id": "SAUS5P6",
+      "tags": [],
+      "borne_basse": 24,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 44,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.019
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 46,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.015
+        }
+      }
+    },
+    {
+      "bloc": "SAUS5P6_16048533_vers_ec20e252_combinaison",
+      "voltage_level_id": "SAUS5P6",
+      "tags": [],
+      "borne_basse": 24,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 44,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.019
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 46,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        }
+      }
+    },
+    {
+      "bloc": "SAUS5P6_27d6a22c_vers_ec20e252_combinaison",
+      "voltage_level_id": "SAUS5P6",
+      "tags": [],
+      "borne_basse": 24,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 44,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.018
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 48,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.015
+        }
+      }
+    },
+    {
+      "bloc": "SORRUP4_01f4c4ab_vers_bcc5fa02_combinaison",
+      "voltage_level_id": "SORRUP4",
+      "tags": [],
+      "borne_basse": 16,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 22,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.013
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 17,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        }
+      }
+    },
+    {
+      "bloc": "SSAU5P6_3d7bb56f_vers_7b1d3e0b_combinaison",
+      "voltage_level_id": "SSAU5P6",
+      "tags": [],
+      "borne_basse": 25,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 26,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.016
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 25,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        }
+      }
+    },
+    {
+      "bloc": "SSCALP4_240d05ba_vers_64e822a6_combinaison",
+      "voltage_level_id": "SSCALP4",
+      "tags": [],
+      "borne_basse": 14,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 18,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.02
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 14,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        }
+      }
+    },
+    {
+      "bloc": "SSCALP4_4876aeba_vers_510edba0_combinaison",
+      "voltage_level_id": "SSCALP4",
+      "tags": [],
+      "borne_basse": 14,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.022
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 14,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.007
+        }
+      }
+    },
+    {
+      "bloc": "SSCALP4_510edba0_vers_4876aeba_combinaison",
+      "voltage_level_id": "SSCALP4",
+      "tags": [],
+      "borne_basse": 14,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 12,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.143
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 14,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.009
+        }
+      }
+    },
+    {
+      "bloc": "SSFERP3_6e76c361_vers_3babdf35_combinaison",
+      "voltage_level_id": "SSFERP3",
+      "tags": [],
+      "borne_basse": 7,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "SSHUBP3_31322b13_vers_b54a0697_combinaison",
+      "voltage_level_id": "SSHUBP3",
+      "tags": [],
+      "borne_basse": 10,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 8,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.151
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 36,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        }
+      }
+    },
+    {
+      "bloc": "SSMR_P6_7b888a3f_vers_fba57ec4_combinaison",
+      "voltage_level_id": "SSMR P6",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "SSMR_P6_fba57ec4_vers_7b888a3f_combinaison",
+      "voltage_level_id": "SSMR P6",
+      "tags": [],
+      "borne_basse": 6,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.012
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.005
+        }
+      }
+    },
+    {
+      "bloc": "SSMR_P6_3757b104_vers_5e4d0e3a_combinaison",
+      "voltage_level_id": "SSMR P6",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.01
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "SSVITP3_1a4bee7b_vers_cec803cb_combinaison",
+      "voltage_level_id": "SSVITP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 10,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "SYNTHP3_df56205a_vers_09174fac_combinaison",
+      "voltage_level_id": "SYNTHP3",
+      "tags": [],
+      "borne_basse": 8,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 13,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.013
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 16,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.006
+        }
+      }
+    },
+    {
+      "bloc": "T.CHAP4_78d79d14_vers_cf2c6cea_combinaison",
+      "voltage_level_id": "T.CHAP4",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "T.VICP6_0be22531_vers_9713b47b_combinaison",
+      "voltage_level_id": "T.VICP6",
+      "tags": [],
+      "borne_basse": 8,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "T.VICP6_9713b47b_vers_0be22531_combinaison",
+      "voltage_level_id": "T.VICP6",
+      "tags": [],
+      "borne_basse": 8,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 14,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "TERR5P3_fb7e6255_vers_0edf0697_combinaison",
+      "voltage_level_id": "TERR5P3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "THIERP6_023fde68_vers_8e1f2363_combinaison",
+      "voltage_level_id": "THIERP6",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 3,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "TIVERP4_45bb6224_vers_8eff5556_combinaison",
+      "voltage_level_id": "TIVERP4",
+      "tags": [],
+      "borne_basse": 10,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 36,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 5,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.02
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 32,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.011
+        }
+      }
+    },
+    {
+      "bloc": "TIVERP4_521d25b9_vers_2b28fae1_combinaison",
+      "voltage_level_id": "TIVERP4",
+      "tags": [],
+      "borne_basse": 10,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 20,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.012
+        }
+      }
+    },
+    {
+      "bloc": "TRINQP3_15b14925_vers_2ed4670f_combinaison",
+      "voltage_level_id": "TRINQP3",
+      "tags": [],
+      "borne_basse": 4,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 6,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.005
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 8,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.002
+        }
+      }
+    },
+    {
+      "bloc": "VALESP3_6b5eb3ef_vers_4ffa87e5_combinaison",
+      "voltage_level_id": "VALESP3",
+      "tags": [],
+      "borne_basse": 17,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.014
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        }
+      }
+    },
+    {
+      "bloc": "VALESP3_7822207b_vers_b3c09530_combinaison",
+      "voltage_level_id": "VALESP3",
+      "tags": [],
+      "borne_basse": 17,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 37,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 6,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.015
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 15,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        }
+      }
+    },
+    {
+      "bloc": "VALLEP4_0b7b152f_vers_12ed8cbc_combinaison",
+      "voltage_level_id": "VALLEP4",
+      "tags": [],
+      "borne_basse": 31,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 68,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.021
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 31,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.018
+        }
+      }
+    },
+    {
+      "bloc": "VALLEP4_12ed8cbc_vers_0b7b152f_combinaison",
+      "voltage_level_id": "VALLEP4",
+      "tags": [],
+      "borne_basse": 31,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 55,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.024
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 31,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.018
+        }
+      }
+    },
+    {
+      "bloc": "VALLEP4_3ec71cec_vers_ef512a1b_combinaison",
+      "voltage_level_id": "VALLEP4",
+      "tags": [],
+      "borne_basse": 31,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 68,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.022
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 31,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.018
+        }
+      }
+    },
+    {
+      "bloc": "VENDAP3_07acaf7e_vers_e061c8b0_combinaison",
+      "voltage_level_id": "VENDAP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 4,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 3,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.004
+        }
+      }
+    },
+    {
+      "bloc": "VENDAP3_e061c8b0_vers_07acaf7e_combinaison",
+      "voltage_level_id": "VENDAP3",
+      "tags": [],
+      "borne_basse": 5,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 5,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.007
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 7,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "VLEJUP6_6ad34cc9_vers_a0861404_combinaison",
+      "voltage_level_id": "VLEJUP6",
+      "tags": [],
+      "borne_basse": 50,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 58,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 8,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.045
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 52,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.031
+        }
+      }
+    },
+    {
+      "bloc": "VLEJUP6_a0861404_vers_6ad34cc9_combinaison",
+      "voltage_level_id": "VLEJUP6",
+      "tags": [],
+      "borne_basse": 50,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 49,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 2,
+          "temps_s": 0.299
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 82,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.038
+        }
+      }
+    },
+    {
+      "bloc": "VLEJUP6_a0861404_vers_b1889898_combinaison",
+      "voltage_level_id": "VLEJUP6",
+      "tags": [],
+      "borne_basse": 50,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 56,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.038
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 53,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.039
+        }
+      }
+    }
+  ]
+}

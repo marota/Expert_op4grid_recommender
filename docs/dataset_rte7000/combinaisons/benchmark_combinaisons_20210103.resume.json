@@ -1,0 +1,175 @@
+{
+  "note": "424 combinaisons intra-journée 2021-01-03 (min 3 organes, max 4/poste) — régénérable",
+  "algo": "libtopo",
+  "modes": [
+    "smooth",
+    "aggressive"
+  ],
+  "nb_blocs": 424,
+  "sans_structure": 0,
+  "resume": {
+    "libtopo/smooth": {
+      "blocs_executes": 424,
+      "erreurs": 0,
+      "partition_atteinte (is_verified)": 421,
+      "detaillee_exacte (is_verified_detaillee)": 419,
+      "manoeuvres/borne_basse (moy. sur vérifiés)": 1.01,
+      "manoeuvres/observees (moy. sur vérifiés)": null
+    },
+    "libtopo/aggressive": {
+      "blocs_executes": 424,
+      "erreurs": 0,
+      "partition_atteinte (is_verified)": 424,
+      "detaillee_exacte (is_verified_detaillee)": 423,
+      "manoeuvres/borne_basse (moy. sur vérifiés)": 1.01,
+      "manoeuvres/observees (moy. sur vérifiés)": null
+    }
+  },
+  "blocs_non_triviaux": [
+    {
+      "bloc": "JUINEP4_0a3d0562_vers_9210ec5a_combinaison",
+      "voltage_level_id": "JUINEP4",
+      "tags": [],
+      "borne_basse": 7,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 30,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 4,
+          "nb_alertes": 5,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.134
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.01
+        }
+      }
+    },
+    {
+      "bloc": "JUINEP4_894a0643_vers_7d0cb563_combinaison",
+      "voltage_level_id": "JUINEP4",
+      "tags": [],
+      "borne_basse": 7,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.036
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.018
+        }
+      }
+    },
+    {
+      "bloc": "KERHEP3_969354b2_vers_9209054d_combinaison",
+      "voltage_level_id": "KERHEP3",
+      "tags": [],
+      "borne_basse": 3,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 11,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 1,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.008
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 9,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.003
+        }
+      }
+    },
+    {
+      "bloc": "TIVERP4_45bb6224_vers_8eff5556_combinaison",
+      "voltage_level_id": "TIVERP4",
+      "tags": [],
+      "borne_basse": 10,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 36,
+          "is_verified": false,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 5,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 1,
+          "temps_s": 0.023
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 32,
+          "is_verified": true,
+          "is_verified_detaillee": true,
+          "nb_ecarts": 0,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.013
+        }
+      }
+    },
+    {
+      "bloc": "TIVERP4_521d25b9_vers_2b28fae1_combinaison",
+      "voltage_level_id": "TIVERP4",
+      "tags": [],
+      "borne_basse": 10,
+      "nb_manoeuvres_observees": null,
+      "algos": {
+        "libtopo/smooth": {
+          "statut": "ok",
+          "nb_manoeuvres": 12,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 2,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.016
+        },
+        "libtopo/aggressive": {
+          "statut": "ok",
+          "nb_manoeuvres": 20,
+          "is_verified": true,
+          "is_verified_detaillee": false,
+          "nb_ecarts": 1,
+          "nb_alertes": 0,
+          "noeuds_non_realisables": 0,
+          "temps_s": 0.013
+        }
+      }
+    }
+  ]
+}
