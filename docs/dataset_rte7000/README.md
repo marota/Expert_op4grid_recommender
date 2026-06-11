@@ -51,7 +51,12 @@ que les blocs observés (diff médian 6-7 organes vs 1-2 observé) :
 |---|---|---|---|---|---|
 | Intra-journée 2021-01-03 | 424 | 122 | 3/3/19 | 421/424 | **424/424** |
 | Inter-saisons 2021 (5 jours) | 2 277 | 796 | 4/6/56 | 2 166/2 274 (95,3 %) | **2 264/2 274 (99,6 %)** |
-| 3 ans (7 jours, dont 1 488 paires inter-années) | 3 079 | 1 068 | 4/7/57 | cf. resume.json | cf. resume.json |
+| 3 ans (7 jours, dont 1 488 paires inter-années) | 3 079 | 1 068 | 4/7/57 | 2 884/3 061 (94,2 %) | **3 052/3 061 (99,7 %)** |
+
+Sur le jeu 3 ans : 18 paires écartées par la garde de couverture (structure
+du poste ayant évolué entre les années — décision B du plan en miniature) ;
+détaillée exacte 2 955/3 061 (aggressive) ; ×1,06 vs borne basse ; 0 erreur
+d'exécution.
 
 Sur l'inter-saisons 2021 : réussite « détaillée exacte » (aggressive) de
 98 % jusqu'à 29 organes de diff, 77 % sur 30-39 ; ×1,07 vs borne basse ;
