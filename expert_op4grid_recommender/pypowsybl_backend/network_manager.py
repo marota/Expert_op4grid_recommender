@@ -64,6 +64,8 @@ class NetworkManager:
     
     def _create_default_lf_parameters(self) -> lf.Parameters:
         """Create default load flow parameters (RTE-style configuration)."""
+        from expert_op4grid_recommender import config
+        max_outer = int(getattr(config, "LF_MAX_OUTER_LOOP_ITERATIONS", 100))
         return lf.Parameters(
             read_slack_bus=False,
             write_slack_bus=False,
@@ -89,8 +91,8 @@ class NetworkManager:
                 # under DC_VALUES init. Empirically slow + DC_VALUES converges
                 # in 8 outer iterations on PYMONP3 / P.SAOL31RONCI; default 20
                 # was still hitting MAX_ITERATION_REACHED on the tap-changer
-                # outer loop.
-                "maxOuterLoopIterations": "100",
+                # outer loop. Configurable via LF_MAX_OUTER_LOOP_ITERATIONS.
+                "maxOuterLoopIterations": str(max_outer),
             }
         )
     
@@ -370,8 +372,34 @@ class NetworkManager:
         """
         is_previous = (params.voltage_init_mode ==
                        lf.VoltageInitMode.PREVIOUS_VALUES)
+
+        # Two-speed first attempt: cap the PREVIOUS_VALUES (warm-start) attempt
+        # at a lower outer-loop count so a doomed warm-start on a perturbed
+        # variant fails fast instead of spinning to the full cap before the
+        # DC_VALUES fallback below. The DC_VALUES retry keeps the FULL cap, and
+        # the converged AC solution is independent of the init seed, so results
+        # are unchanged — only wasted iterations on the doomed attempt are cut.
+        # Fully defensive: any pypowsybl API mismatch falls back to ``params``.
+        first_params = params
+        if is_previous:
+            try:
+                from expert_op4grid_recommender import config
+                screening = int(getattr(
+                    config, "LF_SCREENING_MAX_OUTER_LOOP_ITERATIONS", 0))
+                if screening > 0:
+                    full_cap = int(params.provider_parameters.get(
+                        "maxOuterLoopIterations", "100"))
+                    if screening < full_cap:
+                        sp = lf.Parameters.from_json(params.to_json())
+                        pp = dict(sp.provider_parameters)
+                        pp["maxOuterLoopIterations"] = str(screening)
+                        sp.provider_parameters = pp
+                        first_params = sp
+            except Exception:
+                first_params = params
+
         try:
-            results = lf.run_ac(self.network, parameters=params)
+            results = lf.run_ac(self.network, parameters=first_params)
         except Exception as e:
             if is_previous:
                 fallback_params = lf.Parameters.from_json(params.to_json())
