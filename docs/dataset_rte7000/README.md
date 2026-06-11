@@ -5,6 +5,11 @@ par le pipeline du plan `docs/plan_dataset_rte7000.md` : **7 journées
 complètes** (≈ 2 000 instantanés XIIDM à 5 min), choisies pour contraster
 jours de semaine / week-end, saisons et années.
 
+> **Guide complet** (schémas des artefacts, observations détaillées, et
+> **comment lancer le traitement localement sur d'autres journées**) :
+> [`GUIDE.md`](GUIDE.md). Multi-journées en une commande :
+> `bash scripts/process_dgitt_days.sh 2021/07/12 2021/07/13 …`
+
 Reproduction d'une journée (~430 Mo téléchargés, jamais committés) :
 
 ```bash

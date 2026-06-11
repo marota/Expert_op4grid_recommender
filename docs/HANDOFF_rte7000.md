@@ -130,6 +130,9 @@ opérateur ×1,10 (smooth) / ×1,06 (aggressive).
 | Quoi | Où |
 |---|---|
 | Plan publication 6 phases | `docs/plan_dataset_rte7000.md` |
+| **Guide dataset construit + exécution locale** | `docs/dataset_rte7000/GUIDE.md` |
+| Campagne 7 journées / 3 ans (table, benchmarks) | `docs/dataset_rte7000/README.md` |
+| Orchestrateur multi-journées | `scripts/process_dgitt_days.sh` |
 | Résultats première passe réelle (2021-01-03) | `docs/dataset_rte7000/2021-01-03/` |
 | Doc couche pluggable | `docs/manoeuvre_plugins.md` |
 | Doc module manoeuvre (conventions, invariants) | `expert_op4grid_recommender/manoeuvre/CLAUDE.md` |
