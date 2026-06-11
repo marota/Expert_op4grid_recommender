@@ -220,19 +220,16 @@ class RedispatchMixin:
         _process(nodes_up_indices, "up")
         _process(nodes_down_indices, "down")
 
-        if self.check_action_simulation and identified:
+        candidates_to_check = (
+            self._cap_candidates_for_simulation(identified, scores_map)
+            if self.check_action_simulation and identified
+            else []
+        )
+        if candidates_to_check:
             try:
-                act_defaut = self._create_default_action(
-                    self.action_space, self.lines_defaut
-                )
-                baseline_rho, _ = self._compute_baseline(
-                    self.obs, self.timestep, act_defaut,
-                    self.act_reco_maintenance, self.lines_overloaded_ids
-                )
+                act_defaut, baseline_rho = self._get_simulation_baseline()
                 if baseline_rho is not None:
-                    for action_id, action in self._cap_candidates_for_simulation(
-                        identified, scores_map
-                    ):
+                    for action_id, action in candidates_to_check:
                         is_reduced, _ = self._check_rho_with_baseline(
                             self.obs,
                             self.timestep,

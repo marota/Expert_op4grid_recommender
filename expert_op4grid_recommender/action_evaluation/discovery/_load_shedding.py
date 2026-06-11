@@ -67,18 +67,12 @@ class LoadSheddingMixin:
         effective = []
         ineffective = []
 
-        # Hoist default action creation outside the loop
+        # Baseline shared across discovery passes (one LF per run); only
+        # computed when there are candidate nodes to check.
         act_defaut = None
         baseline_rho = None
-        if self.check_action_simulation:
-            act_defaut = self._create_default_action(
-                self.action_space, self.lines_defaut
-            )
-            # Pre-compute baseline simulation once for all actions
-            baseline_rho, _ = self._compute_baseline(
-                self.obs, self.timestep, act_defaut,
-                self.act_reco_maintenance, self.lines_overloaded_ids
-            )
+        if self.check_action_simulation and relevant_nodes:
+            act_defaut, baseline_rho = self._get_simulation_baseline()
 
         for node_idx in relevant_nodes:
             sub_name = str(obs.name_sub[node_idx])

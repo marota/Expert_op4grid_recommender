@@ -165,21 +165,46 @@ class DiscovererBase:
         Used by the generator-targeting discovery passes (redispatching,
         renewable curtailment) whose candidate count scales with the number of
         reachable generators. Their per-candidate AC load-flow verdict
-        (effective / ineffective) does not feed prioritization, so simulating
-        every candidate is wasted work on large grids. We keep the top
-        ``config.MAX_CANDIDATE_SIMULATIONS`` candidates by descending score;
-        a cap of 0 disables the limit (simulate all, legacy behaviour).
+        (effective / ineffective) does not feed prioritization — the per-type
+        scores already rank candidates and the final rho is recomputed in the
+        reassessment phase — so simulating candidates here is informational
+        only. ``config.MAX_CANDIDATE_SIMULATIONS`` controls how many to run:
+        0 (default) skips the simulation entirely, N > 0 keeps the top-N by
+        descending score, and a negative value simulates every candidate
+        (legacy behaviour).
 
         Returns a list of ``(action_id, action)`` pairs.
         """
         cap = getattr(config, "MAX_CANDIDATE_SIMULATIONS", 0)
+        if cap == 0:
+            return []
         items = list(identified.items())
-        if not cap or len(items) <= cap:
+        if cap < 0 or len(items) <= cap:
             return items
         ranked = sorted(
             items, key=lambda kv: scores_map.get(kv[0], 0.0), reverse=True
         )
         return ranked[:cap]
+
+    def _get_simulation_baseline(self):
+        """Return ``(act_defaut, baseline_rho)`` for candidate rho checks.
+
+        Computed once per discovery run and shared across the discovery
+        passes (load shedding, redispatching, renewable curtailment) — each
+        previously rebuilt the identical contingency action and re-ran the
+        same baseline load flow. The discoverer instance is created fresh for
+        every Step-2 run, so instance-level caching cannot go stale.
+        """
+        if not hasattr(self, "_cached_simulation_baseline"):
+            act_defaut = self._create_default_action(
+                self.action_space, self.lines_defaut
+            )
+            baseline_rho, _ = self._compute_baseline(
+                self.obs, self.timestep, act_defaut,
+                self.act_reco_maintenance, self.lines_overloaded_ids,
+            )
+            self._cached_simulation_baseline = (act_defaut, baseline_rho)
+        return self._cached_simulation_baseline
 
     def _build_lookup_caches(self):
         """Pre-computes name-to-index lookup dictionaries to avoid repeated np.where calls."""
