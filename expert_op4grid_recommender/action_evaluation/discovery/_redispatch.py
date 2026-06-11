@@ -49,6 +49,15 @@ class RedispatchMixin:
         self._get_edge_data_cache()
         obs = self.obs_defaut
 
+        # Hoist observation arrays to locals ONCE — ``obs.name_sub`` /
+        # ``obs.name_gen`` rebuild a fresh numpy string array on every access
+        # and ``obs.gen_p`` copies its array each time, so reading them per
+        # candidate inside the loops below is O(candidates x n_elements).
+        name_sub_arr = obs.name_sub
+        name_gen_arr = obs.name_gen
+        name_line_arr = obs.name_line
+        gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
+
         margin = getattr(config, "REDISPATCH_MARGIN", 0.05)
         min_mw = getattr(config, "REDISPATCH_MIN_MW", 1.0)
         delta = getattr(config, "REDISPATCH_DEFAULT_DELTA_MW", 10.0)
@@ -57,7 +66,7 @@ class RedispatchMixin:
         if not name_to_capacity:
             return
 
-        overloaded_line_names = {obs.name_line[i] for i in self.lines_overloaded_ids}
+        overloaded_line_names = {name_line_arr[i] for i in self.lines_overloaded_ids}
         overloaded_caps = [
             name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
         ]
@@ -110,7 +119,7 @@ class RedispatchMixin:
         def _process(nodes_indices, direction):
             nodes_set = set(nodes_indices)
             for sub_id, gen_ids in subs_with_dispatchable.items():
-                sub_name = str(obs.name_sub[sub_id])
+                sub_name = str(name_sub_arr[sub_id])
 
                 # 1) Direct: the generator's own voltage level is a graph node
                 #    on the correct side of the constraint.
@@ -151,7 +160,7 @@ class RedispatchMixin:
                 if influence_factor <= 0:
                     continue
 
-                ref_name = str(obs.name_sub[ref_idx])
+                ref_name = str(name_sub_arr[ref_idx])
 
                 mw_required = (
                     (P_overload_excess * (1 + margin)) / influence_factor
@@ -161,11 +170,10 @@ class RedispatchMixin:
 
                 for gen_id in gen_ids:
                     try:
-                        gen_name = obs.name_gen[gen_id]
+                        gen_name = name_gen_arr[gen_id]
                     except (IndexError, KeyError):
                         continue
 
-                    gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
                     if gen_p_array is None or gen_id >= len(gen_p_array):
                         continue
                     gen_p = float(gen_p_array[gen_id])

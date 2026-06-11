@@ -31,6 +31,18 @@ class RenewableCurtailmentMixin:
         self._get_edge_data_cache()
         obs = self.obs_defaut
 
+        # Hoist observation arrays to locals ONCE. ``obs.name_sub`` /
+        # ``obs.name_gen`` rebuild a fresh numpy string array from a Python
+        # list on EVERY access (network_manager.name_* -> np.array(...)), and
+        # ``obs.gen_p`` returns a full ``.copy()`` each time. Reading them per
+        # candidate inside the loops below turned candidate identification into
+        # an O(candidates x n_elements) array-rebuild storm — the dominant cost
+        # of this pass on grids with many renewables. Read them once here.
+        name_sub_arr = obs.name_sub
+        name_gen_arr = obs.name_gen
+        name_line_arr = obs.name_line
+        gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
+
         margin = getattr(config, "RENEWABLE_CURTAILMENT_MARGIN", 0.05)
         min_mw = getattr(config, "RENEWABLE_CURTAILMENT_MIN_MW", 1.0)
 
@@ -39,7 +51,7 @@ class RenewableCurtailmentMixin:
         if not name_to_capacity:
             return
 
-        overloaded_line_names = {obs.name_line[i] for i in self.lines_overloaded_ids}
+        overloaded_line_names = {name_line_arr[i] for i in self.lines_overloaded_ids}
         overloaded_caps = [
             name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
         ]
@@ -82,7 +94,7 @@ class RenewableCurtailmentMixin:
         scores_map, params_map = {}, {}
 
         for sub_id, renewable_gen_ids in subs_with_renewable.items():
-            sub_name = str(obs.name_sub[sub_id])
+            sub_name = str(name_sub_arr[sub_id])
 
             # 1) Direct: the generator's own voltage level is a graph node.
             ref_idx = (
@@ -107,7 +119,7 @@ class RenewableCurtailmentMixin:
             if ref_idx is None:
                 continue
 
-            ref_name = str(obs.name_sub[ref_idx])
+            ref_name = str(name_sub_arr[ref_idx])
 
             # Get pre-computed influence flows (O(1) lookup) on the reference node
             node_flows = node_flow_cache[ref_idx]
@@ -139,11 +151,10 @@ class RenewableCurtailmentMixin:
 
             for gen_id in renewable_gen_ids:
                 try:
-                    gen_name = obs.name_gen[gen_id]
+                    gen_name = name_gen_arr[gen_id]
                 except (IndexError, KeyError):
                     continue
 
-                gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
                 if gen_p_array is None or gen_id >= len(gen_p_array):
                     continue
 
