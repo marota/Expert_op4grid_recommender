@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.3.post2] - 2026-06-11
+
+### Performance
+
+- **Discovery hot-path optimizations** for large grids (`action_evaluation/discovery/`):
+  - Fixed an `O(n_subs^2)` `name_sub` rebuild in the voltage-level metadata construction (`692b55b`).
+  - Hoisted observation arrays out of the per-candidate loops, removing repeated re-indexing in the real hotspot (`dd489ed`).
+  - Capped per-candidate simulation for redispatch and curtailment discovery to bound work on large candidate sets (`9a251bd`).
+- **Step 2 caching** (`main.py` / step 2): zone voltage levels are now cached and unused candidate load flows are skipped (`5730a80`).
+
+### Notes
+
+- The experimental two-speed outer-loop cap on warm-start load flow attempts was introduced and then reverted (`e0c5578`, `78401c7`) after evaluation; behavior is unchanged from `0.2.3.post1` on that front.
+
+---
+
 ## [0.2.3.post1] - 2026-06-09
 
 ### Fixed
