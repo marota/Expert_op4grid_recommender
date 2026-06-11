@@ -385,7 +385,12 @@ class DiscovererBase:
         if hasattr(self, "_cached_vl_metadata"):
             return self._cached_vl_metadata
         obs = self.obs_defaut
-        n_subs = len(obs.name_sub)
+        # Hoist once: ``obs.name_sub`` rebuilds a numpy string array on every
+        # access, so reading it inside the per-substation loops below would be
+        # O(n_subs^2). This helper is built lazily on the first generator pass
+        # (renewable curtailment), which is why that pass alone paid the cost.
+        name_sub_arr = obs.name_sub
+        n_subs = len(name_sub_arr)
         meta: Dict[int, Tuple[str, float]] = {}
 
         network = None
@@ -407,7 +412,7 @@ class DiscovererBase:
                 site_map = vl_df["substation_id"].to_dict()
                 nomv_map = vl_df["nominal_v"].to_dict()
                 for i in range(n_subs):
-                    name = str(obs.name_sub[i])
+                    name = str(name_sub_arr[i])
                     site = site_map.get(name)
                     nomv = nomv_map.get(name)
                     if site is not None and nomv is not None:
@@ -424,7 +429,7 @@ class DiscovererBase:
                 "3": 63.0, "2": 45.0, "1": 20.0, "0": 20.0,
             }
             for i in range(n_subs):
-                name = str(obs.name_sub[i])
+                name = str(name_sub_arr[i])
                 stripped = re.sub(r"^\d+", "", name)
                 site = stripped[:5] if stripped else name
                 nomv = digit_to_v.get(name[-1], 0.0) if name else 0.0
