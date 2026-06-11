@@ -1,0 +1,196 @@
+{
+  "voltage_level_id": "ARDOIP6",
+  "name": "ARDOIP6_2022-06-15T14_10_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "ARDOIP6_ARDOI   6TAVEL.1  SA.1": true,
+    "ARDOIP6_ARDOI   6TAVEL.2  SA.1": true,
+    "ARDOIP6_ARDOI   6TR633    SA.1": true,
+    "ARDOIP6_ARDOI   6TAVEL.3  SA.1": true,
+    "ARDOIP6_ARDOI   6TR632    SA.1": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  SA.1": true,
+    "ARDOIP6_ARDOI   6TR611    SA.1": true,
+    "ARDOIP6_ARDOI   6COUPL    SA.1": true,
+    "ARDOIP6_ARDOI   6COUPL    SA.2": false,
+    "ARDOIP6_ARDOI   6TAVEL.1  SA.2": false,
+    "ARDOIP6_ARDOI   6TAVEL.2  SA.2": false,
+    "ARDOIP6_ARDOI   6TR633    SA.2": false,
+    "ARDOIP6_ARDOI   6TAVEL.3  SA.2": false,
+    "ARDOIP6_ARDOI   6TR632    SA.2": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  SA.2": false,
+    "ARDOIP6_ARDOI   6TR611    SA.2": false,
+    "ARDOIP6_ARDOI   6COUPL    DJ": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.1  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.2  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.3  DJ": false,
+    "ARDOIP6_ARDOI   6TR611    DJ.HT": false,
+    "ARDOIP6_ARDOI   6TR632    DJ": true,
+    "ARDOIP6_ARDOI   6TR633    DJ": false
+  },
+  "cible": {
+    "ARDOIP6_ARDOI   6TAVEL.1  SA.1": true,
+    "ARDOIP6_ARDOI   6TAVEL.2  SA.1": false,
+    "ARDOIP6_ARDOI   6TR633    SA.1": false,
+    "ARDOIP6_ARDOI   6TAVEL.3  SA.1": false,
+    "ARDOIP6_ARDOI   6TR632    SA.1": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  SA.1": false,
+    "ARDOIP6_ARDOI   6TR611    SA.1": false,
+    "ARDOIP6_ARDOI   6COUPL    SA.1": false,
+    "ARDOIP6_ARDOI   6COUPL    SA.2": true,
+    "ARDOIP6_ARDOI   6TAVEL.1  SA.2": true,
+    "ARDOIP6_ARDOI   6TAVEL.2  SA.2": true,
+    "ARDOIP6_ARDOI   6TR633    SA.2": true,
+    "ARDOIP6_ARDOI   6TAVEL.3  SA.2": true,
+    "ARDOIP6_ARDOI   6TR632    SA.2": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  SA.2": true,
+    "ARDOIP6_ARDOI   6TR611    SA.2": true,
+    "ARDOIP6_ARDOI   6COUPL    DJ": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.1  DJ": true,
+    "ARDOIP6_ARDOI   6TAVEL.2  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.3  DJ": false,
+    "ARDOIP6_ARDOI   6TR611    DJ.HT": false,
+    "ARDOIP6_ARDOI   6TR632    DJ": true,
+    "ARDOIP6_ARDOI   6TR633    DJ": false
+  },
+  "nb_manoeuvres": 18,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "ARDOIP6_ARDOI   6COUPL    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T13:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "ARDOIP6_ARDOI   6TAVEL.2  DJ",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T13:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "ARDOIP6_ARDOI   6TAVEL.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T13:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "ARDOIP6_ARDOI   6TAVEL.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T13:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "ARDOIP6_ARDOI   6COUPL    DJ",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T14:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "ARDOIP6_ARDOI   6TAVEL.2  DJ",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T14:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "ARDOIP6_ARDOI   6MOTT5.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T14:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "ARDOIP6_ARDOI   6TAVEL.1  DJ",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T14:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "ARDOIP6_ARDOI   6TAVEL.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T14:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "ARDOIP6_ARDOI   6TAVEL.3  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T14:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "ARDOIP6_ARDOI   6TR611    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T14:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "ARDOIP6_ARDOI   6TR611    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T14:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "ARDOIP6_ARDOI   6TR633    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T14:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "ARDOIP6_ARDOI   6COUPL    DJ",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T14:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "ARDOIP6_ARDOI   6COUPL    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T14:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "ARDOIP6_ARDOI   6MOTT5.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T14:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "ARDOIP6_ARDOI   6TAVEL.3  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T14:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "ARDOIP6_ARDOI   6TR633    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T14:10)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "consignation_ouvrage",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2022-06-15T13:50",
+    "t_cible": "2022-06-15T14:10"
+  }
+}

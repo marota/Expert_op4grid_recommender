@@ -1,0 +1,300 @@
+{
+  "voltage_level_id": "JONQUP6",
+  "name": "JONQUP6_2021-07-15T15_00_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "JONQUP6_JONQU   6BISC6.2  SA.1": true,
+    "JONQUP6_JONQU   6TR632    SA.1": true,
+    "JONQUP6_JONQU   6SSCES.1  SA.1": true,
+    "JONQUP6_JONQU   6BXCAI.2  SA.1": true,
+    "JONQUP6_JONQU   6AT762    SA.1": true,
+    "JONQUP6_JONQU   6SEC..21  SS.1.21": true,
+    "JONQUP6_JONQU   6SSCES.2  SA.1": true,
+    "JONQUP6_JONQU   6AT761    SA.1": true,
+    "JONQUP6_JONQU   6BXCAI.1  SA.1": true,
+    "JONQUP6_JONQU   6TR631    SA.1": true,
+    "JONQUP6_JONQU   6TR633    SA.1": true,
+    "JONQUP6_JONQU   6BISC6.1  SA.1": true,
+    "JONQUP6_JONQU   6MTAG5.1  SA.1": true,
+    "JONQUP6_JONQU   6COUPL.1  SA.1": true,
+    "JONQUP6_JONQU   6BISC6.2  SA.2": false,
+    "JONQUP6_JONQU   6TR632    SA.2": false,
+    "JONQUP6_JONQU   6SSCES.1  SA.2": false,
+    "JONQUP6_JONQU   6BXCAI.2  SA.2": false,
+    "JONQUP6_JONQU   6AT762    SA.2": false,
+    "JONQUP6_JONQU   6SEC..21  SS.2.21": false,
+    "JONQUP6_JONQU   6SSCES.2  SA.2": false,
+    "JONQUP6_JONQU   6AT761    SA.2": true,
+    "JONQUP6_JONQU   6BXCAI.1  SA.2": false,
+    "JONQUP6_JONQU   6TR631    SA.2": false,
+    "JONQUP6_JONQU   6TR633    SA.2": false,
+    "JONQUP6_JONQU   6BISC6.1  SA.2": false,
+    "JONQUP6_JONQU   6COUPL.1  SA.2": false,
+    "JONQUP6_JONQU   6MTAG5.1  SA.2": false,
+    "JONQUP6_JONQU   6AT761    DJ": true,
+    "JONQUP6_JONQU   6AT762    DJ": false,
+    "JONQUP6_JONQU   6BISC6.1  DJ": false,
+    "JONQUP6_JONQU   6BISC6.2  DJ": false,
+    "JONQUP6_JONQU   6BXCAI.1  DJ": false,
+    "JONQUP6_JONQU   6BXCAI.2  DJ": false,
+    "JONQUP6_JONQU   6COUPL.1  DJ": true,
+    "JONQUP6_JONQU   6MTAG5.1  DJ": false,
+    "JONQUP6_JONQU   6SSCES.1  DJ": false,
+    "JONQUP6_JONQU   6SSCES.2  DJ": false,
+    "JONQUP6_JONQU   6TR631    DJ": false,
+    "JONQUP6_JONQU   6TR632    DJ": false,
+    "JONQUP6_JONQU   6TR633    DJ": false
+  },
+  "cible": {
+    "JONQUP6_JONQU   6BISC6.2  SA.1": false,
+    "JONQUP6_JONQU   6TR632    SA.1": false,
+    "JONQUP6_JONQU   6SSCES.1  SA.1": false,
+    "JONQUP6_JONQU   6BXCAI.2  SA.1": false,
+    "JONQUP6_JONQU   6AT762    SA.1": false,
+    "JONQUP6_JONQU   6SEC..21  SS.1.21": false,
+    "JONQUP6_JONQU   6SSCES.2  SA.1": false,
+    "JONQUP6_JONQU   6AT761    SA.1": true,
+    "JONQUP6_JONQU   6BXCAI.1  SA.1": false,
+    "JONQUP6_JONQU   6TR631    SA.1": false,
+    "JONQUP6_JONQU   6TR633    SA.1": false,
+    "JONQUP6_JONQU   6BISC6.1  SA.1": false,
+    "JONQUP6_JONQU   6MTAG5.1  SA.1": false,
+    "JONQUP6_JONQU   6COUPL.1  SA.1": false,
+    "JONQUP6_JONQU   6BISC6.2  SA.2": true,
+    "JONQUP6_JONQU   6TR632    SA.2": true,
+    "JONQUP6_JONQU   6SSCES.1  SA.2": true,
+    "JONQUP6_JONQU   6BXCAI.2  SA.2": true,
+    "JONQUP6_JONQU   6AT762    SA.2": true,
+    "JONQUP6_JONQU   6SEC..21  SS.2.21": true,
+    "JONQUP6_JONQU   6SSCES.2  SA.2": true,
+    "JONQUP6_JONQU   6AT761    SA.2": true,
+    "JONQUP6_JONQU   6BXCAI.1  SA.2": true,
+    "JONQUP6_JONQU   6TR631    SA.2": true,
+    "JONQUP6_JONQU   6TR633    SA.2": true,
+    "JONQUP6_JONQU   6BISC6.1  SA.2": true,
+    "JONQUP6_JONQU   6COUPL.1  SA.2": true,
+    "JONQUP6_JONQU   6MTAG5.1  SA.2": true,
+    "JONQUP6_JONQU   6AT761    DJ": true,
+    "JONQUP6_JONQU   6AT762    DJ": false,
+    "JONQUP6_JONQU   6BISC6.1  DJ": false,
+    "JONQUP6_JONQU   6BISC6.2  DJ": false,
+    "JONQUP6_JONQU   6BXCAI.1  DJ": false,
+    "JONQUP6_JONQU   6BXCAI.2  DJ": false,
+    "JONQUP6_JONQU   6COUPL.1  DJ": true,
+    "JONQUP6_JONQU   6MTAG5.1  DJ": false,
+    "JONQUP6_JONQU   6SSCES.1  DJ": false,
+    "JONQUP6_JONQU   6SSCES.2  DJ": false,
+    "JONQUP6_JONQU   6TR631    DJ": false,
+    "JONQUP6_JONQU   6TR632    DJ": false,
+    "JONQUP6_JONQU   6TR633    DJ": false
+  },
+  "nb_manoeuvres": 28,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "JONQUP6_JONQU   6COUPL.1  DJ",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "JONQUP6_JONQU   6COUPL.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "JONQUP6_JONQU   6SEC..21  SS.1.21",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "JONQUP6_JONQU   6SSCES.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "JONQUP6_JONQU   6SSCES.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "JONQUP6_JONQU   6AT762    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "JONQUP6_JONQU   6BXCAI.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "JONQUP6_JONQU   6BXCAI.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "JONQUP6_JONQU   6MTAG5.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "JONQUP6_JONQU   6TR631    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "JONQUP6_JONQU   6TR632    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "JONQUP6_JONQU   6TR633    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "JONQUP6_JONQU   6AT762    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "JONQUP6_JONQU   6BISC6.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "JONQUP6_JONQU   6BISC6.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "JONQUP6_JONQU   6BISC6.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "JONQUP6_JONQU   6BISC6.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "JONQUP6_JONQU   6BXCAI.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 19,
+      "switch_id": "JONQUP6_JONQU   6BXCAI.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 20,
+      "switch_id": "JONQUP6_JONQU   6MTAG5.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 21,
+      "switch_id": "JONQUP6_JONQU   6SSCES.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 22,
+      "switch_id": "JONQUP6_JONQU   6SSCES.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 23,
+      "switch_id": "JONQUP6_JONQU   6TR631    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 24,
+      "switch_id": "JONQUP6_JONQU   6TR632    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 25,
+      "switch_id": "JONQUP6_JONQU   6TR633    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T14:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 26,
+      "switch_id": "JONQUP6_JONQU   6COUPL.1  DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T15:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 27,
+      "switch_id": "JONQUP6_JONQU   6COUPL.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T15:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 28,
+      "switch_id": "JONQUP6_JONQU   6SEC..21  SS.2.21",
+      "action": "OPEN",
+      "raison": "observée (2021-07-15T15:00)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "sectionnement_barre",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-07-15T14:40",
+    "t_cible": "2021-07-15T15:00"
+  }
+}

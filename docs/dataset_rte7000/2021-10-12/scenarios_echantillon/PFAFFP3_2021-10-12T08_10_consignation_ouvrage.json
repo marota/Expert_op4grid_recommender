@@ -1,0 +1,130 @@
+{
+  "voltage_level_id": "PFAFFP3",
+  "name": "PFAFFP3_2021-10-12T08_10_consignation_ouvrage",
+  "depart": {
+    "PFAFFP3_PFAFF   3HAGU5.2  SA.1": true,
+    "PFAFFP3_PFAFF   3TR311    SA.1": false,
+    "PFAFFP3_PFAFF   3CBO..1   SS.1.12": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  SA.1": true,
+    "PFAFFP3_PFAFF   3COUPL.1  SA.1": false,
+    "PFAFFP3_PFAFF   3HAGU5.1  SA.1": true,
+    "PFAFFP3_PFAFF   3DETTW.1  SA.1": true,
+    "PFAFFP3_PFAFF3SE.1.23SS.1.23F": false,
+    "PFAFFP3_PFAFF   3INGWI.1  SA.1": false,
+    "PFAFFP3_PFAFF   3TR312    SA.1": true,
+    "PFAFFP3_PFAFF   3GOETZ.1  SA.1": true,
+    "PFAFFP3_PFAFF   3COUPL.1  SA.2": false,
+    "PFAFFP3_PFAFF   3HAGU5.2  SA.2": false,
+    "PFAFFP3_PFAFF   3TR311    SA.2": true,
+    "PFAFFP3_PFAFF3SE.2.12SS.2.12F": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  SA.2": false,
+    "PFAFFP3_PFAFF   3HAGU5.1  SA.2": false,
+    "PFAFFP3_PFAFF   3DETTW.1  SA.2": false,
+    "PFAFFP3_PFAFF   3CBO..1   SS.2.23": false,
+    "PFAFFP3_PFAFF   3INGWI.1  SA.2": true,
+    "PFAFFP3_PFAFF   3TR312    SA.2": false,
+    "PFAFFP3_PFAFF   3GOETZ.1  SA.2": false,
+    "PFAFFP3_PFAFF   3COUPL.1  DJ": false,
+    "PFAFFP3_PFAFF   3DETTW.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3GOETZ.1  DJ.HT.S": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3HAGU5.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3HAGU5.2  DJ.HT": false,
+    "PFAFFP3_PFAFF   3INGWI.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR311    DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR312    DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR311    DJ.HT.PFAFF TR311": false,
+    "PFAFFP3_Disj PFAFFINF": true,
+    "PFAFFP3_PFAFF   3TR312    DJ.HT.PFAFF TR312": false,
+    "PFAFFP3_Disj PFAFFING": true
+  },
+  "cible": {
+    "PFAFFP3_PFAFF   3HAGU5.2  SA.1": false,
+    "PFAFFP3_PFAFF   3TR311    SA.1": false,
+    "PFAFFP3_PFAFF   3CBO..1   SS.1.12": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  SA.1": false,
+    "PFAFFP3_PFAFF   3COUPL.1  SA.1": true,
+    "PFAFFP3_PFAFF   3HAGU5.1  SA.1": false,
+    "PFAFFP3_PFAFF   3DETTW.1  SA.1": false,
+    "PFAFFP3_PFAFF3SE.1.23SS.1.23F": false,
+    "PFAFFP3_PFAFF   3INGWI.1  SA.1": false,
+    "PFAFFP3_PFAFF   3TR312    SA.1": false,
+    "PFAFFP3_PFAFF   3GOETZ.1  SA.1": false,
+    "PFAFFP3_PFAFF   3COUPL.1  SA.2": true,
+    "PFAFFP3_PFAFF   3HAGU5.2  SA.2": true,
+    "PFAFFP3_PFAFF   3TR311    SA.2": true,
+    "PFAFFP3_PFAFF3SE.2.12SS.2.12F": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  SA.2": true,
+    "PFAFFP3_PFAFF   3HAGU5.1  SA.2": true,
+    "PFAFFP3_PFAFF   3DETTW.1  SA.2": true,
+    "PFAFFP3_PFAFF   3CBO..1   SS.2.23": false,
+    "PFAFFP3_PFAFF   3INGWI.1  SA.2": true,
+    "PFAFFP3_PFAFF   3TR312    SA.2": true,
+    "PFAFFP3_PFAFF   3GOETZ.1  SA.2": true,
+    "PFAFFP3_PFAFF   3COUPL.1  DJ": true,
+    "PFAFFP3_PFAFF   3DETTW.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3GOETZ.1  DJ.HT.S": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3HAGU5.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3HAGU5.2  DJ.HT": false,
+    "PFAFFP3_PFAFF   3INGWI.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR311    DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR312    DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR311    DJ.HT.PFAFF TR311": false,
+    "PFAFFP3_Disj PFAFFINF": false,
+    "PFAFFP3_PFAFF   3TR312    DJ.HT.PFAFF TR312": true,
+    "PFAFFP3_Disj PFAFFING": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "consignation_ouvrage",
+      "remise_en_service",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-10-12T07:55",
+    "t_cible": "2021-10-12T08:10",
+    "topologie_depart_id": "6fa5bda051150c38",
+    "topologie_cible_id": "104ced882846760c",
+    "nb_organes_changes": 18,
+    "nb_manoeuvres_observees": 20,
+    "nb_etats_transitoires": 2,
+    "duree_stable_avant": 96,
+    "duree_stable_apres": 7,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "DETTWL31PFAFF",
+      "GOETZL31PFAFF",
+      "GUNDEL31PFAFF",
+      "HAGU5L31PFAFF",
+      "HAGU5L32PFAFF",
+      "INGWIL31PFAFF",
+      "PFAFF3TR311",
+      "PFAFF3TR312"
+    ],
+    [
+      "PFAFFINF"
+    ],
+    [
+      "PFAFFING"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "DETTWL31PFAFF",
+      "GOETZL31PFAFF",
+      "GUNDEL31PFAFF",
+      "HAGU5L31PFAFF",
+      "HAGU5L32PFAFF",
+      "INGWIL31PFAFF",
+      "PFAFF3TR311",
+      "PFAFFINF",
+      "PFAFFING"
+    ],
+    [
+      "PFAFF3TR312"
+    ]
+  ]
+}

@@ -1,0 +1,374 @@
+{
+  "voltage_level_id": "GAVREP4",
+  "name": "GAVREP4_2021-10-12T15_50_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "GAVREP4_GAVRE   4HENIN.1  SA.1": false,
+    "GAVREP4_GAVRE   4M.JUL.1  SA.1": true,
+    "GAVREP4_GAVRE   4TR741    SA.1": false,
+    "GAVREP4_GAVRE   4ZFTAI.1  SA.1": false,
+    "GAVREP4_GAVRE   4SCARP.1  SA.1": false,
+    "GAVREP4_GAVRE   4ESQUE.1  SA.1": false,
+    "GAVREP4_GAVRE   4AVIO5.1  SA.1": false,
+    "GAVREP4_GAVRE   4TRO.1BA  SA.1B": false,
+    "GAVREP4_GAVRE   4MOFFL.2  SA.1": false,
+    "GAVREP4_GAVRE   4COUPL.B  SA.1": false,
+    "GAVREP4_GAVRE   4ESQUE.2  SA.1": false,
+    "GAVREP4_GAVRE   4AVIO5.2  SA.1": true,
+    "GAVREP4_GAVRE   4SCARP.2  SA.1": false,
+    "GAVREP4_GAVRE   4ARRAS.2  SA.1": true,
+    "GAVREP4_GAVRE   4TR742    SA.1": true,
+    "GAVREP4_GAVRE   4HENIN.2  SA.1": false,
+    "GAVREP4_GAVRE   4TR642    SA.1": false,
+    "GAVREP4_GAVRE   4MOFFL.1  SA.1": false,
+    "GAVREP4_GAVRE   4TRO.1BA  SA.1A": false,
+    "GAVREP4_GAVRE   4COUPL.A  SA.1": false,
+    "GAVREP4_GAVRE   4COUPL.B  SA.2": true,
+    "GAVREP4_GAVRE   4HENIN.1  SA.2": true,
+    "GAVREP4_GAVRE   4M.JUL.1  SA.2": true,
+    "GAVREP4_GAVRE   4TR741    SA.2": true,
+    "GAVREP4_GAVRE   4ZFTAI.1  SA.2": true,
+    "GAVREP4_GAVRE   4SCARP.1  SA.2": true,
+    "GAVREP4_GAVRE   4ESQUE.1  SA.2": true,
+    "GAVREP4_GAVRE   4AVIO5.1  SA.2": true,
+    "GAVREP4_GAVRE   4TRO.2BA  SA.2B": true,
+    "GAVREP4_GAVRE   4MOFFL.2  SA.2": true,
+    "GAVREP4_GAVRE   4ESQUE.2  SA.2": true,
+    "GAVREP4_GAVRE   4AVIO5.2  SA.2": false,
+    "GAVREP4_GAVRE   4SCARP.2  SA.2": true,
+    "GAVREP4_GAVRE   4ARRAS.2  SA.2": false,
+    "GAVREP4_GAVRE   4TR742    SA.2": false,
+    "GAVREP4_GAVRE   4HENIN.2  SA.2": true,
+    "GAVREP4_GAVRE   4TR642    SA.2": true,
+    "GAVREP4_GAVRE   4MOFFL.1  SA.2": true,
+    "GAVREP4_GAVRE   4COUPL.A  SA.2": false,
+    "GAVREP4_GAVRE   4TRO.2BA  SA.2A": false,
+    "GAVREP4_GAVRE   4ARRAS.2  DJ": false,
+    "GAVREP4_GAVRE   4AVIO5.1  DJ": false,
+    "GAVREP4_GAVRE   4AVIO5.2  DJ": false,
+    "GAVREP4_GAVRE   4COUPL.A  DJ": false,
+    "GAVREP4_GAVRE   4COUPL.B  DJ": true,
+    "GAVREP4_GAVRE   4ESQUE.1  DJ": false,
+    "GAVREP4_GAVRE   4ESQUE.2  DJ": false,
+    "GAVREP4_GAVRE   4HENIN.1  DJ": false,
+    "GAVREP4_GAVRE   4HENIN.2  DJ": false,
+    "GAVREP4_GAVRE   4M.JUL.1  DJ": true,
+    "GAVREP4_GAVRE   4MOFFL.1  DJ": false,
+    "GAVREP4_GAVRE   4MOFFL.2  DJ": false,
+    "GAVREP4_GAVRE   4SCARP.1  DJ": false,
+    "GAVREP4_GAVRE   4SCARP.2  DJ": false,
+    "GAVREP4_GAVRE   4TRO.1BA  DJ": false,
+    "GAVREP4_GAVRE   4TRO.2BA  DJ": true,
+    "GAVREP4_GAVRE   4TR642    DJ": true,
+    "GAVREP4_GAVRE   4TR741    DJ": false,
+    "GAVREP4_GAVRE   4TR742    DJ": false,
+    "GAVREP4_GAVRE   4ZFTAI.1  DJ": false
+  },
+  "cible": {
+    "GAVREP4_GAVRE   4HENIN.1  SA.1": true,
+    "GAVREP4_GAVRE   4M.JUL.1  SA.1": true,
+    "GAVREP4_GAVRE   4TR741    SA.1": true,
+    "GAVREP4_GAVRE   4ZFTAI.1  SA.1": false,
+    "GAVREP4_GAVRE   4SCARP.1  SA.1": true,
+    "GAVREP4_GAVRE   4ESQUE.1  SA.1": true,
+    "GAVREP4_GAVRE   4AVIO5.1  SA.1": false,
+    "GAVREP4_GAVRE   4TRO.1BA  SA.1B": false,
+    "GAVREP4_GAVRE   4MOFFL.2  SA.1": true,
+    "GAVREP4_GAVRE   4COUPL.B  SA.1": false,
+    "GAVREP4_GAVRE   4ESQUE.2  SA.1": true,
+    "GAVREP4_GAVRE   4AVIO5.2  SA.1": false,
+    "GAVREP4_GAVRE   4SCARP.2  SA.1": true,
+    "GAVREP4_GAVRE   4ARRAS.2  SA.1": false,
+    "GAVREP4_GAVRE   4TR742    SA.1": false,
+    "GAVREP4_GAVRE   4HENIN.2  SA.1": true,
+    "GAVREP4_GAVRE   4TR642    SA.1": true,
+    "GAVREP4_GAVRE   4MOFFL.1  SA.1": true,
+    "GAVREP4_GAVRE   4TRO.1BA  SA.1A": false,
+    "GAVREP4_GAVRE   4COUPL.A  SA.1": false,
+    "GAVREP4_GAVRE   4COUPL.B  SA.2": false,
+    "GAVREP4_GAVRE   4HENIN.1  SA.2": false,
+    "GAVREP4_GAVRE   4M.JUL.1  SA.2": true,
+    "GAVREP4_GAVRE   4TR741    SA.2": false,
+    "GAVREP4_GAVRE   4ZFTAI.1  SA.2": true,
+    "GAVREP4_GAVRE   4SCARP.1  SA.2": false,
+    "GAVREP4_GAVRE   4ESQUE.1  SA.2": false,
+    "GAVREP4_GAVRE   4AVIO5.1  SA.2": true,
+    "GAVREP4_GAVRE   4TRO.2BA  SA.2B": false,
+    "GAVREP4_GAVRE   4MOFFL.2  SA.2": false,
+    "GAVREP4_GAVRE   4ESQUE.2  SA.2": false,
+    "GAVREP4_GAVRE   4AVIO5.2  SA.2": true,
+    "GAVREP4_GAVRE   4SCARP.2  SA.2": false,
+    "GAVREP4_GAVRE   4ARRAS.2  SA.2": true,
+    "GAVREP4_GAVRE   4TR742    SA.2": true,
+    "GAVREP4_GAVRE   4HENIN.2  SA.2": false,
+    "GAVREP4_GAVRE   4TR642    SA.2": false,
+    "GAVREP4_GAVRE   4MOFFL.1  SA.2": false,
+    "GAVREP4_GAVRE   4COUPL.A  SA.2": false,
+    "GAVREP4_GAVRE   4TRO.2BA  SA.2A": false,
+    "GAVREP4_GAVRE   4ARRAS.2  DJ": false,
+    "GAVREP4_GAVRE   4AVIO5.1  DJ": false,
+    "GAVREP4_GAVRE   4AVIO5.2  DJ": false,
+    "GAVREP4_GAVRE   4COUPL.A  DJ": true,
+    "GAVREP4_GAVRE   4COUPL.B  DJ": true,
+    "GAVREP4_GAVRE   4ESQUE.1  DJ": false,
+    "GAVREP4_GAVRE   4ESQUE.2  DJ": false,
+    "GAVREP4_GAVRE   4HENIN.1  DJ": false,
+    "GAVREP4_GAVRE   4HENIN.2  DJ": false,
+    "GAVREP4_GAVRE   4M.JUL.1  DJ": true,
+    "GAVREP4_GAVRE   4MOFFL.1  DJ": false,
+    "GAVREP4_GAVRE   4MOFFL.2  DJ": false,
+    "GAVREP4_GAVRE   4SCARP.1  DJ": false,
+    "GAVREP4_GAVRE   4SCARP.2  DJ": false,
+    "GAVREP4_GAVRE   4TRO.1BA  DJ": false,
+    "GAVREP4_GAVRE   4TRO.2BA  DJ": false,
+    "GAVREP4_GAVRE   4TR642    DJ": false,
+    "GAVREP4_GAVRE   4TR741    DJ": false,
+    "GAVREP4_GAVRE   4TR742    DJ": false,
+    "GAVREP4_GAVRE   4ZFTAI.1  DJ": false
+  },
+  "nb_manoeuvres": 33,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "GAVREP4_GAVRE   4COUPL.B  DJ",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "GAVREP4_GAVRE   4COUPL.B  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "GAVREP4_GAVRE   4ESQUE.2  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "GAVREP4_GAVRE   4MOFFL.2  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "GAVREP4_GAVRE   4MOFFL.2  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "GAVREP4_GAVRE   4TRO.2BA  DJ",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "GAVREP4_GAVRE   4TRO.2BA  SA.2B",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "GAVREP4_GAVRE   4ARRAS.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "GAVREP4_GAVRE   4ARRAS.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "GAVREP4_GAVRE   4ESQUE.2  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "GAVREP4_GAVRE   4HENIN.2  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "GAVREP4_GAVRE   4HENIN.2  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "GAVREP4_GAVRE   4MOFFL.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "GAVREP4_GAVRE   4MOFFL.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "GAVREP4_GAVRE   4SCARP.2  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "GAVREP4_GAVRE   4SCARP.2  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "GAVREP4_GAVRE   4TR642    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "GAVREP4_GAVRE   4TR642    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 19,
+      "switch_id": "GAVREP4_GAVRE   4TR742    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 20,
+      "switch_id": "GAVREP4_GAVRE   4AVIO5.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 21,
+      "switch_id": "GAVREP4_GAVRE   4AVIO5.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 22,
+      "switch_id": "GAVREP4_GAVRE   4COUPL.A  DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 23,
+      "switch_id": "GAVREP4_GAVRE   4COUPL.B  DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 24,
+      "switch_id": "GAVREP4_GAVRE   4ESQUE.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 25,
+      "switch_id": "GAVREP4_GAVRE   4ESQUE.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 26,
+      "switch_id": "GAVREP4_GAVRE   4HENIN.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 27,
+      "switch_id": "GAVREP4_GAVRE   4HENIN.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 28,
+      "switch_id": "GAVREP4_GAVRE   4SCARP.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 29,
+      "switch_id": "GAVREP4_GAVRE   4SCARP.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 30,
+      "switch_id": "GAVREP4_GAVRE   4TR642    DJ",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 31,
+      "switch_id": "GAVREP4_GAVRE   4TR741    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 32,
+      "switch_id": "GAVREP4_GAVRE   4TR741    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 33,
+      "switch_id": "GAVREP4_GAVRE   4TR742    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T15:50)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "remise_en_service",
+      "scission_noeud",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-10-12T15:35",
+    "t_cible": "2021-10-12T15:50"
+  }
+}

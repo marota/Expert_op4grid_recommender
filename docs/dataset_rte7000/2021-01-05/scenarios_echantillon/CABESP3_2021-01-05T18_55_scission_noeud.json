@@ -1,0 +1,115 @@
+{
+  "voltage_level_id": "CABESP3",
+  "name": "CABESP3_2021-01-05T18_55_scission_noeud",
+  "depart": {
+    "CABESP3_CABES   3SEC..12  SS.1.12": false,
+    "CABESP3_CABES   3TR311    SA.1": true,
+    "CABESP3_CABES   3CANET.1  SA.1": false,
+    "CABESP3_CABES   3ZPERP.1  SA.1": false,
+    "CABESP3_CABES   3COUPL.1  SA.1": false,
+    "CABESP3_CABES   3TR313    SA.1": true,
+    "CABESP3_CABES   3ZPER5.2  SA.1": true,
+    "CABESP3_CABES   3TR312    SA.1": false,
+    "CABESP3_CABES   3COUPL.1  SA.2": false,
+    "CABESP3_CABES   3SEC..12  SS.2.12": false,
+    "CABESP3_CABES   3TR311    SA.2": false,
+    "CABESP3_CABES   3CANET.1  SA.2": true,
+    "CABESP3_CABES   3ZPERP.1  SA.2": true,
+    "CABESP3_CABES   3TR313    SA.2": false,
+    "CABESP3_CABES   3ZPER5.2  SA.2": false,
+    "CABESP3_CABES   3TR312    SA.2": true,
+    "CABESP3_CABES   3CANET.1  DJ": false,
+    "CABESP3_CABES   3COUPL.1  DJ": false,
+    "CABESP3_CABES   3TR311    DJ.HT": false,
+    "CABESP3_CABES   3TR311    DJ.BT.CABES3TR311": false,
+    "CABESP3_CABES   3TR311    DJ.BT.CABESINA": true,
+    "CABESP3_CABES   3TR312    DJ.HT": false,
+    "CABESP3_CABES   3TR313    DJ.HT": false,
+    "CABESP3_CABES   3ZPERP.1  DJ": false,
+    "CABESP3_CABES   3ZPER5.2  DJ": false,
+    "CABESP3_Disj CABESINF": true,
+    "CABESP3_CABES   3TR312    DJ.HT.CABES TR312": false,
+    "CABESP3_Disj CABESING": true
+  },
+  "cible": {
+    "CABESP3_CABES   3SEC..12  SS.1.12": false,
+    "CABESP3_CABES   3TR311    SA.1": true,
+    "CABESP3_CABES   3CANET.1  SA.1": false,
+    "CABESP3_CABES   3ZPERP.1  SA.1": false,
+    "CABESP3_CABES   3COUPL.1  SA.1": false,
+    "CABESP3_CABES   3TR313    SA.1": false,
+    "CABESP3_CABES   3ZPER5.2  SA.1": true,
+    "CABESP3_CABES   3TR312    SA.1": true,
+    "CABESP3_CABES   3COUPL.1  SA.2": false,
+    "CABESP3_CABES   3SEC..12  SS.2.12": false,
+    "CABESP3_CABES   3TR311    SA.2": false,
+    "CABESP3_CABES   3CANET.1  SA.2": true,
+    "CABESP3_CABES   3ZPERP.1  SA.2": true,
+    "CABESP3_CABES   3TR313    SA.2": true,
+    "CABESP3_CABES   3ZPER5.2  SA.2": false,
+    "CABESP3_CABES   3TR312    SA.2": false,
+    "CABESP3_CABES   3CANET.1  DJ": false,
+    "CABESP3_CABES   3COUPL.1  DJ": true,
+    "CABESP3_CABES   3TR311    DJ.HT": false,
+    "CABESP3_CABES   3TR311    DJ.BT.CABES3TR311": false,
+    "CABESP3_CABES   3TR311    DJ.BT.CABESINA": true,
+    "CABESP3_CABES   3TR312    DJ.HT": false,
+    "CABESP3_CABES   3TR313    DJ.HT": false,
+    "CABESP3_CABES   3ZPERP.1  DJ": false,
+    "CABESP3_CABES   3ZPER5.2  DJ": false,
+    "CABESP3_Disj CABESINF": true,
+    "CABESP3_CABES   3TR312    DJ.HT.CABES TR312": false,
+    "CABESP3_Disj CABESING": true
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "scission_noeud",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-01-05T18:50",
+    "t_cible": "2021-01-05T18:55",
+    "topologie_depart_id": "f0ae3ce432157425",
+    "topologie_cible_id": "3522dce5b57408c4",
+    "nb_organes_changes": 5,
+    "nb_manoeuvres_observees": 5,
+    "nb_etats_transitoires": 0,
+    "duree_stable_avant": 11,
+    "duree_stable_apres": 22,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "CABES3CD1",
+      "CABES3CD2",
+      "CABES3CD3",
+      "CABESL31CANET",
+      "CABESL31ZPERP",
+      "CABESL32ZPER5"
+    ],
+    [
+      "CABESINF"
+    ],
+    [
+      "CABESING"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "CABES3CD1",
+      "CABES3CD2",
+      "CABESL32ZPER5"
+    ],
+    [
+      "CABES3CD3",
+      "CABESL31CANET",
+      "CABESL31ZPERP"
+    ],
+    [
+      "CABESINF"
+    ],
+    [
+      "CABESING"
+    ]
+  ]
+}

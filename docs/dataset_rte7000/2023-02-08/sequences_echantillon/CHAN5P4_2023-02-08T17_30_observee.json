@@ -1,0 +1,178 @@
+{
+  "voltage_level_id": "CHAN5P4",
+  "name": "CHAN5P4_2023-02-08T17_30_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "CHAN5P4_CHAN5   4TR742    SA.1": true,
+    "CHAN5P4_CHAN5   4MONNA.1  SA.1": true,
+    "CHAN5P4_CHAN5   4C.LO5.1  SA.1": true,
+    "CHAN5P4_CHAN5   4ZSEMB.1  SA.1": true,
+    "CHAN5P4_CHAN5   4PELOU.1  SA.1": true,
+    "CHAN5P4_CHAN5   4SEC..12  SS.1.21": true,
+    "CHAN5P4_CHAN5   4ZFOU5.2  SA.1": true,
+    "CHAN5P4_CHAN5   4TR741    SA.1": false,
+    "CHAN5P4_CHAN5   4PELOU.3  SA.1": false,
+    "CHAN5P4_CHAN5   4PELOU.2  SA.1": true,
+    "CHAN5P4_CHAN5   4COUPL    SA.1": false,
+    "CHAN5P4_CHAN5   4TR742    SA.2": false,
+    "CHAN5P4_CHAN5   4MONNA.1  SA.2": true,
+    "CHAN5P4_CHAN5   4C.LO5.1  SA.2": false,
+    "CHAN5P4_CHAN5   4ZSEMB.1  SA.2": false,
+    "CHAN5P4_CHAN5   4PELOU.1  SA.2": false,
+    "CHAN5P4_CHAN5   4SEC..12  SS.2.21": false,
+    "CHAN5P4_CHAN5   4ZFOU5.2  SA.2": false,
+    "CHAN5P4_CHAN5   4TR741    SA.2": true,
+    "CHAN5P4_CHAN5   4PELOU.3  SA.2": true,
+    "CHAN5P4_CHAN5   4COUPL    SA.2": false,
+    "CHAN5P4_CHAN5   4PELOU.2  SA.2": false,
+    "CHAN5P4_CHAN5   4C.LO5.1  DJ": false,
+    "CHAN5P4_CHAN5   4COUPL    DJ": false,
+    "CHAN5P4_CHAN5   4MONNA.1  DJ": true,
+    "CHAN5P4_CHAN5   4PELOU.1  DJ": false,
+    "CHAN5P4_CHAN5   4PELOU.2  DJ": false,
+    "CHAN5P4_CHAN5   4PELOU.3  DJ": false,
+    "CHAN5P4_CHAN5   4TR741    DJ": false,
+    "CHAN5P4_CHAN5   4TR742    DJ": false,
+    "CHAN5P4_CHAN5   4ZFOU5.2  DJ": false,
+    "CHAN5P4_CHAN5   4ZSEMB.1  DJ": false
+  },
+  "cible": {
+    "CHAN5P4_CHAN5   4TR742    SA.1": false,
+    "CHAN5P4_CHAN5   4MONNA.1  SA.1": false,
+    "CHAN5P4_CHAN5   4C.LO5.1  SA.1": false,
+    "CHAN5P4_CHAN5   4ZSEMB.1  SA.1": false,
+    "CHAN5P4_CHAN5   4PELOU.1  SA.1": false,
+    "CHAN5P4_CHAN5   4SEC..12  SS.1.21": false,
+    "CHAN5P4_CHAN5   4ZFOU5.2  SA.1": false,
+    "CHAN5P4_CHAN5   4TR741    SA.1": false,
+    "CHAN5P4_CHAN5   4PELOU.3  SA.1": false,
+    "CHAN5P4_CHAN5   4PELOU.2  SA.1": true,
+    "CHAN5P4_CHAN5   4COUPL    SA.1": false,
+    "CHAN5P4_CHAN5   4TR742    SA.2": true,
+    "CHAN5P4_CHAN5   4MONNA.1  SA.2": true,
+    "CHAN5P4_CHAN5   4C.LO5.1  SA.2": true,
+    "CHAN5P4_CHAN5   4ZSEMB.1  SA.2": true,
+    "CHAN5P4_CHAN5   4PELOU.1  SA.2": true,
+    "CHAN5P4_CHAN5   4SEC..12  SS.2.21": false,
+    "CHAN5P4_CHAN5   4ZFOU5.2  SA.2": true,
+    "CHAN5P4_CHAN5   4TR741    SA.2": true,
+    "CHAN5P4_CHAN5   4PELOU.3  SA.2": true,
+    "CHAN5P4_CHAN5   4COUPL    SA.2": false,
+    "CHAN5P4_CHAN5   4PELOU.2  SA.2": false,
+    "CHAN5P4_CHAN5   4C.LO5.1  DJ": false,
+    "CHAN5P4_CHAN5   4COUPL    DJ": false,
+    "CHAN5P4_CHAN5   4MONNA.1  DJ": false,
+    "CHAN5P4_CHAN5   4PELOU.1  DJ": false,
+    "CHAN5P4_CHAN5   4PELOU.2  DJ": false,
+    "CHAN5P4_CHAN5   4PELOU.3  DJ": false,
+    "CHAN5P4_CHAN5   4TR741    DJ": false,
+    "CHAN5P4_CHAN5   4TR742    DJ": false,
+    "CHAN5P4_CHAN5   4ZFOU5.2  DJ": false,
+    "CHAN5P4_CHAN5   4ZSEMB.1  DJ": false
+  },
+  "nb_manoeuvres": 13,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "CHAN5P4_CHAN5   4MONNA.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2023-02-08T17:25)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "CHAN5P4_CHAN5   4SEC..12  SS.1.21",
+      "action": "CLOSE",
+      "raison": "observée (2023-02-08T17:25)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "CHAN5P4_CHAN5   4C.LO5.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "CHAN5P4_CHAN5   4C.LO5.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "CHAN5P4_CHAN5   4MONNA.1  DJ",
+      "action": "CLOSE",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "CHAN5P4_CHAN5   4PELOU.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "CHAN5P4_CHAN5   4PELOU.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "CHAN5P4_CHAN5   4TR742    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "CHAN5P4_CHAN5   4TR742    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "CHAN5P4_CHAN5   4ZFOU5.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "CHAN5P4_CHAN5   4ZFOU5.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "CHAN5P4_CHAN5   4ZSEMB.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "CHAN5P4_CHAN5   4ZSEMB.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2023-02-08T17:30)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "remise_en_service",
+      "sectionnement_barre",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2023-02-08T17:20",
+    "t_cible": "2023-02-08T17:30"
+  }
+}

@@ -1,0 +1,208 @@
+{
+  "voltage_level_id": "FARRAP4",
+  "name": "FARRAP4_2021-04-14T18_10_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "FARRAP4_FARRA   4TR641    SA.1": false,
+    "FARRAP4_FARRA   4COND.1   SA.1": false,
+    "FARRAP4_FARRA   4THOU .1  SA.1": false,
+    "FARRAP4_FARRA   4ROCH8.1  SA.1": false,
+    "FARRAP4_FARRA   4ZARNO.1  SA.1": false,
+    "FARRAP4_FARRA   4T.CHA.1  SA.1": true,
+    "FARRAP4_FARRA   4TR643    SA.1": false,
+    "FARRAP4_FARRA   4ZCH10.1  SA.1": false,
+    "FARRAP4_FARRA   4TR642    SA.1": false,
+    "FARRAP4_FARRA   4COUPL    SA.1": false,
+    "FARRAP4_FARRA   4TR641    SA.2": true,
+    "FARRAP4_FARRA   4COND.1   SA.2": true,
+    "FARRAP4_FARRA   4THOU .1  SA.2": true,
+    "FARRAP4_FARRA   4ROCH8.1  SA.2": true,
+    "FARRAP4_FARRA   4COUPL    SA.2": true,
+    "FARRAP4_FARRA   4ZARNO.1  SA.2": true,
+    "FARRAP4_FARRA   4T.CHA.1  SA.2": true,
+    "FARRAP4_FARRA   4TR643    SA.2": true,
+    "FARRAP4_FARRA   4ZCH10.1  SA.2": true,
+    "FARRAP4_FARRA   4TR642    SA.2": true,
+    "FARRAP4_FARRA   4COND.1   DJ.MCOMP": true,
+    "FARRAP4_FARRA   4COUPL    INTER": true,
+    "FARRAP4_FARRA   4ROCH8.1  DJ": false,
+    "FARRAP4_FARRA   4T.CHA.1  DJ": true,
+    "FARRAP4_FARRA   4THOU .1  DJ": false,
+    "FARRAP4_FARRA   4TR641    DJ": false,
+    "FARRAP4_FARRA   4TR642    DJ": false,
+    "FARRAP4_FARRA   4TR643    DJ": false,
+    "FARRAP4_FARRA   4ZARNO.1  DJ": false,
+    "FARRAP4_FARRA   4ZCH10.1  DJ": false
+  },
+  "cible": {
+    "FARRAP4_FARRA   4TR641    SA.1": true,
+    "FARRAP4_FARRA   4COND.1   SA.1": true,
+    "FARRAP4_FARRA   4THOU .1  SA.1": true,
+    "FARRAP4_FARRA   4ROCH8.1  SA.1": true,
+    "FARRAP4_FARRA   4ZARNO.1  SA.1": true,
+    "FARRAP4_FARRA   4T.CHA.1  SA.1": true,
+    "FARRAP4_FARRA   4TR643    SA.1": true,
+    "FARRAP4_FARRA   4ZCH10.1  SA.1": true,
+    "FARRAP4_FARRA   4TR642    SA.1": true,
+    "FARRAP4_FARRA   4COUPL    SA.1": false,
+    "FARRAP4_FARRA   4TR641    SA.2": false,
+    "FARRAP4_FARRA   4COND.1   SA.2": false,
+    "FARRAP4_FARRA   4THOU .1  SA.2": false,
+    "FARRAP4_FARRA   4ROCH8.1  SA.2": false,
+    "FARRAP4_FARRA   4COUPL    SA.2": false,
+    "FARRAP4_FARRA   4ZARNO.1  SA.2": false,
+    "FARRAP4_FARRA   4T.CHA.1  SA.2": true,
+    "FARRAP4_FARRA   4TR643    SA.2": false,
+    "FARRAP4_FARRA   4ZCH10.1  SA.2": false,
+    "FARRAP4_FARRA   4TR642    SA.2": false,
+    "FARRAP4_FARRA   4COND.1   DJ.MCOMP": true,
+    "FARRAP4_FARRA   4COUPL    INTER": false,
+    "FARRAP4_FARRA   4ROCH8.1  DJ": false,
+    "FARRAP4_FARRA   4T.CHA.1  DJ": true,
+    "FARRAP4_FARRA   4THOU .1  DJ": false,
+    "FARRAP4_FARRA   4TR641    DJ": false,
+    "FARRAP4_FARRA   4TR642    DJ": false,
+    "FARRAP4_FARRA   4TR643    DJ": false,
+    "FARRAP4_FARRA   4ZARNO.1  DJ": false,
+    "FARRAP4_FARRA   4ZCH10.1  DJ": false
+  },
+  "nb_manoeuvres": 18,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "FARRAP4_FARRA   4COUPL    INTER",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "FARRAP4_FARRA   4COUPL    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "FARRAP4_FARRA   4ROCH8.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "FARRAP4_FARRA   4THOU .1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "FARRAP4_FARRA   4TR641    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "FARRAP4_FARRA   4TR642    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "FARRAP4_FARRA   4TR643    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "FARRAP4_FARRA   4ZARNO.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "FARRAP4_FARRA   4ZCH10.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "FARRAP4_FARRA   4ZCH10.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "FARRAP4_FARRA   4COND.1   SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-04-14T18:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "FARRAP4_FARRA   4COND.1   SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-04-14T18:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "FARRAP4_FARRA   4ROCH8.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-04-14T18:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "FARRAP4_FARRA   4THOU .1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-04-14T18:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "FARRAP4_FARRA   4TR641    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-04-14T18:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "FARRAP4_FARRA   4TR642    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-04-14T18:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "FARRAP4_FARRA   4TR643    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-04-14T18:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "FARRAP4_FARRA   4ZARNO.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-04-14T18:10)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "sectionnement_barre",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-04-14T18:00",
+    "t_cible": "2021-04-14T18:10"
+  }
+}

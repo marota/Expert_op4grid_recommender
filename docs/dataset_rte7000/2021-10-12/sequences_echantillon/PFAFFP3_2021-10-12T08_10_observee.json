@@ -1,0 +1,233 @@
+{
+  "voltage_level_id": "PFAFFP3",
+  "name": "PFAFFP3_2021-10-12T08_10_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "PFAFFP3_PFAFF   3HAGU5.2  SA.1": true,
+    "PFAFFP3_PFAFF   3TR311    SA.1": false,
+    "PFAFFP3_PFAFF   3CBO..1   SS.1.12": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  SA.1": true,
+    "PFAFFP3_PFAFF   3COUPL.1  SA.1": false,
+    "PFAFFP3_PFAFF   3HAGU5.1  SA.1": true,
+    "PFAFFP3_PFAFF   3DETTW.1  SA.1": true,
+    "PFAFFP3_PFAFF3SE.1.23SS.1.23F": false,
+    "PFAFFP3_PFAFF   3INGWI.1  SA.1": false,
+    "PFAFFP3_PFAFF   3TR312    SA.1": true,
+    "PFAFFP3_PFAFF   3GOETZ.1  SA.1": true,
+    "PFAFFP3_PFAFF   3COUPL.1  SA.2": false,
+    "PFAFFP3_PFAFF   3HAGU5.2  SA.2": false,
+    "PFAFFP3_PFAFF   3TR311    SA.2": true,
+    "PFAFFP3_PFAFF3SE.2.12SS.2.12F": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  SA.2": false,
+    "PFAFFP3_PFAFF   3HAGU5.1  SA.2": false,
+    "PFAFFP3_PFAFF   3DETTW.1  SA.2": false,
+    "PFAFFP3_PFAFF   3CBO..1   SS.2.23": false,
+    "PFAFFP3_PFAFF   3INGWI.1  SA.2": true,
+    "PFAFFP3_PFAFF   3TR312    SA.2": false,
+    "PFAFFP3_PFAFF   3GOETZ.1  SA.2": false,
+    "PFAFFP3_PFAFF   3COUPL.1  DJ": false,
+    "PFAFFP3_PFAFF   3DETTW.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3GOETZ.1  DJ.HT.S": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3HAGU5.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3HAGU5.2  DJ.HT": false,
+    "PFAFFP3_PFAFF   3INGWI.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR311    DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR312    DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR311    DJ.HT.PFAFF TR311": false,
+    "PFAFFP3_Disj PFAFFINF": true,
+    "PFAFFP3_PFAFF   3TR312    DJ.HT.PFAFF TR312": false,
+    "PFAFFP3_Disj PFAFFING": true
+  },
+  "cible": {
+    "PFAFFP3_PFAFF   3HAGU5.2  SA.1": false,
+    "PFAFFP3_PFAFF   3TR311    SA.1": false,
+    "PFAFFP3_PFAFF   3CBO..1   SS.1.12": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  SA.1": false,
+    "PFAFFP3_PFAFF   3COUPL.1  SA.1": true,
+    "PFAFFP3_PFAFF   3HAGU5.1  SA.1": false,
+    "PFAFFP3_PFAFF   3DETTW.1  SA.1": false,
+    "PFAFFP3_PFAFF3SE.1.23SS.1.23F": false,
+    "PFAFFP3_PFAFF   3INGWI.1  SA.1": false,
+    "PFAFFP3_PFAFF   3TR312    SA.1": false,
+    "PFAFFP3_PFAFF   3GOETZ.1  SA.1": false,
+    "PFAFFP3_PFAFF   3COUPL.1  SA.2": true,
+    "PFAFFP3_PFAFF   3HAGU5.2  SA.2": true,
+    "PFAFFP3_PFAFF   3TR311    SA.2": true,
+    "PFAFFP3_PFAFF3SE.2.12SS.2.12F": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  SA.2": true,
+    "PFAFFP3_PFAFF   3HAGU5.1  SA.2": true,
+    "PFAFFP3_PFAFF   3DETTW.1  SA.2": true,
+    "PFAFFP3_PFAFF   3CBO..1   SS.2.23": false,
+    "PFAFFP3_PFAFF   3INGWI.1  SA.2": true,
+    "PFAFFP3_PFAFF   3TR312    SA.2": true,
+    "PFAFFP3_PFAFF   3GOETZ.1  SA.2": true,
+    "PFAFFP3_PFAFF   3COUPL.1  DJ": true,
+    "PFAFFP3_PFAFF   3DETTW.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3GOETZ.1  DJ.HT.S": false,
+    "PFAFFP3_PFAFF   3GUNDE.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3HAGU5.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3HAGU5.2  DJ.HT": false,
+    "PFAFFP3_PFAFF   3INGWI.1  DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR311    DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR312    DJ.HT": false,
+    "PFAFFP3_PFAFF   3TR311    DJ.HT.PFAFF TR311": false,
+    "PFAFFP3_Disj PFAFFINF": false,
+    "PFAFFP3_PFAFF   3TR312    DJ.HT.PFAFF TR312": true,
+    "PFAFFP3_Disj PFAFFING": false
+  },
+  "nb_manoeuvres": 20,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "PFAFFP3_Disj PFAFFING",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "PFAFFP3_PFAFF   3TR312    DJ.HT",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "PFAFFP3_PFAFF   3TR312    DJ.HT.PFAFF TR312",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "PFAFFP3_PFAFF   3TR312    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "PFAFFP3_PFAFF   3TR312    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "PFAFFP3_PFAFF   3DETTW.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "PFAFFP3_PFAFF   3GOETZ.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "PFAFFP3_PFAFF   3GUNDE.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "PFAFFP3_PFAFF   3HAGU5.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "PFAFFP3_PFAFF   3HAGU5.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:05)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "PFAFFP3_Disj PFAFFINF",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "PFAFFP3_PFAFF   3COUPL.1  DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "PFAFFP3_PFAFF   3COUPL.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "PFAFFP3_PFAFF   3COUPL.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "PFAFFP3_PFAFF   3DETTW.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "PFAFFP3_PFAFF   3GOETZ.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "PFAFFP3_PFAFF   3GUNDE.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "PFAFFP3_PFAFF   3HAGU5.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 19,
+      "switch_id": "PFAFFP3_PFAFF   3HAGU5.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 20,
+      "switch_id": "PFAFFP3_PFAFF   3TR312    DJ.HT",
+      "action": "CLOSE",
+      "raison": "observée (2021-10-12T08:10)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "consignation_ouvrage",
+      "remise_en_service",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-10-12T07:55",
+    "t_cible": "2021-10-12T08:10"
+  }
+}

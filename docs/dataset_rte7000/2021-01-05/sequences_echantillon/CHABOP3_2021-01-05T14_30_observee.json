@@ -1,0 +1,206 @@
+{
+  "voltage_level_id": "CHABOP3",
+  "name": "CHABOP3_2021-01-05T14_30_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "CHABOP3_CHABO   3B.IND.3  SA.1": true,
+    "CHABOP3_CHABO   3CHEV5.1  SA.1": false,
+    "CHABOP3_CHABO   3TR634    SA.1": true,
+    "CHABOP3_CHABO   3B.IND.2  SA.1": true,
+    "CHABOP3_CHABO   3TR313    SA.1": false,
+    "CHABOP3_CHABO   3TR632    SA.1": false,
+    "CHABOP3_CHABO   3B.IND.1  SA.1": true,
+    "CHABOP3_CHABO   3TR311    SA.1": true,
+    "CHABOP3_CHABO   3MTLU5.1  SA.1": false,
+    "CHABOP3_CHABO   3CNNAY.1  SA.1": true,
+    "CHABOP3_CHABO   3J.MAI.1  SA.1": true,
+    "CHABOP3_CHABO   3COUPL    SA.1": false,
+    "CHABOP3_CHABO   3COUPL    SA.2": false,
+    "CHABOP3_CHABO   3B.IND.3  SA.2": false,
+    "CHABOP3_CHABO   3CHEV5.1  SA.2": true,
+    "CHABOP3_CHABO   3TR634    SA.2": false,
+    "CHABOP3_CHABO   3B.IND.2  SA.2": false,
+    "CHABOP3_CHABO   3TR313    SA.2": true,
+    "CHABOP3_CHABO   3TR632    SA.2": true,
+    "CHABOP3_CHABO   3B.IND.1  SA.2": true,
+    "CHABOP3_CHABO   3TR311    SA.2": false,
+    "CHABOP3_CHABO   3MTLU5.1  SA.2": true,
+    "CHABOP3_CHABO   3CNNAY.1  SA.2": true,
+    "CHABOP3_CHABO   3J.MAI.1  SA.2": false,
+    "CHABOP3_CHABO   3B.IND.1  DJ.HT": true,
+    "CHABOP3_CHABO   3B.IND.2  DJ.HT": false,
+    "CHABOP3_CHABO   3B.IND.3  DJ.HT": false,
+    "CHABOP3_CHABO   3CHEV5.1  DJ": false,
+    "CHABOP3_CHABO   3CNNAY.1  DJ": true,
+    "CHABOP3_CHABO   3COUPL    INTER": false,
+    "CHABOP3_CHABO   3J.MAI.1  DJ": false,
+    "CHABOP3_CHABO   3MTLU5.1  DJ": false,
+    "CHABOP3_CHABO   3TR311    DJ.HT": false,
+    "CHABOP3_CHABO   3TR311    DJ.BT.CHABO3TR311": false,
+    "CHABOP3_CHABO   3TR311    DJ.BT.CHABOINA": false,
+    "CHABOP3_CHABO   3TR311    DJ.BT.CHABOIN4": false,
+    "CHABOP3_CHABO   3TR313    DJ.HT": false,
+    "CHABOP3_CHABO   3TR313    DJ.BT.CHABO3TR313": false,
+    "CHABOP3_CHABO   3TR313    DJ.BT.CHABOIN6": false,
+    "CHABOP3_CHABO   3TR632    DJ": false,
+    "CHABOP3_CHABO   3TR634    DJ": false,
+    "CHABOP3_Disj CHABOINF": false,
+    "CHABOP3_Disj CHABOING": false
+  },
+  "cible": {
+    "CHABOP3_CHABO   3B.IND.3  SA.1": false,
+    "CHABOP3_CHABO   3CHEV5.1  SA.1": false,
+    "CHABOP3_CHABO   3TR634    SA.1": false,
+    "CHABOP3_CHABO   3B.IND.2  SA.1": false,
+    "CHABOP3_CHABO   3TR313    SA.1": false,
+    "CHABOP3_CHABO   3TR632    SA.1": false,
+    "CHABOP3_CHABO   3B.IND.1  SA.1": true,
+    "CHABOP3_CHABO   3TR311    SA.1": false,
+    "CHABOP3_CHABO   3MTLU5.1  SA.1": false,
+    "CHABOP3_CHABO   3CNNAY.1  SA.1": true,
+    "CHABOP3_CHABO   3J.MAI.1  SA.1": false,
+    "CHABOP3_CHABO   3COUPL    SA.1": false,
+    "CHABOP3_CHABO   3COUPL    SA.2": true,
+    "CHABOP3_CHABO   3B.IND.3  SA.2": true,
+    "CHABOP3_CHABO   3CHEV5.1  SA.2": true,
+    "CHABOP3_CHABO   3TR634    SA.2": true,
+    "CHABOP3_CHABO   3B.IND.2  SA.2": true,
+    "CHABOP3_CHABO   3TR313    SA.2": true,
+    "CHABOP3_CHABO   3TR632    SA.2": true,
+    "CHABOP3_CHABO   3B.IND.1  SA.2": true,
+    "CHABOP3_CHABO   3TR311    SA.2": true,
+    "CHABOP3_CHABO   3MTLU5.1  SA.2": true,
+    "CHABOP3_CHABO   3CNNAY.1  SA.2": true,
+    "CHABOP3_CHABO   3J.MAI.1  SA.2": true,
+    "CHABOP3_CHABO   3B.IND.1  DJ.HT": true,
+    "CHABOP3_CHABO   3B.IND.2  DJ.HT": false,
+    "CHABOP3_CHABO   3B.IND.3  DJ.HT": false,
+    "CHABOP3_CHABO   3CHEV5.1  DJ": false,
+    "CHABOP3_CHABO   3CNNAY.1  DJ": true,
+    "CHABOP3_CHABO   3COUPL    INTER": true,
+    "CHABOP3_CHABO   3J.MAI.1  DJ": false,
+    "CHABOP3_CHABO   3MTLU5.1  DJ": false,
+    "CHABOP3_CHABO   3TR311    DJ.HT": false,
+    "CHABOP3_CHABO   3TR311    DJ.BT.CHABO3TR311": false,
+    "CHABOP3_CHABO   3TR311    DJ.BT.CHABOINA": false,
+    "CHABOP3_CHABO   3TR311    DJ.BT.CHABOIN4": false,
+    "CHABOP3_CHABO   3TR313    DJ.HT": false,
+    "CHABOP3_CHABO   3TR313    DJ.BT.CHABO3TR313": false,
+    "CHABOP3_CHABO   3TR313    DJ.BT.CHABOIN6": false,
+    "CHABOP3_CHABO   3TR632    DJ": false,
+    "CHABOP3_CHABO   3TR634    DJ": false,
+    "CHABOP3_Disj CHABOINF": false,
+    "CHABOP3_Disj CHABOING": false
+  },
+  "nb_manoeuvres": 14,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "CHABOP3_CHABO   3TR311    DJ.BT.CHABOINA",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T14:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "CHABOP3_CHABO   3B.IND.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T14:25)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "CHABOP3_CHABO   3J.MAI.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T14:25)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "CHABOP3_CHABO   3TR311    DJ.BT.CHABOINA",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T14:25)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "CHABOP3_CHABO   3TR311    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T14:25)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "CHABOP3_CHABO   3TR634    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T14:25)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "CHABOP3_CHABO   3B.IND.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T14:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "CHABOP3_CHABO   3B.IND.3  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T14:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "CHABOP3_CHABO   3B.IND.3  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T14:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "CHABOP3_CHABO   3COUPL    INTER",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T14:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "CHABOP3_CHABO   3COUPL    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T14:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "CHABOP3_CHABO   3J.MAI.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T14:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "CHABOP3_CHABO   3TR311    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T14:30)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "CHABOP3_CHABO   3TR634    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T14:30)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "sectionnement_barre",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-01-05T14:15",
+    "t_cible": "2021-01-05T14:30"
+  }
+}

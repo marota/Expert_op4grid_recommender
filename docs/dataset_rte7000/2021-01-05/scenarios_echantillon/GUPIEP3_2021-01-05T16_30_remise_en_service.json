@@ -1,0 +1,133 @@
+{
+  "voltage_level_id": "GUPIEP3",
+  "name": "GUPIEP3_2021-01-05T16_30_remise_en_service",
+  "depart": {
+    "GUPIEP3_GUPIE   3REOLE.1  SA.1": false,
+    "GUPIEP3_GUPIE   3REOLE.2  SA.1": false,
+    "GUPIEP3_GUPIE   3TR631    SA.1": false,
+    "GUPIEP3_GUPIE   3ZGIRO.1  SA.1": true,
+    "GUPIEP3_GUPIE   3TR632    SA.1": false,
+    "GUPIEP3_GUPIE   3ZGIR5.2  SA.1": false,
+    "GUPIEP3_GUPIE   3MARM5.1  SA.1": false,
+    "GUPIEP3_GUPIE   3COND.1   SA.1": false,
+    "GUPIEP3_GUPIE   3SAUVE.1  SA.1": false,
+    "GUPIEP3_GUPIE   3PATRA.1  SA.1": false,
+    "GUPIEP3_GUPIE   3TR633    SA.1": false,
+    "GUPIEP3_GUPIE   3COUPL    SA.1": true,
+    "GUPIEP3_GUPIE   3COUPL    SA.2": true,
+    "GUPIEP3_GUPIE   3REOLE.1  SA.2": true,
+    "GUPIEP3_GUPIE   3REOLE.2  SA.2": true,
+    "GUPIEP3_GUPIE   3TR631    SA.2": true,
+    "GUPIEP3_GUPIE   3ZGIRO.1  SA.2": true,
+    "GUPIEP3_GUPIE   3TR632    SA.2": true,
+    "GUPIEP3_GUPIE   3ZGIR5.2  SA.2": true,
+    "GUPIEP3_GUPIE   3MARM5.1  SA.2": true,
+    "GUPIEP3_GUPIE   3COND.1   SA.2": true,
+    "GUPIEP3_GUPIE   3SAUVE.1  SA.2": true,
+    "GUPIEP3_GUPIE   3PATRA.1  SA.2": true,
+    "GUPIEP3_GUPIE   3TR633    SA.2": true,
+    "GUPIEP3_GUPIE   3COND.1   DJ.MCOMP": true,
+    "GUPIEP3_GUPIE   3COUPL    DJ": true,
+    "GUPIEP3_GUPIE   3MARM5.1  DJ": false,
+    "GUPIEP3_GUPIE   3PATRA.1  DJ": false,
+    "GUPIEP3_GUPIE   3REOLE.1  DJ": false,
+    "GUPIEP3_GUPIE   3REOLE.2  DJ": false,
+    "GUPIEP3_GUPIE   3SAUVE.1  DJ": false,
+    "GUPIEP3_GUPIE   3TR631    DJ": false,
+    "GUPIEP3_GUPIE   3TR632    DJ": false,
+    "GUPIEP3_GUPIE   3TR633    DJ": false,
+    "GUPIEP3_GUPIE   3ZGIRO.1  DJ": true,
+    "GUPIEP3_GUPIE   3ZGIR5.2  DJ": false
+  },
+  "cible": {
+    "GUPIEP3_GUPIE   3REOLE.1  SA.1": true,
+    "GUPIEP3_GUPIE   3REOLE.2  SA.1": false,
+    "GUPIEP3_GUPIE   3TR631    SA.1": true,
+    "GUPIEP3_GUPIE   3ZGIRO.1  SA.1": false,
+    "GUPIEP3_GUPIE   3TR632    SA.1": false,
+    "GUPIEP3_GUPIE   3ZGIR5.2  SA.1": false,
+    "GUPIEP3_GUPIE   3MARM5.1  SA.1": true,
+    "GUPIEP3_GUPIE   3COND.1   SA.1": false,
+    "GUPIEP3_GUPIE   3SAUVE.1  SA.1": false,
+    "GUPIEP3_GUPIE   3PATRA.1  SA.1": false,
+    "GUPIEP3_GUPIE   3TR633    SA.1": true,
+    "GUPIEP3_GUPIE   3COUPL    SA.1": false,
+    "GUPIEP3_GUPIE   3COUPL    SA.2": false,
+    "GUPIEP3_GUPIE   3REOLE.1  SA.2": false,
+    "GUPIEP3_GUPIE   3REOLE.2  SA.2": true,
+    "GUPIEP3_GUPIE   3TR631    SA.2": false,
+    "GUPIEP3_GUPIE   3ZGIRO.1  SA.2": true,
+    "GUPIEP3_GUPIE   3TR632    SA.2": true,
+    "GUPIEP3_GUPIE   3ZGIR5.2  SA.2": true,
+    "GUPIEP3_GUPIE   3MARM5.1  SA.2": false,
+    "GUPIEP3_GUPIE   3COND.1   SA.2": true,
+    "GUPIEP3_GUPIE   3SAUVE.1  SA.2": true,
+    "GUPIEP3_GUPIE   3PATRA.1  SA.2": true,
+    "GUPIEP3_GUPIE   3TR633    SA.2": false,
+    "GUPIEP3_GUPIE   3COND.1   DJ.MCOMP": true,
+    "GUPIEP3_GUPIE   3COUPL    DJ": false,
+    "GUPIEP3_GUPIE   3MARM5.1  DJ": false,
+    "GUPIEP3_GUPIE   3PATRA.1  DJ": false,
+    "GUPIEP3_GUPIE   3REOLE.1  DJ": false,
+    "GUPIEP3_GUPIE   3REOLE.2  DJ": false,
+    "GUPIEP3_GUPIE   3SAUVE.1  DJ": false,
+    "GUPIEP3_GUPIE   3TR631    DJ": false,
+    "GUPIEP3_GUPIE   3TR632    DJ": false,
+    "GUPIEP3_GUPIE   3TR633    DJ": false,
+    "GUPIEP3_GUPIE   3ZGIRO.1  DJ": false,
+    "GUPIEP3_GUPIE   3ZGIR5.2  DJ": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "remise_en_service",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-01-05T16:20",
+    "t_cible": "2021-01-05T16:30",
+    "topologie_depart_id": "36d86030096ea147",
+    "topologie_cible_id": "a3a01238ed024a02",
+    "nb_organes_changes": 13,
+    "nb_manoeuvres_observees": 13,
+    "nb_etats_transitoires": 1,
+    "duree_stable_avant": 76,
+    "duree_stable_apres": 90,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "GUPIE3COND.11"
+    ],
+    [
+      "GUPIEL31MARM5",
+      "GUPIEL31PATRA",
+      "GUPIEL31REOLE",
+      "GUPIEL31SAUVE",
+      "GUPIEL32REOLE",
+      "GUPIEL32ZGIR5",
+      "GUPIEY631",
+      "GUPIEY632",
+      "GUPIEY633"
+    ],
+    [
+      "GUPIEL31ZGIRO"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "GUPIE3COND.11"
+    ],
+    [
+      "GUPIEL31MARM5",
+      "GUPIEL31PATRA",
+      "GUPIEL31REOLE",
+      "GUPIEL31SAUVE",
+      "GUPIEL31ZGIRO",
+      "GUPIEL32REOLE",
+      "GUPIEL32ZGIR5",
+      "GUPIEY631",
+      "GUPIEY632",
+      "GUPIEY633"
+    ]
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "voltage_level_id": "FARRAP4",
+  "name": "FARRAP4_2021-04-14T18_10_sectionnement_barre",
+  "depart": {
+    "FARRAP4_FARRA   4TR641    SA.1": false,
+    "FARRAP4_FARRA   4COND.1   SA.1": false,
+    "FARRAP4_FARRA   4THOU .1  SA.1": false,
+    "FARRAP4_FARRA   4ROCH8.1  SA.1": false,
+    "FARRAP4_FARRA   4ZARNO.1  SA.1": false,
+    "FARRAP4_FARRA   4T.CHA.1  SA.1": true,
+    "FARRAP4_FARRA   4TR643    SA.1": false,
+    "FARRAP4_FARRA   4ZCH10.1  SA.1": false,
+    "FARRAP4_FARRA   4TR642    SA.1": false,
+    "FARRAP4_FARRA   4COUPL    SA.1": false,
+    "FARRAP4_FARRA   4TR641    SA.2": true,
+    "FARRAP4_FARRA   4COND.1   SA.2": true,
+    "FARRAP4_FARRA   4THOU .1  SA.2": true,
+    "FARRAP4_FARRA   4ROCH8.1  SA.2": true,
+    "FARRAP4_FARRA   4COUPL    SA.2": true,
+    "FARRAP4_FARRA   4ZARNO.1  SA.2": true,
+    "FARRAP4_FARRA   4T.CHA.1  SA.2": true,
+    "FARRAP4_FARRA   4TR643    SA.2": true,
+    "FARRAP4_FARRA   4ZCH10.1  SA.2": true,
+    "FARRAP4_FARRA   4TR642    SA.2": true,
+    "FARRAP4_FARRA   4COND.1   DJ.MCOMP": true,
+    "FARRAP4_FARRA   4COUPL    INTER": true,
+    "FARRAP4_FARRA   4ROCH8.1  DJ": false,
+    "FARRAP4_FARRA   4T.CHA.1  DJ": true,
+    "FARRAP4_FARRA   4THOU .1  DJ": false,
+    "FARRAP4_FARRA   4TR641    DJ": false,
+    "FARRAP4_FARRA   4TR642    DJ": false,
+    "FARRAP4_FARRA   4TR643    DJ": false,
+    "FARRAP4_FARRA   4ZARNO.1  DJ": false,
+    "FARRAP4_FARRA   4ZCH10.1  DJ": false
+  },
+  "cible": {
+    "FARRAP4_FARRA   4TR641    SA.1": true,
+    "FARRAP4_FARRA   4COND.1   SA.1": true,
+    "FARRAP4_FARRA   4THOU .1  SA.1": true,
+    "FARRAP4_FARRA   4ROCH8.1  SA.1": true,
+    "FARRAP4_FARRA   4ZARNO.1  SA.1": true,
+    "FARRAP4_FARRA   4T.CHA.1  SA.1": true,
+    "FARRAP4_FARRA   4TR643    SA.1": true,
+    "FARRAP4_FARRA   4ZCH10.1  SA.1": true,
+    "FARRAP4_FARRA   4TR642    SA.1": true,
+    "FARRAP4_FARRA   4COUPL    SA.1": false,
+    "FARRAP4_FARRA   4TR641    SA.2": false,
+    "FARRAP4_FARRA   4COND.1   SA.2": false,
+    "FARRAP4_FARRA   4THOU .1  SA.2": false,
+    "FARRAP4_FARRA   4ROCH8.1  SA.2": false,
+    "FARRAP4_FARRA   4COUPL    SA.2": false,
+    "FARRAP4_FARRA   4ZARNO.1  SA.2": false,
+    "FARRAP4_FARRA   4T.CHA.1  SA.2": true,
+    "FARRAP4_FARRA   4TR643    SA.2": false,
+    "FARRAP4_FARRA   4ZCH10.1  SA.2": false,
+    "FARRAP4_FARRA   4TR642    SA.2": false,
+    "FARRAP4_FARRA   4COND.1   DJ.MCOMP": true,
+    "FARRAP4_FARRA   4COUPL    INTER": false,
+    "FARRAP4_FARRA   4ROCH8.1  DJ": false,
+    "FARRAP4_FARRA   4T.CHA.1  DJ": true,
+    "FARRAP4_FARRA   4THOU .1  DJ": false,
+    "FARRAP4_FARRA   4TR641    DJ": false,
+    "FARRAP4_FARRA   4TR642    DJ": false,
+    "FARRAP4_FARRA   4TR643    DJ": false,
+    "FARRAP4_FARRA   4ZARNO.1  DJ": false,
+    "FARRAP4_FARRA   4ZCH10.1  DJ": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "sectionnement_barre",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-04-14T18:00",
+    "t_cible": "2021-04-14T18:10",
+    "topologie_depart_id": "0abbcc96894396a4",
+    "topologie_cible_id": "963d6eda975e274c",
+    "nb_organes_changes": 18,
+    "nb_manoeuvres_observees": 18,
+    "nb_etats_transitoires": 1,
+    "duree_stable_avant": 78,
+    "duree_stable_apres": 67,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "FARRA4COND.11"
+    ],
+    [
+      "FARRAL41ROCH8",
+      "FARRAL41THOU",
+      "FARRAL41ZARNO",
+      "FARRAL41ZCH10",
+      "FARRAY641",
+      "FARRAY642",
+      "FARRAY643"
+    ],
+    [
+      "FARRAL41T.CHA"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "FARRA4COND.11"
+    ],
+    [
+      "FARRAL41ROCH8",
+      "FARRAL41THOU",
+      "FARRAL41ZARNO",
+      "FARRAL41ZCH10",
+      "FARRAY641",
+      "FARRAY642",
+      "FARRAY643"
+    ],
+    [
+      "FARRAL41T.CHA"
+    ]
+  ]
+}

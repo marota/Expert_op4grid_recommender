@@ -1,0 +1,102 @@
+{
+  "voltage_level_id": "COSSIP6",
+  "name": "COSSIP6_2022-06-15T12_10_remise_en_service",
+  "depart": {
+    "COSSIP6_COSSI   6TR611    SA.1": true,
+    "COSSIP6_COSSI   6MORBR.1  SA.1": false,
+    "COSSIP6_COSSI   6SEC..12  SS.1.21": false,
+    "COSSIP6_COSSI   6TR631    SA.1": true,
+    "COSSIP6_COSSI   6TR632    SA.1": true,
+    "COSSIP6_COSSI   6COUBE.1  SA.1": true,
+    "COSSIP6_COSSI   6TR612    SA.1": true,
+    "COSSIP6_COSSI   6COUPL.1  SA.1": true,
+    "COSSIP6_COSSI   6TR611    SA.2": false,
+    "COSSIP6_COSSI   6MORBR.1  SA.2": true,
+    "COSSIP6_COSSI   6SEC..12  SS.2.21": false,
+    "COSSIP6_COSSI   6TR631    SA.2": false,
+    "COSSIP6_COSSI   6TR632    SA.2": false,
+    "COSSIP6_COSSI   6COUBE.1  SA.2": false,
+    "COSSIP6_COSSI   6COUPL.1  SA.2": false,
+    "COSSIP6_COSSI   6TR612    SA.2": false,
+    "COSSIP6_COSSI   6COUBE.1  DJ": false,
+    "COSSIP6_COSSI   6COUPL.1  DJ": true,
+    "COSSIP6_COSSI   6MORBR.1  DJ": false,
+    "COSSIP6_COSSI   6TR611    DJ.HT": false,
+    "COSSIP6_COSSI   6TR612    DJ.HT": true,
+    "COSSIP6_COSSI   6TR631    DJ": false,
+    "COSSIP6_COSSI   6TR632    DJ": false,
+    "COSSIP6_COSSI   6TR611    DJ.HT.COSSI TR611": false,
+    "COSSIP6_Disj COSSIINF": false
+  },
+  "cible": {
+    "COSSIP6_COSSI   6TR611    SA.1": false,
+    "COSSIP6_COSSI   6MORBR.1  SA.1": false,
+    "COSSIP6_COSSI   6SEC..12  SS.1.21": false,
+    "COSSIP6_COSSI   6TR631    SA.1": true,
+    "COSSIP6_COSSI   6TR632    SA.1": false,
+    "COSSIP6_COSSI   6COUBE.1  SA.1": true,
+    "COSSIP6_COSSI   6TR612    SA.1": true,
+    "COSSIP6_COSSI   6COUPL.1  SA.1": false,
+    "COSSIP6_COSSI   6TR611    SA.2": true,
+    "COSSIP6_COSSI   6MORBR.1  SA.2": true,
+    "COSSIP6_COSSI   6SEC..12  SS.2.21": false,
+    "COSSIP6_COSSI   6TR631    SA.2": false,
+    "COSSIP6_COSSI   6TR632    SA.2": true,
+    "COSSIP6_COSSI   6COUBE.1  SA.2": false,
+    "COSSIP6_COSSI   6COUPL.1  SA.2": false,
+    "COSSIP6_COSSI   6TR612    SA.2": false,
+    "COSSIP6_COSSI   6COUBE.1  DJ": false,
+    "COSSIP6_COSSI   6COUPL.1  DJ": false,
+    "COSSIP6_COSSI   6MORBR.1  DJ": false,
+    "COSSIP6_COSSI   6TR611    DJ.HT": false,
+    "COSSIP6_COSSI   6TR612    DJ.HT": false,
+    "COSSIP6_COSSI   6TR631    DJ": false,
+    "COSSIP6_COSSI   6TR632    DJ": false,
+    "COSSIP6_COSSI   6TR611    DJ.HT.COSSI TR611": false,
+    "COSSIP6_Disj COSSIINF": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "remise_en_service",
+      "fusion_noeuds",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2022-06-15T12:00",
+    "t_cible": "2022-06-15T12:10",
+    "topologie_depart_id": "592051f62829b75f",
+    "topologie_cible_id": "66853209575abbb2",
+    "nb_organes_changes": 7,
+    "nb_manoeuvres_observees": 7,
+    "nb_etats_transitoires": 1,
+    "duree_stable_avant": 2,
+    "duree_stable_apres": 50,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "COSSI6T611",
+      "COSSIINF",
+      "COSSIL61COUBE",
+      "COSSIY631",
+      "COSSIY632"
+    ],
+    [
+      "COSSI6TR612"
+    ],
+    [
+      "COSSIL61MORBR"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "COSSI6T611",
+      "COSSI6TR612",
+      "COSSIINF",
+      "COSSIL61COUBE",
+      "COSSIL61MORBR",
+      "COSSIY631",
+      "COSSIY632"
+    ]
+  ]
+}

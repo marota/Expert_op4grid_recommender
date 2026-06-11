@@ -1,0 +1,231 @@
+{
+  "voltage_level_id": "MOUGUP3",
+  "name": "MOUGUP3_2022-06-15T14_40_consignation_ouvrage",
+  "depart": {
+    "MOUGUP3_MOUGU   3ZBOUC.1  SA.1": true,
+    "MOUGUP3_MOUGU   3MTBRU.1  SA.1": false,
+    "MOUGUP3_MOUGU   3MTBRU.2  SA.1": true,
+    "MOUGUP3_MOUGU   3NEGRE.1  SA.1": false,
+    "MOUGUP3_MOUGU   3NEGRE.2  SA.1": true,
+    "MOUGUP3_MOUGU   3GUICH.1  SA.1": true,
+    "MOUGUP3_MOUGU   3TR632    SA.1": false,
+    "MOUGUP3_MOUGU   3ZSSV6.1  SA.1": false,
+    "MOUGUP3_MOUGU   3SEC..12  SS.1.12": false,
+    "MOUGUP3_MOUGU   3ANGRE.2  SA.1": true,
+    "MOUGUP3_MOUGU   3COND.1   SA.1": false,
+    "MOUGUP3_MOUGU   3TR311    SA.1": false,
+    "MOUGUP3_MOUGU   3COUPL.1  SA.1": false,
+    "MOUGUP3_MOUGU   3TR631    SA.1": true,
+    "MOUGUP3_MOUGU   3TR633    SA.1": false,
+    "MOUGUP3_MOUGU   3ANGRE.1  SA.1": false,
+    "MOUGUP3_MOUGU   3BOUCA.1  SA.1": false,
+    "MOUGUP3_MOUGU   3TR312    SA.1": true,
+    "MOUGUP3_MOUGU   3TR313    SA.1": false,
+    "MOUGUP3_MOUGU3COND.2SA.1F": true,
+    "MOUGUP3_MOUGU   3COUPL.2  SA.1": false,
+    "MOUGUP3_MOUGU   3COUPL.1  SA.2": false,
+    "MOUGUP3_MOUGU   3ZBOUC.1  SA.2": false,
+    "MOUGUP3_MOUGU   3MTBRU.1  SA.2": true,
+    "MOUGUP3_MOUGU   3MTBRU.2  SA.2": false,
+    "MOUGUP3_MOUGU   3NEGRE.1  SA.2": true,
+    "MOUGUP3_MOUGU   3NEGRE.2  SA.2": false,
+    "MOUGUP3_MOUGU   3GUICH.1  SA.2": false,
+    "MOUGUP3_MOUGU   3TR632    SA.2": true,
+    "MOUGUP3_MOUGU   3ZSSV6.1  SA.2": true,
+    "MOUGUP3_MOUGU   3SEC..12  SS.2.12": false,
+    "MOUGUP3_MOUGU   3ANGRE.2  SA.2": false,
+    "MOUGUP3_MOUGU   3COND.1   SA.2": true,
+    "MOUGUP3_MOUGU   3TR311    SA.2": true,
+    "MOUGUP3_MOUGU   3TR631    SA.2": false,
+    "MOUGUP3_MOUGU   3TR633    SA.2": true,
+    "MOUGUP3_MOUGU   3ANGRE.1  SA.2": true,
+    "MOUGUP3_MOUGU   3BOUCA.1  SA.2": true,
+    "MOUGUP3_MOUGU   3COUPL.2  SA.2": false,
+    "MOUGUP3_MOUGU   3TR312    SA.2": false,
+    "MOUGUP3_MOUGU   3TR313    SA.2": true,
+    "MOUGUP3_MOUGU   3COND.2   SA.2": false,
+    "MOUGUP3_MOUGU   3ANGRE.1  DJ": false,
+    "MOUGUP3_MOUGU   3ANGRE.2  DJ": false,
+    "MOUGUP3_MOUGU   3BOUCA.1  DJ": false,
+    "MOUGUP3_MOUGU   3COND.1   DJ.MCOMP": false,
+    "MOUGUP3_MOUGU   3COND.2   DJ.MCOMP": true,
+    "MOUGUP3_MOUGU   3COUPL.1  DJ": false,
+    "MOUGUP3_MOUGU   3COUPL.2  DJ": false,
+    "MOUGUP3_MOUGU   3GUICH.1  DJ": false,
+    "MOUGUP3_MOUGU   3MTBRU.1  DJ": false,
+    "MOUGUP3_MOUGU   3MTBRU.2  DJ": false,
+    "MOUGUP3_MOUGU   3NEGRE.1  DJ": false,
+    "MOUGUP3_MOUGU   3NEGRE.2  DJ": false,
+    "MOUGUP3_MOUGU   3TR311    DJ.HT": false,
+    "MOUGUP3_MOUGU   3TR312    DJ.HT": false,
+    "MOUGUP3_MOUGU   3TR313    DJ.HT": false,
+    "MOUGUP3_MOUGU   3TR631    DJ": false,
+    "MOUGUP3_MOUGU   3TR632    DJ": false,
+    "MOUGUP3_MOUGU   3TR633    DJ": false,
+    "MOUGUP3_MOUGU   3ZBOUC.1  DJ": false,
+    "MOUGUP3_MOUGU   3ZSSV6.1  DJ": false,
+    "MOUGUP3_MOUGU   3TR311    DJ.HT.MOUGU TR311": true,
+    "MOUGUP3_Disj MOUGUINF": false,
+    "MOUGUP3_MOUGU   3TR312    DJ.HT.MOUGU TR312": false,
+    "MOUGUP3_Disj MOUGUING": false
+  },
+  "cible": {
+    "MOUGUP3_MOUGU   3ZBOUC.1  SA.1": true,
+    "MOUGUP3_MOUGU   3MTBRU.1  SA.1": false,
+    "MOUGUP3_MOUGU   3MTBRU.2  SA.1": true,
+    "MOUGUP3_MOUGU   3NEGRE.1  SA.1": false,
+    "MOUGUP3_MOUGU   3NEGRE.2  SA.1": true,
+    "MOUGUP3_MOUGU   3GUICH.1  SA.1": true,
+    "MOUGUP3_MOUGU   3TR632    SA.1": false,
+    "MOUGUP3_MOUGU   3ZSSV6.1  SA.1": false,
+    "MOUGUP3_MOUGU   3SEC..12  SS.1.12": false,
+    "MOUGUP3_MOUGU   3ANGRE.2  SA.1": true,
+    "MOUGUP3_MOUGU   3COND.1   SA.1": false,
+    "MOUGUP3_MOUGU   3TR311    SA.1": false,
+    "MOUGUP3_MOUGU   3COUPL.1  SA.1": false,
+    "MOUGUP3_MOUGU   3TR631    SA.1": true,
+    "MOUGUP3_MOUGU   3TR633    SA.1": false,
+    "MOUGUP3_MOUGU   3ANGRE.1  SA.1": false,
+    "MOUGUP3_MOUGU   3BOUCA.1  SA.1": false,
+    "MOUGUP3_MOUGU   3TR312    SA.1": true,
+    "MOUGUP3_MOUGU   3TR313    SA.1": false,
+    "MOUGUP3_MOUGU3COND.2SA.1F": true,
+    "MOUGUP3_MOUGU   3COUPL.2  SA.1": false,
+    "MOUGUP3_MOUGU   3COUPL.1  SA.2": false,
+    "MOUGUP3_MOUGU   3ZBOUC.1  SA.2": false,
+    "MOUGUP3_MOUGU   3MTBRU.1  SA.2": true,
+    "MOUGUP3_MOUGU   3MTBRU.2  SA.2": false,
+    "MOUGUP3_MOUGU   3NEGRE.1  SA.2": true,
+    "MOUGUP3_MOUGU   3NEGRE.2  SA.2": false,
+    "MOUGUP3_MOUGU   3GUICH.1  SA.2": false,
+    "MOUGUP3_MOUGU   3TR632    SA.2": true,
+    "MOUGUP3_MOUGU   3ZSSV6.1  SA.2": true,
+    "MOUGUP3_MOUGU   3SEC..12  SS.2.12": false,
+    "MOUGUP3_MOUGU   3ANGRE.2  SA.2": false,
+    "MOUGUP3_MOUGU   3COND.1   SA.2": true,
+    "MOUGUP3_MOUGU   3TR311    SA.2": true,
+    "MOUGUP3_MOUGU   3TR631    SA.2": false,
+    "MOUGUP3_MOUGU   3TR633    SA.2": true,
+    "MOUGUP3_MOUGU   3ANGRE.1  SA.2": true,
+    "MOUGUP3_MOUGU   3BOUCA.1  SA.2": true,
+    "MOUGUP3_MOUGU   3COUPL.2  SA.2": false,
+    "MOUGUP3_MOUGU   3TR312    SA.2": false,
+    "MOUGUP3_MOUGU   3TR313    SA.2": true,
+    "MOUGUP3_MOUGU   3COND.2   SA.2": false,
+    "MOUGUP3_MOUGU   3ANGRE.1  DJ": true,
+    "MOUGUP3_MOUGU   3ANGRE.2  DJ": false,
+    "MOUGUP3_MOUGU   3BOUCA.1  DJ": true,
+    "MOUGUP3_MOUGU   3COND.1   DJ.MCOMP": true,
+    "MOUGUP3_MOUGU   3COND.2   DJ.MCOMP": true,
+    "MOUGUP3_MOUGU   3COUPL.1  DJ": true,
+    "MOUGUP3_MOUGU   3COUPL.2  DJ": true,
+    "MOUGUP3_MOUGU   3GUICH.1  DJ": false,
+    "MOUGUP3_MOUGU   3MTBRU.1  DJ": true,
+    "MOUGUP3_MOUGU   3MTBRU.2  DJ": false,
+    "MOUGUP3_MOUGU   3NEGRE.1  DJ": true,
+    "MOUGUP3_MOUGU   3NEGRE.2  DJ": false,
+    "MOUGUP3_MOUGU   3TR311    DJ.HT": false,
+    "MOUGUP3_MOUGU   3TR312    DJ.HT": false,
+    "MOUGUP3_MOUGU   3TR313    DJ.HT": true,
+    "MOUGUP3_MOUGU   3TR631    DJ": false,
+    "MOUGUP3_MOUGU   3TR632    DJ": true,
+    "MOUGUP3_MOUGU   3TR633    DJ": true,
+    "MOUGUP3_MOUGU   3ZBOUC.1  DJ": false,
+    "MOUGUP3_MOUGU   3ZSSV6.1  DJ": false,
+    "MOUGUP3_MOUGU   3TR311    DJ.HT.MOUGU TR311": true,
+    "MOUGUP3_Disj MOUGUINF": false,
+    "MOUGUP3_MOUGU   3TR312    DJ.HT.MOUGU TR312": false,
+    "MOUGUP3_Disj MOUGUING": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "consignation_ouvrage",
+      "scission_noeud"
+    ],
+    "t_depart": "2022-06-15T14:30",
+    "t_cible": "2022-06-15T14:40",
+    "topologie_depart_id": "6e65b7700be76e7a",
+    "topologie_cible_id": "cb6c2137574090db",
+    "nb_organes_changes": 10,
+    "nb_manoeuvres_observees": 14,
+    "nb_etats_transitoires": 1,
+    "duree_stable_avant": 65,
+    "duree_stable_apres": 3,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "ANGREL31MOUGU",
+      "ANGREL32MOUGU",
+      "BOUCAL31MOUGU",
+      "GUICHL31MOUGU",
+      "MOUGU3CD2",
+      "MOUGU3CD3",
+      "MOUGU3COND.11",
+      "MOUGUINF",
+      "MOUGUING",
+      "MOUGUL31MTBRU",
+      "MOUGUL31NEGRE",
+      "MOUGUL31ZBOUC",
+      "MOUGUL31ZSSV6",
+      "MOUGUL32MTBRU",
+      "MOUGUL32NEGRE",
+      "MOUGUY631",
+      "MOUGUY632",
+      "MOUGUY633"
+    ],
+    [
+      "MOUGU3CD1"
+    ],
+    [
+      "MOUGU3COND.21"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "ANGREL31MOUGU"
+    ],
+    [
+      "ANGREL32MOUGU",
+      "GUICHL31MOUGU",
+      "MOUGU3CD2",
+      "MOUGUING",
+      "MOUGUL31ZBOUC",
+      "MOUGUL32MTBRU",
+      "MOUGUL32NEGRE",
+      "MOUGUY631"
+    ],
+    [
+      "BOUCAL31MOUGU"
+    ],
+    [
+      "MOUGU3CD1"
+    ],
+    [
+      "MOUGU3CD3"
+    ],
+    [
+      "MOUGU3COND.11"
+    ],
+    [
+      "MOUGU3COND.21"
+    ],
+    [
+      "MOUGUINF",
+      "MOUGUL31ZSSV6"
+    ],
+    [
+      "MOUGUL31MTBRU"
+    ],
+    [
+      "MOUGUL31NEGRE"
+    ],
+    [
+      "MOUGUY632"
+    ],
+    [
+      "MOUGUY633"
+    ]
+  ]
+}
