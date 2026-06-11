@@ -189,25 +189,6 @@ class Settings(BaseSettings):
     MAX_CANDIDATE_SIMULATIONS: int = Field(default=0, ge=-1)
 
     # -------------------
-    #  Load-flow outer-loop tuning (pypowsybl backend)
-    # -------------------
-    # ``LF_MAX_OUTER_LOOP_ITERATIONS`` is OpenLoadFlow's outer-loop cap (raised
-    # from the stock 20 to 100 so AC LFs with transformer/shunt voltage control
-    # on a perturbed topology have room to converge under DC_VALUES init).
-    #
-    # ``LF_SCREENING_MAX_OUTER_LOOP_ITERATIONS`` is a two-speed optimization:
-    # the FIRST (PREVIOUS_VALUES / warm-start) attempt is capped at this lower
-    # value so a doomed warm-start on a heavily perturbed variant fails fast
-    # instead of spinning to the full cap before the DC_VALUES fallback. The
-    # DC_VALUES retry keeps the FULL cap, and the converged AC solution is
-    # independent of the init seed — so displayed results are unchanged; only
-    # wasted outer-loop iterations on the doomed first attempt are removed.
-    # A converging warm-start finishes well under this cap. Set to 0 to disable
-    # (always use the full cap on the first attempt — pre-optimization behaviour).
-    LF_MAX_OUTER_LOOP_ITERATIONS: int = Field(default=100, ge=1)
-    LF_SCREENING_MAX_OUTER_LOOP_ITERATIONS: int = Field(default=30, ge=0)
-
-    # -------------------
     #  Expert system parameters
     # -------------------
     PARAM_OPTIONS_EXPERT_OP: Dict[str, Any] = Field(
