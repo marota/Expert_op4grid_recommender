@@ -20,13 +20,26 @@ from expert_op4grid_recommender import config
 from expert_op4grid_recommender.config import DRAW_ONLY_SIGNIFICANT_EDGES, USE_GRID_LAYOUT, DO_CONSOLIDATE_GRAPH
 
 
+# Memoized result of get_zone_voltage_levels keyed by (resolved network file
+# path, mtime). The un-cached implementation re-parsed the FULL .xiidm network
+# from disk on every visualization call — several seconds on a national grid —
+# even though the voltage-level table never changes within a study. The mtime
+# key auto-invalidates when the file is replaced on disk.
+_zone_voltage_levels_cache = {}
+
+
 def get_zone_voltage_levels(env_path):
     """
     Loads voltage level information for substations from a PowSyBl network file.
+
+    The result is cached per (file path, mtime): the overflow-graph
+    visualization runs once per Step-2 and only needs the static
+    voltage-level -> nominal-voltage mapping, so re-parsing the whole
+    network each time is pure waste.
     """
     from pathlib import Path
     env_path = Path(env_path)
-    
+
     # If env_path is already a network file, use it directly
     if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
         network_file_path = env_path
@@ -34,10 +47,21 @@ def get_zone_voltage_levels(env_path):
         # Otherwise, look for grid.xiidm in the directory
         file_iidm = "grid.xiidm"
         network_file_path = env_path / file_iidm
-        
+
+    try:
+        cache_key = (str(network_file_path), os.path.getmtime(network_file_path))
+    except OSError:
+        cache_key = None
+    if cache_key is not None and cache_key in _zone_voltage_levels_cache:
+        return _zone_voltage_levels_cache[cache_key]
+
     n_zone = pp.network.load(str(network_file_path))
     df_volt = n_zone.get_voltage_levels()
-    return {sub: volt for sub, volt in zip(df_volt.index, df_volt.nominal_v)}
+    result = {sub: volt for sub, volt in zip(df_volt.index, df_volt.nominal_v)}
+    if cache_key is not None:
+        _zone_voltage_levels_cache.clear()  # keep at most the current network
+        _zone_voltage_levels_cache[cache_key] = result
+    return result
 
 
 def get_graph_file_name(lines_defaut, chronic_name, timestep, use_dc_load_flow):

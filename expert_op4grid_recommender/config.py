@@ -173,6 +173,22 @@ class Settings(BaseSettings):
     REDISPATCH_MIN_MW: float = Field(default=1.0, ge=0.0)
 
     # -------------------
+    #  Candidate-simulation cap
+    # -------------------
+    # The redispatching and renewable-curtailment discovery passes identify a
+    # candidate per dispatchable / renewable generator reachable from the
+    # constrained path (including antenna sites reached via a higher-voltage
+    # busbar). On large grids this is hundreds of candidates, and each one was
+    # validated with a full AC load flow whose effective/ineffective verdict
+    # does NOT influence prioritization (the per-type ``scores`` already rank
+    # them, and the final rho is recomputed in the reassessment phase) — pure
+    # discovery-time overhead. Semantics:
+    #   0 (default)  -> skip the per-candidate simulation entirely
+    #   N > 0        -> simulate only the top-N candidates by score
+    #   negative     -> simulate every candidate (legacy behaviour)
+    MAX_CANDIDATE_SIMULATIONS: int = Field(default=0, ge=-1)
+
+    # -------------------
     #  Expert system parameters
     # -------------------
     PARAM_OPTIONS_EXPERT_OP: Dict[str, Any] = Field(

@@ -159,6 +159,53 @@ class DiscovererBase:
         self.params_redispatch = {}
         self.prioritized_actions = {}
 
+    def _cap_candidates_for_simulation(self, identified, scores_map):
+        """Return the subset of ``identified`` actions to validate by simulation.
+
+        Used by the generator-targeting discovery passes (redispatching,
+        renewable curtailment) whose candidate count scales with the number of
+        reachable generators. Their per-candidate AC load-flow verdict
+        (effective / ineffective) does not feed prioritization — the per-type
+        scores already rank candidates and the final rho is recomputed in the
+        reassessment phase — so simulating candidates here is informational
+        only. ``config.MAX_CANDIDATE_SIMULATIONS`` controls how many to run:
+        0 (default) skips the simulation entirely, N > 0 keeps the top-N by
+        descending score, and a negative value simulates every candidate
+        (legacy behaviour).
+
+        Returns a list of ``(action_id, action)`` pairs.
+        """
+        cap = getattr(config, "MAX_CANDIDATE_SIMULATIONS", 0)
+        if cap == 0:
+            return []
+        items = list(identified.items())
+        if cap < 0 or len(items) <= cap:
+            return items
+        ranked = sorted(
+            items, key=lambda kv: scores_map.get(kv[0], 0.0), reverse=True
+        )
+        return ranked[:cap]
+
+    def _get_simulation_baseline(self):
+        """Return ``(act_defaut, baseline_rho)`` for candidate rho checks.
+
+        Computed once per discovery run and shared across the discovery
+        passes (load shedding, redispatching, renewable curtailment) — each
+        previously rebuilt the identical contingency action and re-ran the
+        same baseline load flow. The discoverer instance is created fresh for
+        every Step-2 run, so instance-level caching cannot go stale.
+        """
+        if not hasattr(self, "_cached_simulation_baseline"):
+            act_defaut = self._create_default_action(
+                self.action_space, self.lines_defaut
+            )
+            baseline_rho, _ = self._compute_baseline(
+                self.obs, self.timestep, act_defaut,
+                self.act_reco_maintenance, self.lines_overloaded_ids,
+            )
+            self._cached_simulation_baseline = (act_defaut, baseline_rho)
+        return self._cached_simulation_baseline
+
     def _build_lookup_caches(self):
         """Pre-computes name-to-index lookup dictionaries to avoid repeated np.where calls."""
         if not hasattr(self, "_line_name_to_id"):
@@ -338,7 +385,12 @@ class DiscovererBase:
         if hasattr(self, "_cached_vl_metadata"):
             return self._cached_vl_metadata
         obs = self.obs_defaut
-        n_subs = len(obs.name_sub)
+        # Hoist once: ``obs.name_sub`` rebuilds a numpy string array on every
+        # access, so reading it inside the per-substation loops below would be
+        # O(n_subs^2). This helper is built lazily on the first generator pass
+        # (renewable curtailment), which is why that pass alone paid the cost.
+        name_sub_arr = obs.name_sub
+        n_subs = len(name_sub_arr)
         meta: Dict[int, Tuple[str, float]] = {}
 
         network = None
@@ -360,7 +412,7 @@ class DiscovererBase:
                 site_map = vl_df["substation_id"].to_dict()
                 nomv_map = vl_df["nominal_v"].to_dict()
                 for i in range(n_subs):
-                    name = str(obs.name_sub[i])
+                    name = str(name_sub_arr[i])
                     site = site_map.get(name)
                     nomv = nomv_map.get(name)
                     if site is not None and nomv is not None:
@@ -377,7 +429,7 @@ class DiscovererBase:
                 "3": 63.0, "2": 45.0, "1": 20.0, "0": 20.0,
             }
             for i in range(n_subs):
-                name = str(obs.name_sub[i])
+                name = str(name_sub_arr[i])
                 stripped = re.sub(r"^\d+", "", name)
                 site = stripped[:5] if stripped else name
                 nomv = digit_to_v.get(name[-1], 0.0) if name else 0.0

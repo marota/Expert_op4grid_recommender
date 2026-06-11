@@ -28,6 +28,14 @@ class LoadSheddingMixin:
         self._get_edge_data_cache()
         obs = self.obs_defaut
 
+        # Hoist observation arrays to locals ONCE — ``obs.name_sub`` /
+        # ``obs.name_load`` rebuild a fresh numpy string array on every access
+        # and ``obs.load_p`` copies its array each time.
+        name_sub_arr = obs.name_sub
+        name_load_arr = obs.name_load
+        name_line_arr = obs.name_line
+        load_p_arr = obs.load_p
+
         margin = getattr(config, "LOAD_SHEDDING_MARGIN", 0.05)
         min_mw = getattr(config, "LOAD_SHEDDING_MIN_MW", 1.0)
 
@@ -36,7 +44,7 @@ class LoadSheddingMixin:
         if not name_to_capacity:
             return
 
-        overloaded_line_names = {obs.name_line[i] for i in self.lines_overloaded_ids}
+        overloaded_line_names = {name_line_arr[i] for i in self.lines_overloaded_ids}
         overloaded_caps = [
             name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
         ]
@@ -67,27 +75,21 @@ class LoadSheddingMixin:
         effective = []
         ineffective = []
 
-        # Hoist default action creation outside the loop
+        # Baseline shared across discovery passes (one LF per run); only
+        # computed when there are candidate nodes to check.
         act_defaut = None
         baseline_rho = None
-        if self.check_action_simulation:
-            act_defaut = self._create_default_action(
-                self.action_space, self.lines_defaut
-            )
-            # Pre-compute baseline simulation once for all actions
-            baseline_rho, _ = self._compute_baseline(
-                self.obs, self.timestep, act_defaut,
-                self.act_reco_maintenance, self.lines_overloaded_ids
-            )
+        if self.check_action_simulation and relevant_nodes:
+            act_defaut, baseline_rho = self._get_simulation_baseline()
 
         for node_idx in relevant_nodes:
-            sub_name = str(obs.name_sub[node_idx])
+            sub_name = str(name_sub_arr[node_idx])
 
             # Use pre-computed load list (avoids get_obj_connect_to)
             load_ids = subs_with_loads[node_idx]
 
             # Load powers already filtered to positive in _get_subs_with_loads
-            load_powers = [(lid, float(obs.load_p[lid])) for lid in load_ids]
+            load_powers = [(lid, float(load_p_arr[lid])) for lid in load_ids]
             available_load = sum(p for _, p in load_powers)
 
             # Get pre-computed influence flow (O(1) lookup)
@@ -123,7 +125,7 @@ class LoadSheddingMixin:
 
             for lid, load_power in load_powers:
                 load_name = (
-                    str(obs.name_load[lid]) if lid < len(obs.name_load) else str(lid)
+                    str(name_load_arr[lid]) if lid < len(name_load_arr) else str(lid)
                 )
                 action_id = f"load_shedding_{load_name}"
 
