@@ -68,6 +68,17 @@ from .algo import (
     determiner_manoeuvres_avec_sections,
     determiner_manoeuvres_cible_detaillee,
     sectionneurs_sous_charge_par_manoeuvre,
+    ouvrages_simultanement_hors_tension,
+)
+from .plugins import (
+    CibleDetaillee,
+    ResultatIdentification,
+    ResultatPlanification,
+    IdentificateurTopologieDetaillee,
+    SequenceurManoeuvres,
+    PlanificateurNodal,
+    PlanificateurTopologie,
+    verifier_sequence,
 )
 
 __all__ = [
@@ -89,4 +100,9 @@ __all__ = [
     "Manoeuvre", "ResultatManoeuvres", "determiner_topo_complete_cible",
     "determiner_manoeuvres_avec_sections", "determiner_manoeuvres_cible_detaillee",
     "sectionneurs_sous_charge_par_manoeuvre",
+    "ouvrages_simultanement_hors_tension",
+    # plugins (phases de calcul pluggables, cf. docs/manoeuvre_plugins.md)
+    "CibleDetaillee", "ResultatIdentification", "ResultatPlanification",
+    "IdentificateurTopologieDetaillee", "SequenceurManoeuvres",
+    "PlanificateurNodal", "PlanificateurTopologie", "verifier_sequence",
 ]

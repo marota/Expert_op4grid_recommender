@@ -117,7 +117,9 @@ def test_golden_sequence(path: Path, mode: str):
     d'un refactor censé être à iso-comportement, soit un changement de
     comportement à valider (régénérer avec ``UPDATE_GOLDENS=1``)."""
     vl = json.loads(path.read_text())["voltage_level_id"]
-    if vl not in list_available_fixtures():
+    # Tolère le nommage point/underscore (VL ``TRI.PP7`` ↔ fixture ``TRI_PP7``).
+    if vl not in list_available_fixtures() \
+            and vl.replace(".", "_") not in list_available_fixtures():
         pytest.skip(f"Fixture {vl} absente")
     # Les organes du scénario doivent exister dans la fixture.
     known = {dd.get("switch_id")

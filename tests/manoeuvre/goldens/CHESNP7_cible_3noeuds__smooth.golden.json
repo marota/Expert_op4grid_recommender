@@ -1,0 +1,108 @@
+{
+  "ecarts": [
+    "sectionneur CHESNP7_CHESN7COUPL.A SA.1_OC ouvert sous tension (deux côtés énergisés)"
+  ],
+  "is_verified": true,
+  "is_verified_detaillee": false,
+  "manoeuvres": [
+    [
+      "CHESNP7_CHESN7VLECH.1 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "CHESNP7_CHESN7VLECH.1 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "CHESNP7_CHESN7TABAR.3 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "CHESNP7_CHESN7TABAR.3 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "CHESNP7_CHESN7SEC.AB SS.1AB_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7COUPL.A DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7LIAISAB DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7COUPL.A SA.1_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7COUPL.A SA.3_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7COUPL.A DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7COUPL.A SA.21_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7COUPL.A SA.23_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CHESNP7_CHESN7COUPL.B DJ_OC",
+      "OPEN",
+      null
+    ]
+  ],
+  "mode": "smooth",
+  "n_manoeuvres": 13,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "CHESNL71CIROL",
+      "CHESNL71RENAR",
+      "CHESNL72M.SEI",
+      "CHESNL72MORBR",
+      "CHESNL72TABAR",
+      "CHESNY772"
+    ],
+    [
+      "CHESNL71M.SEI"
+    ],
+    [
+      "CHESNL71MORBR"
+    ],
+    [
+      "CHESNL71TABAR",
+      "CHESNY761"
+    ],
+    [
+      "CHESNL71VLECH",
+      "CHESNL73TABAR"
+    ],
+    [
+      "CHESNL72CIROL"
+    ],
+    [
+      "CHESNY763"
+    ]
+  ],
+  "voltage_level_id": "CHESNP7"
+}

@@ -66,8 +66,17 @@ def load_fixture_index() -> dict[str, Any]:
 
 
 def load_fixture_json(vl_name: str) -> dict[str, Any]:
-    """Charge le JSON brut d'une fixture."""
+    """Charge le JSON brut d'une fixture.
+
+    Tolère le **nommage point/underscore** : un voltage level RTE ``TRI.PP7`` (avec
+    point) est stocké sous ``TRI_PP7.json`` (le point étant remplacé par ``_`` dans
+    le nom de fichier, cf. ``scripts/extract_test_fixtures.py``). On essaie donc le
+    nom tel quel, puis sa variante point→underscore."""
     path = FIXTURES_DIR / f"{vl_name}.json"
+    if not path.exists():
+        alt = FIXTURES_DIR / f"{vl_name.replace('.', '_')}.json"
+        if alt.exists():
+            path = alt
     if not path.exists():
         raise FileNotFoundError(f"Fixture introuvable : {path}")
     with open(path, encoding="utf-8") as f:

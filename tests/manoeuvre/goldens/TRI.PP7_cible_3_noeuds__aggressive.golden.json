@@ -1,0 +1,100 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "TRI.PP7_TRI.P7COULA.2 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7COULA.2 SA.3_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7TAVEL.4 SA.3_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7TAVEL.4 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7AT762 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7AT762 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "TRI.PP7_TRI.P7COUPL.A SA.3_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7COUPL.A SA.1_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7COUPL.A SA.21_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7COUPL.A SA.23_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7LIAISAB DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7COUPL.B DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "TRI.PP7_TRI.P7TRO.2AB DJ_OC",
+      "OPEN",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 13,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "COULAL71TRI.P",
+      "TAVELL71TRI.P",
+      "TAVELL72TRI.P",
+      "TAVELL73TRI.P",
+      "TRI.PY760",
+      "TRI.PY766"
+    ],
+    [
+      "COULAL72TRI.P",
+      "TRI.PY761",
+      "TRI.PY762"
+    ],
+    [
+      "COULAL73TRI.P"
+    ],
+    [
+      "TAVELL74TRI.P",
+      "TAVELL75TRI.P",
+      "TRI.PY765",
+      "TRI.PY769"
+    ]
+  ],
+  "voltage_level_id": "TRI.PP7"
+}

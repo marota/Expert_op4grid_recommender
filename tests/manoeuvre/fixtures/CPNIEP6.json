@@ -1,0 +1,541 @@
+{
+  "voltage_level_id": "CPNIEP6",
+  "substation_id": "CPNIE",
+  "nominal_v": 225.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "CPNIEP6_CPNIE6TR632 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6EYBEN.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6EYBEN.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6TR632 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6REAC.1 SI.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 21,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6SABL5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6ZSABL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6GRISO.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6GRISO.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6TR631 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 30,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6MOIRA.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6EYBEN.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 25,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6MOIRA.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6REAC.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6SINAR.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 33,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6TR631 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6TR633 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6AT762 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6AT761 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 36,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6PRUNI.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 37,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6S.PON.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 38,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6TR633 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6EYBEN.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 26,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6REAC.1 SI.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 39,
+      "node2": 4,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6CONF5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 40,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6SINAR.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 33,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6AT762 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 35,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6ZSABL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6CONF5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 40,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6REAC.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6S.PON.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 38,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6PRUNI.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 37,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6SABL5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6COUPL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 41,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6REAC.1 S.SHUNT_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 39,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 42,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 0,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6AT761 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 36,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6MOIRA.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6SINAR.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 33,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6TR632 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 9,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6PARIS.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 5,
+      "node2": 18,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6AT761 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 36,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6S.PON.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 38,
+      "node2": 16,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6EYBEN.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6EYBEN.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 26,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6TR631 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 8,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6ZSABL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 15,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6PRUNI.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 37,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6REAC.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 39,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6TR633 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 34,
+      "node2": 7,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6AT762 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 6,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6SABL5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6CONF5.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 40,
+      "node2": 13,
+      "open": true
+    },
+    {
+      "id": "CPNIEP6_CPNIE6GRISO.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIE6COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 41,
+      "node2": 42,
+      "open": false
+    },
+    {
+      "id": "CPNIEP6_CPNIEP6-CPNIEP6.SJB.3.1-CPNIE6REAC.1SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 20,
+      "open": false
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "CPNIEP6_1.1",
+      "node": 0
+    },
+    {
+      "id": "CPNIEP6_1.2",
+      "node": 1
+    },
+    {
+      "id": "CPNIEP6_2.1",
+      "node": 2
+    },
+    {
+      "id": "CPNIEP6_2.2",
+      "node": 3
+    },
+    {
+      "id": "CPNIEP6_3.1",
+      "node": 4
+    },
+    {
+      "id": "CPNIEP6_4.1",
+      "node": 5
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "CPNIEL61EYBEN",
+      "type": "LINE_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "CPNIEL61GRISO",
+      "type": "LINE_SIDE1",
+      "node": 17
+    },
+    {
+      "id": "CPNIEL61MOIRA",
+      "type": "LINE_SIDE1",
+      "node": 23
+    },
+    {
+      "id": "CPNIEL61PARIS",
+      "type": "LINE_SIDE1",
+      "node": 18
+    },
+    {
+      "id": "CPNIEL61PRUNI",
+      "type": "LINE_SIDE1",
+      "node": 22
+    },
+    {
+      "id": "CPNIEL61REAC.",
+      "type": "LINE_SIDE1",
+      "node": 20
+    },
+    {
+      "id": "CPNIEL61S.PON",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": "CPNIEL61SABL5",
+      "type": "LINE_SIDE1",
+      "node": 11
+    },
+    {
+      "id": "CPNIEL61SINAR",
+      "type": "LINE_SIDE1",
+      "node": 19
+    },
+    {
+      "id": "CPNIEL61ZSABL",
+      "type": "LINE_SIDE1",
+      "node": 15
+    },
+    {
+      "id": "CPNIEL62EYBEN",
+      "type": "LINE_SIDE1",
+      "node": 14
+    },
+    {
+      "id": "CONF5L61CPNIE",
+      "type": "LINE_SIDE2",
+      "node": 13
+    },
+    {
+      "id": "CPNIEL61REAC.",
+      "type": "LINE_SIDE2",
+      "node": 21
+    },
+    {
+      "id": "CPNIEY631",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 8
+    },
+    {
+      "id": "CPNIEY632",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 9
+    },
+    {
+      "id": "CPNIEY633",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 7
+    },
+    {
+      "id": "CPNIEY761",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 10
+    },
+    {
+      "id": "CPNIEY762",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 6
+    }
+  ],
+  "stats": {
+    "nb_switches": 58,
+    "nb_busbar_sections": 6,
+    "nb_internal_connections": 0,
+    "nb_equipment": 18,
+    "nb_breakers": 18,
+    "nb_disconnectors": 40
+  }
+}

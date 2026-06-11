@@ -59,6 +59,18 @@ def _rejeu_securite(
             if b.switch_id not in coupling_sids:
                 dj_eq[b.switch_id] = c.equipment_id
 
+    # État **final** de chaque DJ de départ (dernière action l'emporte). Un DJ qui
+    # finit **ouvert** correspond à une **mise hors service** (déconnexion voulue),
+    # pas à une coupure *temporaire* → exclu de la règle « un seul à la fois ». Un
+    # DJ initialement ouvert (ouvrage **déjà déconnecté**) est aussi exclu (aucune
+    # transition d'ouverture). On compte donc toute coupure **temporaire** (DJ
+    # initialement fermé, ouvert puis refermé) — ré-aiguillage comme isolation de
+    # section.
+    final_open = {sid: _is_open(poste.graph, sid) for sid in dj_eq}
+    for m in manoeuvres:
+        if m.switch_id in final_open:
+            final_open[m.switch_id] = (m.action == "OPEN")
+
     securite: list[str] = []
     sous_charge: list[Optional[str]] = []
     un_seul: list[str] = []
@@ -105,18 +117,21 @@ def _rejeu_securite(
                         f"sectionneur {m.switch_id} ouvert sous tension "
                         "(deux côtés énergisés)")
 
-        # --- un seul ouvrage hors tension par ré-aiguillage (boucle longue) ----
+        # --- un seul ouvrage temporairement hors tension à la fois (R10ter) ----
+        # On compte TOUT départ dont le DJ propre, **initialement fermé** (donc pas
+        # « déjà déconnecté »), passe à l'état ouvert. Indépendant du tag de boucle
+        # : capte aussi les dé-énergisations des voies multi-barres / connectivité
+        # (pas seulement les boucles longues taguées « boucle longue »).
         eq = dj_eq.get(m.switch_id)
-        if eq is not None:
-            longue = (m.type_boucle == "LONGUE"
-                      or "boucle longue" in (m.raison or ""))
-            if m.action == "OPEN" and longue:
-                temp_parking.add(eq)
-            elif m.action == "CLOSE":
-                temp_parking.discard(eq)
+        if eq is not None and not final_open.get(m.switch_id, True):
+            was_open = _is_open(G, m.switch_id)
+            if m.action == "OPEN" and not was_open:
+                temp_parking.add(eq)        # déconnexion TEMPORAIRE (était sous tension)
+            elif m.action == "CLOSE" and was_open:
+                temp_parking.discard(eq)    # ré-alimentation
             if len(temp_parking) > 1:
                 un_seul.append(
-                    "plus d'un ouvrage hors tension simultanément (ré-aiguillage) : "
+                    "plus d'un ouvrage temporairement hors tension simultanément : "
                     + ", ".join(sorted(temp_parking)))
 
         _set_switch(G, m.switch_id, m.action == "OPEN")
@@ -136,6 +151,23 @@ def _verifier_un_seul_hors_tension(
 ) -> list[str]:
     """Règle R10ter : pas plus d'**un** ouvrage hors tension par ré-aiguillage
     (boucle longue) simultanément (cf. ``_rejeu_securite``)."""
+    return _rejeu_securite(poste, manoeuvres)[2]
+
+
+def ouvrages_simultanement_hors_tension(
+    poste: PosteTopologique, manoeuvres: list[Manoeuvre]
+) -> list[str]:
+    """Vérificateur **public** de la règle de bonne pratique du mode *smooth* : ne
+    déconnecter (mettre hors tension par son DJ) qu'**un seul ouvrage à la fois**,
+    le temps de manœuvrer ses sectionneurs, avant de le ré-alimenter — **sauf** les
+    ouvrages **déjà déconnectés** au départ (exemptés).
+
+    Retourne la liste **dédupliquée** des moments de la séquence où **plus d'un**
+    ouvrage (initialement sous tension) est simultanément hors tension. Liste vide
+    si la règle est respectée. C'est une **alerte** (bonne pratique d'exploitation,
+    minimiser les ouvrages momentanément hors tension), pas une règle de sûreté
+    bloquante : la topologie cible reste atteinte.
+    """
     return _rejeu_securite(poste, manoeuvres)[2]
 
 

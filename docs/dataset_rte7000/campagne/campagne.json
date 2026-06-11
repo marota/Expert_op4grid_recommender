@@ -1,0 +1,151 @@
+{
+  "jours": [
+    {
+      "date": "2021-01-03",
+      "jour": "dimanche",
+      "saison": "hiver",
+      "blocs": 6233,
+      "postes": 1861,
+      "oscillations": 2249,
+      "consignation": 2053,
+      "remise_en_service": 2034,
+      "inclasse": 2138,
+      "reconfig_structurelles": 36,
+      "detail_structurelles": {
+        "fusion_noeuds": 15,
+        "scission_noeud": 12,
+        "reaiguillage_departs": 5,
+        "sectionnement_barre": 4
+      },
+      "organes_changes_max": 16,
+      "topologies_stables_catalogue": 4066,
+      "postes_combinables": 1861
+    },
+    {
+      "date": "2021-01-05",
+      "jour": "mardi",
+      "saison": "hiver",
+      "blocs": 6554,
+      "postes": 2011,
+      "oscillations": 2975,
+      "consignation": 2236,
+      "remise_en_service": 2238,
+      "inclasse": 2032,
+      "reconfig_structurelles": 123,
+      "detail_structurelles": {
+        "fusion_noeuds": 25,
+        "scission_noeud": 29,
+        "reaiguillage_departs": 49,
+        "sectionnement_barre": 20
+      },
+      "organes_changes_max": 20,
+      "topologies_stables_catalogue": 4644,
+      "postes_combinables": 2011
+    },
+    {
+      "date": "2021-04-14",
+      "jour": "mercredi",
+      "saison": "printemps",
+      "blocs": 7216,
+      "postes": 2024,
+      "oscillations": 2211,
+      "consignation": 2335,
+      "remise_en_service": 2346,
+      "inclasse": 2522,
+      "reconfig_structurelles": 158,
+      "detail_structurelles": {
+        "fusion_noeuds": 31,
+        "scission_noeud": 38,
+        "reaiguillage_departs": 47,
+        "sectionnement_barre": 42
+      },
+      "organes_changes_max": 18,
+      "topologies_stables_catalogue": 4742,
+      "postes_combinables": 2024
+    },
+    {
+      "date": "2021-07-15",
+      "jour": "jeudi",
+      "saison": "été",
+      "blocs": 7127,
+      "postes": 2096,
+      "oscillations": 2314,
+      "consignation": 2233,
+      "remise_en_service": 2295,
+      "inclasse": 2563,
+      "reconfig_structurelles": 203,
+      "detail_structurelles": {
+        "fusion_noeuds": 45,
+        "scission_noeud": 40,
+        "reaiguillage_departs": 67,
+        "sectionnement_barre": 51
+      },
+      "organes_changes_max": 26,
+      "topologies_stables_catalogue": 4853,
+      "postes_combinables": 2096
+    },
+    {
+      "date": "2021-10-12",
+      "jour": "mardi",
+      "saison": "automne",
+      "blocs": 6760,
+      "postes": 2056,
+      "oscillations": 1840,
+      "consignation": 2287,
+      "remise_en_service": 2281,
+      "inclasse": 2151,
+      "reconfig_structurelles": 208,
+      "detail_structurelles": {
+        "fusion_noeuds": 45,
+        "scission_noeud": 54,
+        "reaiguillage_departs": 69,
+        "sectionnement_barre": 40
+      },
+      "organes_changes_max": 31,
+      "topologies_stables_catalogue": 4766,
+      "postes_combinables": 2056
+    },
+    {
+      "date": "2022-06-15",
+      "jour": "mercredi",
+      "saison": "été",
+      "blocs": 6400,
+      "postes": 2037,
+      "oscillations": 1830,
+      "consignation": 2239,
+      "remise_en_service": 2266,
+      "inclasse": 1839,
+      "reconfig_structurelles": 181,
+      "detail_structurelles": {
+        "fusion_noeuds": 34,
+        "scission_noeud": 37,
+        "reaiguillage_departs": 69,
+        "sectionnement_barre": 41
+      },
+      "organes_changes_max": 26,
+      "topologies_stables_catalogue": 4708,
+      "postes_combinables": 2037
+    },
+    {
+      "date": "2023-02-08",
+      "jour": "mercredi",
+      "saison": "hiver",
+      "blocs": 6442,
+      "postes": 1984,
+      "oscillations": 1509,
+      "consignation": 2312,
+      "remise_en_service": 2349,
+      "inclasse": 1714,
+      "reconfig_structurelles": 185,
+      "detail_structurelles": {
+        "fusion_noeuds": 40,
+        "scission_noeud": 48,
+        "reaiguillage_departs": 58,
+        "sectionnement_barre": 39
+      },
+      "organes_changes_max": 38,
+      "topologies_stables_catalogue": 4577,
+      "postes_combinables": 1984
+    }
+  ]
+}

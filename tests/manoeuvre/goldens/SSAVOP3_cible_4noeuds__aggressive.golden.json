@@ -69,16 +69,6 @@
       null
     ],
     [
-      "SSAVOP3_SSAVO3SEC.A23 SS.1A23_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "SSAVOP3_SSAVO3SEC.A23 SS.2A23_OC",
-      "OPEN",
-      null
-    ],
-    [
       "SSAVOP3_SSAVO3CARLI.1 SA.1_OC",
       "OPEN",
       null
@@ -86,6 +76,16 @@
     [
       "SSAVOP3_SSAVO3CARLI.1 SA.2_OC",
       "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3SEC.A23 SS.1A23_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3SEC.A23 SS.2A23_OC",
+      "OPEN",
       null
     ],
     [

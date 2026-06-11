@@ -43,6 +43,11 @@ EXPECTED_PUBLIC = {
     "Manoeuvre", "ResultatManoeuvres", "determiner_topo_complete_cible",
     "determiner_manoeuvres_avec_sections", "determiner_manoeuvres_cible_detaillee",
     "sectionneurs_sous_charge_par_manoeuvre",
+    "ouvrages_simultanement_hors_tension",
+    # plugins (phases de calcul pluggables)
+    "CibleDetaillee", "ResultatIdentification", "ResultatPlanification",
+    "IdentificateurTopologieDetaillee", "SequenceurManoeuvres",
+    "PlanificateurNodal", "PlanificateurTopologie", "verifier_sequence",
 }
 
 # Sous-modules d'origine de chaque symbole (chemin de réimport attendu).
@@ -64,6 +69,12 @@ SYMBOL_SUBMODULE = {
     "determiner_manoeuvres_avec_sections": "algo",
     "determiner_manoeuvres_cible_detaillee": "algo",
     "sectionneurs_sous_charge_par_manoeuvre": "algo",
+    "ouvrages_simultanement_hors_tension": "algo",
+    "CibleDetaillee": "plugins", "ResultatIdentification": "plugins",
+    "ResultatPlanification": "plugins",
+    "IdentificateurTopologieDetaillee": "plugins",
+    "SequenceurManoeuvres": "plugins", "PlanificateurNodal": "plugins",
+    "PlanificateurTopologie": "plugins", "verifier_sequence": "plugins",
 }
 
 

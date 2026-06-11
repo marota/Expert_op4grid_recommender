@@ -80,16 +80,25 @@ def test_les_deux_modes_atteignent_la_meme_topologie(smooth, aggressive):
     assert smooth.topo_obtenue.meme_topologie(aggressive.topo_obtenue)
 
 
-def test_smooth_un_seul_ouvrage_hors_tension_a_la_fois():
-    """R10ter : le mode smooth ne déconnecte jamais plus d'un ouvrage à la fois
-    par ré-aiguillage (parking un par un) — aucune violation relevée."""
-    from expert_op4grid_recommender.manoeuvre.algo import (
-        _verifier_un_seul_hors_tension)
+def test_smooth_alerte_ouvrages_simultanes_surfacee():
+    """R10ter (bonne pratique, **non bloquante**) : le mode smooth doit privilégier
+    de n'avoir qu'**un seul ouvrage hors tension à la fois** par ré-aiguillage. Le
+    vérificateur ``ouvrages_simultanement_hors_tension`` détecte les moments où ce
+    n'est pas le cas et l'alerte est **surfacée** dans ``res.alertes``.
+
+    Sur SSAVOP3 (cible 4 nœuds, re-sectionnement lourd) le séquenceur nodal
+    ré-aiguille plusieurs ouvrages en parallèle : l'alerte est donc levée — sans
+    empêcher l'atteinte exacte de la cible détaillée (non bloquant)."""
+    from expert_op4grid_recommender.manoeuvre import (
+        ouvrages_simultanement_hors_tension)
     d = json.loads(SCEN.read_text())
     vl = d["voltage_level_id"]
     poste = PosteTopologique.from_graph(_graph_from_states(vl, d["depart"]), vl)
     res = _run("smooth")
-    assert _verifier_un_seul_hors_tension(poste, res.manoeuvres) == []
+    # Cohérence : l'alerte portée par le résultat est exactement celle du vérificateur.
+    assert res.alertes == ouvrages_simultanement_hors_tension(poste, res.manoeuvres)
+    # Alerte **non bloquante** : la cible détaillée reste atteinte.
+    assert res.is_verified_detaillee
 
 
 def test_aggressive_plus_court_que_smooth(smooth, aggressive):

@@ -35,6 +35,10 @@ class ResultatManoeuvres:
     is_verified: bool = False              # topologie NODALE atteinte
     is_verified_detaillee: bool = False    # topologie DÉTAILLÉE atteinte
     ecarts: list[str] = field(default_factory=list)  # écarts détaillés résiduels
+    # Alertes de **bonne pratique** (non bloquantes) : p.ex. mode smooth ayant plus
+    # d'un ouvrage temporairement hors tension à la fois (cf.
+    # ``ouvrages_simultanement_hors_tension``). N'affecte pas ``is_verified*``.
+    alertes: list[str] = field(default_factory=list)
     topo_obtenue: Optional[TopologieNodale] = None
     message: str = ""
     # Dégradation gracieuse : départs des nœuds cibles **non réalisables** sur ce

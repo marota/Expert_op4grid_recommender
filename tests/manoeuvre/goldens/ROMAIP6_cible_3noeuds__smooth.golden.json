@@ -1,0 +1,270 @@
+{
+  "ecarts": [
+    "organe ROMAIP6_ROMAI6LIAIS23 DJ_OC ouvert au lieu de fermé",
+    "organe ROMAIP6_ROMAI6LIAIS23 DJ_OC ouvert au lieu de fermé",
+    "organe ROMAIP6_ROMAI6LIAIS23 DJ_OC ouvert au lieu de fermé",
+    "organe ROMAIP6_ROMAI6SEC..23 SS.2.23_OC ouvert au lieu de fermé",
+    "organe ROMAIP6_ROMAI6LIAIS23 DJ_OC ouvert au lieu de fermé",
+    "organe ROMAIP6_ROMAI6SEC..34 SS.2.34_OC fermé au lieu de ouvert",
+    "ROMAIP6_ROMAI6PIQU.1 SA.2_OC : sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur"
+  ],
+  "is_verified": true,
+  "is_verified_detaillee": false,
+  "manoeuvres": [
+    [
+      "ROMAIP6_ROMAI6FLAND.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6FLAND.1 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR611 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR611 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6SEC..12 SS.1.12_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.1 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.1 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR612 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR612 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.2 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.2 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6SEC..34 SS.1.34_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "ROMAIP6_ROMAI6NOISY.2 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.1 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.1 SA.1_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6NOISY.2 DJ_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR612 DJ.HT_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR612 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR612 SA.1_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR612 DJ.HT_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 SA.1_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR613 DJ.HT_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR633 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.2 SA.2_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6PIQU.2 SA.1_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR633 DJ_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "ROMAIP6_ROMAI6COUPL.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "ROMAIP6_ROMAI6FLAND.1 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "ROMAIP6_ROMAI6SEC..12 SS.2.12_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "ROMAIP6_ROMAI6FLAND.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "ROMAIP6_ROMAI6COUPL.1 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "ROMAIP6_ROMAI6LIAIS23 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "ROMAIP6_ROMAI6FLAND.1 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6FLAND.1 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR611 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "ROMAIP6_ROMAI6TR611 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ]
+  ],
+  "mode": "smooth",
+  "n_manoeuvres": 42,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "AVENIL61ROMAI"
+    ],
+    [
+      "B.CHAL61ROMAI",
+      "MALA6L61ROMAI",
+      "NOISYL61ROMAI",
+      "ROMAIL64ZGALE",
+      "ROMAIY631"
+    ],
+    [
+      "FLANDL61ROMAI",
+      "ROMAI6T611"
+    ],
+    [
+      "NOISYL62ROMAI",
+      "ROMAI6REAC.1",
+      "ROMAI6T612",
+      "ROMAI6T613",
+      "ROMAIY663"
+    ],
+    [
+      "PLAISL61ROMAI"
+    ],
+    [
+      "ROMAI6COND.1"
+    ],
+    [
+      "ROMAIINF"
+    ],
+    [
+      "ROMAIING"
+    ],
+    [
+      "ROMAIL61VLEVA"
+    ],
+    [
+      "ROMAIL62VLEVA"
+    ]
+  ],
+  "voltage_level_id": "ROMAIP6"
+}

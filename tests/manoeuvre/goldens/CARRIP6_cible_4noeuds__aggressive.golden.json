@@ -29,21 +29,6 @@
       null
     ],
     [
-      "CARRIP6_CARRI6COUPL.3 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "CARRIP6_CARRI6SEC..12 SS.1.12_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "CARRIP6_CARRI6SEC..23 SS.2.23_OC",
-      "OPEN",
-      null
-    ],
-    [
       "CARRIP6_CARRI6MORU.1 SA.1_OC",
       "CLOSE",
       null
@@ -61,6 +46,21 @@
     [
       "CARRIP6_CARRI6TR611 SA.1_OC",
       "CLOSE",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6COUPL.3 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6SEC..12 SS.1.12_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "CARRIP6_CARRI6SEC..23 SS.2.23_OC",
+      "OPEN",
       null
     ],
     [

@@ -1,0 +1,66 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "CPNIEP6_CPNIE6AT761 SA.1_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "CPNIEP6_CPNIE6AT761 SA.2_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "CPNIEP6_CPNIE6TR633 SA.2_OC",
+      "CLOSE",
+      "COURTE"
+    ],
+    [
+      "CPNIEP6_CPNIE6TR633 SA.1_OC",
+      "OPEN",
+      "COURTE"
+    ],
+    [
+      "CPNIEP6_CPNIE6COUPL.1 DJ_OC",
+      "OPEN",
+      null
+    ]
+  ],
+  "mode": "aggressive",
+  "n_manoeuvres": 5,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      "CONF5L61CPNIE"
+    ],
+    [
+      "CPNIEL61EYBEN",
+      "CPNIEL61GRISO",
+      "CPNIEL61MOIRA",
+      "CPNIEL61PRUNI",
+      "CPNIEL61SABL5",
+      "CPNIEY632",
+      "CPNIEY761",
+      "CPNIEY762"
+    ],
+    [
+      "CPNIEL61PARIS",
+      "CPNIEL61REAC."
+    ],
+    [
+      "CPNIEL61REAC.",
+      "CPNIEL61S.PON",
+      "CPNIEL61SINAR",
+      "CPNIEL62EYBEN",
+      "CPNIEY631",
+      "CPNIEY633"
+    ],
+    [
+      "CPNIEL61ZSABL"
+    ]
+  ],
+  "voltage_level_id": "CPNIEP6"
+}

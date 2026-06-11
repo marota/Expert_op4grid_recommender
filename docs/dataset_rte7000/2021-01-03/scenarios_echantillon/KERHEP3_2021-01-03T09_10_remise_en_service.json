@@ -1,0 +1,92 @@
+{
+  "voltage_level_id": "KERHEP3",
+  "name": "KERHEP3_2021-01-03T09_10_remise_en_service",
+  "depart": {
+    "KERHEP3_KERHE3TR311SA.1F": false,
+    "KERHEP3_KERHE3ZKERH.1SA.1F": false,
+    "KERHEP3_KERHE   3CBO.1    SS.1.12": true,
+    "KERHEP3_KERHE3TRO.112SA.1.1F": false,
+    "KERHEP3_KERHE3TR312SA.1F": false,
+    "KERHEP3_KERHE3AURAY.1SA.1F": false,
+    "KERHEP3_KERHE3QUIBE.2SA.1F": false,
+    "KERHEP3_KERHE3TRO.121SA.1.2F": false,
+    "KERHEP3_KERHE   3AURAY.1  DJ": false,
+    "KERHEP3_KERHE   3QUIBE.2  DJ": false,
+    "KERHEP3_KERHE   3TRO.112  INTER": false,
+    "KERHEP3_KERHE   3TR311    DJ.HT": false,
+    "KERHEP3_KERHE   3TR312    DJ.HT": false,
+    "KERHEP3_KERHE   3TR312    DJ.BT.KERHE3TR312": false,
+    "KERHEP3_KERHE   3TR312    DJ.BT.KERHEINA": true,
+    "KERHEP3_KERHE   3ZKERH.1  DJ": false,
+    "KERHEP3_KERHE   3TR311    DJ.HT.KERHE TR311": false,
+    "KERHEP3_Disj KERHEINF": true,
+    "KERHEP3_Disj KERHEING": true
+  },
+  "cible": {
+    "KERHEP3_KERHE3TR311SA.1F": false,
+    "KERHEP3_KERHE3ZKERH.1SA.1F": false,
+    "KERHEP3_KERHE   3CBO.1    SS.1.12": true,
+    "KERHEP3_KERHE3TRO.112SA.1.1F": false,
+    "KERHEP3_KERHE3TR312SA.1F": false,
+    "KERHEP3_KERHE3AURAY.1SA.1F": false,
+    "KERHEP3_KERHE3QUIBE.2SA.1F": false,
+    "KERHEP3_KERHE3TRO.121SA.1.2F": false,
+    "KERHEP3_KERHE   3AURAY.1  DJ": false,
+    "KERHEP3_KERHE   3QUIBE.2  DJ": false,
+    "KERHEP3_KERHE   3TRO.112  INTER": true,
+    "KERHEP3_KERHE   3TR311    DJ.HT": false,
+    "KERHEP3_KERHE   3TR312    DJ.HT": false,
+    "KERHEP3_KERHE   3TR312    DJ.BT.KERHE3TR312": false,
+    "KERHEP3_KERHE   3TR312    DJ.BT.KERHEINA": true,
+    "KERHEP3_KERHE   3ZKERH.1  DJ": false,
+    "KERHEP3_KERHE   3TR311    DJ.HT.KERHE TR311": false,
+    "KERHEP3_Disj KERHEINF": false,
+    "KERHEP3_Disj KERHEING": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "remise_en_service",
+      "scission_noeud",
+      "sectionnement_barre"
+    ],
+    "t_depart": "2021-01-03T09:00",
+    "t_cible": "2021-01-03T09:10",
+    "topologie_depart_id": "969354b2623ee17f",
+    "topologie_cible_id": "9209054dafb72ffd",
+    "nb_organes_changes": 3,
+    "nb_manoeuvres_observees": 3,
+    "nb_etats_transitoires": 1,
+    "duree_stable_avant": 83,
+    "duree_stable_apres": 105,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "AURAYL31KERHE",
+      "KERHE3311",
+      "KERHE3312",
+      "KERHEL31ZKERH",
+      "KERHEL32QUIBE"
+    ],
+    [
+      "KERHEINF"
+    ],
+    [
+      "KERHEING"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "AURAYL31KERHE",
+      "KERHE3312",
+      "KERHEING",
+      "KERHEL32QUIBE"
+    ],
+    [
+      "KERHE3311",
+      "KERHEINF",
+      "KERHEL31ZKERH"
+    ]
+  ]
+}

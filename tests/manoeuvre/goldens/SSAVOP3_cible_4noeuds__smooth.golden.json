@@ -104,7 +104,7 @@
       "LONGUE"
     ],
     [
-      "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
+      "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
       "OPEN",
       null
     ],
@@ -114,17 +114,12 @@
       null
     ],
     [
-      "SSAVOP3_SSAVO3TR636 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
-      "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
-      "OPEN",
-      null
-    ],
-    [
       "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
       "OPEN",
       null
     ],
@@ -145,6 +140,11 @@
     ],
     [
       "SSAVOP3_SSAVOP3-N7_DJ_F",
+      "OPEN",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3TR636 DJ_OC",
       "OPEN",
       null
     ],
@@ -154,7 +154,7 @@
       null
     ],
     [
-      "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
+      "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
       "CLOSE",
       null
     ],
@@ -164,17 +164,12 @@
       null
     ],
     [
-      "SSAVOP3_SSAVO3TR636 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "SSAVOP3_SSAVO3BETTI.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
       "SSAVOP3_SSAVO3LAND5.2 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
+      "SSAVOP3_SSAVO3PUTTE.1 DJ_OC",
       "CLOSE",
       null
     ],
@@ -199,17 +194,22 @@
       null
     ],
     [
+      "SSAVOP3_SSAVO3TR636 DJ_OC",
+      "CLOSE",
+      null
+    ],
+    [
       "SSAVOP3_SSAVO3ANCER.1 DJ_OC",
       "OPEN",
       null
     ],
     [
-      "SSAVOP3_SSAVO3TR638 DJ_OC",
+      "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
       "OPEN",
       null
     ],
     [
-      "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "SSAVOP3_SSAVO3TR638 DJ_OC",
       "OPEN",
       null
     ],
@@ -224,12 +224,12 @@
       null
     ],
     [
-      "SSAVOP3_SSAVO3TR638 DJ_OC",
+      "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
       "CLOSE",
       null
     ],
     [
-      "SSAVOP3_SSAVO3LAND5.1 DJ_OC",
+      "SSAVOP3_SSAVO3TR638 DJ_OC",
       "CLOSE",
       null
     ],

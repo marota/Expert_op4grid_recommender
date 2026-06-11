@@ -4,108 +4,18 @@
   "is_verified_detaillee": true,
   "manoeuvres": [
     [
-      "CARRIP3_CARRI3COUPL.1 DJ_OC",
-      "CLOSE",
-      null
-    ],
-    [
-      "CARRIP3_CARRI3TR312 DJ.HT_OC",
-      "OPEN",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3TR312 SA.1_OC",
-      "OPEN",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3TR312 SA.2_OC",
-      "CLOSE",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3TR312 DJ.HT_OC",
-      "CLOSE",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3PERSA.1 DJ_OC",
-      "OPEN",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3PERSA.1 SA.1_OC",
-      "OPEN",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3PERSA.1 SA.2_OC",
-      "CLOSE",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3PERSA.1 DJ_OC",
-      "CLOSE",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3V.PAU.1 DJ_OC",
-      "OPEN",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3V.PAU.1 SA.1_OC",
-      "OPEN",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3V.PAU.1 SA.2_OC",
-      "CLOSE",
-      "LONGUE"
-    ],
-    [
-      "CARRIP3_CARRI3V.PAU.1 DJ_OC",
-      "CLOSE",
-      "LONGUE"
-    ],
-    [
       "CARRIP3_CARRI3SEC..12 SS.1.12_OC",
       "CLOSE",
       null
     ],
     [
-      "CARRIP3_CARRI3TR312 SA.1_OC",
+      "CARRIP3_CARRI3COUPL.1 DJ_OC",
       "CLOSE",
-      "COURTE"
-    ],
-    [
-      "CARRIP3_CARRI3TR312 SA.2_OC",
-      "OPEN",
-      "COURTE"
-    ],
-    [
-      "CARRIP3_CARRI3PERSA.1 SA.1_OC",
-      "CLOSE",
-      "COURTE"
-    ],
-    [
-      "CARRIP3_CARRI3PERSA.1 SA.2_OC",
-      "OPEN",
-      "COURTE"
-    ],
-    [
-      "CARRIP3_CARRI3V.PAU.1 SA.1_OC",
-      "CLOSE",
-      "COURTE"
-    ],
-    [
-      "CARRIP3_CARRI3V.PAU.1 SA.2_OC",
-      "OPEN",
-      "COURTE"
+      null
     ]
   ],
   "mode": "smooth",
-  "n_manoeuvres": 20,
+  "n_manoeuvres": 2,
   "noeuds_non_realisables": [],
   "partition_obtenue": [
     [

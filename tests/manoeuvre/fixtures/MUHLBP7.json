@@ -1,0 +1,569 @@
+{
+  "voltage_level_id": "MUHLBP7",
+  "substation_id": "MUHLB",
+  "nominal_v": 400.0,
+  "topology_kind": "NODE_BREAKER",
+  "switches": [
+    {
+      "id": "MUHLBP7_MUHLB7.EICH.1 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 18,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC772 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 23,
+      "node2": 7,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC771 SL_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 24,
+      "node2": 8,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7VINCE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LIAIS.1 SA.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 1,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7.EICH.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7FESS5.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SIERE.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SIERE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 24,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7COUPL.1 SA.21_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 29,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7FESS5.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 30,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7FESS5.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 28,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SCHEE.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 31,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SIERE.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 23,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LOGEL.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SEC..12 SS.1.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 1,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC772 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 33,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SIERE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 24,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7VINCE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SCHEE.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SCHEE.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 31,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LIAIS.1 SA.21_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7VINCE.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 25,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC771 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7COUPL.1 SA.23_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 36,
+      "node2": 2,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SIERE.2 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LOGEL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 32,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC771 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7.EICH.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 27,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LOGEL.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 32,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC772 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 33,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LIAIS.1 SA.32_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 5,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LIAIS.1 SA.31_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 34,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC771 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 35,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7FESS5.2 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 30,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SIERE.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 1,
+      "node2": 23,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SEC..12 SS.2.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7COUPL.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 36,
+      "node2": 4,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7FESS5.2 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 30,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SEC..12 SS.3.12_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 4,
+      "node2": 5,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7FESS5.1 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 2,
+      "node2": 28,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LIAIS.1 SA.11_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 34,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LIAIS.1 SA.22_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 26,
+      "node2": 3,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7.EICH.1 SA.3_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 5,
+      "node2": 27,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC772 SA.2_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 3,
+      "node2": 33,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7COUPL.1 SA.1_OC",
+      "kind": "DISCONNECTOR",
+      "node1": 0,
+      "node2": 29,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7.EICH.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 27,
+      "node2": 22,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7COUPL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 29,
+      "node2": 36,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LIAIS.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 34,
+      "node2": 26,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SIERE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 24,
+      "node2": 20,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC772 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 33,
+      "node2": 9,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7FESS5.1 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 28,
+      "node2": 17,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SCHEE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 31,
+      "node2": 19,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7VINCE.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 25,
+      "node2": 16,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7SIERE.2 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 23,
+      "node2": 21,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7MC771 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 35,
+      "node2": 6,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLB7FESS5.2 DJ.HT_OC",
+      "kind": "BREAKER",
+      "node1": 30,
+      "node2": 15,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLB7LOGEL.1 DJ_OC",
+      "kind": "BREAKER",
+      "node1": 32,
+      "node2": 14,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLBP7-MUHLBP7.SJB.4.1-MUHLBTD771SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 13,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLBP7-MUHLBP7.SJB.4.2-MUHLBTD772SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 7,
+      "node2": 10,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLBP7-MUHLBP7.SJB.5.1-MUHLBTD771SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 8,
+      "node2": 12,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLBP7-MUHLBP7.SJB.5.2-MUHLBTD772SA_F",
+      "kind": "DISCONNECTOR",
+      "node1": 9,
+      "node2": 11,
+      "open": false
+    },
+    {
+      "id": "MUHLBP7_MUHLBP7_4.1_4.2_F",
+      "kind": "DISCONNECTOR",
+      "node1": 6,
+      "node2": 7,
+      "open": true
+    },
+    {
+      "id": "MUHLBP7_MUHLBP7_5.1_5.2_F",
+      "kind": "DISCONNECTOR",
+      "node1": 8,
+      "node2": 9,
+      "open": true
+    }
+  ],
+  "busbar_sections": [
+    {
+      "id": "MUHLBP7_1.1",
+      "node": 0
+    },
+    {
+      "id": "MUHLBP7_1.2",
+      "node": 1
+    },
+    {
+      "id": "MUHLBP7_2.1",
+      "node": 2
+    },
+    {
+      "id": "MUHLBP7_2.2",
+      "node": 3
+    },
+    {
+      "id": "MUHLBP7_3.1",
+      "node": 4
+    },
+    {
+      "id": "MUHLBP7_3.2",
+      "node": 5
+    },
+    {
+      "id": "MUHLBP7_4.1",
+      "node": 6
+    },
+    {
+      "id": "MUHLBP7_4.2",
+      "node": 7
+    },
+    {
+      "id": "MUHLBP7_5.1",
+      "node": 8
+    },
+    {
+      "id": "MUHLBP7_5.2",
+      "node": 9
+    }
+  ],
+  "internal_connections": [],
+  "equipment": [
+    {
+      "id": "MUHLBL71SCHEE",
+      "type": "LINE_SIDE1",
+      "node": 19
+    },
+    {
+      "id": "MUHLBL71SIERE",
+      "type": "LINE_SIDE1",
+      "node": 20
+    },
+    {
+      "id": "MUHLBL71VINCE",
+      "type": "LINE_SIDE1",
+      "node": 16
+    },
+    {
+      "id": "MUHLBL72SIERE",
+      "type": "LINE_SIDE1",
+      "node": 21
+    },
+    {
+      "id": ".EICHL71MUHLB",
+      "type": "LINE_SIDE2",
+      "node": 18
+    },
+    {
+      "id": "FESS5L71MUHLB",
+      "type": "LINE_SIDE2",
+      "node": 17
+    },
+    {
+      "id": "FESS5L72MUHLB",
+      "type": "LINE_SIDE2",
+      "node": 15
+    },
+    {
+      "id": "LOGELL71MUHLB",
+      "type": "LINE_SIDE2",
+      "node": 14
+    },
+    {
+      "id": "MUHLBY771",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 12
+    },
+    {
+      "id": "MUHLBY772",
+      "type": "TRANSFORMER_SIDE1",
+      "node": 10
+    },
+    {
+      "id": "MUHLBY771",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 13
+    },
+    {
+      "id": "MUHLBY772",
+      "type": "TRANSFORMER_SIDE2",
+      "node": 11
+    }
+  ],
+  "stats": {
+    "nb_switches": 64,
+    "nb_busbar_sections": 10,
+    "nb_internal_connections": 0,
+    "nb_equipment": 12,
+    "nb_breakers": 12,
+    "nb_disconnectors": 52
+  }
+}

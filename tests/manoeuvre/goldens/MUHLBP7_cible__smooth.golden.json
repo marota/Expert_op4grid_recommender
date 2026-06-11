@@ -1,0 +1,80 @@
+{
+  "ecarts": [],
+  "is_verified": true,
+  "is_verified_detaillee": true,
+  "manoeuvres": [
+    [
+      "MUHLBP7_MUHLB7SIERE.1 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "MUHLBP7_MUHLB7SIERE.1 SA.1_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "MUHLBP7_MUHLB7MC771 SL_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "MUHLBP7_MUHLB7SIERE.1 DJ_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "MUHLBP7_MUHLB7SIERE.2 DJ_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "MUHLBP7_MUHLB7SIERE.2 SA.3_OC",
+      "OPEN",
+      "LONGUE"
+    ],
+    [
+      "MUHLBP7_MUHLB7MC772 SL_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "MUHLBP7_MUHLB7SIERE.2 DJ_OC",
+      "CLOSE",
+      "LONGUE"
+    ],
+    [
+      "MUHLBP7_MUHLBP7_4.1_4.2_F",
+      "CLOSE",
+      null
+    ]
+  ],
+  "mode": "smooth",
+  "n_manoeuvres": 9,
+  "noeuds_non_realisables": [],
+  "partition_obtenue": [
+    [
+      ".EICHL71MUHLB",
+      "FESS5L71MUHLB",
+      "FESS5L72MUHLB",
+      "LOGELL71MUHLB",
+      "MUHLBL71SCHEE"
+    ],
+    [
+      "MUHLBL71SIERE",
+      "MUHLBY771"
+    ],
+    [
+      "MUHLBL71VINCE"
+    ],
+    [
+      "MUHLBL72SIERE",
+      "MUHLBY771",
+      "MUHLBY772"
+    ],
+    [
+      "MUHLBY772"
+    ]
+  ],
+  "voltage_level_id": "MUHLBP7"
+}
