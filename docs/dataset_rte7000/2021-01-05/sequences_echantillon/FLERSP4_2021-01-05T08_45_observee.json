@@ -1,0 +1,255 @@
+{
+  "voltage_level_id": "FLERSP4",
+  "name": "FLERSP4_2021-01-05T08_45_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "FLERSP4_FLERS   4VIRE .1  SA.1": true,
+    "FLERSP4_FLERS   4TR641    SA.1": false,
+    "FLERSP4_FLERS   4TR412    SA.1": false,
+    "FLERSP4_FLERS   4TR642    SA.1": true,
+    "FLERSP4_FLERS   4TR413    SA.1": true,
+    "FLERSP4_FLERS   4LOISI.1  SA.1": true,
+    "FLERSP4_FLERS   4COND.1   SA.1": true,
+    "FLERSP4_FLERS   4DOMFR.1  SA.1": false,
+    "FLERSP4_FLERS   4ZC.NO.1  SA.1": false,
+    "FLERSP4_FLERS   4C.NOI.1  SA.1": true,
+    "FLERSP4_FLERS   4TR410    SA.1": false,
+    "FLERSP4_FLERS   4TR411    SA.1": true,
+    "FLERSP4_FLERS   4TR643    SA.1": false,
+    "FLERSP4_FLERS   4ZGERR.1  SA.1": false,
+    "FLERSP4_FLERS   4COUPL    SA.1": false,
+    "FLERSP4_FLERS   4COUPL    SA.2": false,
+    "FLERSP4_FLERS   4VIRE .1  SA.2": false,
+    "FLERSP4_FLERS   4TR641    SA.2": true,
+    "FLERSP4_FLERS   4TR412    SA.2": true,
+    "FLERSP4_FLERS   4TR642    SA.2": false,
+    "FLERSP4_FLERS   4TR413    SA.2": false,
+    "FLERSP4_FLERS   4LOISI.1  SA.2": false,
+    "FLERSP4_FLERS   4COND.1   SA.2": false,
+    "FLERSP4_FLERS   4DOMFR.1  SA.2": true,
+    "FLERSP4_FLERS   4ZC.NO.1  SA.2": true,
+    "FLERSP4_FLERS   4C.NOI.1  SA.2": false,
+    "FLERSP4_FLERS   4TR410    SA.2": true,
+    "FLERSP4_FLERS   4TR411    SA.2": false,
+    "FLERSP4_FLERS   4TR643    SA.2": true,
+    "FLERSP4_FLERS   4ZGERR.1  SA.2": true,
+    "FLERSP4_FLERS   4C.NOI.1  DJ": false,
+    "FLERSP4_FLERS   4COND.1   DJ.MCOMP": true,
+    "FLERSP4_FLERS   4COUPL    DJ": false,
+    "FLERSP4_FLERS   4DOMFR.1  DJ": false,
+    "FLERSP4_FLERS   4LOISI.1  DJ": false,
+    "FLERSP4_FLERS   4TR410    DJ.HT": false,
+    "FLERSP4_FLERS   4TR410    DJ.BT.FLERS4TR410": false,
+    "FLERSP4_FLERS   4TR410    DJ.BT.FLERSINA": false,
+    "FLERSP4_FLERS   4TR411    DJ.HT": false,
+    "FLERSP4_FLERS   4TR412    DJ.HT": false,
+    "FLERSP4_FLERS   4TR413    DJ.HT": false,
+    "FLERSP4_FLERS   4TR641    DJ": false,
+    "FLERSP4_FLERS   4TR642    DJ": false,
+    "FLERSP4_FLERS   4TR643    DJ": false,
+    "FLERSP4_FLERS   4VIRE .1  DJ": false,
+    "FLERSP4_FLERS   4ZC.NO.1  DJ": false,
+    "FLERSP4_FLERS   4ZGERR.1  DJ": false,
+    "FLERSP4_Disj FLERSINF": true,
+    "FLERSP4_FLERS   4TR411    DJ.HT.FLERS TR411": false,
+    "FLERSP4_Disj FLERSING": true
+  },
+  "cible": {
+    "FLERSP4_FLERS   4VIRE .1  SA.1": true,
+    "FLERSP4_FLERS   4TR641    SA.1": true,
+    "FLERSP4_FLERS   4TR412    SA.1": true,
+    "FLERSP4_FLERS   4TR642    SA.1": true,
+    "FLERSP4_FLERS   4TR413    SA.1": true,
+    "FLERSP4_FLERS   4LOISI.1  SA.1": true,
+    "FLERSP4_FLERS   4COND.1   SA.1": true,
+    "FLERSP4_FLERS   4DOMFR.1  SA.1": true,
+    "FLERSP4_FLERS   4ZC.NO.1  SA.1": true,
+    "FLERSP4_FLERS   4C.NOI.1  SA.1": true,
+    "FLERSP4_FLERS   4TR410    SA.1": true,
+    "FLERSP4_FLERS   4TR411    SA.1": true,
+    "FLERSP4_FLERS   4TR643    SA.1": true,
+    "FLERSP4_FLERS   4ZGERR.1  SA.1": true,
+    "FLERSP4_FLERS   4COUPL    SA.1": true,
+    "FLERSP4_FLERS   4COUPL    SA.2": true,
+    "FLERSP4_FLERS   4VIRE .1  SA.2": false,
+    "FLERSP4_FLERS   4TR641    SA.2": false,
+    "FLERSP4_FLERS   4TR412    SA.2": false,
+    "FLERSP4_FLERS   4TR642    SA.2": true,
+    "FLERSP4_FLERS   4TR413    SA.2": false,
+    "FLERSP4_FLERS   4LOISI.1  SA.2": false,
+    "FLERSP4_FLERS   4COND.1   SA.2": false,
+    "FLERSP4_FLERS   4DOMFR.1  SA.2": false,
+    "FLERSP4_FLERS   4ZC.NO.1  SA.2": false,
+    "FLERSP4_FLERS   4C.NOI.1  SA.2": false,
+    "FLERSP4_FLERS   4TR410    SA.2": false,
+    "FLERSP4_FLERS   4TR411    SA.2": false,
+    "FLERSP4_FLERS   4TR643    SA.2": false,
+    "FLERSP4_FLERS   4ZGERR.1  SA.2": false,
+    "FLERSP4_FLERS   4C.NOI.1  DJ": false,
+    "FLERSP4_FLERS   4COND.1   DJ.MCOMP": true,
+    "FLERSP4_FLERS   4COUPL    DJ": true,
+    "FLERSP4_FLERS   4DOMFR.1  DJ": false,
+    "FLERSP4_FLERS   4LOISI.1  DJ": false,
+    "FLERSP4_FLERS   4TR410    DJ.HT": false,
+    "FLERSP4_FLERS   4TR410    DJ.BT.FLERS4TR410": false,
+    "FLERSP4_FLERS   4TR410    DJ.BT.FLERSINA": false,
+    "FLERSP4_FLERS   4TR411    DJ.HT": false,
+    "FLERSP4_FLERS   4TR412    DJ.HT": false,
+    "FLERSP4_FLERS   4TR413    DJ.HT": false,
+    "FLERSP4_FLERS   4TR641    DJ": false,
+    "FLERSP4_FLERS   4TR642    DJ": true,
+    "FLERSP4_FLERS   4TR643    DJ": false,
+    "FLERSP4_FLERS   4VIRE .1  DJ": false,
+    "FLERSP4_FLERS   4ZC.NO.1  DJ": false,
+    "FLERSP4_FLERS   4ZGERR.1  DJ": false,
+    "FLERSP4_Disj FLERSINF": true,
+    "FLERSP4_FLERS   4TR411    DJ.HT.FLERS TR411": false,
+    "FLERSP4_Disj FLERSING": true
+  },
+  "nb_manoeuvres": 19,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "FLERSP4_FLERS   4DOMFR.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T08:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "FLERSP4_FLERS   4TR410    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T08:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "FLERSP4_FLERS   4TR412    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T08:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "FLERSP4_FLERS   4TR641    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T08:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "FLERSP4_FLERS   4TR643    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T08:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "FLERSP4_FLERS   4ZC.NO.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T08:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "FLERSP4_FLERS   4ZGERR.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T08:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "FLERSP4_FLERS   4COUPL    DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "FLERSP4_FLERS   4COUPL    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "FLERSP4_FLERS   4COUPL    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "FLERSP4_FLERS   4DOMFR.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "FLERSP4_FLERS   4TR410    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "FLERSP4_FLERS   4TR412    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "FLERSP4_FLERS   4TR641    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "FLERSP4_FLERS   4TR643    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "FLERSP4_FLERS   4ZC.NO.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "FLERSP4_FLERS   4ZGERR.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "FLERSP4_FLERS   4TR642    DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 19,
+      "switch_id": "FLERSP4_FLERS   4TR642    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T08:45)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "consignation_ouvrage",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-01-05T08:30",
+    "t_cible": "2021-01-05T08:45"
+  }
+}

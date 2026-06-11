@@ -1,0 +1,257 @@
+{
+  "voltage_level_id": "L.NEUP6",
+  "name": "L.NEUP6_2022-06-15T11_50_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "L.NEUP6_L.NEU   6CHABR.1  SA.1": false,
+    "L.NEUP6_L.NEU   6L.NTD.2  SA.1": false,
+    "L.NEUP6_L.NEU6TR661SA.1.2F": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  SA.1": true,
+    "L.NEUP6_L.NEU   6SEC..12  SS.1.21": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  SA.1": false,
+    "L.NEUP6_L.NEU   6C.RHO.2  SA.1": false,
+    "L.NEUP6_L.NEU   6CRUA5.1  SA.1": false,
+    "L.NEUP6_L.NEU   6CRUA5.2  SA.1": false,
+    "L.NEUP6_L.NEU   6TR631    SA.1": true,
+    "L.NEUP6_L.NEU   6TR632    SA.1": false,
+    "L.NEUP6_L.NEU   6L.NTD.1  SA.1": false,
+    "L.NEUP6_L.NEU   6GROUP12  SA.1": false,
+    "L.NEUP6_L.NEU   6GROUP56  SA.1": false,
+    "L.NEUP6_L.NEU   6COUPL    SA.1": false,
+    "L.NEUP6_L.NEU   6CHABR.1  SA.2": true,
+    "L.NEUP6_L.NEU   6L.NTD.2  SA.2": true,
+    "L.NEUP6_L.NEU6TR661SA.2.2F": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  SA.2": true,
+    "L.NEUP6_L.NEU   6SEC..12  SS.2.21": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  SA.2": true,
+    "L.NEUP6_L.NEU   6C.RHO.2  SA.2": true,
+    "L.NEUP6_L.NEU   6COUPL    SA.2": true,
+    "L.NEUP6_L.NEU   6CRUA5.1  SA.2": true,
+    "L.NEUP6_L.NEU   6CRUA5.2  SA.2": true,
+    "L.NEUP6_L.NEU   6TR631    SA.2": true,
+    "L.NEUP6_L.NEU   6TR632    SA.2": true,
+    "L.NEUP6_L.NEU   6L.NTD.1  SA.2": true,
+    "L.NEUP6_L.NEU   6GROUP56  SA.2": true,
+    "L.NEUP6_L.NEU   6GROUP12  SA.2": true,
+    "L.NEUP6_L.NEU   6CHABR.1  DJ": false,
+    "L.NEUP6_L.NEU   6COUPL    DJ": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  DJ": false,
+    "L.NEUP6_L.NEU   6C.RHO.2  DJ": false,
+    "L.NEUP6_L.NEU   6CRUA5.1  DJ": false,
+    "L.NEUP6_L.NEU   6CRUA5.2  DJ": false,
+    "L.NEUP6_L.NEU   6L.NTD.1  DJ": false,
+    "L.NEUP6_L.NEU   6L.NTD.2  DJ": false,
+    "L.NEUP6_L.NEU   6GROUP12  DJ": false,
+    "L.NEUP6_L.NEU   6GROUP56  DJ": false,
+    "L.NEUP6_L.NEU   6TR631    DJ": true,
+    "L.NEUP6_L.NEU   6TR632    DJ": false,
+    "L.NEUP6_L.NEU6TR661DJF": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  DJ": true
+  },
+  "cible": {
+    "L.NEUP6_L.NEU   6CHABR.1  SA.1": false,
+    "L.NEUP6_L.NEU   6L.NTD.2  SA.1": false,
+    "L.NEUP6_L.NEU6TR661SA.1.2F": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  SA.1": true,
+    "L.NEUP6_L.NEU   6SEC..12  SS.1.21": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  SA.1": true,
+    "L.NEUP6_L.NEU   6C.RHO.2  SA.1": true,
+    "L.NEUP6_L.NEU   6CRUA5.1  SA.1": true,
+    "L.NEUP6_L.NEU   6CRUA5.2  SA.1": true,
+    "L.NEUP6_L.NEU   6TR631    SA.1": true,
+    "L.NEUP6_L.NEU   6TR632    SA.1": true,
+    "L.NEUP6_L.NEU   6L.NTD.1  SA.1": true,
+    "L.NEUP6_L.NEU   6GROUP12  SA.1": true,
+    "L.NEUP6_L.NEU   6GROUP56  SA.1": true,
+    "L.NEUP6_L.NEU   6COUPL    SA.1": true,
+    "L.NEUP6_L.NEU   6CHABR.1  SA.2": true,
+    "L.NEUP6_L.NEU   6L.NTD.2  SA.2": true,
+    "L.NEUP6_L.NEU6TR661SA.2.2F": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  SA.2": true,
+    "L.NEUP6_L.NEU   6SEC..12  SS.2.21": false,
+    "L.NEUP6_L.NEU   6C.RHO.1  SA.2": false,
+    "L.NEUP6_L.NEU   6C.RHO.2  SA.2": false,
+    "L.NEUP6_L.NEU   6COUPL    SA.2": false,
+    "L.NEUP6_L.NEU   6CRUA5.1  SA.2": false,
+    "L.NEUP6_L.NEU   6CRUA5.2  SA.2": false,
+    "L.NEUP6_L.NEU   6TR631    SA.2": true,
+    "L.NEUP6_L.NEU   6TR632    SA.2": false,
+    "L.NEUP6_L.NEU   6L.NTD.1  SA.2": false,
+    "L.NEUP6_L.NEU   6GROUP56  SA.2": false,
+    "L.NEUP6_L.NEU   6GROUP12  SA.2": false,
+    "L.NEUP6_L.NEU   6CHABR.1  DJ": false,
+    "L.NEUP6_L.NEU   6COUPL    DJ": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  DJ": false,
+    "L.NEUP6_L.NEU   6C.RHO.2  DJ": false,
+    "L.NEUP6_L.NEU   6CRUA5.1  DJ": false,
+    "L.NEUP6_L.NEU   6CRUA5.2  DJ": false,
+    "L.NEUP6_L.NEU   6L.NTD.1  DJ": false,
+    "L.NEUP6_L.NEU   6L.NTD.2  DJ": false,
+    "L.NEUP6_L.NEU   6GROUP12  DJ": false,
+    "L.NEUP6_L.NEU   6GROUP56  DJ": false,
+    "L.NEUP6_L.NEU   6TR631    DJ": true,
+    "L.NEUP6_L.NEU   6TR632    DJ": false,
+    "L.NEUP6_L.NEU6TR661DJF": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  DJ": true
+  },
+  "nb_manoeuvres": 21,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "L.NEUP6_L.NEU   6C.RHO.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "L.NEUP6_L.NEU   6C.RHO.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "L.NEUP6_L.NEU   6COUPL    DJ",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "L.NEUP6_L.NEU   6COUPL    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "L.NEUP6_L.NEU   6SEC..12  SS.2.21",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:45)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "L.NEUP6_L.NEU   6C.RHO.2  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "L.NEUP6_L.NEU   6C.RHO.2  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "L.NEUP6_L.NEU   6COUPL    DJ",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "L.NEUP6_L.NEU   6COUPL    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "L.NEUP6_L.NEU   6CRUA5.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "L.NEUP6_L.NEU   6CRUA5.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "L.NEUP6_L.NEU   6CRUA5.2  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "L.NEUP6_L.NEU   6CRUA5.2  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "L.NEUP6_L.NEU   6GROUP12  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "L.NEUP6_L.NEU   6GROUP12  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "L.NEUP6_L.NEU   6GROUP56  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "L.NEUP6_L.NEU   6GROUP56  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "L.NEUP6_L.NEU   6L.NTD.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 19,
+      "switch_id": "L.NEUP6_L.NEU   6L.NTD.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 20,
+      "switch_id": "L.NEUP6_L.NEU   6TR632    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    },
+    {
+      "ordre": 21,
+      "switch_id": "L.NEUP6_L.NEU   6TR632    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:50)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "sectionnement_barre",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2022-06-15T11:40",
+    "t_cible": "2022-06-15T11:50"
+  }
+}

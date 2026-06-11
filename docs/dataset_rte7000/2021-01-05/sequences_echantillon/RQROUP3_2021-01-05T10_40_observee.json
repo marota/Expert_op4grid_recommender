@@ -1,0 +1,227 @@
+{
+  "voltage_level_id": "RQROUP3",
+  "name": "RQROUP3_2021-01-05T10_40_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "RQROUP3_RQROU   3JANE .1  SA.1": false,
+    "RQROUP3_RQROU   3TR631    SA.1": true,
+    "RQROUP3_RQROU   3AUBES.1  SA.1": false,
+    "RQROUP3_RQROU   3ZAUBE.1  SA.1": true,
+    "RQROUP3_RQROU   3TR632    SA.1": false,
+    "RQROUP3_RQROU   3MIRAM.1  SA.1": true,
+    "RQROUP3_RQROU   3EGUIL.1  SA.1": false,
+    "RQROUP3_RQROU   3LAMB5.1  SA.1": false,
+    "RQROUP3_RQROU   3MALL6.1  SA.1": false,
+    "RQROUP3_RQROU   3S.BLA.1  SA.1": true,
+    "RQROUP3_RQROU   3COUPL    SA.1": false,
+    "RQROUP3_RQROU   3COUPL    SA.2": false,
+    "RQROUP3_RQROU   3JANE .1  SA.2": true,
+    "RQROUP3_RQROU   3TR631    SA.2": false,
+    "RQROUP3_RQROU   3AUBES.1  SA.2": true,
+    "RQROUP3_RQROU   3ZAUBE.1  SA.2": false,
+    "RQROUP3_RQROU   3TR632    SA.2": true,
+    "RQROUP3_RQROU   3MIRAM.1  SA.2": false,
+    "RQROUP3_RQROU   3EGUIL.1  SA.2": true,
+    "RQROUP3_RQROU   3LAMB5.1  SA.2": true,
+    "RQROUP3_RQROU   3MALL6.1  SA.2": true,
+    "RQROUP3_RQROU   3S.BLA.1  SA.2": false,
+    "RQROUP3_RQROU   3AUBES.1  DJ": false,
+    "RQROUP3_RQROU   3COUPL    DJ": false,
+    "RQROUP3_RQROU   3EGUIL.1  DJ": false,
+    "RQROUP3_RQROU   3JANE .1  DJ": false,
+    "RQROUP3_RQROU   3LAMB5.1  DJ": false,
+    "RQROUP3_RQROU   3MALL6.1  DJ": false,
+    "RQROUP3_RQROU   3MIRAM.1  DJ": false,
+    "RQROUP3_RQROU   3S.BLA.1  DJ": false,
+    "RQROUP3_RQROU   3TR631    DJ": true,
+    "RQROUP3_RQROU   3TR632    DJ": false,
+    "RQROUP3_RQROU   3ZAUBE.1  DJ": false
+  },
+  "cible": {
+    "RQROUP3_RQROU   3JANE .1  SA.1": true,
+    "RQROUP3_RQROU   3TR631    SA.1": false,
+    "RQROUP3_RQROU   3AUBES.1  SA.1": true,
+    "RQROUP3_RQROU   3ZAUBE.1  SA.1": false,
+    "RQROUP3_RQROU   3TR632    SA.1": true,
+    "RQROUP3_RQROU   3MIRAM.1  SA.1": false,
+    "RQROUP3_RQROU   3EGUIL.1  SA.1": true,
+    "RQROUP3_RQROU   3LAMB5.1  SA.1": true,
+    "RQROUP3_RQROU   3MALL6.1  SA.1": true,
+    "RQROUP3_RQROU   3S.BLA.1  SA.1": false,
+    "RQROUP3_RQROU   3COUPL    SA.1": false,
+    "RQROUP3_RQROU   3COUPL    SA.2": false,
+    "RQROUP3_RQROU   3JANE .1  SA.2": false,
+    "RQROUP3_RQROU   3TR631    SA.2": true,
+    "RQROUP3_RQROU   3AUBES.1  SA.2": false,
+    "RQROUP3_RQROU   3ZAUBE.1  SA.2": true,
+    "RQROUP3_RQROU   3TR632    SA.2": false,
+    "RQROUP3_RQROU   3MIRAM.1  SA.2": true,
+    "RQROUP3_RQROU   3EGUIL.1  SA.2": false,
+    "RQROUP3_RQROU   3LAMB5.1  SA.2": false,
+    "RQROUP3_RQROU   3MALL6.1  SA.2": false,
+    "RQROUP3_RQROU   3S.BLA.1  SA.2": true,
+    "RQROUP3_RQROU   3AUBES.1  DJ": false,
+    "RQROUP3_RQROU   3COUPL    DJ": false,
+    "RQROUP3_RQROU   3EGUIL.1  DJ": false,
+    "RQROUP3_RQROU   3JANE .1  DJ": false,
+    "RQROUP3_RQROU   3LAMB5.1  DJ": false,
+    "RQROUP3_RQROU   3MALL6.1  DJ": false,
+    "RQROUP3_RQROU   3MIRAM.1  DJ": false,
+    "RQROUP3_RQROU   3S.BLA.1  DJ": false,
+    "RQROUP3_RQROU   3TR631    DJ": true,
+    "RQROUP3_RQROU   3TR632    DJ": false,
+    "RQROUP3_RQROU   3ZAUBE.1  DJ": false
+  },
+  "nb_manoeuvres": 20,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "RQROUP3_RQROU   3AUBES.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "RQROUP3_RQROU   3AUBES.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "RQROUP3_RQROU   3JANE .1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "RQROUP3_RQROU   3JANE .1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "RQROUP3_RQROU   3MIRAM.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "RQROUP3_RQROU   3TR631    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "RQROUP3_RQROU   3TR631    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "RQROUP3_RQROU   3ZAUBE.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "RQROUP3_RQROU   3ZAUBE.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:35)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "RQROUP3_RQROU   3EGUIL.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "RQROUP3_RQROU   3EGUIL.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "RQROUP3_RQROU   3LAMB5.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "RQROUP3_RQROU   3LAMB5.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "RQROUP3_RQROU   3MALL6.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "RQROUP3_RQROU   3MALL6.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "RQROUP3_RQROU   3MIRAM.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "RQROUP3_RQROU   3S.BLA.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "RQROUP3_RQROU   3S.BLA.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 19,
+      "switch_id": "RQROUP3_RQROU   3TR632    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    },
+    {
+      "ordre": 20,
+      "switch_id": "RQROUP3_RQROU   3TR632    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T10:40)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-01-05T10:30",
+    "t_cible": "2021-01-05T10:40"
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "voltage_level_id": "CABESP3",
+  "name": "CABESP3_2021-01-05T18_55_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "CABESP3_CABES   3SEC..12  SS.1.12": false,
+    "CABESP3_CABES   3TR311    SA.1": true,
+    "CABESP3_CABES   3CANET.1  SA.1": false,
+    "CABESP3_CABES   3ZPERP.1  SA.1": false,
+    "CABESP3_CABES   3COUPL.1  SA.1": false,
+    "CABESP3_CABES   3TR313    SA.1": true,
+    "CABESP3_CABES   3ZPER5.2  SA.1": true,
+    "CABESP3_CABES   3TR312    SA.1": false,
+    "CABESP3_CABES   3COUPL.1  SA.2": false,
+    "CABESP3_CABES   3SEC..12  SS.2.12": false,
+    "CABESP3_CABES   3TR311    SA.2": false,
+    "CABESP3_CABES   3CANET.1  SA.2": true,
+    "CABESP3_CABES   3ZPERP.1  SA.2": true,
+    "CABESP3_CABES   3TR313    SA.2": false,
+    "CABESP3_CABES   3ZPER5.2  SA.2": false,
+    "CABESP3_CABES   3TR312    SA.2": true,
+    "CABESP3_CABES   3CANET.1  DJ": false,
+    "CABESP3_CABES   3COUPL.1  DJ": false,
+    "CABESP3_CABES   3TR311    DJ.HT": false,
+    "CABESP3_CABES   3TR311    DJ.BT.CABES3TR311": false,
+    "CABESP3_CABES   3TR311    DJ.BT.CABESINA": true,
+    "CABESP3_CABES   3TR312    DJ.HT": false,
+    "CABESP3_CABES   3TR313    DJ.HT": false,
+    "CABESP3_CABES   3ZPERP.1  DJ": false,
+    "CABESP3_CABES   3ZPER5.2  DJ": false,
+    "CABESP3_Disj CABESINF": true,
+    "CABESP3_CABES   3TR312    DJ.HT.CABES TR312": false,
+    "CABESP3_Disj CABESING": true
+  },
+  "cible": {
+    "CABESP3_CABES   3SEC..12  SS.1.12": false,
+    "CABESP3_CABES   3TR311    SA.1": true,
+    "CABESP3_CABES   3CANET.1  SA.1": false,
+    "CABESP3_CABES   3ZPERP.1  SA.1": false,
+    "CABESP3_CABES   3COUPL.1  SA.1": false,
+    "CABESP3_CABES   3TR313    SA.1": false,
+    "CABESP3_CABES   3ZPER5.2  SA.1": true,
+    "CABESP3_CABES   3TR312    SA.1": true,
+    "CABESP3_CABES   3COUPL.1  SA.2": false,
+    "CABESP3_CABES   3SEC..12  SS.2.12": false,
+    "CABESP3_CABES   3TR311    SA.2": false,
+    "CABESP3_CABES   3CANET.1  SA.2": true,
+    "CABESP3_CABES   3ZPERP.1  SA.2": true,
+    "CABESP3_CABES   3TR313    SA.2": true,
+    "CABESP3_CABES   3ZPER5.2  SA.2": false,
+    "CABESP3_CABES   3TR312    SA.2": false,
+    "CABESP3_CABES   3CANET.1  DJ": false,
+    "CABESP3_CABES   3COUPL.1  DJ": true,
+    "CABESP3_CABES   3TR311    DJ.HT": false,
+    "CABESP3_CABES   3TR311    DJ.BT.CABES3TR311": false,
+    "CABESP3_CABES   3TR311    DJ.BT.CABESINA": true,
+    "CABESP3_CABES   3TR312    DJ.HT": false,
+    "CABESP3_CABES   3TR313    DJ.HT": false,
+    "CABESP3_CABES   3ZPERP.1  DJ": false,
+    "CABESP3_CABES   3ZPER5.2  DJ": false,
+    "CABESP3_Disj CABESINF": true,
+    "CABESP3_CABES   3TR312    DJ.HT.CABES TR312": false,
+    "CABESP3_Disj CABESING": true
+  },
+  "nb_manoeuvres": 5,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "CABESP3_CABES   3COUPL.1  DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T18:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "CABESP3_CABES   3TR312    SA.1",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T18:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "CABESP3_CABES   3TR312    SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T18:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "CABESP3_CABES   3TR313    SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2021-01-05T18:55)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "CABESP3_CABES   3TR313    SA.2",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T18:55)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "scission_noeud",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-01-05T18:50",
+    "t_cible": "2021-01-05T18:55"
+  }
+}

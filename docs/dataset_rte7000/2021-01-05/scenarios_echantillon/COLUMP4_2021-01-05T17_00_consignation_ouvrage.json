@@ -1,0 +1,92 @@
+{
+  "voltage_level_id": "COLUMP4",
+  "name": "COLUMP4_2021-01-05T17_00_consignation_ouvrage",
+  "depart": {
+    "COLUMP4_COLUM4TR411SA.1F": false,
+    "COLUMP4_COLUM4VLEMA.1SA.1F": false,
+    "COLUMP4_COLUM   4CBO.1    SS.1.12": false,
+    "COLUMP4_COLUM4DORDI.1SA.1F": false,
+    "COLUMP4_COLUM   4CBO.1    SS.1.23": false,
+    "COLUMP4_COLUM4TR413SA.1F": false,
+    "COLUMP4_COLUM4VLEMA.2SA.1F": false,
+    "COLUMP4_COLUM   4DORDI.1  DJ": false,
+    "COLUMP4_COLUM   4TR411    DJ.HT": false,
+    "COLUMP4_COLUM   4TR411    DJ.BT.COLUM4TR411": false,
+    "COLUMP4_COLUM   4TR411    DJ.BT.COLUMINA": true,
+    "COLUMP4_COLUM   4TR413    DJ.HT": false,
+    "COLUMP4_COLUM   4VLEMA.1  DJ": false,
+    "COLUMP4_COLUM   4VLEMA.2  DJ": false,
+    "COLUMP4_Disj COLUMINF": false,
+    "COLUMP4_COLUM   4TR413    DJ.HT.COLUM TR413": false,
+    "COLUMP4_Disj COLUMING": false
+  },
+  "cible": {
+    "COLUMP4_COLUM4TR411SA.1F": false,
+    "COLUMP4_COLUM4VLEMA.1SA.1F": false,
+    "COLUMP4_COLUM   4CBO.1    SS.1.12": true,
+    "COLUMP4_COLUM4DORDI.1SA.1F": false,
+    "COLUMP4_COLUM   4CBO.1    SS.1.23": true,
+    "COLUMP4_COLUM4TR413SA.1F": false,
+    "COLUMP4_COLUM4VLEMA.2SA.1F": false,
+    "COLUMP4_COLUM   4DORDI.1  DJ": true,
+    "COLUMP4_COLUM   4TR411    DJ.HT": true,
+    "COLUMP4_COLUM   4TR411    DJ.BT.COLUM4TR411": false,
+    "COLUMP4_COLUM   4TR411    DJ.BT.COLUMINA": true,
+    "COLUMP4_COLUM   4TR413    DJ.HT": true,
+    "COLUMP4_COLUM   4VLEMA.1  DJ": true,
+    "COLUMP4_COLUM   4VLEMA.2  DJ": true,
+    "COLUMP4_Disj COLUMINF": false,
+    "COLUMP4_COLUM   4TR413    DJ.HT.COLUM TR413": true,
+    "COLUMP4_Disj COLUMING": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "consignation_ouvrage",
+      "fusion_noeuds",
+      "sectionnement_barre"
+    ],
+    "t_depart": "2021-01-05T16:55",
+    "t_cible": "2021-01-05T17:00",
+    "topologie_depart_id": "189fd5ff41e1e0aa",
+    "topologie_cible_id": "3c9841490e279b40",
+    "nb_organes_changes": 8,
+    "nb_manoeuvres_observees": 8,
+    "nb_etats_transitoires": 0,
+    "duree_stable_avant": 106,
+    "duree_stable_apres": 11,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "COLUM4411",
+      "COLUM4413",
+      "COLUMINF",
+      "COLUMING",
+      "COLUML41DORDI",
+      "COLUML41VLEMA",
+      "COLUML42VLEMA"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "COLUM4411",
+      "COLUMINF"
+    ],
+    [
+      "COLUM4413"
+    ],
+    [
+      "COLUMING"
+    ],
+    [
+      "COLUML41DORDI"
+    ],
+    [
+      "COLUML41VLEMA"
+    ],
+    [
+      "COLUML42VLEMA"
+    ]
+  ]
+}

@@ -81,3 +81,10 @@ benchmark embarqués dans `meta.benchmark`.
 | `campagne/campagne.json` + `stats_<jour>.json` (top 50 postes) | données brutes XIIDM (~3 Go) |
 | `combinaisons/*.resume.json` + échantillon | 7 × `out_rte7000_<jour>/` complets (~500 Mo) |
 | `2021-01-03/` (journée pilote détaillée) | catalogues `topologies.jsonl` complets |
+| `<jour>/scenarios_echantillon/` + `sequences_echantillon/` (7 journées) | les ~6 500 scénarios/séquences par journée |
+
+Chaque journée de campagne (`2021-01-03/` … `2023-02-08/`) porte un
+**échantillon de scénarios + séquences observées** : le plus gros bloc de la
+journée, un représentant par tag structurel présent (scission/fusion/
+ré-aiguillage/sectionnement) et un cycle consignation/remise — privilégiant
+les transitions à fort diff (jusqu'à 38 organes, `VLEJUP6` 2023-02-08).

@@ -1,0 +1,113 @@
+{
+  "voltage_level_id": "COLUMP4",
+  "name": "COLUMP4_2021-01-05T17_00_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "COLUMP4_COLUM4TR411SA.1F": false,
+    "COLUMP4_COLUM4VLEMA.1SA.1F": false,
+    "COLUMP4_COLUM   4CBO.1    SS.1.12": false,
+    "COLUMP4_COLUM4DORDI.1SA.1F": false,
+    "COLUMP4_COLUM   4CBO.1    SS.1.23": false,
+    "COLUMP4_COLUM4TR413SA.1F": false,
+    "COLUMP4_COLUM4VLEMA.2SA.1F": false,
+    "COLUMP4_COLUM   4DORDI.1  DJ": false,
+    "COLUMP4_COLUM   4TR411    DJ.HT": false,
+    "COLUMP4_COLUM   4TR411    DJ.BT.COLUM4TR411": false,
+    "COLUMP4_COLUM   4TR411    DJ.BT.COLUMINA": true,
+    "COLUMP4_COLUM   4TR413    DJ.HT": false,
+    "COLUMP4_COLUM   4VLEMA.1  DJ": false,
+    "COLUMP4_COLUM   4VLEMA.2  DJ": false,
+    "COLUMP4_Disj COLUMINF": false,
+    "COLUMP4_COLUM   4TR413    DJ.HT.COLUM TR413": false,
+    "COLUMP4_Disj COLUMING": false
+  },
+  "cible": {
+    "COLUMP4_COLUM4TR411SA.1F": false,
+    "COLUMP4_COLUM4VLEMA.1SA.1F": false,
+    "COLUMP4_COLUM   4CBO.1    SS.1.12": true,
+    "COLUMP4_COLUM4DORDI.1SA.1F": false,
+    "COLUMP4_COLUM   4CBO.1    SS.1.23": true,
+    "COLUMP4_COLUM4TR413SA.1F": false,
+    "COLUMP4_COLUM4VLEMA.2SA.1F": false,
+    "COLUMP4_COLUM   4DORDI.1  DJ": true,
+    "COLUMP4_COLUM   4TR411    DJ.HT": true,
+    "COLUMP4_COLUM   4TR411    DJ.BT.COLUM4TR411": false,
+    "COLUMP4_COLUM   4TR411    DJ.BT.COLUMINA": true,
+    "COLUMP4_COLUM   4TR413    DJ.HT": true,
+    "COLUMP4_COLUM   4VLEMA.1  DJ": true,
+    "COLUMP4_COLUM   4VLEMA.2  DJ": true,
+    "COLUMP4_Disj COLUMINF": false,
+    "COLUMP4_COLUM   4TR413    DJ.HT.COLUM TR413": true,
+    "COLUMP4_Disj COLUMING": false
+  },
+  "nb_manoeuvres": 8,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "COLUMP4_COLUM   4CBO.1    SS.1.12",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T17:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "COLUMP4_COLUM   4CBO.1    SS.1.23",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T17:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "COLUMP4_COLUM   4DORDI.1  DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T17:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "COLUMP4_COLUM   4TR411    DJ.HT",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T17:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "COLUMP4_COLUM   4TR413    DJ.HT",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T17:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "COLUMP4_COLUM   4TR413    DJ.HT.COLUM TR413",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T17:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "COLUMP4_COLUM   4VLEMA.1  DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T17:00)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "COLUMP4_COLUM   4VLEMA.2  DJ",
+      "action": "OPEN",
+      "raison": "observée (2021-01-05T17:00)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "consignation_ouvrage",
+      "fusion_noeuds",
+      "sectionnement_barre"
+    ],
+    "t_depart": "2021-01-05T16:55",
+    "t_cible": "2021-01-05T17:00"
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "voltage_level_id": "L.NEUP6",
+  "name": "L.NEUP6_2022-06-15T11_50_sectionnement_barre",
+  "depart": {
+    "L.NEUP6_L.NEU   6CHABR.1  SA.1": false,
+    "L.NEUP6_L.NEU   6L.NTD.2  SA.1": false,
+    "L.NEUP6_L.NEU6TR661SA.1.2F": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  SA.1": true,
+    "L.NEUP6_L.NEU   6SEC..12  SS.1.21": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  SA.1": false,
+    "L.NEUP6_L.NEU   6C.RHO.2  SA.1": false,
+    "L.NEUP6_L.NEU   6CRUA5.1  SA.1": false,
+    "L.NEUP6_L.NEU   6CRUA5.2  SA.1": false,
+    "L.NEUP6_L.NEU   6TR631    SA.1": true,
+    "L.NEUP6_L.NEU   6TR632    SA.1": false,
+    "L.NEUP6_L.NEU   6L.NTD.1  SA.1": false,
+    "L.NEUP6_L.NEU   6GROUP12  SA.1": false,
+    "L.NEUP6_L.NEU   6GROUP56  SA.1": false,
+    "L.NEUP6_L.NEU   6COUPL    SA.1": false,
+    "L.NEUP6_L.NEU   6CHABR.1  SA.2": true,
+    "L.NEUP6_L.NEU   6L.NTD.2  SA.2": true,
+    "L.NEUP6_L.NEU6TR661SA.2.2F": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  SA.2": true,
+    "L.NEUP6_L.NEU   6SEC..12  SS.2.21": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  SA.2": true,
+    "L.NEUP6_L.NEU   6C.RHO.2  SA.2": true,
+    "L.NEUP6_L.NEU   6COUPL    SA.2": true,
+    "L.NEUP6_L.NEU   6CRUA5.1  SA.2": true,
+    "L.NEUP6_L.NEU   6CRUA5.2  SA.2": true,
+    "L.NEUP6_L.NEU   6TR631    SA.2": true,
+    "L.NEUP6_L.NEU   6TR632    SA.2": true,
+    "L.NEUP6_L.NEU   6L.NTD.1  SA.2": true,
+    "L.NEUP6_L.NEU   6GROUP56  SA.2": true,
+    "L.NEUP6_L.NEU   6GROUP12  SA.2": true,
+    "L.NEUP6_L.NEU   6CHABR.1  DJ": false,
+    "L.NEUP6_L.NEU   6COUPL    DJ": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  DJ": false,
+    "L.NEUP6_L.NEU   6C.RHO.2  DJ": false,
+    "L.NEUP6_L.NEU   6CRUA5.1  DJ": false,
+    "L.NEUP6_L.NEU   6CRUA5.2  DJ": false,
+    "L.NEUP6_L.NEU   6L.NTD.1  DJ": false,
+    "L.NEUP6_L.NEU   6L.NTD.2  DJ": false,
+    "L.NEUP6_L.NEU   6GROUP12  DJ": false,
+    "L.NEUP6_L.NEU   6GROUP56  DJ": false,
+    "L.NEUP6_L.NEU   6TR631    DJ": true,
+    "L.NEUP6_L.NEU   6TR632    DJ": false,
+    "L.NEUP6_L.NEU6TR661DJF": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  DJ": true
+  },
+  "cible": {
+    "L.NEUP6_L.NEU   6CHABR.1  SA.1": false,
+    "L.NEUP6_L.NEU   6L.NTD.2  SA.1": false,
+    "L.NEUP6_L.NEU6TR661SA.1.2F": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  SA.1": true,
+    "L.NEUP6_L.NEU   6SEC..12  SS.1.21": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  SA.1": true,
+    "L.NEUP6_L.NEU   6C.RHO.2  SA.1": true,
+    "L.NEUP6_L.NEU   6CRUA5.1  SA.1": true,
+    "L.NEUP6_L.NEU   6CRUA5.2  SA.1": true,
+    "L.NEUP6_L.NEU   6TR631    SA.1": true,
+    "L.NEUP6_L.NEU   6TR632    SA.1": true,
+    "L.NEUP6_L.NEU   6L.NTD.1  SA.1": true,
+    "L.NEUP6_L.NEU   6GROUP12  SA.1": true,
+    "L.NEUP6_L.NEU   6GROUP56  SA.1": true,
+    "L.NEUP6_L.NEU   6COUPL    SA.1": true,
+    "L.NEUP6_L.NEU   6CHABR.1  SA.2": true,
+    "L.NEUP6_L.NEU   6L.NTD.2  SA.2": true,
+    "L.NEUP6_L.NEU6TR661SA.2.2F": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  SA.2": true,
+    "L.NEUP6_L.NEU   6SEC..12  SS.2.21": false,
+    "L.NEUP6_L.NEU   6C.RHO.1  SA.2": false,
+    "L.NEUP6_L.NEU   6C.RHO.2  SA.2": false,
+    "L.NEUP6_L.NEU   6COUPL    SA.2": false,
+    "L.NEUP6_L.NEU   6CRUA5.1  SA.2": false,
+    "L.NEUP6_L.NEU   6CRUA5.2  SA.2": false,
+    "L.NEUP6_L.NEU   6TR631    SA.2": true,
+    "L.NEUP6_L.NEU   6TR632    SA.2": false,
+    "L.NEUP6_L.NEU   6L.NTD.1  SA.2": false,
+    "L.NEUP6_L.NEU   6GROUP56  SA.2": false,
+    "L.NEUP6_L.NEU   6GROUP12  SA.2": false,
+    "L.NEUP6_L.NEU   6CHABR.1  DJ": false,
+    "L.NEUP6_L.NEU   6COUPL    DJ": true,
+    "L.NEUP6_L.NEU   6C.RHO.1  DJ": false,
+    "L.NEUP6_L.NEU   6C.RHO.2  DJ": false,
+    "L.NEUP6_L.NEU   6CRUA5.1  DJ": false,
+    "L.NEUP6_L.NEU   6CRUA5.2  DJ": false,
+    "L.NEUP6_L.NEU   6L.NTD.1  DJ": false,
+    "L.NEUP6_L.NEU   6L.NTD.2  DJ": false,
+    "L.NEUP6_L.NEU   6GROUP12  DJ": false,
+    "L.NEUP6_L.NEU   6GROUP56  DJ": false,
+    "L.NEUP6_L.NEU   6TR631    DJ": true,
+    "L.NEUP6_L.NEU   6TR632    DJ": false,
+    "L.NEUP6_L.NEU6TR661DJF": true,
+    "L.NEUP6_L.NEU   6ZMANG.1  DJ": true
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "sectionnement_barre",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2022-06-15T11:40",
+    "t_cible": "2022-06-15T11:50",
+    "topologie_depart_id": "e0755edba279bfd6",
+    "topologie_cible_id": "94a9541cf78f61b9",
+    "nb_organes_changes": 19,
+    "nb_manoeuvres_observees": 21,
+    "nb_etats_transitoires": 1,
+    "duree_stable_avant": 141,
+    "duree_stable_apres": 146,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "C.RHOL61L.NEU",
+      "C.RHOL62L.NEU",
+      "CRUA5L61L.NEU",
+      "CRUA5L62L.NEU",
+      "L.NEUL61L.NTD",
+      "L.NEUY611",
+      "L.NEUY612",
+      "L.NEUY632"
+    ],
+    [
+      "CHABRL61L.NEU",
+      "L.NEUL62L.NTD"
+    ],
+    [
+      "L.NEU6TR661"
+    ],
+    [
+      "L.NEUL61ZMANG"
+    ],
+    [
+      "L.NEUY631"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "C.RHOL61L.NEU",
+      "C.RHOL62L.NEU",
+      "CRUA5L61L.NEU",
+      "CRUA5L62L.NEU",
+      "L.NEUL61L.NTD",
+      "L.NEUY611",
+      "L.NEUY612",
+      "L.NEUY632"
+    ],
+    [
+      "CHABRL61L.NEU",
+      "L.NEUL62L.NTD"
+    ],
+    [
+      "L.NEU6TR661"
+    ],
+    [
+      "L.NEUL61ZMANG"
+    ],
+    [
+      "L.NEUY631"
+    ]
+  ]
+}

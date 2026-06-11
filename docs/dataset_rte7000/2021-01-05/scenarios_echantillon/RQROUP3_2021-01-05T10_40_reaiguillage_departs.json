@@ -1,0 +1,122 @@
+{
+  "voltage_level_id": "RQROUP3",
+  "name": "RQROUP3_2021-01-05T10_40_reaiguillage_departs",
+  "depart": {
+    "RQROUP3_RQROU   3JANE .1  SA.1": false,
+    "RQROUP3_RQROU   3TR631    SA.1": true,
+    "RQROUP3_RQROU   3AUBES.1  SA.1": false,
+    "RQROUP3_RQROU   3ZAUBE.1  SA.1": true,
+    "RQROUP3_RQROU   3TR632    SA.1": false,
+    "RQROUP3_RQROU   3MIRAM.1  SA.1": true,
+    "RQROUP3_RQROU   3EGUIL.1  SA.1": false,
+    "RQROUP3_RQROU   3LAMB5.1  SA.1": false,
+    "RQROUP3_RQROU   3MALL6.1  SA.1": false,
+    "RQROUP3_RQROU   3S.BLA.1  SA.1": true,
+    "RQROUP3_RQROU   3COUPL    SA.1": false,
+    "RQROUP3_RQROU   3COUPL    SA.2": false,
+    "RQROUP3_RQROU   3JANE .1  SA.2": true,
+    "RQROUP3_RQROU   3TR631    SA.2": false,
+    "RQROUP3_RQROU   3AUBES.1  SA.2": true,
+    "RQROUP3_RQROU   3ZAUBE.1  SA.2": false,
+    "RQROUP3_RQROU   3TR632    SA.2": true,
+    "RQROUP3_RQROU   3MIRAM.1  SA.2": false,
+    "RQROUP3_RQROU   3EGUIL.1  SA.2": true,
+    "RQROUP3_RQROU   3LAMB5.1  SA.2": true,
+    "RQROUP3_RQROU   3MALL6.1  SA.2": true,
+    "RQROUP3_RQROU   3S.BLA.1  SA.2": false,
+    "RQROUP3_RQROU   3AUBES.1  DJ": false,
+    "RQROUP3_RQROU   3COUPL    DJ": false,
+    "RQROUP3_RQROU   3EGUIL.1  DJ": false,
+    "RQROUP3_RQROU   3JANE .1  DJ": false,
+    "RQROUP3_RQROU   3LAMB5.1  DJ": false,
+    "RQROUP3_RQROU   3MALL6.1  DJ": false,
+    "RQROUP3_RQROU   3MIRAM.1  DJ": false,
+    "RQROUP3_RQROU   3S.BLA.1  DJ": false,
+    "RQROUP3_RQROU   3TR631    DJ": true,
+    "RQROUP3_RQROU   3TR632    DJ": false,
+    "RQROUP3_RQROU   3ZAUBE.1  DJ": false
+  },
+  "cible": {
+    "RQROUP3_RQROU   3JANE .1  SA.1": true,
+    "RQROUP3_RQROU   3TR631    SA.1": false,
+    "RQROUP3_RQROU   3AUBES.1  SA.1": true,
+    "RQROUP3_RQROU   3ZAUBE.1  SA.1": false,
+    "RQROUP3_RQROU   3TR632    SA.1": true,
+    "RQROUP3_RQROU   3MIRAM.1  SA.1": false,
+    "RQROUP3_RQROU   3EGUIL.1  SA.1": true,
+    "RQROUP3_RQROU   3LAMB5.1  SA.1": true,
+    "RQROUP3_RQROU   3MALL6.1  SA.1": true,
+    "RQROUP3_RQROU   3S.BLA.1  SA.1": false,
+    "RQROUP3_RQROU   3COUPL    SA.1": false,
+    "RQROUP3_RQROU   3COUPL    SA.2": false,
+    "RQROUP3_RQROU   3JANE .1  SA.2": false,
+    "RQROUP3_RQROU   3TR631    SA.2": true,
+    "RQROUP3_RQROU   3AUBES.1  SA.2": false,
+    "RQROUP3_RQROU   3ZAUBE.1  SA.2": true,
+    "RQROUP3_RQROU   3TR632    SA.2": false,
+    "RQROUP3_RQROU   3MIRAM.1  SA.2": true,
+    "RQROUP3_RQROU   3EGUIL.1  SA.2": false,
+    "RQROUP3_RQROU   3LAMB5.1  SA.2": false,
+    "RQROUP3_RQROU   3MALL6.1  SA.2": false,
+    "RQROUP3_RQROU   3S.BLA.1  SA.2": true,
+    "RQROUP3_RQROU   3AUBES.1  DJ": false,
+    "RQROUP3_RQROU   3COUPL    DJ": false,
+    "RQROUP3_RQROU   3EGUIL.1  DJ": false,
+    "RQROUP3_RQROU   3JANE .1  DJ": false,
+    "RQROUP3_RQROU   3LAMB5.1  DJ": false,
+    "RQROUP3_RQROU   3MALL6.1  DJ": false,
+    "RQROUP3_RQROU   3MIRAM.1  DJ": false,
+    "RQROUP3_RQROU   3S.BLA.1  DJ": false,
+    "RQROUP3_RQROU   3TR631    DJ": true,
+    "RQROUP3_RQROU   3TR632    DJ": false,
+    "RQROUP3_RQROU   3ZAUBE.1  DJ": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2021-01-05T10:30",
+    "t_cible": "2021-01-05T10:40",
+    "topologie_depart_id": "0bc1c49750f8f362",
+    "topologie_cible_id": "1bd9ef739f944366",
+    "nb_organes_changes": 20,
+    "nb_manoeuvres_observees": 20,
+    "nb_etats_transitoires": 1,
+    "duree_stable_avant": 127,
+    "duree_stable_apres": 160,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "AUBESL31RQROU",
+      "EGUILL31RQROU",
+      "JANE L31RQROU",
+      "LAMB5L31RQROU",
+      "MALL6L31RQROU",
+      "MIRAML31RQROU",
+      "RQROUL31S.BLA",
+      "RQROUL31ZAUBE",
+      "RQROUY632"
+    ],
+    [
+      "RQROUY631"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "AUBESL31RQROU",
+      "EGUILL31RQROU",
+      "JANE L31RQROU",
+      "LAMB5L31RQROU",
+      "MALL6L31RQROU",
+      "MIRAML31RQROU",
+      "RQROUL31S.BLA",
+      "RQROUL31ZAUBE",
+      "RQROUY632"
+    ],
+    [
+      "RQROUY631"
+    ]
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "voltage_level_id": "SSBOUP4",
+  "name": "SSBOUP4_2021-04-14T14_05_remise_en_service",
+  "depart": {
+    "SSBOUP4_SSBOU4BOUFF.1SA.1F": false,
+    "SSBOUP4_SSBOU4TR411SA.1F": false,
+    "SSBOUP4_SSBOU   4CBO.1    SS.1.12": true,
+    "SSBOUP4_SSBOU   4LIAIS13  SA.1.1": true,
+    "SSBOUP4_SSBOU   4CBO.1    SS.1.23": true,
+    "SSBOUP4_SSBOU4ZSSBO.1SA.1F": false,
+    "SSBOUP4_SSBOU4TR413SA.1F": false,
+    "SSBOUP4_SSBOU   4LIAIS13  SA.1.3": true,
+    "SSBOUP4_SSBOU   4BOUFF.1  DJ": true,
+    "SSBOUP4_SSBOU   4LIAIS13  DJ": true,
+    "SSBOUP4_SSBOU   4TR411    DJ.HT": true,
+    "SSBOUP4_SSBOU   4TR411    DJ.BT.SSBOU4TR411": false,
+    "SSBOUP4_SSBOU   4TR411    DJ.BT.SSBOUINA": true,
+    "SSBOUP4_SSBOU   4TR411    DJ.BT.SSBOUIN2": false,
+    "SSBOUP4_SSBOU   4TR413    DJ.HT": true,
+    "SSBOUP4_SSBOU   4TR413    DJ.BT.SSBOU4TR413": false,
+    "SSBOUP4_SSBOU   4TR413    DJ.BT.SSBOUIN4": false,
+    "SSBOUP4_SSBOU   4TR413    DJ.BT.SSBOUIN3": false,
+    "SSBOUP4_SSBOU   4ZSSBO.1  DJ": true
+  },
+  "cible": {
+    "SSBOUP4_SSBOU4BOUFF.1SA.1F": false,
+    "SSBOUP4_SSBOU4TR411SA.1F": false,
+    "SSBOUP4_SSBOU   4CBO.1    SS.1.12": true,
+    "SSBOUP4_SSBOU   4LIAIS13  SA.1.1": false,
+    "SSBOUP4_SSBOU   4CBO.1    SS.1.23": false,
+    "SSBOUP4_SSBOU4ZSSBO.1SA.1F": false,
+    "SSBOUP4_SSBOU4TR413SA.1F": false,
+    "SSBOUP4_SSBOU   4LIAIS13  SA.1.3": false,
+    "SSBOUP4_SSBOU   4BOUFF.1  DJ": false,
+    "SSBOUP4_SSBOU   4LIAIS13  DJ": false,
+    "SSBOUP4_SSBOU   4TR411    DJ.HT": false,
+    "SSBOUP4_SSBOU   4TR411    DJ.BT.SSBOU4TR411": false,
+    "SSBOUP4_SSBOU   4TR411    DJ.BT.SSBOUINA": true,
+    "SSBOUP4_SSBOU   4TR411    DJ.BT.SSBOUIN2": false,
+    "SSBOUP4_SSBOU   4TR413    DJ.HT": false,
+    "SSBOUP4_SSBOU   4TR413    DJ.BT.SSBOU4TR413": false,
+    "SSBOUP4_SSBOU   4TR413    DJ.BT.SSBOUIN4": false,
+    "SSBOUP4_SSBOU   4TR413    DJ.BT.SSBOUIN3": false,
+    "SSBOUP4_SSBOU   4ZSSBO.1  DJ": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "remise_en_service",
+      "scission_noeud",
+      "sectionnement_barre"
+    ],
+    "t_depart": "2021-04-14T14:00",
+    "t_cible": "2021-04-14T14:05",
+    "topologie_depart_id": "254c9a5e442f45d0",
+    "topologie_cible_id": "75caf5525fa13405",
+    "nb_organes_changes": 8,
+    "nb_manoeuvres_observees": 8,
+    "nb_etats_transitoires": 0,
+    "duree_stable_avant": 2,
+    "duree_stable_apres": 114,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "BOUFFL41SSBOU"
+    ],
+    [
+      "SSBOU4411",
+      "SSBOUIN2"
+    ],
+    [
+      "SSBOU4413",
+      "SSBOUIN3",
+      "SSBOUIN4"
+    ],
+    [
+      "SSBOUL41ZSSBO"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "BOUFFL41SSBOU",
+      "SSBOU4411",
+      "SSBOU4413",
+      "SSBOUIN2",
+      "SSBOUIN3",
+      "SSBOUIN4",
+      "SSBOUL41ZSSBO"
+    ]
+  ]
+}

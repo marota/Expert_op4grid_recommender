@@ -1,0 +1,325 @@
+{
+  "voltage_level_id": "BARNAP7",
+  "name": "BARNAP7_2022-06-15T11_25_observee",
+  "scenario": null,
+  "edited": false,
+  "mode": "observee",
+  "depart": {
+    "BARNAP7_BARNA   7PENL5.2  SA.1": false,
+    "BARNAP7_BARNA   7VAUPA.1  SA.1": true,
+    "BARNAP7_BARNA   7PALUE.3  SA.1": false,
+    "BARNAP7_BARNA   7ROUGE.2  SA.1": false,
+    "BARNAP7_BARNA   7TERRI.1  SA.1": false,
+    "BARNAP7_BARNA   7PALUE.2  SA.1": false,
+    "BARNAP7_BARNA   7REMIS.1  SA.1": true,
+    "BARNAP7_BARNA   7TRO.1AB  SA.1A": false,
+    "BARNAP7_BARNA   7COUPL.A  SA.1": false,
+    "BARNAP7_BARNA   7REMIS.2  SA.1": true,
+    "BARNAP7_BARNA   7PALUE.1  SA.1": true,
+    "BARNAP7_BARNA   7ROUGE.1  SA.1": true,
+    "BARNAP7_BARNA   7TERRI.2  SA.1": true,
+    "BARNAP7_BARNA   7PALUE.4  SA.1": true,
+    "BARNAP7_BARNA   7VAUPA.2  SA.1": true,
+    "BARNAP7_BARNA   7PENL5.1  SA.1": true,
+    "BARNAP7_BARNA   7TRO.1AB  SA.1B": true,
+    "BARNAP7_BARNA   7COUPL.B  SA.1": true,
+    "BARNAP7_BARNA   7COUPL.A  SA.2": false,
+    "BARNAP7_BARNA   7PENL5.2  SA.2": true,
+    "BARNAP7_BARNA   7VAUPA.1  SA.2": false,
+    "BARNAP7_BARNA   7PALUE.3  SA.2": true,
+    "BARNAP7_BARNA   7ROUGE.2  SA.2": true,
+    "BARNAP7_BARNA   7TERRI.1  SA.2": true,
+    "BARNAP7_BARNA   7PALUE.2  SA.2": true,
+    "BARNAP7_BARNA   7REMIS.1  SA.2": true,
+    "BARNAP7_BARNA   7TRO.2AB  SA.2A": false,
+    "BARNAP7_BARNA   7REMIS.2  SA.2": false,
+    "BARNAP7_BARNA   7PALUE.1  SA.2": false,
+    "BARNAP7_BARNA   7ROUGE.1  SA.2": false,
+    "BARNAP7_BARNA   7TERRI.2  SA.2": true,
+    "BARNAP7_BARNA   7PALUE.4  SA.2": false,
+    "BARNAP7_BARNA   7VAUPA.2  SA.2": false,
+    "BARNAP7_BARNA   7PENL5.1  SA.2": false,
+    "BARNAP7_BARNA   7COUPL.B  SA.2": false,
+    "BARNAP7_BARNA   7TRO.2AB  SA.2B": false,
+    "BARNAP7_BARNA   7COUPL.A  DJ": false,
+    "BARNAP7_BARNA   7COUPL.B  DJ": true,
+    "BARNAP7_BARNA   7PALUE.1  DJ": false,
+    "BARNAP7_BARNA   7PALUE.2  DJ": false,
+    "BARNAP7_BARNA   7PALUE.3  DJ": false,
+    "BARNAP7_BARNA   7PALUE.4  DJ": false,
+    "BARNAP7_BARNA   7PENL5.1  DJ": false,
+    "BARNAP7_BARNA   7PENL5.2  DJ": false,
+    "BARNAP7_BARNA   7REMIS.1  DJ": true,
+    "BARNAP7_BARNA   7REMIS.2  DJ": false,
+    "BARNAP7_BARNA   7ROUGE.1  DJ": false,
+    "BARNAP7_BARNA   7ROUGE.2  DJ": false,
+    "BARNAP7_BARNA   7TERRI.1  DJ": false,
+    "BARNAP7_BARNA   7TERRI.2  DJ": true,
+    "BARNAP7_BARNA   7TRO.1AB  DJ": true,
+    "BARNAP7_BARNA   7TRO.2AB  DJ": true,
+    "BARNAP7_BARNA   7VAUPA.1  DJ": false,
+    "BARNAP7_BARNA   7VAUPA.2  DJ": false
+  },
+  "cible": {
+    "BARNAP7_BARNA   7PENL5.2  SA.1": true,
+    "BARNAP7_BARNA   7VAUPA.1  SA.1": false,
+    "BARNAP7_BARNA   7PALUE.3  SA.1": true,
+    "BARNAP7_BARNA   7ROUGE.2  SA.1": false,
+    "BARNAP7_BARNA   7TERRI.1  SA.1": true,
+    "BARNAP7_BARNA   7PALUE.2  SA.1": true,
+    "BARNAP7_BARNA   7REMIS.1  SA.1": true,
+    "BARNAP7_BARNA   7TRO.1AB  SA.1A": false,
+    "BARNAP7_BARNA   7COUPL.A  SA.1": false,
+    "BARNAP7_BARNA   7REMIS.2  SA.1": false,
+    "BARNAP7_BARNA   7PALUE.1  SA.1": false,
+    "BARNAP7_BARNA   7ROUGE.1  SA.1": false,
+    "BARNAP7_BARNA   7TERRI.2  SA.1": true,
+    "BARNAP7_BARNA   7PALUE.4  SA.1": false,
+    "BARNAP7_BARNA   7VAUPA.2  SA.1": false,
+    "BARNAP7_BARNA   7PENL5.1  SA.1": false,
+    "BARNAP7_BARNA   7TRO.1AB  SA.1B": false,
+    "BARNAP7_BARNA   7COUPL.B  SA.1": false,
+    "BARNAP7_BARNA   7COUPL.A  SA.2": false,
+    "BARNAP7_BARNA   7PENL5.2  SA.2": false,
+    "BARNAP7_BARNA   7VAUPA.1  SA.2": true,
+    "BARNAP7_BARNA   7PALUE.3  SA.2": false,
+    "BARNAP7_BARNA   7ROUGE.2  SA.2": true,
+    "BARNAP7_BARNA   7TERRI.1  SA.2": false,
+    "BARNAP7_BARNA   7PALUE.2  SA.2": false,
+    "BARNAP7_BARNA   7REMIS.1  SA.2": true,
+    "BARNAP7_BARNA   7TRO.2AB  SA.2A": false,
+    "BARNAP7_BARNA   7REMIS.2  SA.2": true,
+    "BARNAP7_BARNA   7PALUE.1  SA.2": true,
+    "BARNAP7_BARNA   7ROUGE.1  SA.2": true,
+    "BARNAP7_BARNA   7TERRI.2  SA.2": true,
+    "BARNAP7_BARNA   7PALUE.4  SA.2": true,
+    "BARNAP7_BARNA   7VAUPA.2  SA.2": true,
+    "BARNAP7_BARNA   7PENL5.1  SA.2": true,
+    "BARNAP7_BARNA   7COUPL.B  SA.2": true,
+    "BARNAP7_BARNA   7TRO.2AB  SA.2B": true,
+    "BARNAP7_BARNA   7COUPL.A  DJ": false,
+    "BARNAP7_BARNA   7COUPL.B  DJ": true,
+    "BARNAP7_BARNA   7PALUE.1  DJ": false,
+    "BARNAP7_BARNA   7PALUE.2  DJ": false,
+    "BARNAP7_BARNA   7PALUE.3  DJ": false,
+    "BARNAP7_BARNA   7PALUE.4  DJ": false,
+    "BARNAP7_BARNA   7PENL5.1  DJ": false,
+    "BARNAP7_BARNA   7PENL5.2  DJ": false,
+    "BARNAP7_BARNA   7REMIS.1  DJ": true,
+    "BARNAP7_BARNA   7REMIS.2  DJ": false,
+    "BARNAP7_BARNA   7ROUGE.1  DJ": false,
+    "BARNAP7_BARNA   7ROUGE.2  DJ": false,
+    "BARNAP7_BARNA   7TERRI.1  DJ": false,
+    "BARNAP7_BARNA   7TERRI.2  DJ": true,
+    "BARNAP7_BARNA   7TRO.1AB  DJ": true,
+    "BARNAP7_BARNA   7TRO.2AB  DJ": true,
+    "BARNAP7_BARNA   7VAUPA.1  DJ": false,
+    "BARNAP7_BARNA   7VAUPA.2  DJ": false
+  },
+  "nb_manoeuvres": 28,
+  "manoeuvres": [
+    {
+      "ordre": 1,
+      "switch_id": "BARNAP7_BARNA   7COUPL.B  DJ",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 2,
+      "switch_id": "BARNAP7_BARNA   7COUPL.B  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 3,
+      "switch_id": "BARNAP7_BARNA   7ROUGE.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 4,
+      "switch_id": "BARNAP7_BARNA   7ROUGE.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 5,
+      "switch_id": "BARNAP7_BARNA   7TRO.1AB  SA.1B",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:10)",
+      "boucle": null
+    },
+    {
+      "ordre": 6,
+      "switch_id": "BARNAP7_BARNA   7PALUE.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 7,
+      "switch_id": "BARNAP7_BARNA   7PALUE.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 8,
+      "switch_id": "BARNAP7_BARNA   7PALUE.4  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 9,
+      "switch_id": "BARNAP7_BARNA   7PALUE.4  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 10,
+      "switch_id": "BARNAP7_BARNA   7PENL5.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 11,
+      "switch_id": "BARNAP7_BARNA   7PENL5.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 12,
+      "switch_id": "BARNAP7_BARNA   7REMIS.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 13,
+      "switch_id": "BARNAP7_BARNA   7REMIS.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 14,
+      "switch_id": "BARNAP7_BARNA   7VAUPA.2  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 15,
+      "switch_id": "BARNAP7_BARNA   7VAUPA.2  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:15)",
+      "boucle": null
+    },
+    {
+      "ordre": 16,
+      "switch_id": "BARNAP7_BARNA   7COUPL.B  DJ",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 17,
+      "switch_id": "BARNAP7_BARNA   7PALUE.2  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 18,
+      "switch_id": "BARNAP7_BARNA   7PALUE.2  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 19,
+      "switch_id": "BARNAP7_BARNA   7PALUE.3  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 20,
+      "switch_id": "BARNAP7_BARNA   7PALUE.3  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 21,
+      "switch_id": "BARNAP7_BARNA   7PENL5.2  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 22,
+      "switch_id": "BARNAP7_BARNA   7PENL5.2  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 23,
+      "switch_id": "BARNAP7_BARNA   7TERRI.1  SA.1",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 24,
+      "switch_id": "BARNAP7_BARNA   7TERRI.1  SA.2",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 25,
+      "switch_id": "BARNAP7_BARNA   7VAUPA.1  SA.1",
+      "action": "CLOSE",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 26,
+      "switch_id": "BARNAP7_BARNA   7VAUPA.1  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:20)",
+      "boucle": null
+    },
+    {
+      "ordre": 27,
+      "switch_id": "BARNAP7_BARNA   7COUPL.B  SA.2",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:25)",
+      "boucle": null
+    },
+    {
+      "ordre": 28,
+      "switch_id": "BARNAP7_BARNA   7TRO.2AB  SA.2B",
+      "action": "OPEN",
+      "raison": "observée (2022-06-15T11:25)",
+      "boucle": null
+    }
+  ],
+  "meta": {
+    "tags": [
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2022-06-15T11:05",
+    "t_cible": "2022-06-15T11:25"
+  }
+}

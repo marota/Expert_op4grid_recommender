@@ -1,0 +1,101 @@
+{
+  "voltage_level_id": "ARDOIP6",
+  "name": "ARDOIP6_2022-06-15T14_10_consignation_ouvrage",
+  "depart": {
+    "ARDOIP6_ARDOI   6TAVEL.1  SA.1": true,
+    "ARDOIP6_ARDOI   6TAVEL.2  SA.1": true,
+    "ARDOIP6_ARDOI   6TR633    SA.1": true,
+    "ARDOIP6_ARDOI   6TAVEL.3  SA.1": true,
+    "ARDOIP6_ARDOI   6TR632    SA.1": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  SA.1": true,
+    "ARDOIP6_ARDOI   6TR611    SA.1": true,
+    "ARDOIP6_ARDOI   6COUPL    SA.1": true,
+    "ARDOIP6_ARDOI   6COUPL    SA.2": false,
+    "ARDOIP6_ARDOI   6TAVEL.1  SA.2": false,
+    "ARDOIP6_ARDOI   6TAVEL.2  SA.2": false,
+    "ARDOIP6_ARDOI   6TR633    SA.2": false,
+    "ARDOIP6_ARDOI   6TAVEL.3  SA.2": false,
+    "ARDOIP6_ARDOI   6TR632    SA.2": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  SA.2": false,
+    "ARDOIP6_ARDOI   6TR611    SA.2": false,
+    "ARDOIP6_ARDOI   6COUPL    DJ": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.1  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.2  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.3  DJ": false,
+    "ARDOIP6_ARDOI   6TR611    DJ.HT": false,
+    "ARDOIP6_ARDOI   6TR632    DJ": true,
+    "ARDOIP6_ARDOI   6TR633    DJ": false
+  },
+  "cible": {
+    "ARDOIP6_ARDOI   6TAVEL.1  SA.1": true,
+    "ARDOIP6_ARDOI   6TAVEL.2  SA.1": false,
+    "ARDOIP6_ARDOI   6TR633    SA.1": false,
+    "ARDOIP6_ARDOI   6TAVEL.3  SA.1": false,
+    "ARDOIP6_ARDOI   6TR632    SA.1": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  SA.1": false,
+    "ARDOIP6_ARDOI   6TR611    SA.1": false,
+    "ARDOIP6_ARDOI   6COUPL    SA.1": false,
+    "ARDOIP6_ARDOI   6COUPL    SA.2": true,
+    "ARDOIP6_ARDOI   6TAVEL.1  SA.2": true,
+    "ARDOIP6_ARDOI   6TAVEL.2  SA.2": true,
+    "ARDOIP6_ARDOI   6TR633    SA.2": true,
+    "ARDOIP6_ARDOI   6TAVEL.3  SA.2": true,
+    "ARDOIP6_ARDOI   6TR632    SA.2": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  SA.2": true,
+    "ARDOIP6_ARDOI   6TR611    SA.2": true,
+    "ARDOIP6_ARDOI   6COUPL    DJ": true,
+    "ARDOIP6_ARDOI   6MOTT5.1  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.1  DJ": true,
+    "ARDOIP6_ARDOI   6TAVEL.2  DJ": false,
+    "ARDOIP6_ARDOI   6TAVEL.3  DJ": false,
+    "ARDOIP6_ARDOI   6TR611    DJ.HT": false,
+    "ARDOIP6_ARDOI   6TR632    DJ": true,
+    "ARDOIP6_ARDOI   6TR633    DJ": false
+  },
+  "meta": {
+    "source": "historique",
+    "tags": [
+      "consignation_ouvrage",
+      "reaiguillage_departs"
+    ],
+    "t_depart": "2022-06-15T13:50",
+    "t_cible": "2022-06-15T14:10",
+    "topologie_depart_id": "c05d69997f8ddc88",
+    "topologie_cible_id": "b5609240d08cbe4f",
+    "nb_organes_changes": 14,
+    "nb_manoeuvres_observees": 18,
+    "nb_etats_transitoires": 3,
+    "duree_stable_avant": 35,
+    "duree_stable_apres": 16,
+    "retour_observe": false
+  },
+  "depart_nodale": [
+    [
+      "ARDOI6TR611",
+      "ARDOIL61MOTT5",
+      "ARDOIL61TAVEL",
+      "ARDOIL62TAVEL",
+      "ARDOIL63TAVEL",
+      "ARDOIY633"
+    ],
+    [
+      "ARDOIY632"
+    ]
+  ],
+  "cible_nodale": [
+    [
+      "ARDOI6TR611",
+      "ARDOIL61MOTT5",
+      "ARDOIL62TAVEL",
+      "ARDOIL63TAVEL",
+      "ARDOIY633"
+    ],
+    [
+      "ARDOIL61TAVEL"
+    ],
+    [
+      "ARDOIY632"
+    ]
+  ]
+}
