@@ -159,6 +159,28 @@ class DiscovererBase:
         self.params_redispatch = {}
         self.prioritized_actions = {}
 
+    def _cap_candidates_for_simulation(self, identified, scores_map):
+        """Return the subset of ``identified`` actions to validate by simulation.
+
+        Used by the generator-targeting discovery passes (redispatching,
+        renewable curtailment) whose candidate count scales with the number of
+        reachable generators. Their per-candidate AC load-flow verdict
+        (effective / ineffective) does not feed prioritization, so simulating
+        every candidate is wasted work on large grids. We keep the top
+        ``config.MAX_CANDIDATE_SIMULATIONS`` candidates by descending score;
+        a cap of 0 disables the limit (simulate all, legacy behaviour).
+
+        Returns a list of ``(action_id, action)`` pairs.
+        """
+        cap = getattr(config, "MAX_CANDIDATE_SIMULATIONS", 0)
+        items = list(identified.items())
+        if not cap or len(items) <= cap:
+            return items
+        ranked = sorted(
+            items, key=lambda kv: scores_map.get(kv[0], 0.0), reverse=True
+        )
+        return ranked[:cap]
+
     def _build_lookup_caches(self):
         """Pre-computes name-to-index lookup dictionaries to avoid repeated np.where calls."""
         if not hasattr(self, "_line_name_to_id"):

@@ -191,7 +191,9 @@ class RenewableCurtailmentMixin:
                     self.act_reco_maintenance, self.lines_overloaded_ids
                 )
                 if baseline_rho is not None:
-                    for action_id, action in identified.items():
+                    for action_id, action in self._cap_candidates_for_simulation(
+                        identified, scores_map
+                    ):
                         is_reduced, _ = self._check_rho_with_baseline(
                             self.obs,
                             self.timestep,
