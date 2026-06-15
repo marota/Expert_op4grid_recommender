@@ -6,11 +6,22 @@ This module adapts the superposition theorem from
 https://github.com/marota/Topology_Superposition_Theorem
 to work with the pypowsybl-based observations used in expert_op4grid_recommender.
 
-The key formula:
-  p_or_combined = (1 - sum(betas)) * obs_start.p_or + sum(betas[i] * obs_unit[i].p_or)
+Two regimes are supported:
 
-where betas are solved from a linear system using p_or and delta_theta values
-at the lines/substations involved in each action.
+* **Extended Superposition Theorem (EST)** — pairs of *topology* actions (line
+  disconnection / reconnection, node split / merge, PST). The combined flow is
+
+      p_or_combined = (1 - sum(betas)) * obs_start.p_or + sum(betas[i] * obs_unit[i].p_or)
+
+  where ``betas`` solve a linear system built from p_or and delta_theta values
+  at the lines / substations involved in each action.
+
+* **Generalized Superposition Theorem (GST)** — pairs where at least one action
+  is an *injection* change (load shedding, renewable curtailment, redispatch).
+  The injection enters in pure superposition (its flow response is added in
+  full) while the topology action keeps an injection-shifted EST beta. Reporting
+  an injection action with ``beta = 1.0`` lets the SAME reconstruction formula
+  above produce the exact GST flows — see :func:`compute_combined_pair_gst`.
 """
 
 import numpy as np
@@ -605,6 +616,226 @@ def _estimate_rho_from_delta_theta(dt_combined, obs_start, obs_act1, obs_act2):
 
 
 # =============================================================================
+# Generalized Superposition Theorem (GST): injection-aware action pairs
+# =============================================================================
+#
+# The Extended Superposition Theorem (EST) above combines *topology* actions
+# (line disconnection / reconnection, node split / merge, PST). The GST extends
+# it to action pairs that also involve an *injection* change -- load shedding,
+# renewable curtailment or redispatch -- which only modifies ``load_p`` /
+# ``gen_p`` (no topology change).
+#
+# Adapted from ``compute_flows_GST_from_unit_act_obs`` in
+# Topology_Superposition_Theorem. An injection action enters in *pure
+# superposition* (its flow response ``obs_inj.p_or - obs_start.p_or`` is added
+# in full), while a topology action keeps an EST beta that the injection shifts
+# only through the right-hand side of the (unchanged) EST linear system:
+#
+#     beta_T = x(P_tgt, T_ref) / x(P_ref, T_ref)
+#
+# with ``x = p_or`` on disconnected / split assets (non-zero reference flow),
+# ``x = delta_theta`` on reconnected / merged assets (zero reference flow), and
+# ``x(P_tgt, T_ref) = x(P_ref, T_ref) + sum_k (x(obs_inj_k) - x(obs_start))``.
+#
+# Key identity used throughout: reporting an injection action with ``beta = 1.0``
+# makes the *standard* reconstruction
+#
+#     p_combined = (1 - sum(betas)) * obs_start.p + betas[0]*p_act1 + betas[1]*p_act2
+#
+# reproduce the exact GST flows, because each injection term
+# ``(obs_inj.p - obs_start.p)`` equals ``1.0*obs_inj.p - 1.0*obs_start.p`` and the
+# ``-obs_start.p`` parts fold into the ``(1 - sum(betas))`` weight. As a result
+# the downstream rho estimators (and Co-Study4Grid's ``compute_combined_rho``)
+# need no change for injection pairs.
+
+# Action types and id prefixes that denote a pure injection change.
+INJECTION_ACTION_TYPES = frozenset({
+    "load_power_reduction", "gen_power_reduction", "gen_redispatch",
+    "open_load", "open_gen",
+})
+INJECTION_ID_PREFIXES = ("load_shedding_", "curtail_", "redispatch_")
+
+
+def is_injection_action(action_id: str, action_desc: Optional[dict] = None,
+                        classifier: Optional[Any] = None) -> bool:
+    """Return True if an action is a pure injection change.
+
+    Injection actions (load shedding ``set_load_p``, renewable curtailment /
+    redispatch ``set_gen_p``) change only nodal injections, not the topology,
+    and are handled by the Generalized Superposition Theorem. Detection is by
+    action-id prefix (``load_shedding_`` / ``curtail_`` / ``redispatch_``) and,
+    when available, by the classifier's action type.
+    """
+    if action_id and action_id.startswith(INJECTION_ID_PREFIXES):
+        return True
+    if classifier is not None and action_desc is not None:
+        try:
+            atype = classifier.identify_action_type(action_desc, by_description=True)
+        except Exception:
+            atype = None
+        if atype in INJECTION_ACTION_TYPES:
+            return True
+    return False
+
+
+def _resolve_topology_element(obs_start, obs_topo, line_idxs: List[int],
+                              sub_idxs: List[int]):
+    """Describe the switched element of a topology action.
+
+    Returns ``(kind, idx, is_ref, ind_sub)`` where ``kind`` is ``"line"`` or
+    ``"sub"``, ``is_ref`` flags a substation that starts in reference (single-bus)
+    topology, and ``ind_sub`` are the node-1 element ids (for substations).
+    Returns ``None`` when no element could be identified.
+    """
+    if line_idxs:
+        return ("line", line_idxs[0], None, None)
+    if sub_idxs:
+        sid = sub_idxs[0]
+        is_ref = _is_sub_reference_topology(obs_start, sid)
+        # node-1 element ids are read from the split observation (its bus map
+        # reflects the post-split topology); for a merge, obs_start is split.
+        ind_sub = get_sub_node1_idsflow(obs_topo if is_ref else obs_start, sid)
+        return ("sub", sid, is_ref, ind_sub)
+    return None
+
+
+def _topology_beta_gst(obs_start, obs_inj, kind: str, idx: int,
+                       is_ref: Optional[bool], ind_sub) -> float:
+    """GST topology coefficient ``beta_T = x_inj / x_start`` on the switched asset.
+
+    ``x`` is the active flow for a disconnection / node split (non-zero reference
+    flow) or the angle difference for a reconnection / node merge (zero reference
+    flow), evaluated on the switched element at ``obs_start`` and at the injection
+    observation ``obs_inj``. Returns 1.0 when the reference quantity is
+    numerically negligible (the injection then leaves that sensitivity unchanged).
+    """
+    p_threshold = 1.0       # MW
+    dth_threshold = 1e-9    # rad
+    if kind == "line":
+        p_start = float(obs_start.p_or[idx])
+        if abs(p_start) > p_threshold:                      # disconnection
+            return float(obs_inj.p_or[idx]) / p_start
+        dth_start = get_delta_theta_line(obs_start, idx)    # reconnection
+        if abs(dth_start) > dth_threshold:
+            return get_delta_theta_line(obs_inj, idx) / dth_start
+        return 1.0
+    # substation virtual line
+    il, ip, ilor, ilex = ind_sub
+    if is_ref:                                              # node split
+        v_start = get_virtual_line_flow(obs_start, il, ip, ilor, ilex)
+        if abs(v_start) > p_threshold:
+            return get_virtual_line_flow(obs_inj, il, ip, ilor, ilex) / v_start
+        return 1.0
+    dth_start = get_delta_theta_sub_2nodes(obs_start, idx)  # node merge
+    if abs(dth_start) > dth_threshold:
+        return get_delta_theta_sub_2nodes(obs_inj, idx) / dth_start
+    return 1.0
+
+
+def compute_combined_pair_gst(
+        obs_start,
+        obs_act1,
+        obs_act2,
+        act1_line_idxs: List[int],
+        act1_sub_idxs: List[int],
+        act2_line_idxs: List[int],
+        act2_sub_idxs: List[int],
+        act1_is_injection: bool,
+        act2_is_injection: bool,
+        obs_combined: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Generalized Superposition Theorem for a pair with >=1 injection action.
+
+    Handles the three injection-bearing pair shapes:
+
+    * **topology + injection** -- the topology action gets ``beta_T`` (computed
+      from the injection observation through the EST right-hand side), the
+      injection gets ``beta = 1.0``;
+    * **injection + injection** -- both get ``beta = 1.0`` (pure injection
+      superposition, exact in DC);
+
+    and returns the same structure as :func:`compute_combined_pair_superposition`
+    (``betas``, ``p_or_combined``, ``p_ex_combined``, islanding fields) so the
+    standard reconstruction and the rho estimators work unchanged.
+    """
+    inj_flags = [bool(act1_is_injection), bool(act2_is_injection)]
+    obs_list = [obs_act1, obs_act2]
+    line_idxs = [act1_line_idxs, act2_line_idxs]
+    sub_idxs = [act1_sub_idxs, act2_sub_idxs]
+
+    if not (inj_flags[0] or inj_flags[1]):
+        return {"error": "GST path requires at least one injection action."}
+
+    # Beta per action: injection -> 1.0 (pure superposition term); topology ->
+    # GST coefficient computed against the *other* action's (injection) state.
+    betas = [1.0, 1.0]
+    for i in range(2):
+        if inj_flags[i]:
+            continue
+        j = 1 - i
+        if not inj_flags[j]:
+            # both topology -> not a GST pair (caller should use the EST path)
+            return {"error": "GST path requires at least one injection action."}
+        spec = _resolve_topology_element(obs_start, obs_list[i], line_idxs[i], sub_idxs[i])
+        if spec is None:
+            return {"error": f"Cannot identify switched element for topology action {i + 1}."}
+        kind, idx, is_ref, ind_sub = spec
+        betas[i] = _topology_beta_gst(obs_start, obs_list[j], kind, idx, is_ref, ind_sub)
+
+    # No-op detection: an injection with no flow response is meaningless.
+    noop_mw = 0.1
+    p_or_start = np.asarray(obs_start.p_or, dtype=float)
+    for i in range(2):
+        if inj_flags[i]:
+            e = float(np.max(np.abs(np.asarray(obs_list[i].p_or, dtype=float) - p_or_start)))
+            if e < noop_mw:
+                return {"error": f"No-op injection action detected (action {i + 1} has no flow effect)."}
+
+    betas_arr = np.array(betas, dtype=float)
+    if np.any(np.isnan(betas_arr)):
+        return {"error": "Singular system — cannot compute GST betas", "betas": betas}
+
+    beta_min, beta_max = -2.0, 3.0
+    if np.any(betas_arr < beta_min) or np.any(betas_arr > beta_max):
+        return {
+            "error": (
+                f"Unreliable GST superposition: betas {np.round(betas_arr, 3).tolist()} "
+                f"are outside the physically meaningful range [{beta_min}, {beta_max}]. "
+                f"The topology and injection actions are too strongly coupled."
+            ),
+            "betas": betas,
+        }
+
+    # Reconstruction — identical to the EST formula thanks to the beta=1.0
+    # convention for injection terms (see the module-level note above).
+    w_start = 1.0 - float(np.sum(betas_arr))
+    p_or_combined = w_start * p_or_start
+    p_ex_combined = w_start * np.asarray(obs_start.p_ex, dtype=float)
+    for i in range(2):
+        p_or_combined = p_or_combined + betas[i] * np.asarray(obs_list[i].p_or, dtype=float)
+        p_ex_combined = p_ex_combined + betas[i] * np.asarray(obs_list[i].p_ex, dtype=float)
+
+    # Islanding detection (if the actual combined observation is provided)
+    is_islanded = False
+    disconnected_mw = 0.0
+    if obs_combined is not None and hasattr(obs_combined, "n_components"):
+        if obs_combined.n_components > obs_start.n_components:
+            is_islanded = True
+            if hasattr(obs_combined, "main_component_load_mw") and hasattr(obs_start, "main_component_load_mw"):
+                disconnected_mw = float(max(
+                    0.0, obs_start.main_component_load_mw - obs_combined.main_component_load_mw))
+
+    return {
+        "betas": betas,
+        "p_or_combined": p_or_combined.tolist(),
+        "p_ex_combined": p_ex_combined.tolist(),
+        "is_islanded": is_islanded,
+        "disconnected_mw": disconnected_mw,
+        "is_gst": True,
+    }
+
+
+# =============================================================================
 # Pair superposition computation
 # =============================================================================
 
@@ -619,8 +850,15 @@ def compute_combined_pair_superposition(
         obs_combined: Optional[Any] = None,
         act1_is_pst: bool = False,
         act2_is_pst: bool = False,
+        act1_is_injection: bool = False,
+        act2_is_injection: bool = False,
 ) -> Dict[str, Any]:
     """Compute the superposition theorem for a pair of unitary actions.
+
+    Topology-only pairs use the Extended Superposition Theorem (EST). When at
+    least one action is an injection change (load shedding / curtailment /
+    redispatch — flagged via ``act*_is_injection``), the call is routed to the
+    Generalized Superposition Theorem (:func:`compute_combined_pair_gst`).
 
     Args:
         obs_start: Base observation (N-1 state)
@@ -633,10 +871,25 @@ def compute_combined_pair_superposition(
         obs_combined: Optional actual combined observation (for islanding detection)
         act1_is_pst: True if action 1 is a phase shifter tap change
         act2_is_pst: True if action 2 is a phase shifter tap change
+        act1_is_injection: True if action 1 is an injection change (GST path)
+        act2_is_injection: True if action 2 is an injection change (GST path)
 
     Returns:
         Dict with betas, p_or_combined, p_ex_combined, rho_combined
     """
+    # Generalized Superposition Theorem: an injection action (load shedding,
+    # renewable curtailment, redispatch) on either side is handled by the GST
+    # path, which combines a pure-superposition injection term with the
+    # (injection-shifted) EST beta of the topology action.
+    if act1_is_injection or act2_is_injection:
+        return compute_combined_pair_gst(
+            obs_start, obs_act1, obs_act2,
+            act1_line_idxs, act1_sub_idxs,
+            act2_line_idxs, act2_sub_idxs,
+            act1_is_injection, act2_is_injection,
+            obs_combined=obs_combined,
+        )
+
     # Total number of elements must equal 2 (one per action)
     n_elements_act1 = len(act1_line_idxs) + len(act1_sub_idxs)
     n_elements_act2 = len(act2_line_idxs) + len(act2_sub_idxs)
@@ -902,27 +1155,17 @@ def compute_all_pairs_superposition(
     if dict_action is None:
         dict_action = {}
 
-    # Filter to converged actions only, excluding load shedding and curtailment
-    converged_ids = []
-    for aid, details in detailed_actions.items():
-        if details.get("non_convergence") is not None:
-            continue
-        
-        # Identify action type to skip load shedding and curtailment
-        action_desc = dict_action.get(aid, {})
-        action_type = classifier.identify_action_type(action_desc, by_description=True)
-        
-        # Skip if it's load shedding or curtailment (open_load, open_gen, or prefix match)
-        if (action_type in ["open_load", "open_gen"] or 
-            aid.startswith("load_shedding_") or 
-            aid.startswith("curtail_")):
-            continue
-            
-        converged_ids.append(aid)
+    # Filter to converged actions only. Injection actions (load shedding,
+    # curtailment, redispatch) are KEPT — the Generalized Superposition Theorem
+    # combines them with topology actions (and with each other).
+    converged_ids = [
+        aid for aid, details in detailed_actions.items()
+        if details.get("non_convergence") is None
+    ]
 
     if len(converged_ids) < 2:
-        if converged_ids: # Don't print if it was already empty
-            print(f"[Superposition] Only {len(converged_ids)} combinable converged action(s) (excluding LS/RC), "
+        if converged_ids:  # Don't print if it was already empty
+            print(f"[Superposition] Only {len(converged_ids)} combinable converged action(s), "
                   f"need at least 2 for pair combination.")
         return {}
 
@@ -930,9 +1173,10 @@ def compute_all_pairs_superposition(
           f"{len(converged_ids) - 1} / 2 = "
           f"{len(converged_ids) * (len(converged_ids) - 1) // 2} pairs")
 
-    # Pre-compute element indices and PST flags for each action
+    # Pre-compute element indices and PST / injection flags for each action
     action_elements = {}
     action_is_pst = {}
+    action_is_injection = {}
     for aid in converged_ids:
         action_obj = detailed_actions[aid]["action"]
         line_idxs, sub_idxs = _identify_action_elements(
@@ -947,6 +1191,9 @@ def compute_all_pairs_superposition(
             or "pst_tap" in aid
             or "pst_" in aid
         )
+        # Detect injection actions (GST path): load shedding / curtailment /
+        # redispatch. These carry no topology element.
+        action_is_injection[aid] = is_injection_action(aid, action_desc, classifier)
 
     # Monitoring setup for max_rho computation
     from expert_op4grid_recommender import config
@@ -973,11 +1220,14 @@ def compute_all_pairs_superposition(
     for aid1, aid2 in combinations(converged_ids, 2):
         line_idxs1, sub_idxs1 = action_elements[aid1]
         line_idxs2, sub_idxs2 = action_elements[aid2]
+        inj1 = action_is_injection.get(aid1, False)
+        inj2 = action_is_injection.get(aid2, False)
 
-        # Skip if we can't identify elements for either action
-        if len(line_idxs1) + len(sub_idxs1) == 0:
+        # Topology actions need an identified switched element; injection
+        # actions (handled by the GST in pure superposition) do not.
+        if not inj1 and len(line_idxs1) + len(sub_idxs1) == 0:
             continue
-        if len(line_idxs2) + len(sub_idxs2) == 0:
+        if not inj2 and len(line_idxs2) + len(sub_idxs2) == 0:
             continue
 
         obs_act1 = detailed_actions[aid1]["observation"]
@@ -994,6 +1244,8 @@ def compute_all_pairs_superposition(
                 act2_sub_idxs=sub_idxs2,
                 act1_is_pst=action_is_pst.get(aid1, False),
                 act2_is_pst=action_is_pst.get(aid2, False),
+                act1_is_injection=inj1,
+                act2_is_injection=inj2,
             )
         except Exception as e:
             print(f"[Superposition] Error computing pair {aid1}+{aid2}: {e}")

@@ -371,7 +371,7 @@ See `MIGRATION_PLAN.md` for details. The goal is to remove `grid2op` dependency.
 
 - **Load Shedding & Renewable Curtailment** (`v0.1.9`): `find_relevant_load_shedding` and `find_relevant_renewable_curtailment` in `action_evaluation/discovery.py` identify candidates on downstream nodes of constrained paths. Controlled by `MIN_LOAD_SHEDDING`, `MIN_RENEWABLE_CURTAILMENT`, `LOAD_SHEDDING_MARGIN`, `RENEWABLE_CURTAILMENT_MARGIN`, `RENEWABLE_ENERGY_SOURCES`. Deeply optimized for large networks (#76).
 - **Pathlib migration** (`v0.1.9`): all base directories and file paths use `pathlib.Path` for cross-platform robustness.
-- **Superposition Theorem** (`v0.1.8`): `utils/superposition.py` quantifies topological and PST action impacts using virtual flows and delta-theta. Integrated into analysis results.
+- **Superposition Theorem** (`v0.1.8`): `utils/superposition.py` quantifies topological and PST action impacts using virtual flows and delta-theta. Integrated into analysis results. **Generalized Superposition Theorem (GST)** (unreleased): `compute_combined_pair_gst` + `is_injection_action` extend pair estimation to load shedding / curtailment / redispatch (injection changes), reported with `beta=1.0` so the existing reconstruction is unchanged. See `docs/superposition_module.md` §10.
 - **Islanding MW impact** (`v0.1.8`): islanding detection now reports disconnected MW.
 - **PST Support** (`v0.1.7+`): phase-shifter transformer tap variations, atomized PST actions from REPAS JSON. `find_relevant_pst_actions` in discovery. Grid2Op conversion support. PST asset-ID matching handles REPAS quirks (leading dots, `_inc1`/`_dec2` suffixes).
 - **Direct XIIDM loading** (`v0.1.8_post1`): `main.py` accepts a direct `.xiidm` file path.

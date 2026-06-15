@@ -11,6 +11,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.4] - 2026-06-15
+
+### Generalized Superposition Theorem (GST) — injection-aware action pairs
+
+`utils/superposition.py` now combines a topology action with an **injection**
+change (load shedding / renewable curtailment / redispatch), and two injection
+changes with each other — previously these pairs were skipped. Based on
+`compute_flows_GST_from_unit_act_obs` in
+[Topology_Superposition_Theorem](https://github.com/marota/Topology_Superposition_Theorem).
+
+- **New** `is_injection_action(action_id, action_desc, classifier)` — detects
+  load shedding / curtailment / redispatch by id prefix or classifier type.
+- **New** `compute_combined_pair_gst(...)` — the injection's flow response enters
+  in pure superposition while the topology action keeps an injection-shifted EST
+  beta (RHS-only shift of the 1×1 EST system). `compute_combined_pair_superposition`
+  gains `act1_is_injection` / `act2_is_injection` and routes to the GST when set.
+- **Key identity**: an injection action is reported with `beta = 1.0`, so the
+  standard `(1 − Σβ)·start + β₁·act1 + β₂·act2` reconstruction reproduces the
+  exact GST flows — the rho estimators (and downstream consumers) are unchanged.
+- `compute_all_pairs_superposition` no longer filters out injection actions and
+  passes the injection flags per pair.
+- **Tests**: `tests/test_superposition_gst.py` validates every injection-bearing
+  pair shape against ground-truth grid2op DC simulations (~1e-6 MW), plus a
+  `TestGstIsAcAnchored` class pinning that the beta RHS and the reconstruction
+  read the (AC) observation values verbatim.
+- **Docs**: `docs/superposition_module.md` §10 now documents the AC-anchoring of
+  the GST (AC values used throughout; the superposition law is DC-exact only, so
+  the AC residual is structural) and the accuracy profile (topology+injection ≡
+  topology-only EST; the global max-rho line can flip between near-equal low-flow
+  corridor lines while the on-target overload is predicted correctly;
+  injection+injection is lower-confidence), plus a **"Known larger-error cases"**
+  catalog tabulating the two larger-error patterns with their measured small-grid
+  examples, root cause and how to read them.
+
+---
+
 ## [0.2.3.post2] - 2026-06-11
 
 ### Performance

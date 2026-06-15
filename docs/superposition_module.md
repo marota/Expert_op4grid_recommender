@@ -254,7 +254,131 @@ The key difference is that a disconnection sets `p_or → 0` while a PST tap cha
 
 ---
 
-## 10. Test Coverage
+## 10. Generalized Superposition Theorem (GST): injection-aware pairs
+
+The Extended Superposition Theorem (EST) above combines two **topology** actions.
+The **GST** extends it to pairs where at least one action is an **injection**
+change — load shedding (`set_load_p`), renewable curtailment / redispatch
+(`set_gen_p`). These change only nodal injections, not the topology.
+
+### Detection
+
+`is_injection_action(action_id, action_desc, classifier)` flags an action as an
+injection change by id prefix (`load_shedding_` / `curtail_` / `redispatch_`) or
+classifier type (`load_power_reduction` / `gen_power_reduction` / `gen_redispatch`
+/ `open_load` / `open_gen`). `compute_combined_pair_superposition` routes a pair
+to `compute_combined_pair_gst` whenever either `act*_is_injection` is set, and
+`compute_all_pairs_superposition` now **keeps** injection actions (previously
+skipped) and pairs them with topology actions and with each other.
+
+### Formula (adapted from Topology_Superposition_Theorem)
+
+An injection action enters in **pure superposition** — its flow response
+`obs_inj.p_or − obs_start.p_or` is added in full. A topology action keeps an EST
+beta that the injection shifts **only through the right-hand side** of the
+(unchanged) 1×1 EST system:
+
+```
+beta_T = x(P_tgt, T_ref) / x(P_ref, T_ref)
+       = x(obs_inj) / x(obs_start)        # single injection on the switched asset
+```
+
+with `x = p_or` for disconnection / node split (non-zero reference flow) and
+`x = delta_theta` for reconnection / node merge (zero reference flow).
+
+### The `beta = 1.0` convention (why nothing downstream changes)
+
+`compute_combined_pair_gst` reports an injection action with **`beta = 1.0`** and
+a topology action with its solved `beta_T`. Because each injection term
+`(obs_inj − obs_start)` equals `1.0·obs_inj − 1.0·obs_start`, the `−obs_start`
+parts fold into the `(1 − sum(betas))` weight, so the **standard EST
+reconstruction** reproduces the exact GST flows:
+
+```
+p_combined = (1 − sum(betas)) · obs_start.p + betas[0]·p_act1 + betas[1]·p_act2
+```
+
+| Pair shape | betas | reconstruction |
+|---|---|---|
+| topology + injection | `[beta_T, 1.0]` | `−beta_T·start + beta_T·topo + inj` |
+| injection + injection | `[1.0, 1.0]` | `inj1 + inj2 − start` (DC-exact) |
+
+This identity means the rho estimators (`_estimate_rho_from_p`, the default
+direct rho superposition) **and Co-Study4Grid's `compute_combined_rho`** need no
+GST-specific code path.
+
+### AC anchoring (which state values feed the GST)
+
+The GST is **AC-anchored**: every quantity it reads comes from the *AC* load-flow
+observations, not from a recomputed DC model.
+
+- The **injection superposition term** is `obs_inj.p_or − obs_start.p_or` (and the
+  same for `p_ex`), with both observations being AC states.
+- The **injection-shifted beta** is `beta_T = x(obs_inj) / x(obs_start)`, where `x`
+  is the AC `p_or` (disconnection / node split) or the AC `delta_theta` from
+  `theta_or − theta_ex` (reconnection / node merge), read on the switched element.
+
+So the estimate is anchored at the true AC operating point. **But using AC inputs
+does not make it AC-exact** — the superposition *law* it applies
+(`PF = α·ref + Σβ·unit + Σ injection`, betas from a linear ratio system) is exact
+only under **DC linearity**. Feeding AC values into a DC-derived linear law yields
+an *AC-anchored linear superposition*: better than a pure DC estimate, but it
+cannot reproduce AC nonlinearities (reactive / voltage coupling, loss
+redistribution, operating-point-dependent flow splits). There is also a second,
+AC-independent approximation: the injection response is captured at the
+**reference topology** and added in full, while in the combined target the
+topology has also changed — the topology betas absorb that coupling through the
+right-hand side (first-order-exact in DC, approximate in AC). Re-evaluating the
+injection in the combined topology would need an extra simulation, defeating the
+estimate's purpose.
+
+### Accuracy
+
+- **DC: exact.** Validated against ground-truth combined simulations (grid2op DC,
+  `l2rpn_case14_sandbox`) to ~1e-6 MW for line disco/reco, node split/merge, and
+  injection+injection pairs (`test_superposition_gst.py`). A direct pypowsybl
+  `run_dc` check on the small grid reconstructs the flagged
+  `disco_BEON L31CPVAN + load_shedding_P.SAO3TR312` pair to **0.0000 MW** on every
+  line (`Co-Study4Grid/scripts/gst_estimation_vs_simulation_small_grid.py`).
+- **AC topology + injection: same accuracy as topology-only EST.** On the small
+  AC grid, a load-shedding (GST) pair and a pure-topology (EST) pair share the
+  same per-line rho error (~1–2 pts mean, occasionally ~15 pts). The injection
+  term (β = 1.0) adds nothing on top of the inherent EST/AC limit.
+- **Where the visible gap comes from.** A few-MW AC flow-split error is negligible
+  on heavily-loaded high-limit lines but, on **low-flow lines of a meshed parallel
+  corridor** (where disconnecting a loaded line dumps its flow), it becomes a
+  sizable rho-% error. When two such lines sit at near-equal loading, it **flips
+  which is reported as the global max** (e.g. estimate picks `C.FOUL31MERVA`,
+  simulation picks `PYMONL31SAISS`, both ~70–75 %). The decision-relevant number —
+  the effect on the operator's actual overload — is predicted correctly (that is
+  what `target_max_rho` surfaces). This is *not* GST-specific: pure-topology EST
+  pairs show the identical effect.
+- **AC injection + injection: weaker.** Two large injection changes compound the
+  AC nonlinearity, so the combined relief is over-predicted (DC-exact, but the AC
+  gap is larger — mean ~4 pts, and the on-target line can be mispredicted). Treat
+  these estimates as lower-confidence and prefer a full simulation.
+
+### Known larger-error cases
+
+All errors below are **DC-exact** (verified to 0 MW by a direct `run_dc` check)
+and are therefore **AC-nonlinearity, not bugs**. They are catalogued so the
+estimate can be read correctly. Reproduce with
+`Co-Study4Grid/scripts/gst_estimation_vs_simulation_small_grid.py` (small grid,
+contingency `P.SAOL31RONCI`).
+
+| # | Trigger | Symptom | Measured (small grid) | Root cause | How to read it |
+|---|---|---|---|---|---|
+| 1 | Disconnecting a **heavily-loaded** line that dumps its flow onto a **low-flow meshed parallel corridor** | global `max_rho` **line flips** between two near-equally-loaded lines; few-% gap on the max | `disco_BEON L31CPVAN + load_shedding_P.SAO3TR312`: est **74.5 % on C.FOUL31MERVA** vs sim **70.0 % on PYMONL31SAISS**. Per-line: C.FOUL over-estimated ~15 pts, PYMON/FRON5 under-estimated. mean rho gap ~1.6 pts, max ~15 pts | BEON↔C.FOUL are tightly coupled (DC LODF = 1.0); the AC split of BEON's ~25 MW across the low-flow corridor (lines at ~7–25 MW) is operating-point dependent | Trust `target_max_rho` (on-target overload `BEON` is correctly predicted resolved, ~0.4 %); treat the off-target global max as indicative. **Not GST-specific** — pure-topology EST pairs (`reco + disco`) show the identical ~+4.7 MW C.FOUL error |
+| 2 | **Injection + injection** (two large `load_shedding` / `curtail` together), especially when both target the same constrained area | combined relief **over-predicted**; the on-target line itself can be mispredicted | `load_shedding_P.SAO3TR312 + load_shedding_BEON3 TR311`: est `BEON` **5.6 %** vs sim **38.1 %**. mean rho gap ~4.1 pts, max ~32.8 pts; flow gap up to ~18 MW | Two large injections each set a load/gen to 0; the AC responses compound (voltage/reactive), and pure superposition (β = 1.0 each) misses the sub-additivity of stacked injections | **Lower-confidence — prefer a full simulation.** A `low_confidence` flag for injection+injection pairs is a reasonable UI follow-up |
+
+The shared driver of #1 is the **disconnection redistribution onto low-flow
+lines**, not the injection: a few-MW AC error is invisible on a 400 MW line but
+is ~15 rho-points on a 30 MW line, which is exactly what reorders two ~75 %
+neighbours. #2 is specific to stacking two large injection changes.
+
+---
+
+## 11. Test Coverage
 
 | Test File | Focus |
 |---|---|
@@ -262,3 +386,4 @@ The key difference is that a disconnection sets `p_or → 0` while a PST tap cha
 | `test_superposition_action_types.py` | All action type pair combinations (line+line, sub+sub, line+sub), reversed ordering, helper functions, no-op detection |
 | `test_superposition_rho_estimation.py` | P-based and delta-theta-based rho estimation, fallbacks, action-type-aware routing |
 | `test_superposition_extended.py` | Edge cases: no elements, multiple elements, singular systems, beta range validation |
+| `test_superposition_gst.py` | GST: topology+injection and injection+injection pairs vs ground truth (DC-exact), AC-anchoring (`TestGstIsAcAnchored`: beta RHS + reconstruction use the AC observation values), `is_injection_action` detection, `compute_all_pairs` inclusion of injection pairs |
