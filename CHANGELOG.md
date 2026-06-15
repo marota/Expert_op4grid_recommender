@@ -37,7 +37,9 @@ changes with each other — previously these pairs were skipped. Based on
   the AC residual is structural) and the accuracy profile (topology+injection ≡
   topology-only EST; the global max-rho line can flip between near-equal low-flow
   corridor lines while the on-target overload is predicted correctly;
-  injection+injection is lower-confidence).
+  injection+injection is lower-confidence), plus a **"Known larger-error cases"**
+  catalog tabulating the two larger-error patterns with their measured small-grid
+  examples, root cause and how to read them.
 
 ---
 

@@ -358,6 +358,24 @@ estimate's purpose.
   gap is larger — mean ~4 pts, and the on-target line can be mispredicted). Treat
   these estimates as lower-confidence and prefer a full simulation.
 
+### Known larger-error cases
+
+All errors below are **DC-exact** (verified to 0 MW by a direct `run_dc` check)
+and are therefore **AC-nonlinearity, not bugs**. They are catalogued so the
+estimate can be read correctly. Reproduce with
+`Co-Study4Grid/scripts/gst_estimation_vs_simulation_small_grid.py` (small grid,
+contingency `P.SAOL31RONCI`).
+
+| # | Trigger | Symptom | Measured (small grid) | Root cause | How to read it |
+|---|---|---|---|---|---|
+| 1 | Disconnecting a **heavily-loaded** line that dumps its flow onto a **low-flow meshed parallel corridor** | global `max_rho` **line flips** between two near-equally-loaded lines; few-% gap on the max | `disco_BEON L31CPVAN + load_shedding_P.SAO3TR312`: est **74.5 % on C.FOUL31MERVA** vs sim **70.0 % on PYMONL31SAISS**. Per-line: C.FOUL over-estimated ~15 pts, PYMON/FRON5 under-estimated. mean rho gap ~1.6 pts, max ~15 pts | BEON↔C.FOUL are tightly coupled (DC LODF = 1.0); the AC split of BEON's ~25 MW across the low-flow corridor (lines at ~7–25 MW) is operating-point dependent | Trust `target_max_rho` (on-target overload `BEON` is correctly predicted resolved, ~0.4 %); treat the off-target global max as indicative. **Not GST-specific** — pure-topology EST pairs (`reco + disco`) show the identical ~+4.7 MW C.FOUL error |
+| 2 | **Injection + injection** (two large `load_shedding` / `curtail` together), especially when both target the same constrained area | combined relief **over-predicted**; the on-target line itself can be mispredicted | `load_shedding_P.SAO3TR312 + load_shedding_BEON3 TR311`: est `BEON` **5.6 %** vs sim **38.1 %**. mean rho gap ~4.1 pts, max ~32.8 pts; flow gap up to ~18 MW | Two large injections each set a load/gen to 0; the AC responses compound (voltage/reactive), and pure superposition (β = 1.0 each) misses the sub-additivity of stacked injections | **Lower-confidence — prefer a full simulation.** A `low_confidence` flag for injection+injection pairs is a reasonable UI follow-up |
+
+The shared driver of #1 is the **disconnection redistribution onto low-flow
+lines**, not the injection: a few-MW AC error is invisible on a 400 MW line but
+is ~15 rho-points on a 30 MW line, which is exactly what reorders two ~75 %
+neighbours. #2 is specific to stacking two large injection changes.
+
 ---
 
 ## 11. Test Coverage
