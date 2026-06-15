@@ -307,11 +307,56 @@ This identity means the rho estimators (`_estimate_rho_from_p`, the default
 direct rho superposition) **and Co-Study4Grid's `compute_combined_rho`** need no
 GST-specific code path.
 
+### AC anchoring (which state values feed the GST)
+
+The GST is **AC-anchored**: every quantity it reads comes from the *AC* load-flow
+observations, not from a recomputed DC model.
+
+- The **injection superposition term** is `obs_inj.p_or − obs_start.p_or` (and the
+  same for `p_ex`), with both observations being AC states.
+- The **injection-shifted beta** is `beta_T = x(obs_inj) / x(obs_start)`, where `x`
+  is the AC `p_or` (disconnection / node split) or the AC `delta_theta` from
+  `theta_or − theta_ex` (reconnection / node merge), read on the switched element.
+
+So the estimate is anchored at the true AC operating point. **But using AC inputs
+does not make it AC-exact** — the superposition *law* it applies
+(`PF = α·ref + Σβ·unit + Σ injection`, betas from a linear ratio system) is exact
+only under **DC linearity**. Feeding AC values into a DC-derived linear law yields
+an *AC-anchored linear superposition*: better than a pure DC estimate, but it
+cannot reproduce AC nonlinearities (reactive / voltage coupling, loss
+redistribution, operating-point-dependent flow splits). There is also a second,
+AC-independent approximation: the injection response is captured at the
+**reference topology** and added in full, while in the combined target the
+topology has also changed — the topology betas absorb that coupling through the
+right-hand side (first-order-exact in DC, approximate in AC). Re-evaluating the
+injection in the combined topology would need an extra simulation, defeating the
+estimate's purpose.
+
 ### Accuracy
 
-Validated against ground-truth combined simulations (grid2op DC,
-`l2rpn_case14_sandbox`) to ~1e-6 MW for line disco/reco, node split/merge, and
-injection+injection pairs — see `test_superposition_gst.py`.
+- **DC: exact.** Validated against ground-truth combined simulations (grid2op DC,
+  `l2rpn_case14_sandbox`) to ~1e-6 MW for line disco/reco, node split/merge, and
+  injection+injection pairs (`test_superposition_gst.py`). A direct pypowsybl
+  `run_dc` check on the small grid reconstructs the flagged
+  `disco_BEON L31CPVAN + load_shedding_P.SAO3TR312` pair to **0.0000 MW** on every
+  line (`Co-Study4Grid/scripts/gst_estimation_vs_simulation_small_grid.py`).
+- **AC topology + injection: same accuracy as topology-only EST.** On the small
+  AC grid, a load-shedding (GST) pair and a pure-topology (EST) pair share the
+  same per-line rho error (~1–2 pts mean, occasionally ~15 pts). The injection
+  term (β = 1.0) adds nothing on top of the inherent EST/AC limit.
+- **Where the visible gap comes from.** A few-MW AC flow-split error is negligible
+  on heavily-loaded high-limit lines but, on **low-flow lines of a meshed parallel
+  corridor** (where disconnecting a loaded line dumps its flow), it becomes a
+  sizable rho-% error. When two such lines sit at near-equal loading, it **flips
+  which is reported as the global max** (e.g. estimate picks `C.FOUL31MERVA`,
+  simulation picks `PYMONL31SAISS`, both ~70–75 %). The decision-relevant number —
+  the effect on the operator's actual overload — is predicted correctly (that is
+  what `target_max_rho` surfaces). This is *not* GST-specific: pure-topology EST
+  pairs show the identical effect.
+- **AC injection + injection: weaker.** Two large injection changes compound the
+  AC nonlinearity, so the combined relief is over-predicted (DC-exact, but the AC
+  gap is larger — mean ~4 pts, and the on-target line can be mispredicted). Treat
+  these estimates as lower-confidence and prefer a full simulation.
 
 ---
 
@@ -323,4 +368,4 @@ injection+injection pairs — see `test_superposition_gst.py`.
 | `test_superposition_action_types.py` | All action type pair combinations (line+line, sub+sub, line+sub), reversed ordering, helper functions, no-op detection |
 | `test_superposition_rho_estimation.py` | P-based and delta-theta-based rho estimation, fallbacks, action-type-aware routing |
 | `test_superposition_extended.py` | Edge cases: no elements, multiple elements, singular systems, beta range validation |
-| `test_superposition_gst.py` | GST: topology+injection and injection+injection pairs vs ground truth, `is_injection_action` detection, `compute_all_pairs` inclusion of injection pairs |
+| `test_superposition_gst.py` | GST: topology+injection and injection+injection pairs vs ground truth (DC-exact), AC-anchoring (`TestGstIsAcAnchored`: beta RHS + reconstruction use the AC observation values), `is_injection_action` detection, `compute_all_pairs` inclusion of injection pairs |

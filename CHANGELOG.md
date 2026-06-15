@@ -29,7 +29,15 @@ changes with each other — previously these pairs were skipped. Based on
 - `compute_all_pairs_superposition` no longer filters out injection actions and
   passes the injection flags per pair.
 - **Tests**: `tests/test_superposition_gst.py` validates every injection-bearing
-  pair shape against ground-truth grid2op DC simulations (~1e-6 MW).
+  pair shape against ground-truth grid2op DC simulations (~1e-6 MW), plus a
+  `TestGstIsAcAnchored` class pinning that the beta RHS and the reconstruction
+  read the (AC) observation values verbatim.
+- **Docs**: `docs/superposition_module.md` §10 now documents the AC-anchoring of
+  the GST (AC values used throughout; the superposition law is DC-exact only, so
+  the AC residual is structural) and the accuracy profile (topology+injection ≡
+  topology-only EST; the global max-rho line can flip between near-equal low-flow
+  corridor lines while the on-target overload is predicted correctly;
+  injection+injection is lower-confidence).
 
 ---
 

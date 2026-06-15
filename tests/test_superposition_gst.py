@@ -193,6 +193,15 @@ class TestGstActionTypeSuperposition(unittest.TestCase):
     # injection + injection
     # =========================================================================
     def test_injection_plus_injection(self):
+        """Two injection changes combined.
+
+        In DC this is exact (injection superposition is linear), which is why
+        the assertion below holds to solver precision. The larger est-vs-sim
+        gaps observed for injection+injection on an AC grid are therefore a
+        structural AC-nonlinearity effect (two large injections compound the
+        reactive / voltage coupling), NOT a formula error — see
+        ``docs/superposition_module.md`` §10.
+        """
         self.env.set_id(self.chronic_id)
         self.env.reset()
         obs_start, *_ = self.env.step(self.env.action_space({}))
@@ -317,6 +326,70 @@ class TestComputeAllPairsWithInjection(unittest.TestCase):
         self.assertNotIn("error", res)
         # injection reported with beta = 1.0
         self.assertAlmostEqual(res["betas"][1], 1.0, places=6)
+
+
+class _AcObs:
+    """Minimal observation carrying AC-like flows (p_or != -p_ex, i.e. with
+    line losses). Enough for the line-disconnection GST path, which reads only
+    ``p_or`` / ``p_ex``."""
+
+    def __init__(self, p_or, p_ex):
+        self.p_or = np.array(p_or, dtype=float)
+        self.p_ex = np.array(p_ex, dtype=float)
+
+
+class TestGstIsAcAnchored(unittest.TestCase):
+    """The GST is *AC-anchored*: both the injection superposition term and the
+    injection-shifted beta right-hand side are read straight from the
+    (AC) observation values — no DC quantity is recomputed. See
+    ``docs/superposition_module.md`` §10.
+    """
+
+    def test_beta_rhs_and_reconstruction_use_observation_values(self):
+        # AC-like states: p_or != -p_ex (losses present), arbitrary magnitudes.
+        obs_start = _AcObs([100.0, 50.0, 30.0], [-99.0, -49.5, -29.7])
+        obs_topo = _AcObs([0.0, 80.0, 45.0], [0.0, -79.0, -44.5])      # line 0 disconnected
+        obs_inj = _AcObs([120.0, 40.0, 25.0], [-119.0, -39.6, -24.8])  # injection shifts flows
+        sw = 0  # switched line: connected in obs_start (p_or=100 > 1 MW) -> p_or branch
+
+        res = compute_combined_pair_gst(
+            obs_start, obs_topo, obs_inj,
+            act1_line_idxs=[sw], act1_sub_idxs=[],
+            act2_line_idxs=[], act2_sub_idxs=[],
+            act1_is_injection=False, act2_is_injection=True,
+        )
+        self.assertNotIn("error", res)
+
+        # Q2: the beta RHS is the injection's AC p_or ratio on the switched line.
+        beta_t_expected = obs_inj.p_or[sw] / obs_start.p_or[sw]  # 120/100 = 1.2
+        self.assertAlmostEqual(res["betas"][0], beta_t_expected, places=9)
+        self.assertEqual(res["betas"][1], 1.0)  # injection term added in full
+
+        # Q1: the reconstruction superposes the AC p_or AND p_ex values verbatim.
+        w = 1.0 - sum(res["betas"])
+        exp_por = w * obs_start.p_or + res["betas"][0] * obs_topo.p_or + res["betas"][1] * obs_inj.p_or
+        exp_pex = w * obs_start.p_ex + res["betas"][0] * obs_topo.p_ex + res["betas"][1] * obs_inj.p_ex
+        np.testing.assert_allclose(res["p_or_combined"], exp_por, atol=1e-9)
+        np.testing.assert_allclose(res["p_ex_combined"], exp_pex, atol=1e-9)
+
+        # p_ex is carried independently of p_or — only meaningful in AC, where
+        # p_or != -p_ex. This confirms AC (not DC-symmetric) values flow through.
+        self.assertFalse(np.allclose(res["p_ex_combined"], -np.asarray(res["p_or_combined"])))
+
+    def test_equivalent_to_explicit_gst_reconstruction(self):
+        """The reported flows equal alpha*start + beta*topo + (inj - start)."""
+        obs_start = _AcObs([80.0, 60.0], [-79.2, -59.4])
+        obs_topo = _AcObs([0.0, 95.0], [0.0, -94.0])
+        obs_inj = _AcObs([72.0, 64.0], [-71.3, -63.4])
+        sw = 0
+        res = compute_combined_pair_gst(
+            obs_start, obs_topo, obs_inj, [sw], [], [], [],
+            act1_is_injection=False, act2_is_injection=True)
+        beta_t = obs_inj.p_or[sw] / obs_start.p_or[sw]
+        # GST form: alpha*start + beta_t*topo + pure-superposition injection term
+        explicit = ((1.0 - beta_t) * obs_start.p_or + beta_t * obs_topo.p_or
+                    + (obs_inj.p_or - obs_start.p_or))
+        np.testing.assert_allclose(res["p_or_combined"], explicit, atol=1e-9)
 
 
 if __name__ == "__main__":
