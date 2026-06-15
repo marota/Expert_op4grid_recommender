@@ -254,7 +254,68 @@ The key difference is that a disconnection sets `p_or → 0` while a PST tap cha
 
 ---
 
-## 10. Test Coverage
+## 10. Generalized Superposition Theorem (GST): injection-aware pairs
+
+The Extended Superposition Theorem (EST) above combines two **topology** actions.
+The **GST** extends it to pairs where at least one action is an **injection**
+change — load shedding (`set_load_p`), renewable curtailment / redispatch
+(`set_gen_p`). These change only nodal injections, not the topology.
+
+### Detection
+
+`is_injection_action(action_id, action_desc, classifier)` flags an action as an
+injection change by id prefix (`load_shedding_` / `curtail_` / `redispatch_`) or
+classifier type (`load_power_reduction` / `gen_power_reduction` / `gen_redispatch`
+/ `open_load` / `open_gen`). `compute_combined_pair_superposition` routes a pair
+to `compute_combined_pair_gst` whenever either `act*_is_injection` is set, and
+`compute_all_pairs_superposition` now **keeps** injection actions (previously
+skipped) and pairs them with topology actions and with each other.
+
+### Formula (adapted from Topology_Superposition_Theorem)
+
+An injection action enters in **pure superposition** — its flow response
+`obs_inj.p_or − obs_start.p_or` is added in full. A topology action keeps an EST
+beta that the injection shifts **only through the right-hand side** of the
+(unchanged) 1×1 EST system:
+
+```
+beta_T = x(P_tgt, T_ref) / x(P_ref, T_ref)
+       = x(obs_inj) / x(obs_start)        # single injection on the switched asset
+```
+
+with `x = p_or` for disconnection / node split (non-zero reference flow) and
+`x = delta_theta` for reconnection / node merge (zero reference flow).
+
+### The `beta = 1.0` convention (why nothing downstream changes)
+
+`compute_combined_pair_gst` reports an injection action with **`beta = 1.0`** and
+a topology action with its solved `beta_T`. Because each injection term
+`(obs_inj − obs_start)` equals `1.0·obs_inj − 1.0·obs_start`, the `−obs_start`
+parts fold into the `(1 − sum(betas))` weight, so the **standard EST
+reconstruction** reproduces the exact GST flows:
+
+```
+p_combined = (1 − sum(betas)) · obs_start.p + betas[0]·p_act1 + betas[1]·p_act2
+```
+
+| Pair shape | betas | reconstruction |
+|---|---|---|
+| topology + injection | `[beta_T, 1.0]` | `−beta_T·start + beta_T·topo + inj` |
+| injection + injection | `[1.0, 1.0]` | `inj1 + inj2 − start` (DC-exact) |
+
+This identity means the rho estimators (`_estimate_rho_from_p`, the default
+direct rho superposition) **and Co-Study4Grid's `compute_combined_rho`** need no
+GST-specific code path.
+
+### Accuracy
+
+Validated against ground-truth combined simulations (grid2op DC,
+`l2rpn_case14_sandbox`) to ~1e-6 MW for line disco/reco, node split/merge, and
+injection+injection pairs — see `test_superposition_gst.py`.
+
+---
+
+## 11. Test Coverage
 
 | Test File | Focus |
 |---|---|
@@ -262,3 +323,4 @@ The key difference is that a disconnection sets `p_or → 0` while a PST tap cha
 | `test_superposition_action_types.py` | All action type pair combinations (line+line, sub+sub, line+sub), reversed ordering, helper functions, no-op detection |
 | `test_superposition_rho_estimation.py` | P-based and delta-theta-based rho estimation, fallbacks, action-type-aware routing |
 | `test_superposition_extended.py` | Edge cases: no elements, multiple elements, singular systems, beta range validation |
+| `test_superposition_gst.py` | GST: topology+injection and injection+injection pairs vs ground truth, `is_injection_action` detection, `compute_all_pairs` inclusion of injection pairs |
