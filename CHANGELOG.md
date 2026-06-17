@@ -11,6 +11,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.4.post1] - 2026-06-17
+
+### Readable voltage-level names as overflow-graph node labels
+
+For PyPSA-derived networks the substation/voltage-level IDs are opaque
+(`VL_way_...`) while a human-readable name (e.g. `"Saucats 400kV"`) is carried
+in the network's voltage-level `name` column. The overflow-graph visualization
+now renders that readable name as the node label.
+
+- **New** `get_zone_voltage_level_names(env_path)` in
+  `graph_analysis/visualization.py` — returns `{vl_id: readable_name}` from the
+  network, keeping only entries whose `name` is non-empty and differs from the
+  ID (cached per file path + mtime, like `get_zone_voltage_levels`).
+- `make_overflow_graph_visualization` sets the Graphviz `label` node attribute
+  from that mapping. **Node identity is left untouched** — the SVG `<title>` /
+  `data-name` keep the stable VL ID, so Co-Study4Grid pin overlays, geo-layout
+  matching and SLD lookups keep working; only the rendered text changes.
+- **New** config flag `USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH` (default `True`).
+  Networks without separate readable names (the usual RTE case, `name == id`)
+  yield an empty mapping and are rendered unchanged.
+
+### Bug Fixes
+
+- **Overflow graph blank on zipped (`.zip`) network paths**: the visualization
+  re-loads the network from `config.ENV_PATH`, which for the game-mode
+  `network.xiidm.zip` is a raw zip that `pypowsybl.network.load` cannot read —
+  the resolver fell through to a bogus `<path>/grid.xiidm` and raised, aborting
+  the whole render (so suggestions appeared but no graph). New
+  `_resolve_network_file` / `_extract_network_zip` decompress a zipped network
+  to a cached sibling `.xiidm` (temp-dir fallback if read-only), and also
+  resolve a directory / companion `.zip`. Both `get_zone_voltage_levels` and
+  `get_zone_voltage_level_names` route through it.
+- **Readable labels never break the render**: label text is sanitized
+  (`_sanitize_graph_label`) so embedded double quotes / backslashes / newlines
+  can't produce malformed DOT (older `pydot` mis-escapes them and crashes
+  Graphviz). As a safety net, if `plot()` still fails with labels applied they
+  are stripped and the plot retried once, so a presentational nicety can never
+  remove the core graph.
+
+### Tests
+
+- `test_visualization_filtering.py`: name-loader filtering, label application
+  with preserved identity, the sanitizer, the retry-without-labels fallback,
+  and zip / directory / companion-zip path resolution + zip extraction reuse.
+
+---
+
 ## [0.2.4] - 2026-06-15
 
 ### Generalized Superposition Theorem (GST) — injection-aware action pairs
