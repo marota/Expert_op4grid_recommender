@@ -13,6 +13,7 @@ import os
 import glob
 import shutil
 import numpy as np
+import networkx as nx
 import pypowsybl as pp
 
 # STEP 1: Import your config module
@@ -61,6 +62,58 @@ def get_zone_voltage_levels(env_path):
     if cache_key is not None:
         _zone_voltage_levels_cache.clear()  # keep at most the current network
         _zone_voltage_levels_cache[cache_key] = result
+    return result
+
+
+# Memoized result of get_zone_voltage_level_names keyed by (resolved network
+# file path, mtime). Same rationale as `_zone_voltage_levels_cache`: the
+# voltage-level name table is static within a study, so re-parsing the whole
+# .xiidm on every visualization call is wasted work.
+_zone_voltage_level_names_cache = {}
+
+
+def get_zone_voltage_level_names(env_path):
+    """Return ``{voltage_level_id: human_readable_name}`` from the network.
+
+    PyPSA-derived networks expose machine voltage-level IDs (``VL_way_...``)
+    as the node identity (``obs.name_sub``) while carrying a readable name
+    (e.g. ``"Saucats 400kV"``) in the voltage-level ``name`` column. This
+    helper extracts that mapping so the overflow-graph visualization can
+    relabel node *display text* without touching node identity.
+
+    Only entries whose ``name`` is non-empty AND differs from the ID are
+    returned: when a network has no separate readable names (the usual RTE
+    case, where ``name == id``) the result is empty and the graph is left
+    unchanged. The result is cached per (file path, mtime).
+    """
+    from pathlib import Path
+    env_path = Path(env_path)
+
+    # If env_path is already a network file, use it directly
+    if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
+        network_file_path = env_path
+    else:
+        network_file_path = env_path / "grid.xiidm"
+
+    try:
+        cache_key = (str(network_file_path), os.path.getmtime(network_file_path))
+    except OSError:
+        cache_key = None
+    if cache_key is not None and cache_key in _zone_voltage_level_names_cache:
+        return _zone_voltage_level_names_cache[cache_key]
+
+    n_zone = pp.network.load(str(network_file_path))
+    df_volt = n_zone.get_voltage_levels()
+    result = {}
+    if "name" in df_volt.columns:
+        for vl_id, name in zip(df_volt.index, df_volt["name"]):
+            name = "" if name is None else str(name)
+            if name and name != "nan" and name != str(vl_id):
+                result[str(vl_id)] = name
+
+    if cache_key is not None:
+        _zone_voltage_level_names_cache.clear()  # keep at most the current network
+        _zone_voltage_level_names_cache[cache_key] = result
     return result
 
 
@@ -182,6 +235,33 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
     number_nodal_dict = {sub_name: len(set(obs_simu.sub_topology(i)) - {-1}) for i, sub_name in
                          enumerate(obs_simu.name_sub)}
     g_overflow.set_electrical_node_number(number_nodal_dict)
+
+    # Use human-readable voltage-level names as the displayed node labels.
+    # The graph nodes are identified by their voltage-level ID (from
+    # ``obs.name_sub``); for PyPSA-derived networks those IDs are opaque
+    # (``VL_way_...``) while a readable name is available in the network.
+    # We set the Graphviz ``label`` node attribute (which controls the
+    # *rendered* text) and leave the node identity untouched, so the SVG
+    # ``<title>`` / ``data-name`` — and therefore pin overlays, SLD lookups
+    # and search — keep using the stable ID.
+    if getattr(config, "USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH", True):
+        try:
+            vl_name_map = get_zone_voltage_level_names(config.ENV_PATH)
+            if vl_name_map:
+                label_map = {
+                    node: vl_name_map[str(node)]
+                    for node in g_overflow.g.nodes
+                    if str(node) in vl_name_map
+                }
+                if label_map:
+                    nx.set_node_attributes(g_overflow.g, label_map, "label")
+        except Exception as exc:
+            # Readable labels are a presentational nicety — never let a
+            # name-lookup failure abort the (otherwise valid) graph render.
+            print(
+                "Could not apply voltage-level name labels to the overflow "
+                f"graph (keeping IDs): {type(exc).__name__}: {exc}"
+            )
 
     # Add hubs
     g_overflow.set_hubs_shape(hubs, shape_hub=shape_hub)

@@ -111,6 +111,15 @@ class Settings(BaseSettings):
     # static PDF (default); "html" saves the interactive HTML viewer
     # introduced by ExpertOp4Grid PR #74.
     VISUALIZATION_FORMAT: Literal["pdf", "html"] = "pdf"
+    # Use human-readable voltage-level names (the ``name`` column of the
+    # network's voltage levels) as the displayed node labels in the
+    # overflow graph instead of the raw voltage-level IDs. Useful for
+    # PyPSA-derived networks where the IDs look like ``VL_way_...`` while a
+    # readable name (e.g. ``"Saucats 400kV"``) is available. The node
+    # identity stays the VL ID (so pin overlays / SLD lookups keep working);
+    # only the rendered text changes. When a VL has no name, or its name
+    # equals its ID, the ID is kept as-is.
+    USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH: bool = True
     # Only possible for now with the pypowsybl backend.
     MAX_RHO_BOTH_EXTREMITIES: bool = True
     # Factor applied to permanent thermal limits when loading from

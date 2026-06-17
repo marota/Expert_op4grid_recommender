@@ -46,6 +46,7 @@ def test_make_overflow_graph_visualization_filtering():
     
     # 5. Patch external dependencies
     with patch("expert_op4grid_recommender.graph_analysis.visualization.get_zone_voltage_levels") as mock_get_volt, \
+         patch("expert_op4grid_recommender.graph_analysis.visualization.get_zone_voltage_level_names", return_value={}), \
          patch("expert_op4grid_recommender.graph_analysis.visualization.config") as mock_config, \
          patch("os.path.join", side_effect=os.path.join), \
          patch("os.makedirs"), \
@@ -85,6 +86,85 @@ def test_make_overflow_graph_visualization_filtering():
         
         # Check that line3 is NOT included (low rho and grey)
         assert "line3" not in dict_highlight
+
+def test_get_zone_voltage_level_names_filters_ids_and_empty():
+    """Only VLs with a readable name that differs from the ID are returned."""
+    import pandas as pd
+    from expert_op4grid_recommender.graph_analysis import visualization
+
+    df = pd.DataFrame(
+        {"name": ["Saucats 400kV", "VL_way_2", "", None]},
+        index=["VL_way_1", "VL_way_2", "VL_way_3", "VL_way_4"],
+    )
+    fake_network = MagicMock()
+    fake_network.get_voltage_levels.return_value = df
+
+    with patch.object(visualization.pp.network, "load", return_value=fake_network), \
+         patch("os.path.getmtime", side_effect=OSError):  # disable caching
+        result = visualization.get_zone_voltage_level_names("/some/grid.xiidm")
+
+    # Readable, distinct name kept; name==id, empty and None dropped.
+    assert result == {"VL_way_1": "Saucats 400kV"}
+
+
+def test_visualization_sets_readable_node_labels():
+    """Graph node `label` attribute is set to the readable VL name while the
+    node identity (ID) is preserved."""
+    import networkx as nx
+    from expert_op4grid_recommender.graph_analysis.visualization import (
+        make_overflow_graph_visualization,
+    )
+
+    env = MagicMock()
+    env.name_line = np.array(["line1"])
+
+    overflow_sim = MagicMock()
+    overflow_sim.obs_linecut.rho = np.array([0.5])
+    overflow_sim.ltc = np.array([0])
+
+    # Real graph so set_node_attributes actually mutates it.
+    real_g = nx.MultiDiGraph()
+    real_g.add_node("VL_way_1")
+    real_g.add_node("VL_way_2")
+    real_g.add_edge("VL_way_1", "VL_way_2", key=0, name="line1", color="blue")
+
+    g_overflow = MagicMock()
+    g_overflow.g = real_g
+
+    obs_simu = MagicMock()
+    obs_simu.rho = np.array([0.5])
+    obs_simu.name_sub = ["VL_way_1", "VL_way_2"]
+    obs_simu.sub_topology.return_value = [1]
+    obs_simu._obs_env._parameters.ENV_DC = False
+
+    with patch("expert_op4grid_recommender.graph_analysis.visualization.get_zone_voltage_levels", return_value={}), \
+         patch("expert_op4grid_recommender.graph_analysis.visualization.get_zone_voltage_level_names",
+               return_value={"VL_way_1": "Saucats 400kV"}), \
+         patch("expert_op4grid_recommender.graph_analysis.visualization.config") as mock_config, \
+         patch("os.makedirs"), patch("shutil.move"), patch("shutil.rmtree"), \
+         patch("glob.glob", return_value=["/dummy/save/test_graph/Base graph/plot.pdf"]), \
+         patch("builtins.print"):
+
+        mock_config.ENV_PATH = "/dummy/path"
+        mock_config.USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH = True
+        mock_config.DRAW_ONLY_SIGNIFICANT_EDGES = False
+        mock_config.USE_GRID_LAYOUT = False
+        mock_config.DO_CONSOLIDATE_GRAPH = False
+        mock_config.VISUALIZATION_FORMAT = "pdf"
+
+        make_overflow_graph_visualization(
+            env, overflow_sim, g_overflow, hubs=[], obs_simu=obs_simu,
+            save_folder="/dummy/save", graph_file_name="test_graph",
+            lines_swapped=[], monitoring_factor_thermal_limits=1.0,
+        )
+
+    # Readable label applied to the matching node, identity untouched.
+    assert real_g.nodes["VL_way_1"]["label"] == "Saucats 400kV"
+    # Node without a readable name keeps no label override (renders its ID).
+    assert "label" not in real_g.nodes["VL_way_2"]
+    # Node identities are unchanged (still the VL IDs).
+    assert set(real_g.nodes) == {"VL_way_1", "VL_way_2"}
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

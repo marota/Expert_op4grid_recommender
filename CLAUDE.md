@@ -176,6 +176,7 @@ DO_VISUALIZATION = True
 CHECK_ACTION_SIMULATION = True
 IGNORE_RECONNECTIONS = False
 N_PRIORITIZED_ACTIONS = 5
+USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH = True  # readable VL names as overflow-graph node labels (v0.2.4+)
 
 # Lines monitoring flags (v0.1.3+)
 IGNORE_LINES_MONITORING = False     # bypass lines monitoring limits
