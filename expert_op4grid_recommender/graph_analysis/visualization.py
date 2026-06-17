@@ -117,6 +117,26 @@ def get_zone_voltage_level_names(env_path):
     return result
 
 
+def _sanitize_graph_label(text):
+    """Make a readable name safe to use as a Graphviz node label.
+
+    Older ``pydot`` (< 2.0) does **not** escape embedded double quotes in
+    attribute values, so a voltage-level name such as
+    ``LAAT "SET Gurrea - SET Sabiñánigo"`` serializes to malformed DOT
+    (``label="LAAT "SET Gurrea ..."``) that makes ``dot`` / ``neato``
+    crash — which aborts the *entire* overflow-graph render. We therefore
+    neutralise the characters that can break DOT across pydot versions:
+    double quotes and backslashes become harmless equivalents, control
+    characters / newlines collapse to single spaces, and a leading ``<`` is
+    pushed in so Graphviz can't mistake the value for an HTML-like label.
+    """
+    s = str(text).replace('"', "'").replace("\\", "/")
+    s = " ".join(s.split())  # collapse newlines / control chars / whitespace runs
+    if s.startswith("<"):
+        s = " " + s
+    return s
+
+
 def get_graph_file_name(lines_defaut, chronic_name, timestep, use_dc_load_flow):
     """
     Loads voltage level information for substations from a PowSyBl network file.
@@ -244,17 +264,19 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
     # *rendered* text) and leave the node identity untouched, so the SVG
     # ``<title>`` / ``data-name`` — and therefore pin overlays, SLD lookups
     # and search — keep using the stable ID.
+    applied_label_nodes = []
     if getattr(config, "USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH", True):
         try:
             vl_name_map = get_zone_voltage_level_names(config.ENV_PATH)
             if vl_name_map:
                 label_map = {
-                    node: vl_name_map[str(node)]
+                    node: _sanitize_graph_label(vl_name_map[str(node)])
                     for node in g_overflow.g.nodes
                     if str(node) in vl_name_map
                 }
                 if label_map:
                     nx.set_node_attributes(g_overflow.g, label_map, "label")
+                    applied_label_nodes = list(label_map.keys())
         except Exception as exc:
             # Readable labels are a presentational nicety — never let a
             # name-lookup failure abort the (otherwise valid) graph render.
@@ -334,14 +356,35 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
         )
     # Generate and save visualization
     tmp_save_folder = os.path.join(save_folder, graph_file_name)
-    svg = g_overflow.plot(
-        custom_layout,
-        save_folder=tmp_save_folder,
-        fontsize=fontsize,
-        without_gray_edges=DRAW_ONLY_SIGNIFICANT_EDGES,
-        node_thickness=node_thickness,
-        rescale_factor=rescale_factor
-    )
+
+    def _plot():
+        return g_overflow.plot(
+            custom_layout,
+            save_folder=tmp_save_folder,
+            fontsize=fontsize,
+            without_gray_edges=DRAW_ONLY_SIGNIFICANT_EDGES,
+            node_thickness=node_thickness,
+            rescale_factor=rescale_factor
+        )
+
+    try:
+        svg = _plot()
+    except Exception as exc:
+        # The readable-name labels must never be able to break the graph
+        # render: some Graphviz/pydot combos choke on label text that the
+        # local stack here tolerates. If the labelled render fails, drop the
+        # display labels (node identity is unchanged) and retry once so the
+        # operator still gets the graph — just with VL IDs as text.
+        if applied_label_nodes:
+            print(
+                "Overflow-graph render failed with readable node labels "
+                f"({type(exc).__name__}: {exc}); retrying with VL IDs."
+            )
+            for node in applied_label_nodes:
+                g_overflow.g.nodes[node].pop("label", None)
+            svg = _plot()
+        else:
+            raise
 
     # Pick output format from config ("pdf" default, or "html" from PR #74).
     output_format = getattr(config, "VISUALIZATION_FORMAT", "pdf").lower()

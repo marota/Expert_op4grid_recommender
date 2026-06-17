@@ -107,6 +107,24 @@ def test_get_zone_voltage_level_names_filters_ids_and_empty():
     assert result == {"VL_way_1": "Saucats 400kV"}
 
 
+def test_sanitize_graph_label_neutralizes_dot_breaking_chars():
+    """Embedded quotes / backslashes / newlines must not survive into the
+    label (older pydot mis-escapes them and crashes Graphviz)."""
+    from expert_op4grid_recommender.graph_analysis.visualization import (
+        _sanitize_graph_label,
+    )
+
+    assert _sanitize_graph_label('LAAT "SET Gurrea - SET Sabiñánigo"') == \
+        "LAAT 'SET Gurrea - SET Sabiñánigo'"
+    assert '"' not in _sanitize_graph_label('a "b" c')
+    assert "\\" not in _sanitize_graph_label("a\\b")
+    assert "\n" not in _sanitize_graph_label("line1\nline2")
+    # A value that would otherwise be read as an HTML-like label is defused.
+    assert not _sanitize_graph_label("<html>").startswith("<")
+    # Plain names with accents / dashes pass through unchanged.
+    assert _sanitize_graph_label("Subestación 220kV") == "Subestación 220kV"
+
+
 def test_visualization_sets_readable_node_labels():
     """Graph node `label` attribute is set to the readable VL name while the
     node identity (ID) is preserved."""
@@ -164,6 +182,63 @@ def test_visualization_sets_readable_node_labels():
     assert "label" not in real_g.nodes["VL_way_2"]
     # Node identities are unchanged (still the VL IDs).
     assert set(real_g.nodes) == {"VL_way_1", "VL_way_2"}
+
+
+def test_visualization_retries_without_labels_when_plot_fails():
+    """If the labelled render crashes (e.g. a Graphviz/pydot quirk), the
+    labels are dropped and the plot retried so the operator still gets a
+    graph."""
+    import networkx as nx
+    from expert_op4grid_recommender.graph_analysis.visualization import (
+        make_overflow_graph_visualization,
+    )
+
+    env = MagicMock()
+    env.name_line = np.array(["line1"])
+    overflow_sim = MagicMock()
+    overflow_sim.obs_linecut.rho = np.array([0.5])
+    overflow_sim.ltc = np.array([0])
+
+    real_g = nx.MultiDiGraph()
+    real_g.add_node("VL_way_1")
+    real_g.add_edge("VL_way_1", "VL_way_1", key=0, name="line1", color="blue")
+
+    g_overflow = MagicMock()
+    g_overflow.g = real_g
+    # First plot call raises (labels present), second succeeds.
+    g_overflow.plot.side_effect = [RuntimeError("graphviz boom"), "svg-data"]
+
+    obs_simu = MagicMock()
+    obs_simu.rho = np.array([0.5])
+    obs_simu.name_sub = ["VL_way_1"]
+    obs_simu.sub_topology.return_value = [1]
+    obs_simu._obs_env._parameters.ENV_DC = False
+
+    with patch("expert_op4grid_recommender.graph_analysis.visualization.get_zone_voltage_levels", return_value={}), \
+         patch("expert_op4grid_recommender.graph_analysis.visualization.get_zone_voltage_level_names",
+               return_value={"VL_way_1": "Saucats 400kV"}), \
+         patch("expert_op4grid_recommender.graph_analysis.visualization.config") as mock_config, \
+         patch("os.makedirs"), patch("shutil.move"), patch("shutil.rmtree"), \
+         patch("glob.glob", return_value=["/dummy/save/test_graph/Base graph/plot.pdf"]), \
+         patch("builtins.print"):
+
+        mock_config.ENV_PATH = "/dummy/path"
+        mock_config.USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH = True
+        mock_config.DRAW_ONLY_SIGNIFICANT_EDGES = False
+        mock_config.USE_GRID_LAYOUT = False
+        mock_config.DO_CONSOLIDATE_GRAPH = False
+        mock_config.VISUALIZATION_FORMAT = "pdf"
+
+        svg = make_overflow_graph_visualization(
+            env, overflow_sim, g_overflow, hubs=[], obs_simu=obs_simu,
+            save_folder="/dummy/save", graph_file_name="test_graph",
+            lines_swapped=[], monitoring_factor_thermal_limits=1.0,
+        )
+
+    # Retried (two plot calls) and the label was stripped before the retry.
+    assert g_overflow.plot.call_count == 2
+    assert "label" not in real_g.nodes["VL_way_1"]
+    assert svg == "svg-data"
 
 
 if __name__ == "__main__":
