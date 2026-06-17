@@ -107,6 +107,35 @@ def test_get_zone_voltage_level_names_filters_ids_and_empty():
     assert result == {"VL_way_1": "Saucats 400kV"}
 
 
+def test_resolve_network_file_handles_zip_and_dir(tmp_path):
+    """A zipped network is decompressed; a directory falls back to its
+    xiidm; a plain file is used as-is."""
+    import zipfile
+    from expert_op4grid_recommender.graph_analysis.visualization import (
+        _resolve_network_file,
+    )
+
+    # Plain file used as-is.
+    xiidm = tmp_path / "net.xiidm"
+    xiidm.write_text("<network/>")
+    assert _resolve_network_file(xiidm) == xiidm
+
+    # Zip archive -> extracted sibling .xiidm (pypowsybl can't read the .zip).
+    zip_path = tmp_path / "network.xiidm.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("network.xiidm", "<network/>")
+    resolved = _resolve_network_file(zip_path)
+    assert resolved.suffix == ".xiidm"
+    assert resolved.is_file()
+    assert resolved.read_text() == "<network/>"
+
+    # Directory with grid.xiidm.
+    d = tmp_path / "envdir"
+    d.mkdir()
+    (d / "grid.xiidm").write_text("<network/>")
+    assert _resolve_network_file(d) == d / "grid.xiidm"
+
+
 def test_sanitize_graph_label_neutralizes_dot_breaking_chars():
     """Embedded quotes / backslashes / newlines must not survive into the
     label (older pydot mis-escapes them and crashes Graphviz)."""

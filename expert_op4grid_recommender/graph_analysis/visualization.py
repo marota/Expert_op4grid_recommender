@@ -29,6 +29,84 @@ from expert_op4grid_recommender.config import DRAW_ONLY_SIGNIFICANT_EDGES, USE_G
 _zone_voltage_levels_cache = {}
 
 
+def _extract_network_zip(zip_path):
+    """Extract the first ``.xiidm`` / ``.xml`` member of ``zip_path`` and
+    return the path to the decompressed file.
+
+    The member is written next to the archive (so it is cached and reused
+    across calls); if that directory is read-only we fall back to a temp
+    dir. This mirrors Co-Study4Grid's ``network_service`` behaviour so the
+    recommender can load a zipped network (e.g. the game-mode
+    ``network.xiidm.zip``) on its own.
+    """
+    import os
+    import tempfile
+    import zipfile
+    from pathlib import Path
+
+    with zipfile.ZipFile(str(zip_path)) as zf:
+        members = [n for n in zf.namelist() if n.lower().endswith((".xiidm", ".xml", ".iidm"))]
+        if not members:
+            raise FileNotFoundError(f"No .xiidm/.xml member found inside {zip_path}")
+        member = members[0]
+        out_name = os.path.basename(member)
+        out_dir = os.path.dirname(os.path.abspath(str(zip_path)))
+        out_path = os.path.join(out_dir, out_name)
+        if os.path.isfile(out_path):
+            return Path(out_path)  # already decompressed — reuse
+        data = zf.read(member)
+        try:
+            with open(out_path, "wb") as f:
+                f.write(data)
+        except OSError:
+            out_path = os.path.join(tempfile.mkdtemp(prefix="eo4g_net_"), out_name)
+            with open(out_path, "wb") as f:
+                f.write(data)
+        return Path(out_path)
+
+
+def _resolve_network_file(env_path):
+    """Resolve ``env_path`` to a pypowsybl-loadable network file.
+
+    ``env_path`` may be a direct network file (``.xiidm`` / ``.iidm`` /
+    ``.xml``), a **zip archive** of one (``pypowsybl.network.load`` cannot
+    read an arbitrary ``.zip``, so we decompress it), or a directory
+    containing ``grid.xiidm`` (the Grid2Op-style layout).
+
+    The previous logic only recognised ``.xiidm`` / ``.iidm`` / ``.xml`` as
+    files, so a zipped network (e.g. the game-mode ``network.xiidm.zip``)
+    fell through to the directory branch and produced a bogus
+    ``network.xiidm.zip/grid.xiidm`` path that failed to load — aborting
+    the whole overflow-graph render even though action discovery (which
+    reuses the already-extracted network) succeeded.
+    """
+    from pathlib import Path
+    env_path = Path(env_path)
+
+    if env_path.is_file():
+        if env_path.suffix.lower() == ".zip":
+            return _extract_network_zip(env_path)
+        return env_path
+
+    if env_path.is_dir():
+        grid = env_path / "grid.xiidm"
+        if grid.is_file():
+            return grid
+        direct = [f for f in env_path.iterdir() if f.suffix.lower() in (".xiidm", ".iidm", ".xml")]
+        if direct:
+            return direct[0]
+        zips = [f for f in env_path.iterdir() if f.suffix.lower() == ".zip"]
+        if zips:
+            return _extract_network_zip(zips[0])
+        return grid
+
+    # Missing path: try a sibling/companion .zip (``foo.xiidm`` -> ``foo.xiidm.zip``).
+    for cand in (Path(str(env_path) + ".zip"), env_path.with_suffix(".zip")):
+        if cand.is_file():
+            return _extract_network_zip(cand)
+    return env_path / "grid.xiidm"
+
+
 def get_zone_voltage_levels(env_path):
     """
     Loads voltage level information for substations from a PowSyBl network file.
@@ -38,16 +116,7 @@ def get_zone_voltage_levels(env_path):
     voltage-level -> nominal-voltage mapping, so re-parsing the whole
     network each time is pure waste.
     """
-    from pathlib import Path
-    env_path = Path(env_path)
-
-    # If env_path is already a network file, use it directly
-    if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
-        network_file_path = env_path
-    else:
-        # Otherwise, look for grid.xiidm in the directory
-        file_iidm = "grid.xiidm"
-        network_file_path = env_path / file_iidm
+    network_file_path = _resolve_network_file(env_path)
 
     try:
         cache_key = (str(network_file_path), os.path.getmtime(network_file_path))
@@ -86,14 +155,7 @@ def get_zone_voltage_level_names(env_path):
     case, where ``name == id``) the result is empty and the graph is left
     unchanged. The result is cached per (file path, mtime).
     """
-    from pathlib import Path
-    env_path = Path(env_path)
-
-    # If env_path is already a network file, use it directly
-    if env_path.is_file() and env_path.suffix.lower() in ['.xiidm', '.iidm', '.xml']:
-        network_file_path = env_path
-    else:
-        network_file_path = env_path / "grid.xiidm"
+    network_file_path = _resolve_network_file(env_path)
 
     try:
         cache_key = (str(network_file_path), os.path.getmtime(network_file_path))
