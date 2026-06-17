@@ -136,6 +136,83 @@ def test_resolve_network_file_handles_zip_and_dir(tmp_path):
     assert _resolve_network_file(d) == d / "grid.xiidm"
 
 
+def test_extract_network_zip_extracts_and_reuses(tmp_path):
+    """The zip member is extracted next to the archive and reused on a
+    second call (no re-extraction)."""
+    import zipfile
+    from expert_op4grid_recommender.graph_analysis.visualization import (
+        _extract_network_zip,
+    )
+
+    zip_path = tmp_path / "network.xiidm.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("network.xiidm", "<network>v1</network>")
+
+    out1 = _extract_network_zip(zip_path)
+    assert out1.is_file()
+    assert out1.parent == tmp_path
+    assert out1.read_text() == "<network>v1</network>"
+
+    # Reuse path: the extracted sibling already exists, so a second call
+    # returns it without rewriting (even if the zip member differs).
+    out2 = _extract_network_zip(zip_path)
+    assert out2 == out1
+
+
+def test_extract_network_zip_raises_without_xiidm_member(tmp_path):
+    import zipfile
+    from expert_op4grid_recommender.graph_analysis.visualization import (
+        _extract_network_zip,
+    )
+
+    zip_path = tmp_path / "bogus.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("readme.txt", "no network here")
+    with pytest.raises(FileNotFoundError):
+        _extract_network_zip(zip_path)
+
+
+def test_resolve_network_file_companion_zip(tmp_path):
+    """A missing ``foo.xiidm`` resolves to its companion ``foo.xiidm.zip``."""
+    import zipfile
+    from expert_op4grid_recommender.graph_analysis.visualization import (
+        _resolve_network_file,
+    )
+
+    zip_path = tmp_path / "network.xiidm.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("network.xiidm", "<network/>")
+
+    resolved = _resolve_network_file(tmp_path / "network.xiidm")  # does not exist
+    assert resolved.suffix == ".xiidm"
+    assert resolved.is_file()
+
+
+def test_get_zone_voltage_level_names_loads_through_zip(tmp_path):
+    """get_zone_voltage_level_names decompresses a .zip before loading
+    (pypowsybl can't read the archive directly)."""
+    import zipfile
+    import pandas as pd
+    from expert_op4grid_recommender.graph_analysis import visualization
+
+    zip_path = tmp_path / "network.xiidm.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("network.xiidm", "<network/>")
+
+    df = pd.DataFrame({"name": ["Readable A"]}, index=["VL_way_1"])
+    fake_network = MagicMock()
+    fake_network.get_voltage_levels.return_value = df
+
+    with patch.object(visualization.pp.network, "load", return_value=fake_network) as mock_load:
+        result = visualization.get_zone_voltage_level_names(zip_path)
+
+    # Loaded from the extracted .xiidm, NOT the raw .zip.
+    loaded_arg = str(mock_load.call_args[0][0])
+    assert loaded_arg.endswith(".xiidm")
+    assert not loaded_arg.endswith(".zip")
+    assert result == {"VL_way_1": "Readable A"}
+
+
 def test_sanitize_graph_label_neutralizes_dot_breaking_chars():
     """Embedded quotes / backslashes / newlines must not survive into the
     label (older pydot mis-escapes them and crashes Graphviz)."""
