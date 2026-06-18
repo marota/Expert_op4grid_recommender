@@ -199,6 +199,86 @@ def identify_overload_lines_to_keep_overflow_graph_connected(obs_simu, lines_ove
     return lines_overloaded_ids_to_keep, prevent_islanded_subs
 
 
+def extract_antenna_context(obs_simu, lines_overloaded_ids):
+    """
+    Extract the radial ("antenne") pocket islanded by disconnecting the max overload.
+
+    This is the companion of
+    :func:`identify_overload_lines_to_keep_overflow_graph_connected` for the
+    case where disconnecting even the single most-loaded overloaded line breaks
+    the grid apart (``lines_overloaded_ids_to_keep is None``). Instead of giving
+    up, we describe the pocket of substations that gets disconnected so a
+    synthetic downstream overflow graph can be built on it (see
+    :func:`expert_op4grid_recommender.graph_analysis.antenna_graph.build_antenna_overflow_graph`).
+
+    The pocket is the set of substations that leave the main connected component
+    when the max overload edge is removed. The constraint line bridges the main
+    grid (its ``root`` substation) and the pocket (its entry substation).
+
+    Args:
+        obs_simu: Grid2Op-compatible observation (post-contingency state).
+        lines_overloaded_ids (list[int]): indices of the overloaded lines.
+
+    Returns:
+        dict | None: ``None`` when no pocket is islanded by the max overload
+        alone (i.e. this is not an antenna case). Otherwise a dict with keys:
+            - ``constraint_line_id`` (int): index of the max overload line.
+            - ``constraint_line_name`` (str)
+            - ``root_sub_id`` (int): the constraint endpoint on the main grid.
+            - ``antenna_sub_ids`` (list[int]): substation ids in the pocket.
+            - ``antenna_sub_names`` (list[str])
+    """
+    if not lines_overloaded_ids:
+        return None
+
+    max_rho = max(obs_simu.rho[i] for i in lines_overloaded_ids)
+    constraint_line_id = [i for i in lines_overloaded_ids if obs_simu.rho[i] == max_rho][0]
+    constraint_line_name = obs_simu.name_line[constraint_line_id]
+
+    comps_init, comps_wo_max_overload, _ = get_n_connected_components_graph_with_overloads(
+        obs_simu, lines_overloaded_ids)
+
+    # Nodes that leave the main component once the max overload is removed.
+    islanded_node_labels = set(comps_init[0]) - set(comps_wo_max_overload[0])
+    if not islanded_node_labels:
+        return None
+
+    def _label_to_subid(label):
+        # node labels are produced as "subid_<id>_bus_<b>" in
+        # get_n_connected_components_graph_with_overloads
+        if isinstance(label, int):
+            return label
+        return int(str(label).split('_')[1])
+
+    n_subs = len(obs_simu.name_sub)
+    antenna_sub_ids = sorted({sid for sid in (_label_to_subid(l) for l in islanded_node_labels)
+                              if sid < n_subs})
+    if not antenna_sub_ids:
+        return None
+
+    or_sub = int(obs_simu.line_or_to_subid[constraint_line_id])
+    ex_sub = int(obs_simu.line_ex_to_subid[constraint_line_id])
+    antenna_set = set(antenna_sub_ids)
+    # The constraint line bridges the pocket and the main grid: its endpoint
+    # inside the pocket is the entry, the other endpoint is the root.
+    if or_sub in antenna_set and ex_sub not in antenna_set:
+        root_sub_id = ex_sub
+    elif ex_sub in antenna_set and or_sub not in antenna_set:
+        root_sub_id = or_sub
+    else:
+        # Degenerate: both (or neither) endpoints in the pocket — not a clean
+        # single-feed antenna; bail out so the caller keeps the legacy path.
+        return None
+
+    return {
+        "constraint_line_id": constraint_line_id,
+        "constraint_line_name": constraint_line_name,
+        "root_sub_id": root_sub_id,
+        "antenna_sub_ids": antenna_sub_ids,
+        "antenna_sub_names": [obs_simu.name_sub[i] for i in antenna_sub_ids],
+    }
+
+
 def get_constrained_and_dispatch_paths(g_distribution_graph, obs, lines_overloaded_ids, lines_overloaded_ids_kept):
     """
     Extracts constrained (blue) and dispatch (red) paths from a structured overload distribution graph.
