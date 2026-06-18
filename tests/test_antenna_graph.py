@@ -13,8 +13,12 @@ import types
 import networkx as nx
 import numpy as np
 import pytest
+from alphaDeesp.core.graphsAndPaths import Structured_Overload_Distribution_Graph
 
-from expert_op4grid_recommender.graph_analysis.antenna_graph import build_antenna_overflow_graph
+from expert_op4grid_recommender.graph_analysis.antenna_graph import (
+    SOURCE_NODE_NAME,
+    build_antenna_overflow_graph,
+)
 from expert_op4grid_recommender.graph_analysis.processor import extract_antenna_context
 
 
@@ -144,6 +148,29 @@ def test_antenna_meta_producer_direction():
     assert meta["net_mw"] == pytest.approx(140.0)
 
 
+def test_node_name_mapping_reverts_to_real_substation_indices():
+    """The discovery pipeline reverts node names to *real* grid2op sub indices
+    (via pre_process_graph_alphadeesp) and uses them to index obs arrays, so the
+    mapping must be keyed by real substation ids — not compact 0..k-1 ids."""
+    obs = _make_obs()
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    _, _, g_overflow, _, _, mapping, _ = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    # mapping is {real_sub_id: name} for the 5 real subs + the sentinel source
+    # (id == n_subs == 9), which the discovery's ``idx < n_subs`` guards drop.
+    assert mapping[0] == "S0" and mapping[4] == "S4"
+    assert mapping[9] == SOURCE_NODE_NAME
+
+    # Reverting names -> real indices (what pre_process_graph_alphadeesp does)
+    # must NOT crash in integer space and keeps the pocket downstream.
+    reverse = {name: sid for sid, name in mapping.items()}
+    g_idx = nx.relabel_nodes(g_overflow.g, reverse, copy=True)
+    sdg_idx = Structured_Overload_Distribution_Graph(g_idx)
+    # downstream nodes are the real substation indices of the pocket
+    assert set(sdg_idx.get_constrained_path().n_aval()) == {1, 2, 3, 4}
+
+
 def test_antenna_graph_is_a_connected_dag_rooted_at_root():
     obs = _make_obs()
     ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
@@ -151,9 +178,9 @@ def test_antenna_graph_is_a_connected_dag_rooted_at_root():
         obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
 
     g = g_overflow.g
-    assert set(g.nodes()) == {"S0", "S1", "S2", "S3", "S4"}
-    # 1 constraint edge + 3 antenna branches
-    assert g.number_of_edges() == 4
+    assert set(g.nodes()) == {SOURCE_NODE_NAME, "S0", "S1", "S2", "S3", "S4"}
+    # grid-source anchor + constraint edge + 3 antenna branches
+    assert g.number_of_edges() == 5
     assert nx.is_weakly_connected(g)
     # acyclic when collapsed to a simple digraph (radial, oriented away from root)
     assert nx.is_directed_acyclic_graph(nx.DiGraph(g))

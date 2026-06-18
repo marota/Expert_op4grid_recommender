@@ -42,6 +42,11 @@ import numpy as np
 import pandas as pd
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph
 
+# Name of the synthetic upstream node injected to anchor the constrained path's
+# "amont" side (see build_antenna_overflow_graph). Consumers that render the
+# graph can hide nodes/edges carrying this sentinel name.
+SOURCE_NODE_NAME = "__GRID_SOURCE__"
+
 
 def _sub_injections(obs: Any, sub_ids: List[int]) -> Tuple[Dict[int, float], Dict[int, float]]:
     """Aggregate production and load (MW) per substation id."""
@@ -134,16 +139,44 @@ def build_antenna_overflow_graph(obs: Any, constraint_line_id: int,
         tuple: ``(df, overflow_sim, g_overflow, real_hubs, g_distribution_graph,
         node_name_mapping, antenna_meta)`` — mirrors ``build_overflow_graph``'s
         return (``overflow_sim is None``) with ``antenna_meta`` appended.
+        ``g_overflow.g`` nodes are substation names; ``node_name_mapping`` is
+        ``{real_substation_id: name}`` so the downstream
+        ``pre_process_graph_alphadeesp`` reverts to real substation indices.
     """
     # Compact, contiguous node ids: root first, then the pocket substations.
+    # ``OverFlowGraph.build_nodes`` always numbers nodes 0..k-1, so we build
+    # with these compact ids and later relabel to substation names — exactly
+    # like the real ``build_overflow_graph``. The returned ``node_name_mapping``
+    # is keyed by the *real* grid2op substation id (matching the real builder's
+    # contract), so ``pre_process_graph_alphadeesp`` reverts the names back to
+    # real substation indices that the injection-action discovery uses to index
+    # ``obs.name_sub`` / ``obs.load_p`` / ``obs.gen_p``.
     node_sub_ids: List[int] = [root_sub_id] + [s for s in antenna_sub_ids if s != root_sub_id]
+
+    # Synthetic upstream "grid source" feeding the root, modelling the rest of
+    # the grid that supplies the overloaded line. Beyond being physically the
+    # "amont" of the constrained path, it is REQUIRED: without it the root has
+    # only the black constraint edge, so alphaDeesp's ``find_hubs`` removes it
+    # as an isolate (after deleting the black edge) and then crashes calling
+    # ``out_edges(root)`` once the graph is reverted to integer node ids — the
+    # space the discovery actually runs in. Its id is a sentinel ``>= n_subs``
+    # so every ``idx < n_subs`` guard in the discovery filters it out.
+    n_subs_total = len(obs.name_sub)
+    source_id = n_subs_total
+    source_name = SOURCE_NODE_NAME
+
     sub_to_idx: Dict[int, int] = {sid: i for i, sid in enumerate(node_sub_ids)}
-    node_name_mapping: Dict[int, str] = {i: obs.name_sub[sid] for i, sid in enumerate(node_sub_ids)}
+    sub_to_idx[source_id] = len(node_sub_ids)
+    compact_to_name: Dict[int, str] = {i: obs.name_sub[sid] for i, sid in enumerate(node_sub_ids)}
+    compact_to_name[len(node_sub_ids)] = source_name
+    node_name_mapping: Dict[int, str] = {sid: obs.name_sub[sid] for sid in node_sub_ids}
+    node_name_mapping[source_id] = source_name
 
     prod_by_sub, load_by_sub = _sub_injections(obs, node_sub_ids)
 
-    # topo["nodes"]: arrays indexed by compact node id (0..k-1). build_nodes
+    # topo["nodes"]: arrays indexed by compact node id (0..k). build_nodes
     # pulls from prods_values / loads_values only where are_prods / are_loads.
+    # The trailing source node is neither prod nor load (a neutral anchor).
     are_prods, are_loads, prods_values, loads_values = [], [], [], []
     for sid in node_sub_ids:
         prod = prod_by_sub.get(sid, 0.0)
@@ -154,6 +187,8 @@ def build_antenna_overflow_graph(obs: Any, constraint_line_id: int,
             prods_values.append(prod)
         if load > 0:
             loads_values.append(load)
+    are_prods.append(False)
+    are_loads.append(False)
 
     topo = {
         "nodes": {
@@ -170,12 +205,20 @@ def build_antenna_overflow_graph(obs: Any, constraint_line_id: int,
     or_sub = int(obs.line_or_to_subid[constraint_line_id])
     ex_sub = int(obs.line_ex_to_subid[constraint_line_id])
     entry_sub = ex_sub if or_sub == root_sub_id else or_sub
+    constraint_flow = abs(float(p_or[constraint_line_id]))
     rows = [{
         "idx_or": sub_to_idx[root_sub_id],
         "idx_ex": sub_to_idx[entry_sub],
-        "delta_flows": -abs(float(p_or[constraint_line_id])),
+        "delta_flows": -constraint_flow,
         "gray_edges": False,
         "line_name": obs.name_line[constraint_line_id],
+    }, {
+        # Amont anchor: grid source → root (blue), mirroring the constraint flow.
+        "idx_or": sub_to_idx[source_id],
+        "idx_ex": sub_to_idx[root_sub_id],
+        "delta_flows": -constraint_flow,
+        "gray_edges": False,
+        "line_name": source_name,
     }]
 
     # Pocket branches: blue (negative delta = lost report), oriented root→leaf.
@@ -192,7 +235,7 @@ def build_antenna_overflow_graph(obs: Any, constraint_line_id: int,
 
     # The constraint line (row 0) is the only "cut" line → coloured black.
     g_overflow = OverFlowGraph(topo, [0], df, float_precision=float_precision)
-    g_overflow.g = nx.relabel_nodes(g_overflow.g, node_name_mapping, copy=True)
+    g_overflow.g = nx.relabel_nodes(g_overflow.g, compact_to_name, copy=True)
 
     g_distribution_graph = Structured_Overload_Distribution_Graph(g_overflow.g)
     real_hubs = g_distribution_graph.get_hubs()
