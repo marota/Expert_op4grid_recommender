@@ -331,6 +331,42 @@ def get_constrained_and_dispatch_paths(g_distribution_graph, obs, lines_overload
     return lines_blue_paths, nodes_blue_path, lines_dispatch, nodes_dispatch_path
 
 
+def pre_process_antenna_graph(g_overflow, node_name_mapping):
+    """``pre_process_graph_alphadeesp`` counterpart for the synthetic antenna graph.
+
+    The antenna overflow graph is built by hand (no ``Grid2opSimulation``), so
+    there is no ``overflow_sim`` to extract ``simulator_data`` from. Node
+    splitting — the only consumer of ``simulator_data`` — is disabled in antenna
+    mode, so an empty ``simulator_data`` is returned. The node-label reversion
+    (substation names → real substation indices) and edge-label cleanup are
+    identical to the regular pre-processing, so the injection-action discovery
+    indexes ``obs`` arrays with correct substation indices.
+
+    Args:
+        g_overflow (OverFlowGraph): antenna overflow graph (nodes are sub names).
+        node_name_mapping (dict): ``{real_substation_id: name}``.
+
+    Returns:
+        tuple: ``(g_overflow, g_distribution_graph, simulator_data)`` with
+        ``simulator_data == {}``.
+    """
+    reverse_node_name_mapping = {name: i for i, name in node_name_mapping.items()}
+    g_overflow.g = nx.relabel_nodes(g_overflow.g, reverse_node_name_mapping, copy=True)
+
+    all_edges_xlabel_attributes = nx.get_edge_attributes(g_overflow.g, "label")
+    for edge, label in all_edges_xlabel_attributes.items():
+        try:
+            float(label)
+        except (ValueError, TypeError):
+            match = re.search(r'[-+]?\d+', str(label))
+            if match:
+                all_edges_xlabel_attributes[edge] = match.group()
+    nx.set_edge_attributes(g_overflow.g, all_edges_xlabel_attributes, "label")
+
+    g_distribution_graph = Structured_Overload_Distribution_Graph(g_overflow.g)
+    return g_overflow, g_distribution_graph, {}
+
+
 def pre_process_graph_alphadeesp(g_overflow, overflow_sim, node_name_mapping):
     """
     Prepares the overflow graph and extracts simulation data for use with AlphaDeesp functions.

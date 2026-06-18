@@ -19,7 +19,10 @@ from expert_op4grid_recommender.graph_analysis.antenna_graph import (
     SOURCE_NODE_NAME,
     build_antenna_overflow_graph,
 )
-from expert_op4grid_recommender.graph_analysis.processor import extract_antenna_context
+from expert_op4grid_recommender.graph_analysis.processor import (
+    extract_antenna_context,
+    pre_process_antenna_graph,
+)
 
 
 def _make_obs(antenna_prod=None):
@@ -67,12 +70,15 @@ def _make_obs(antenna_prod=None):
     if antenna_prod is None:
         gen_to_subid = np.array([0])
         gen_p = np.array([0.0])
+        name_gen = np.array(["G0"])
     else:
         gen_to_subid = np.array([antenna_prod[0]])
         gen_p = np.array([antenna_prod[1]])
+        name_gen = np.array(["G0"])
 
     return types.SimpleNamespace(
         name_sub=name_sub, name_line=name_line,
+        name_load=np.array(["LD2", "LD3", "LD4"]), name_gen=name_gen,
         line_or_to_subid=line_or_to_subid, line_ex_to_subid=line_ex_to_subid,
         line_or_bus=line_or_bus, line_ex_bus=line_ex_bus,
         line_status=line_status, a_or=a_or, rho=rho, p_or=p_or,
@@ -184,3 +190,71 @@ def test_antenna_graph_is_a_connected_dag_rooted_at_root():
     assert nx.is_weakly_connected(g)
     # acyclic when collapsed to a simple digraph (radial, oriented away from root)
     assert nx.is_directed_acyclic_graph(nx.DiGraph(g))
+
+
+def test_pre_process_antenna_graph_reverts_and_returns_empty_simulator_data():
+    obs = _make_obs()
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    _, _, g_overflow, _, _, mapping, _ = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    g_proc, sdg, simulator_data = pre_process_antenna_graph(g_overflow, mapping)
+
+    # No Grid2opSimulation in antenna mode → no simulator data.
+    assert simulator_data == {}
+    # Nodes reverted to real substation indices; pocket stays downstream.
+    assert set(sdg.get_constrained_path().n_aval()) == {1, 2, 3, 4}
+    assert all(isinstance(n, (int, np.integer)) for n in g_proc.g.nodes())
+
+
+def _make_injection_only_discoverer(obs, antenna_mode):
+    """Build an ActionDiscoverer on the (integer-reverted) antenna graph."""
+    from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
+    from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
+
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    _, _, g_overflow, _, _, mapping, meta = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+    g_proc, sdg, _ = pre_process_antenna_graph(g_overflow, mapping)
+
+    fake_env = types.SimpleNamespace(action_space=lambda d: types.SimpleNamespace(spec=d))
+    return ActionDiscoverer(
+        env=fake_env, obs=obs, obs_defaut=obs,
+        classifier=ActionClassifier(fake_env.action_space),
+        timestep=0, lines_defaut=["CONSTRAINT"],
+        lines_overloaded_ids=[ctx["constraint_line_id"]],
+        act_reco_maintenance=None, non_connected_reconnectable_lines=[],
+        all_disconnected_lines=[], dict_action={}, actions_unfiltered=set(),
+        hubs=[], g_overflow=g_proc, g_distribution_graph=sdg, simulator_data={},
+        check_action_simulation=False, antenna_mode=antenna_mode, antenna_meta=meta,
+    )
+
+
+def test_orchestrator_antenna_mode_runs_injection_only():
+    obs = _make_obs()
+    discoverer = _make_injection_only_discoverer(obs, antenna_mode=True)
+
+    called = []
+    topological = {
+        "verify_relevant_reconnections": "reco",
+        "find_relevant_node_merging": "close",
+        "find_relevant_node_splitting": "open",
+        "find_relevant_disconnections": "disco",
+        "find_relevant_pst_actions": "pst",
+    }
+    injection = {
+        "find_relevant_load_shedding": "ls",
+        "find_relevant_renewable_curtailment": "rc",
+        "find_relevant_redispatch": "redispatch",
+    }
+    for meth, token in {**topological, **injection}.items():
+        setattr(discoverer, meth, (lambda t: (lambda *a, **k: called.append(t)))(token))
+
+    discoverer.discover_and_prioritize(n_action_max=5)
+
+    # Topological families are filtered out in antenna mode.
+    assert not (set(called) & set(topological.values()))
+    # Load shedding fires (the pocket is a net consumer with loads).
+    assert "ls" in called
+    # The redispatch gate is open too (pocket nodes available).
+    assert "redispatch" in called

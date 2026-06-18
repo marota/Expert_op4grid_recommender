@@ -60,6 +60,13 @@ class OrchestratorMixin:
         from expert_op4grid_recommender import config as _cfg
         _allowed_types = set(getattr(_cfg, "ALLOWED_ACTION_TYPES", []) or [])
 
+        # Antenna mode: the overflow graph is a synthetic downstream graph of an
+        # islanded radial pocket — only injection actions make sense there, so
+        # topological families are filtered out regardless of ALLOWED_ACTION_TYPES.
+        antenna_mode = getattr(self, "antenna_mode", False)
+        if antenna_mode:
+            _allowed_types = {"ls", "rc", "redispatch"}
+
         def _type_allowed(token: str) -> bool:
             return not _allowed_types or token in _allowed_types
 
@@ -99,9 +106,15 @@ class OrchestratorMixin:
             else:
                 red_loop_paths_names = []
 
-            _, nodes_dispatch_loop_indices = (
-                self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
-            )
+            if antenna_mode:
+                # A radial pocket is a pure tree: no parallel red dispatch loops.
+                # Skip get_dispatch_edges_nodes(only_loop_paths=True), which
+                # additionally raises on an empty red_loops DataFrame.
+                nodes_dispatch_loop_indices = []
+            else:
+                _, nodes_dispatch_loop_indices = (
+                    self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
+                )
             nodes_dispatch_loop_names = list(
                 name_sub_arr[
                     [idx for idx in nodes_dispatch_loop_indices if idx < n_subs]
@@ -174,6 +187,11 @@ class OrchestratorMixin:
             (set(nodes_blue_path_indices) - set(nodes_aval_indices))
             | set(nodes_dispatch_loop_indices)
         )
+        if antenna_mode:
+            # A radial pocket is a pure tree with no dispatch loops: every node
+            # is downstream (aval). Curtailment must still be able to target the
+            # pocket's renewable generators (relevant for a net-producer pocket).
+            nodes_rc_indices = list(nodes_aval_indices)
         if _type_allowed("rc") and nodes_rc_indices:
             with Timer("Verifying relevant renewable curtailment"):
                 print("\n--- Verifying relevant renewable curtailment ---")
@@ -191,6 +209,12 @@ class OrchestratorMixin:
         nodes_down_indices = list(
             set(nodes_blue_path_indices) - set(nodes_aval_indices)
         )
+        if antenna_mode:
+            # In a radial pocket, raising production (net-consumer pocket) and
+            # lowering production (net-producer pocket) both target the pocket
+            # itself. Offer both; the per-action simulation check keeps only the
+            # ones that actually reduce the overload.
+            nodes_down_indices = list(set(nodes_down_indices) | set(nodes_aval_indices))
         if _type_allowed("redispatch") and (nodes_up_indices or nodes_down_indices):
             with Timer("Verifying relevant redispatching"):
                 print("\n--- Verifying relevant redispatching ---")
