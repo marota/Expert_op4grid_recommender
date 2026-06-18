@@ -367,7 +367,7 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
             # Default to False if we can't determine
             is_DC = False
     
-    if not is_DC:
+    if not is_DC and overflow_sim is not None:
         # Filter to keep only non-grey edges for highlighting
         non_grey_line_names = {
             data.get("name")

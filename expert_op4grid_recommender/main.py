@@ -440,6 +440,46 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     return None, context
 
 
+def _make_antenna_visualization(context, df_of_g, g_overflow, hubs,
+                                g_distribution_graph, obs_simu_defaut):
+    """Render the antenna overflow graph (PDF/HTML), best-effort.
+
+    Mirrors the regular step-2 visualization but for the synthetic antenna graph:
+    no ``overflow_sim`` (so no before/after rho annotation), no swapped flows and
+    no red dispatch loops (a radial pocket is a pure constrained tree). Fully
+    guarded — a rendering failure must never abort the analysis.
+    """
+    with Timer("Antenna Visualization"):
+        graph_file_name = get_graph_file_name(
+            context["current_lines_defaut"], context["chronic_name"],
+            context["current_timestep"], False,
+        )
+        save_folder = config.SAVE_FOLDER_VISUALIZATION
+        lines_constrained_path = None
+        nodes_constrained_path = None
+        try:
+            cp_lines, cp_nodes, _ob_e, _ob_n = g_distribution_graph.get_constrained_edges_nodes()
+            lines_constrained_path = list(cp_lines)
+            nodes_constrained_path = list(cp_nodes)
+        except Exception as exc:
+            print("Could not pre-compute constrained path for antenna viewer: " + str(exc))
+        try:
+            make_overflow_graph_visualization(
+                context["env"], None, g_overflow, hubs, obs_simu_defaut, save_folder,
+                graph_file_name, lines_swapped=[], custom_layout=None,
+                lines_we_care_about=context.get("lines_we_care_about"),
+                monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
+                lines_constrained_path=lines_constrained_path,
+                nodes_constrained_path=nodes_constrained_path,
+                lines_red_loops=None, nodes_red_loops=None,
+            )
+        except Exception as exc:
+            print(
+                "Antenna overflow-graph visualization failed (continuing without it): "
+                f"{type(exc).__name__}: {exc}"
+            )
+
+
 def _run_antenna_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     """Step-2 graph build for the islanded-pocket (antenna) case.
 
@@ -461,6 +501,10 @@ def _run_antenna_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
             antenna_info["antenna_sub_ids"],
             antenna_info["root_sub_id"],
         )
+
+    if config.DO_VISUALIZATION:
+        _make_antenna_visualization(context, df_of_g, g_overflow, hubs,
+                                    g_distribution_graph, obs_simu_defaut)
 
     context.update({
         "df_of_g": df_of_g,
