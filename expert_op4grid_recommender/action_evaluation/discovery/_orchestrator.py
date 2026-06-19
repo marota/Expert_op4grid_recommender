@@ -178,6 +178,17 @@ class OrchestratorMixin:
         nodes_aval_indices = (
             list(constrained_path.n_aval()) if constrained_path is not None else []
         )
+        if antenna_mode and getattr(self, "antenna_meta", None):
+            # The islanded pocket can sit on EITHER side of the constraint: a
+            # consumer pocket is downstream (aval), a producer pocket — feeding
+            # the rest of the grid up through the overload — is upstream (amont).
+            # Injection actions always target the pocket itself, so address it
+            # directly by its substation ids rather than the amont/aval split
+            # (which now correctly reflects the real flow direction). The
+            # per-action simulation check keeps only the ones that help.
+            pocket_ids = [int(s) for s in self.antenna_meta.get("antenna_sub_ids", [])]
+            if pocket_ids:
+                nodes_aval_indices = pocket_ids
         if _type_allowed("ls") and nodes_aval_indices:
             with Timer("Verifying relevant load shedding"):
                 print("\n--- Verifying relevant load shedding ---")

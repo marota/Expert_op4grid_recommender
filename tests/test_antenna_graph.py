@@ -8,7 +8,6 @@ These tests are self-contained: they build a tiny grid2op-compatible
 observation by hand, so they need neither pypowsybl nor a real environment.
 """
 
-import copy
 import types
 
 import networkx as nx
@@ -155,42 +154,112 @@ def test_antenna_meta_producer_direction():
     assert meta["net_mw"] == pytest.approx(140.0)
 
 
-def test_node_name_mapping_reverts_to_real_substation_indices():
+def _make_exporting_obs():
+    """A pocket that EXPORTS power up to the main grid (amont-islanded case).
+
+    Same topology as ``_make_obs`` but the constraint and pocket-branch flows
+    are reversed (pocket → root), modelling generators inside the pocket feeding
+    the rest of the grid through the overloaded line — the case the RTE operator
+    flagged (flow rising from the pocket up to the constraint).
+    """
+    obs = _make_obs()
+    nl = list(obs.name_line)
+    p = obs.p_or.copy()
+    for ln in ("CONSTRAINT", "L1_2", "L1_3", "L3_4"):
+        p[nl.index(ln)] *= -1
+    obs.p_or = p
+    return obs
+
+
+def test_node_name_mapping_is_full_grid_identity_and_reverts_to_indices():
     """The discovery pipeline reverts node names to *real* grid2op sub indices
-    (via pre_process_graph_alphadeesp) and uses them to index obs arrays, so the
-    mapping must be keyed by real substation ids — not compact 0..k-1 ids."""
+    (via pre_process_antenna_graph) and uses them to index obs arrays. The graph
+    is now built over the full grid through the standard ExpertOp4Grid pipeline,
+    so the mapping is the plain ``{sub_id: name}`` identity (no synthetic node)."""
     obs = _make_obs()
     ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
     _, _, g_overflow, _, _, mapping, _ = build_antenna_overflow_graph(
         obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
 
-    # mapping is {real_sub_id: name} for the 5 real subs + the sentinel source
-    # (id == n_subs == 9), which the discovery's ``idx < n_subs`` guards drop.
-    assert mapping[0] == "S0" and mapping[4] == "S4"
-    assert mapping[9] == SOURCE_NODE_NAME
+    assert mapping == {i: name for i, name in enumerate(obs.name_sub)}
+    assert SOURCE_NODE_NAME not in g_overflow.g.nodes()
 
-    # Reverting names -> real indices (what pre_process_graph_alphadeesp does)
-    # must NOT crash in integer space and keeps the pocket downstream.
+    # Reverting names -> real indices (what pre_process_antenna_graph does) must
+    # not crash in integer space and keeps the pocket downstream.
     reverse = {name: sid for sid, name in mapping.items()}
     g_idx = nx.relabel_nodes(g_overflow.g, reverse, copy=True)
     sdg_idx = Structured_Overload_Distribution_Graph(g_idx)
-    # downstream nodes are the real substation indices of the pocket
     assert set(sdg_idx.get_constrained_path().n_aval()) == {1, 2, 3, 4}
 
 
-def test_antenna_graph_is_a_connected_dag_rooted_at_root():
+def test_antenna_graph_uses_real_flow_colours_and_orientation():
+    """A consumer pocket: constraint is the black cut edge, pocket branches are
+    blue and oriented root → leaf. The analysis graph spans the full grid (the
+    healthy lines are gray and anchor the root); the pocket is what matters."""
     obs = _make_obs()
     ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
     _, _, g_overflow, _, _, _, _ = build_antenna_overflow_graph(
         obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
 
     g = g_overflow.g
-    assert set(g.nodes()) == {SOURCE_NODE_NAME, "S0", "S1", "S2", "S3", "S4"}
-    # grid-source anchor + constraint edge + 3 antenna branches
-    assert g.number_of_edges() == 5
-    assert nx.is_weakly_connected(g)
-    # acyclic when collapsed to a simple digraph (radial, oriented away from root)
+    assert SOURCE_NODE_NAME not in g.nodes()
+    colours = _edge_colors_by_name(g)
+    assert colours["CONSTRAINT"] == "black"
+    for branch in ("L1_2", "L1_3", "L3_4"):
+        assert colours[branch] == "blue"
+    # Healthy main-grid lines carry zero delta → gray.
+    for healthy in ("L0_5", "L5_6", "L6_7", "L7_8"):
+        assert colours[healthy] == "gray"
+    # Constraint oriented from the main-grid root (S0) into the pocket (S1).
+    constraint_edges = [(u, v) for u, v, d in g.edges(data=True) if d.get("name") == "CONSTRAINT"]
+    assert constraint_edges == [("S0", "S1")]
+    # Radial: acyclic when collapsed to a simple digraph.
     assert nx.is_directed_acyclic_graph(nx.DiGraph(g))
+
+
+def test_focus_overflow_graph_on_pocket_trims_to_pocket():
+    """The visualization helper restricts a copy to root + pocket for a clean
+    render, leaving the analysis graph (full grid) untouched."""
+    from expert_op4grid_recommender.graph_analysis.antenna_graph import (
+        focus_overflow_graph_on_pocket,
+    )
+    obs = _make_obs()
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    _, _, g_overflow, _, _, _, _ = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    focused = focus_overflow_graph_on_pocket(
+        g_overflow, obs, ctx["root_sub_id"], ctx["antenna_sub_ids"])
+
+    assert set(focused.g.nodes()) == {"S0", "S1", "S2", "S3", "S4"}
+    colours = _edge_colors_by_name(focused.g)
+    assert colours["CONSTRAINT"] == "black"
+    assert not ({"L0_5", "L5_6", "L6_7", "L7_8"} & set(colours))
+    # Analysis graph is untouched (still spans the full grid).
+    assert "S8" in g_overflow.g.nodes()
+
+
+def test_amont_islanded_pocket_orients_pocket_to_root():
+    """Regression for the amont-islanded case: when the pocket EXPORTS, the
+    edges must point pocket → root and alphaDeesp must classify the pocket as
+    amont (upstream), not aval. This is what was previously rendered inverted."""
+    obs = _make_exporting_obs()
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    _, _, g_overflow, _, sdg, _, _ = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    g = g_overflow.g
+    # Constraint now points pocket entry (S1) → main-grid root (S0).
+    constraint_edges = [(u, v) for u, v, d in g.edges(data=True) if d.get("name") == "CONSTRAINT"]
+    assert constraint_edges == [("S1", "S0")]
+    # Pocket branches converge toward the entry (real flow direction), no loops.
+    branch_edges = {d["name"]: (u, v) for u, v, d in g.edges(data=True)
+                    if d.get("name") in {"L1_2", "L1_3", "L3_4"}}
+    assert branch_edges == {"L1_2": ("S2", "S1"), "L1_3": ("S3", "S1"), "L3_4": ("S4", "S3")}
+    # The exporting pocket is upstream (amont); the main grid is downstream (aval).
+    cp = sdg.get_constrained_path()
+    assert set(cp.n_amont()) == {"S1", "S2", "S3", "S4"}
+    assert "S0" in cp.n_aval()
 
 
 def test_pre_process_antenna_graph_reverts_and_returns_empty_simulator_data():
@@ -208,41 +277,20 @@ def test_pre_process_antenna_graph_reverts_and_returns_empty_simulator_data():
     assert all(isinstance(n, (int, np.integer)) for n in g_proc.g.nodes())
 
 
-def test_viz_graph_strips_source_so_per_node_setters_dont_keyerror():
-    """Regression: the antenna overflow-graph visualization must render a copy
-    with the synthetic ``__GRID_SOURCE__`` node removed.
-
-    ``make_overflow_graph_visualization`` builds its voltage-level /
-    electrical-node-number dicts from ``obs.name_sub`` only, and alphaDeesp's
-    per-node setters index those dicts for EVERY node in the graph
-    (``dict[node] for node in self.g``). Leaving the synthetic source in raised
-    ``KeyError: __GRID_SOURCE__``. The discovery graph still needs the source
-    (it anchors the amont), so only the viz copy is stripped.
-    """
+def test_no_synthetic_node_so_viz_per_node_setters_dont_keyerror():
+    """The graph is built over real substations only, so the viewer's per-node
+    setters (which index dicts keyed by obs.name_sub for every node) never hit a
+    synthetic-node KeyError."""
     obs = _make_obs()
     ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
-    _, _, g_overflow, hubs, _, _, _ = build_antenna_overflow_graph(
+    _, _, g_overflow, _, _, _, _ = build_antenna_overflow_graph(
         obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
 
-    # The source node IS present in the discovery graph (still required there).
-    assert SOURCE_NODE_NAME in g_overflow.g.nodes()
+    assert set(g_overflow.g.nodes()) <= set(obs.name_sub)
+    # Exact alphaDeesp call performed by make_overflow_graph_visualization.
+    number_nodal_dict = {sub_name: 1 for sub_name in obs.name_sub}
+    g_overflow.set_electrical_node_number(number_nodal_dict)  # must not raise
 
-    # Mirror the viz copy built in main._make_antenna_visualization.
-    g_overflow_for_viz = copy.copy(g_overflow)
-    g_overflow_for_viz.g = g_overflow.g.copy()
-    g_overflow_for_viz.g.remove_node(SOURCE_NODE_NAME)
-
-    assert SOURCE_NODE_NAME not in g_overflow_for_viz.g.nodes()
-    assert set(g_overflow_for_viz.g.nodes()) <= set(obs.name_sub)
-    # The discovery graph must stay untouched by the copy.
-    assert SOURCE_NODE_NAME in g_overflow.g.nodes()
-
-    # Faithfully reproduce the exact alphaDeesp call that used to raise: a
-    # per-node dict keyed by obs.name_sub indexed for every node in the graph.
-    number_nodal_dict = {
-        sub_name: len({1}) for sub_name in obs.name_sub
-    }
-    g_overflow_for_viz.set_electrical_node_number(number_nodal_dict)  # must not raise
 
 
 def _make_injection_only_discoverer(obs, antenna_mode):
@@ -296,3 +344,26 @@ def test_orchestrator_antenna_mode_runs_injection_only():
     assert "ls" in called
     # The redispatch gate is open too (pocket nodes available).
     assert "redispatch" in called
+
+
+def test_orchestrator_targets_pocket_when_it_is_amont():
+    """Producer pocket (amont-islanded): the pocket is classified amont, yet the
+    injection methods must still receive the pocket substations (targeted via
+    antenna_meta), not the aval root."""
+    obs = _make_exporting_obs()
+    discoverer = _make_injection_only_discoverer(obs, antenna_mode=True)
+
+    captured = {}
+    discoverer.find_relevant_load_shedding = lambda nodes, *a, **k: captured.update(ls=list(nodes))
+    discoverer.find_relevant_renewable_curtailment = lambda *a, **k: captured.update(rc=True)
+    discoverer.find_relevant_redispatch = lambda up, down, *a, **k: captured.update(
+        rd_up=list(up), rd_down=list(down))
+
+    discoverer.discover_and_prioritize(n_action_max=5)
+
+    pocket = set(discoverer.antenna_meta["antenna_sub_ids"])
+    # Load shedding targets the pocket (not the aval root sub 0).
+    assert set(captured.get("ls", [])) == pocket
+    assert 0 not in set(captured.get("ls", []))
+    # Redispatch addresses the pocket on both raise/lower sides.
+    assert pocket <= set(captured.get("rd_up", [])) | set(captured.get("rd_down", []))

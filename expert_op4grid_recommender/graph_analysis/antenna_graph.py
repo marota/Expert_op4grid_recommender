@@ -7,34 +7,39 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of expert_op4grid_recommender, Expert system analyzer based on ExpertOp4Grid principles.
-"""Synthetic overflow graph for an islanded radial ("antenne") pocket.
+"""Overflow graph for an islanded radial ("antenne") pocket.
 
 When a contingency islands a radial pocket of substations — disconnecting even
 the single most-loaded overloaded line breaks the grid apart — the regular
-``build_overflow_graph`` pipeline cannot run: ``alphaDeesp`` computes a flow
-*redistribution* that has no meaning on a pocket that simply blacks out.
+``build_overflow_graph`` pipeline cannot run a meaningful flow *redistribution*:
+the load flow on the cut grid diverges (the pocket has no slack and simply
+blacks out).
 
-Instead we build a synthetic downstream ("aval") overflow graph by hand:
+Rather than hand-building a synthetic graph, we feed the **standard ExpertOp4Grid
+machinery** the post-disconnection state implied by the islanding, modelled as:
 
-* the constraint (overloaded) line becomes the **black** constrained edge,
-  oriented from its root substation (on the main grid) into the pocket;
-* every branch inside the pocket becomes a **blue** edge, oriented away from the
-  root (root → leaves) and carrying ``-|p_or|`` as its reported flow — the
-  *negative delta* of the flow it would lose if the constraint were cut.
+    new_flows = initial post-contingency flows, with every line incident to the
+                islanded pocket set to 0 (the pocket blacks out; the healthy
+                grid is left untouched — the operator-chosen approximation).
 
-Because ``OverFlowGraph`` colours an edge blue when its reported flow is
-negative, every pocket branch lands on the constrained / downstream path, and
-``Structured_Overload_Distribution_Graph`` classifies the whole pocket as
-"aval". The recommender's injection-action discovery (load shedding, renewable
-curtailment, redispatch) then targets those downstream nodes directly.
+From that we compute the exact same per-line ``delta_flows`` frame as
+``alphaDeesp.Grid2opSimulation.create_df`` (signed report, swapped-flow
+handling, gray-edge threshold), then build the graph with
+``OverFlowGraph`` + ``Structured_Overload_Distribution_Graph`` — identical to
+``build_overflow_graph`` / ``build_overflow_graph_pypowsybl`` minus the load
+flow. Edge colour (blue / coral), orientation and the amont/aval split are
+therefore decided by ExpertOp4Grid from the *real signed* flows, so a producer
+pocket (amont of the overload islanded) and a consumer pocket (aval islanded)
+both render with physical directions. The healthy grid carries ``delta_flows =
+0`` → gray → trimmed by ``keep_overloads_components``, leaving the pocket plus
+the black constraint edge.
 
 The function returns the same 6-tuple shape as
 :func:`expert_op4grid_recommender.graph_analysis.builder.build_overflow_graph`
-(with ``overflow_sim = None``, since no ``Grid2opSimulation`` is involved) plus
-an ``antenna_meta`` dict describing the pocket.
+(with ``overflow_sim = None``) plus an ``antenna_meta`` dict describing the
+pocket.
 """
 
-from collections import deque
 from typing import Any, Dict, List, Tuple
 
 import networkx as nx
@@ -42,206 +47,231 @@ import numpy as np
 import pandas as pd
 from alphaDeesp.core.graphsAndPaths import OverFlowGraph, Structured_Overload_Distribution_Graph
 
-# Name of the synthetic upstream node injected to anchor the constrained path's
-# "amont" side (see build_antenna_overflow_graph). Consumers that render the
-# graph can hide nodes/edges carrying this sentinel name.
+from expert_op4grid_recommender.config import PARAM_OPTIONS_EXPERT_OP
+
+# Retained for backward compatibility (older consumers / the viewer's optional
+# node-hiding hook). The current builder no longer injects a synthetic source
+# node, so this name is not present in the produced graph.
 SOURCE_NODE_NAME = "__GRID_SOURCE__"
 
 
-def _sub_injections(obs: Any, sub_ids: List[int]) -> Tuple[Dict[int, float], Dict[int, float]]:
-    """Aggregate production and load (MW) per substation id."""
-    prod_by_sub: Dict[int, float] = {sid: 0.0 for sid in sub_ids}
-    load_by_sub: Dict[int, float] = {sid: 0.0 for sid in sub_ids}
-    sub_set = set(sub_ids)
+def _sub_injections(obs: Any) -> Tuple[np.ndarray, np.ndarray]:
+    """Per-substation production and load (MW), indexed by substation id."""
+    n_sub = len(obs.name_sub)
+    prod = np.zeros(n_sub, dtype=float)
+    load = np.zeros(n_sub, dtype=float)
 
     gen_p = getattr(obs, "gen_p", None)
     gen_to_subid = getattr(obs, "gen_to_subid", None)
     if gen_p is not None and gen_to_subid is not None:
         for p, sid in zip(gen_p, gen_to_subid):
-            sid = int(sid)
-            if sid in sub_set:
-                prod_by_sub[sid] += float(p)
+            prod[int(sid)] += float(p)
 
     load_p = getattr(obs, "load_p", None)
     load_to_subid = getattr(obs, "load_to_subid", None)
     if load_p is not None and load_to_subid is not None:
         for p, sid in zip(load_p, load_to_subid):
-            sid = int(sid)
-            if sid in sub_set:
-                load_by_sub[sid] += float(p)
+            load[int(sid)] += float(p)
 
-    return prod_by_sub, load_by_sub
+    return prod, load
 
 
-def _orient_pocket(obs: Any, node_sub_ids: List[int], root_sub_id: int,
-                   constraint_line_id: int) -> List[Tuple[int, int, int]]:
-    """Return pocket branches as (from_sub, to_sub, line_id), oriented root→leaf.
+def _build_topo(obs: Any) -> Dict[str, Any]:
+    """Full-grid topology dict in the shape ``OverFlowGraph`` expects.
 
-    Orientation is purely *topological* (breadth-first distance from the root),
-    so the pocket forms a clean DAG pointing away from the constraint regardless
-    of whether the pocket is a net consumer or producer. The constraint line
-    itself is excluded — it is added separately as the black edge.
+    Mirrors ``AlphaDeespAdapter._build_topo`` / ``Grid2opSimulation.topo``:
+    one entry per line (original orientation) and per substation (prod/load).
     """
-    sub_set = set(node_sub_ids)
-    # Build undirected adjacency over connected lines internal to the pocket.
-    adj: Dict[int, List[Tuple[int, int]]] = {sid: [] for sid in node_sub_ids}
-    line_status = obs.line_status
-    for lid in range(len(obs.name_line)):
-        if lid == constraint_line_id or not line_status[lid]:
-            continue
-        a = int(obs.line_or_to_subid[lid])
-        b = int(obs.line_ex_to_subid[lid])
-        if a in sub_set and b in sub_set and a != b:
-            adj[a].append((b, lid))
-            adj[b].append((a, lid))
+    n = len(obs.name_line)
+    idx_or = [int(obs.line_or_to_subid[i]) for i in range(n)]
+    idx_ex = [int(obs.line_ex_to_subid[i]) for i in range(n)]
+    prod, load = _sub_injections(obs)
+    return {
+        "edges": {"idx_or": idx_or, "idx_ex": idx_ex},
+        "nodes": {
+            "are_prods": (prod > 0).tolist(),
+            "are_loads": (load > 0).tolist(),
+            "prods_values": prod.tolist(),
+            "loads_values": load.tolist(),
+            "names": list(obs.name_sub),
+        },
+    }
 
-    # BFS depth from the root substation.
-    depth: Dict[int, int] = {root_sub_id: 0}
-    queue = deque([root_sub_id])
-    while queue:
-        cur = queue.popleft()
-        for nxt, _lid in adj.get(cur, []):
-            if nxt not in depth:
-                depth[nxt] = depth[cur] + 1
-                queue.append(nxt)
 
-    branches: List[Tuple[int, int, int]] = []
-    seen_lines = set()
-    for sid in node_sub_ids:
-        for nxt, lid in adj[sid]:
-            if lid in seen_lines:
-                continue
-            seen_lines.add(lid)
-            d_a = depth.get(sid, np.inf)
-            d_b = depth.get(nxt, np.inf)
-            # Orient from the endpoint closer to the root toward the leaf.
-            if d_a <= d_b:
-                branches.append((sid, nxt, lid))
-            else:
-                branches.append((nxt, sid, lid))
-    return branches
+def _islanded_line_mask(obs: Any, antenna_sub_ids: List[int]) -> np.ndarray:
+    """Lines that lose all flow once the pocket islands.
+
+    Any line with at least one endpoint inside the pocket (the internal pocket
+    branches AND the constraint line bridging the pocket to the main grid) goes
+    to zero flow when the pocket blacks out.
+    """
+    pocket = set(int(s) for s in antenna_sub_ids)
+    n = len(obs.name_line)
+    or_sub = np.array([int(obs.line_or_to_subid[i]) for i in range(n)])
+    ex_sub = np.array([int(obs.line_ex_to_subid[i]) for i in range(n)])
+    return np.array([(or_sub[i] in pocket) or (ex_sub[i] in pocket) for i in range(n)])
+
+
+def _compute_delta_flow_frame(obs: Any, new_flows_arr: np.ndarray,
+                              constraint_line_id: int, threshold: float) -> pd.DataFrame:
+    """Replicate ``alphaDeesp.Simulation.create_df`` from explicit new flows.
+
+    Vectorised twin of ``OverflowSimulator.compute_flow_changes_after_disconnection``
+    (pypowsybl backend) — the only difference is that ``new_flows_arr`` is
+    supplied by the caller (the islanding "collapse" state) instead of read from
+    a load flow that would diverge. The output columns and sign conventions are
+    byte-for-byte what ``OverFlowGraph`` consumes.
+    """
+    line_names = list(obs.name_line)
+    n = len(line_names)
+    idx_or = np.array([int(obs.line_or_to_subid[i]) for i in range(n)], dtype=int)
+    idx_ex = np.array([int(obs.line_ex_to_subid[i]) for i in range(n)], dtype=int)
+
+    init_flows = np.asarray(obs.p_or, dtype=float).copy()
+    init_flows = np.where(np.isnan(init_flows), 0.0, init_flows)
+    new_arr = np.where(np.isnan(new_flows_arr), 0.0, new_flows_arr.astype(float))
+
+    # STEP 2: branch_direction_swaps — canonicalise so init_flows >= 0.
+    swap_mask = (init_flows < 0) & (init_flows != 0.0)
+    idx_or_s = np.where(swap_mask, idx_ex, idx_or)
+    idx_ex_s = np.where(swap_mask, idx_or, idx_ex)
+    idx_or = idx_or_s
+    idx_ex = idx_ex_s
+    init_abs = np.where(swap_mask, np.abs(init_flows), init_flows)
+
+    # STEP 3: apply the same swap to new flows.
+    new_flows = np.where(swap_mask, -new_arr, new_arr)
+
+    # STEP 4: new_flows_swapped — reversed and stronger.
+    new_flows_swapped = (new_flows < 0) & (np.abs(new_flows) > np.abs(init_abs))
+
+    # STEP 5: delta_flows.
+    abs_new = np.abs(new_flows)
+    abs_init = np.abs(init_abs)
+    delta = abs_new - abs_init
+    case1 = new_flows_swapped
+    delta = np.where(case1, abs_new + abs_init, delta)
+    idx_or = np.where(case1, idx_ex, idx_or)
+    idx_ex = np.where(case1, idx_or_s, idx_ex)
+    sign_new = np.sign(new_flows)
+    sign_init = np.sign(init_abs)
+    case2 = (sign_new != sign_init) & (new_flows != 0) & (init_abs != 0) & ~case1
+    delta = np.where(case2, -(abs_new + abs_init), delta)
+
+    # STEP 6: gray edges, relative to the constraint (cut) line's report.
+    ltc_report = np.abs(delta[constraint_line_id]) if 0 <= constraint_line_id < n else np.abs(delta).max()
+    max_overload = ltc_report * float(threshold)
+    gray_edges = np.abs(delta) < max_overload
+
+    df = pd.DataFrame({
+        "idx_or": idx_or,
+        "idx_ex": idx_ex,
+        "init_flows": init_abs,
+        "line_name": line_names,
+        "swapped": swap_mask,
+        "new_flows": new_flows,
+        "new_flows_swapped": new_flows_swapped,
+        "delta_flows": delta,
+        "gray_edges": gray_edges,
+    })
+    return df
+
+
+def _inhibit_swapped_flows(df: pd.DataFrame) -> pd.DataFrame:
+    """Negate delta + swap or/ex for rows whose new flow reversed direction.
+
+    Same correction as ``builder.inhibit_swapped_flows`` /
+    ``overflow_analysis._inhibit_swapped_flows``.
+    """
+    mask = df.new_flows_swapped
+    if not mask.any():
+        return df
+    df.loc[mask, "delta_flows"] = -df.loc[mask, "delta_flows"]
+    idx_or = df.loc[mask, "idx_or"].copy()
+    df.loc[mask, "idx_or"] = df.loc[mask, "idx_ex"]
+    df.loc[mask, "idx_ex"] = idx_or
+    return df
+
+
+def focus_overflow_graph_on_pocket(g_overflow: Any, obs: Any, root_sub_id: int,
+                                   antenna_sub_ids: List[int]) -> Any:
+    """Return a copy of ``g_overflow`` restricted to the root + pocket nodes.
+
+    The analysis graph is built over the full grid (the gray healthy lines
+    anchor the root for ``find_hubs``); for the operator-facing render we want a
+    clean pocket view. Visualization never rebuilds the structured-overload
+    graph, so trimming the root down to its single black constraint edge here is
+    safe (it would crash ``find_hubs``, which is why the analysis graph keeps the
+    full grid).
+
+    ``g_overflow.g`` nodes must already be substation *names*. Nodes absent from
+    the graph (e.g. a node-renaming step ran) are silently skipped.
+    """
+    import copy as _copy
+
+    keep = {obs.name_sub[root_sub_id]} | {obs.name_sub[s] for s in antenna_sub_ids}
+    keep &= set(g_overflow.g.nodes())
+    focused = _copy.copy(g_overflow)
+    focused.g = g_overflow.g.subgraph(keep).copy()
+    return focused
 
 
 def build_antenna_overflow_graph(obs: Any, constraint_line_id: int,
                                  antenna_sub_ids: List[int], root_sub_id: int,
                                  float_precision: str = "%.0f"):
-    """Build a synthetic downstream overflow graph for an islanded pocket.
+    """Build the overflow graph for an islanded pocket via the standard pipeline.
 
     Args:
         obs: Grid2Op-compatible observation (post-contingency state, where the
             constraint line is still connected and overloaded).
         constraint_line_id (int): index of the overloaded line feeding the pocket.
         antenna_sub_ids (list[int]): substation ids inside the pocket.
-        root_sub_id (int): the constraint endpoint on the main grid.
+        root_sub_id (int): the constraint endpoint on the main grid (kept for the
+            returned ``antenna_meta``; orientation is now derived from the flows).
         float_precision (str): edge-label precision passed to ``OverFlowGraph``.
 
     Returns:
-        tuple: ``(df, overflow_sim, g_overflow, real_hubs, g_distribution_graph,
-        node_name_mapping, antenna_meta)`` — mirrors ``build_overflow_graph``'s
-        return (``overflow_sim is None``) with ``antenna_meta`` appended.
-        ``g_overflow.g`` nodes are substation names; ``node_name_mapping`` is
-        ``{real_substation_id: name}`` so the downstream
-        ``pre_process_graph_alphadeesp`` reverts to real substation indices.
+        tuple: ``(df_of_g, overflow_sim, g_overflow, real_hubs,
+        g_distribution_graph, node_name_mapping, antenna_meta)`` — mirrors
+        ``build_overflow_graph``'s return (``overflow_sim is None``) with
+        ``antenna_meta`` appended. ``g_overflow.g`` nodes are substation names;
+        ``node_name_mapping`` is ``{real_substation_id: name}`` so the downstream
+        ``pre_process_antenna_graph`` reverts to real substation indices.
     """
-    # Compact, contiguous node ids: root first, then the pocket substations.
-    # ``OverFlowGraph.build_nodes`` always numbers nodes 0..k-1, so we build
-    # with these compact ids and later relabel to substation names — exactly
-    # like the real ``build_overflow_graph``. The returned ``node_name_mapping``
-    # is keyed by the *real* grid2op substation id (matching the real builder's
-    # contract), so ``pre_process_graph_alphadeesp`` reverts the names back to
-    # real substation indices that the injection-action discovery uses to index
-    # ``obs.name_sub`` / ``obs.load_p`` / ``obs.gen_p``.
-    node_sub_ids: List[int] = [root_sub_id] + [s for s in antenna_sub_ids if s != root_sub_id]
+    threshold = float(PARAM_OPTIONS_EXPERT_OP.get("ThresholdReportOfLine", 0.05))
 
-    # Synthetic upstream "grid source" feeding the root, modelling the rest of
-    # the grid that supplies the overloaded line. Beyond being physically the
-    # "amont" of the constrained path, it is REQUIRED: without it the root has
-    # only the black constraint edge, so alphaDeesp's ``find_hubs`` removes it
-    # as an isolate (after deleting the black edge) and then crashes calling
-    # ``out_edges(root)`` once the graph is reverted to integer node ids — the
-    # space the discovery actually runs in. Its id is a sentinel ``>= n_subs``
-    # so every ``idx < n_subs`` guard in the discovery filters it out.
-    n_subs_total = len(obs.name_sub)
-    source_id = n_subs_total
-    source_name = SOURCE_NODE_NAME
+    # Post-disconnection collapse state: initial flows everywhere, zeroed on
+    # every line incident to the islanded pocket.
+    init_flows = np.asarray(obs.p_or, dtype=float).copy()
+    init_flows = np.where(np.isnan(init_flows), 0.0, init_flows)
+    new_flows = init_flows.copy()
+    new_flows[_islanded_line_mask(obs, antenna_sub_ids)] = 0.0
 
-    sub_to_idx: Dict[int, int] = {sid: i for i, sid in enumerate(node_sub_ids)}
-    sub_to_idx[source_id] = len(node_sub_ids)
-    compact_to_name: Dict[int, str] = {i: obs.name_sub[sid] for i, sid in enumerate(node_sub_ids)}
-    compact_to_name[len(node_sub_ids)] = source_name
-    node_name_mapping: Dict[int, str] = {sid: obs.name_sub[sid] for sid in node_sub_ids}
-    node_name_mapping[source_id] = source_name
+    df_of_g = _compute_delta_flow_frame(obs, new_flows, constraint_line_id, threshold)
+    df_of_g = _inhibit_swapped_flows(df_of_g)
 
-    prod_by_sub, load_by_sub = _sub_injections(obs, node_sub_ids)
+    topo = _build_topo(obs)
 
-    # topo["nodes"]: arrays indexed by compact node id (0..k). build_nodes
-    # pulls from prods_values / loads_values only where are_prods / are_loads.
-    # The trailing source node is neither prod nor load (a neutral anchor).
-    are_prods, are_loads, prods_values, loads_values = [], [], [], []
-    for sid in node_sub_ids:
-        prod = prod_by_sub.get(sid, 0.0)
-        load = load_by_sub.get(sid, 0.0)
-        are_prods.append(prod > 0)
-        are_loads.append(load > 0)
-        if prod > 0:
-            prods_values.append(prod)
-        if load > 0:
-            loads_values.append(load)
-    are_prods.append(False)
-    are_loads.append(False)
+    # The constraint line is the cut (black) edge. Row index == line index, so
+    # ``OverFlowGraph`` paints row ``constraint_line_id`` black.
+    g_overflow = OverFlowGraph(topo, [int(constraint_line_id)], df_of_g,
+                               float_precision=float_precision)
 
-    topo = {
-        "nodes": {
-            "are_prods": are_prods,
-            "are_loads": are_loads,
-            "prods_values": prods_values,
-            "loads_values": loads_values,
-        },
-        "edges": {"idx_or": [], "idx_ex": [], "init_flows": []},
-    }
+    node_name_mapping: Dict[int, str] = {i: name for i, name in enumerate(obs.name_sub)}
+    g_overflow.g = nx.relabel_nodes(g_overflow.g, node_name_mapping, copy=True)
 
-    p_or = obs.p_or
-    # Row 0 is the constraint (black) edge, root → pocket entry.
-    or_sub = int(obs.line_or_to_subid[constraint_line_id])
-    ex_sub = int(obs.line_ex_to_subid[constraint_line_id])
-    entry_sub = ex_sub if or_sub == root_sub_id else or_sub
-    constraint_flow = abs(float(p_or[constraint_line_id]))
-    rows = [{
-        "idx_or": sub_to_idx[root_sub_id],
-        "idx_ex": sub_to_idx[entry_sub],
-        "delta_flows": -constraint_flow,
-        "gray_edges": False,
-        "line_name": obs.name_line[constraint_line_id],
-    }, {
-        # Amont anchor: grid source → root (blue), mirroring the constraint flow.
-        "idx_or": sub_to_idx[source_id],
-        "idx_ex": sub_to_idx[root_sub_id],
-        "delta_flows": -constraint_flow,
-        "gray_edges": False,
-        "line_name": source_name,
-    }]
-
-    # Pocket branches: blue (negative delta = lost report), oriented root→leaf.
-    for from_sub, to_sub, lid in _orient_pocket(obs, node_sub_ids, root_sub_id, constraint_line_id):
-        rows.append({
-            "idx_or": sub_to_idx[from_sub],
-            "idx_ex": sub_to_idx[to_sub],
-            "delta_flows": -abs(float(p_or[lid])),
-            "gray_edges": False,
-            "line_name": obs.name_line[lid],
-        })
-
-    df = pd.DataFrame(rows, columns=["idx_or", "idx_ex", "delta_flows", "gray_edges", "line_name"])
-
-    # The constraint line (row 0) is the only "cut" line → coloured black.
-    g_overflow = OverFlowGraph(topo, [0], df, float_precision=float_precision)
-    g_overflow.g = nx.relabel_nodes(g_overflow.g, compact_to_name, copy=True)
-
+    # NB: the graph is intentionally kept over the full grid. The healthy lines
+    # carry zero delta (gray); they anchor the root substation so alphaDeesp's
+    # ``find_hubs`` (run by the downstream discovery via
+    # ``pre_process_antenna_graph``) does not drop it as an isolate. The
+    # visualization focuses a *copy* on the pocket for a clean operator view
+    # (see ``main._make_antenna_visualization`` / ``focus_overflow_graph_on_pocket``).
     g_distribution_graph = Structured_Overload_Distribution_Graph(g_overflow.g)
     real_hubs = g_distribution_graph.get_hubs()
 
-    total_prod = sum(prod_by_sub.get(s, 0.0) for s in antenna_sub_ids)
-    total_load = sum(load_by_sub.get(s, 0.0) for s in antenna_sub_ids)
+    prod, load = _sub_injections(obs)
+    total_prod = float(sum(prod[s] for s in antenna_sub_ids))
+    total_load = float(sum(load[s] for s in antenna_sub_ids))
     net_mw = total_prod - total_load
     antenna_meta = {
         "constraint_line_id": int(constraint_line_id),
@@ -251,12 +281,12 @@ def build_antenna_overflow_graph(obs: Any, constraint_line_id: int,
         "antenna_sub_ids": list(antenna_sub_ids),
         "antenna_sub_names": [obs.name_sub[s] for s in antenna_sub_ids],
         "n_subs": len(antenna_sub_ids),
-        "total_prod_mw": round(float(total_prod), 2),
-        "total_load_mw": round(float(total_load), 2),
-        "net_mw": round(float(net_mw), 2),
+        "total_prod_mw": round(total_prod, 2),
+        "total_load_mw": round(total_load, 2),
+        "net_mw": round(net_mw, 2),
         # Net exporter (prod > load) → curtailment / redispatch-down help;
         # net importer (load > prod) → load shedding / redispatch-up help.
         "direction": "producer" if net_mw > 0 else "consumer",
     }
 
-    return df, None, g_overflow, real_hubs, g_distribution_graph, node_name_mapping, antenna_meta
+    return df_of_g, None, g_overflow, real_hubs, g_distribution_graph, node_name_mapping, antenna_meta

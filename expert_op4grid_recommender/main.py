@@ -8,7 +8,6 @@
 # This file is part of expert_op4grid_recommender, Expert system analyzer based on ExpertOp4Grid principles. ⚡️ This tool builds overflow graphs,
 # applies expert rules to filter potential actions, and identifies relevant corrective measures to alleviate line overloads.
 
-import copy
 import os
 import sys
 import argparse
@@ -30,7 +29,10 @@ from expert_op4grid_recommender.graph_analysis.processor import (
     pre_process_antenna_graph,
     extract_antenna_context,
 )
-from expert_op4grid_recommender.graph_analysis.antenna_graph import build_antenna_overflow_graph, SOURCE_NODE_NAME
+from expert_op4grid_recommender.graph_analysis.antenna_graph import (
+    build_antenna_overflow_graph,
+    focus_overflow_graph_on_pocket,
+)
 from expert_op4grid_recommender.graph_analysis.visualization import make_overflow_graph_visualization, \
     get_graph_file_name
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
@@ -445,10 +447,12 @@ def _make_antenna_visualization(context, df_of_g, g_overflow, hubs,
                                 g_distribution_graph, obs_simu_defaut):
     """Render the antenna overflow graph (PDF/HTML), best-effort.
 
-    Mirrors the regular step-2 visualization but for the synthetic antenna graph:
-    no ``overflow_sim`` (so no before/after rho annotation), no swapped flows and
-    no red dispatch loops (a radial pocket is a pure constrained tree). Fully
-    guarded — a rendering failure must never abort the analysis.
+    Mirrors the regular step-2 visualization but for the antenna graph: no
+    ``overflow_sim`` (so no before/after rho annotation) and no red dispatch
+    loops (a radial pocket is a pure constrained tree). The analysis graph spans
+    the full grid (the gray healthy lines anchor the root); here we render a copy
+    focused on the pocket. Fully guarded — a rendering failure must never abort
+    the analysis.
     """
     with Timer("Antenna Visualization"):
         graph_file_name = get_graph_file_name(
@@ -461,26 +465,21 @@ def _make_antenna_visualization(context, df_of_g, g_overflow, hubs,
         try:
             cp_lines, cp_nodes, _ob_e, _ob_n = g_distribution_graph.get_constrained_edges_nodes()
             lines_constrained_path = list(cp_lines)
-            nodes_constrained_path = [n for n in cp_nodes if n != SOURCE_NODE_NAME]
+            nodes_constrained_path = list(cp_nodes)
         except Exception as exc:
             print("Could not pre-compute constrained path for antenna viewer: " + str(exc))
-        # Render a source-free copy of the graph. The synthetic ``__GRID_SOURCE__``
-        # node is required in the discovery graph (it anchors the amont so
-        # alphaDeesp's find_hubs doesn't drop the root as an isolate), but it is
-        # not a real substation: ``make_overflow_graph_visualization`` builds its
-        # voltage-level / electrical-node-number dicts from ``obs.name_sub`` only,
-        # and alphaDeesp's per-node setters index those dicts for EVERY node in
-        # the graph — so leaving the source in raises ``KeyError: __GRID_SOURCE__``.
-        # Stripping it from a copy keeps the discovery graph untouched while the
-        # rendered pocket shows only real substations.
-        g_overflow_for_viz = copy.copy(g_overflow)
-        g_overflow_for_viz.g = g_overflow.g.copy()
-        if g_overflow_for_viz.g.has_node(SOURCE_NODE_NAME):
-            g_overflow_for_viz.g.remove_node(SOURCE_NODE_NAME)
-        hubs_for_viz = [h for h in hubs if h != SOURCE_NODE_NAME]
+        # Render a pocket-focused copy: the analysis graph is built over the full
+        # grid (the gray healthy lines anchor the root for find_hubs), but the
+        # operator only wants to see the islanded pocket. The visualization never
+        # rebuilds the structured-overload graph, so trimming here is safe.
+        antenna_info = context["antenna_info"]
+        g_overflow_for_viz = focus_overflow_graph_on_pocket(
+            g_overflow, obs_simu_defaut,
+            antenna_info["root_sub_id"], antenna_info["antenna_sub_ids"],
+        )
         try:
             make_overflow_graph_visualization(
-                context["env"], None, g_overflow_for_viz, hubs_for_viz, obs_simu_defaut, save_folder,
+                context["env"], None, g_overflow_for_viz, hubs, obs_simu_defaut, save_folder,
                 graph_file_name, lines_swapped=[], custom_layout=None,
                 lines_we_care_about=context.get("lines_we_care_about"),
                 monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
@@ -498,12 +497,14 @@ def _make_antenna_visualization(context, df_of_g, g_overflow, hubs,
 def _run_antenna_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     """Step-2 graph build for the islanded-pocket (antenna) case.
 
-    The regular alphaDeesp pipeline cannot run on a grid that the contingency
-    breaks apart, so we build a synthetic downstream overflow graph of the
-    pocket instead (see ``graph_analysis.antenna_graph``). The result is shaped
-    exactly like the regular path so the downstream discovery / reassessment is
-    unchanged — except ``overflow_sim`` is ``None`` and the context carries
-    ``antenna_meta``.
+    The regular alphaDeesp pipeline cannot run a meaningful load-flow
+    redistribution on a grid that the contingency breaks apart, so we feed the
+    standard ``OverFlowGraph`` machinery the post-disconnection state implied by
+    the islanding (initial flows, zeroed on the pocket) and let it build the
+    graph (see ``graph_analysis.antenna_graph.build_antenna_overflow_graph``).
+    The result is shaped exactly like the regular path so the downstream
+    discovery / reassessment is unchanged — except ``overflow_sim`` is ``None``
+    and the context carries ``antenna_meta``.
     """
     obs_simu_defaut = context["obs_simu_defaut"]
     antenna_info = context["antenna_info"]
