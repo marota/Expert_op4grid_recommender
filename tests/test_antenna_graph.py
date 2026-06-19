@@ -8,6 +8,7 @@ These tests are self-contained: they build a tiny grid2op-compatible
 observation by hand, so they need neither pypowsybl nor a real environment.
 """
 
+import copy
 import types
 
 import networkx as nx
@@ -205,6 +206,43 @@ def test_pre_process_antenna_graph_reverts_and_returns_empty_simulator_data():
     # Nodes reverted to real substation indices; pocket stays downstream.
     assert set(sdg.get_constrained_path().n_aval()) == {1, 2, 3, 4}
     assert all(isinstance(n, (int, np.integer)) for n in g_proc.g.nodes())
+
+
+def test_viz_graph_strips_source_so_per_node_setters_dont_keyerror():
+    """Regression: the antenna overflow-graph visualization must render a copy
+    with the synthetic ``__GRID_SOURCE__`` node removed.
+
+    ``make_overflow_graph_visualization`` builds its voltage-level /
+    electrical-node-number dicts from ``obs.name_sub`` only, and alphaDeesp's
+    per-node setters index those dicts for EVERY node in the graph
+    (``dict[node] for node in self.g``). Leaving the synthetic source in raised
+    ``KeyError: __GRID_SOURCE__``. The discovery graph still needs the source
+    (it anchors the amont), so only the viz copy is stripped.
+    """
+    obs = _make_obs()
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    _, _, g_overflow, hubs, _, _, _ = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    # The source node IS present in the discovery graph (still required there).
+    assert SOURCE_NODE_NAME in g_overflow.g.nodes()
+
+    # Mirror the viz copy built in main._make_antenna_visualization.
+    g_overflow_for_viz = copy.copy(g_overflow)
+    g_overflow_for_viz.g = g_overflow.g.copy()
+    g_overflow_for_viz.g.remove_node(SOURCE_NODE_NAME)
+
+    assert SOURCE_NODE_NAME not in g_overflow_for_viz.g.nodes()
+    assert set(g_overflow_for_viz.g.nodes()) <= set(obs.name_sub)
+    # The discovery graph must stay untouched by the copy.
+    assert SOURCE_NODE_NAME in g_overflow.g.nodes()
+
+    # Faithfully reproduce the exact alphaDeesp call that used to raise: a
+    # per-node dict keyed by obs.name_sub indexed for every node in the graph.
+    number_nodal_dict = {
+        sub_name: len({1}) for sub_name in obs.name_sub
+    }
+    g_overflow_for_viz.set_electrical_node_number(number_nodal_dict)  # must not raise
 
 
 def _make_injection_only_discoverer(obs, antenna_mode):

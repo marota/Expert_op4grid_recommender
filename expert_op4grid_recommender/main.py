@@ -8,6 +8,7 @@
 # This file is part of expert_op4grid_recommender, Expert system analyzer based on ExpertOp4Grid principles. ⚡️ This tool builds overflow graphs,
 # applies expert rules to filter potential actions, and identifies relevant corrective measures to alleviate line overloads.
 
+import copy
 import os
 import sys
 import argparse
@@ -29,7 +30,7 @@ from expert_op4grid_recommender.graph_analysis.processor import (
     pre_process_antenna_graph,
     extract_antenna_context,
 )
-from expert_op4grid_recommender.graph_analysis.antenna_graph import build_antenna_overflow_graph
+from expert_op4grid_recommender.graph_analysis.antenna_graph import build_antenna_overflow_graph, SOURCE_NODE_NAME
 from expert_op4grid_recommender.graph_analysis.visualization import make_overflow_graph_visualization, \
     get_graph_file_name
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
@@ -460,12 +461,26 @@ def _make_antenna_visualization(context, df_of_g, g_overflow, hubs,
         try:
             cp_lines, cp_nodes, _ob_e, _ob_n = g_distribution_graph.get_constrained_edges_nodes()
             lines_constrained_path = list(cp_lines)
-            nodes_constrained_path = list(cp_nodes)
+            nodes_constrained_path = [n for n in cp_nodes if n != SOURCE_NODE_NAME]
         except Exception as exc:
             print("Could not pre-compute constrained path for antenna viewer: " + str(exc))
+        # Render a source-free copy of the graph. The synthetic ``__GRID_SOURCE__``
+        # node is required in the discovery graph (it anchors the amont so
+        # alphaDeesp's find_hubs doesn't drop the root as an isolate), but it is
+        # not a real substation: ``make_overflow_graph_visualization`` builds its
+        # voltage-level / electrical-node-number dicts from ``obs.name_sub`` only,
+        # and alphaDeesp's per-node setters index those dicts for EVERY node in
+        # the graph — so leaving the source in raises ``KeyError: __GRID_SOURCE__``.
+        # Stripping it from a copy keeps the discovery graph untouched while the
+        # rendered pocket shows only real substations.
+        g_overflow_for_viz = copy.copy(g_overflow)
+        g_overflow_for_viz.g = g_overflow.g.copy()
+        if g_overflow_for_viz.g.has_node(SOURCE_NODE_NAME):
+            g_overflow_for_viz.g.remove_node(SOURCE_NODE_NAME)
+        hubs_for_viz = [h for h in hubs if h != SOURCE_NODE_NAME]
         try:
             make_overflow_graph_visualization(
-                context["env"], None, g_overflow, hubs, obs_simu_defaut, save_folder,
+                context["env"], None, g_overflow_for_viz, hubs_for_viz, obs_simu_defaut, save_folder,
                 graph_file_name, lines_swapped=[], custom_layout=None,
                 lines_we_care_about=context.get("lines_we_care_about"),
                 monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
