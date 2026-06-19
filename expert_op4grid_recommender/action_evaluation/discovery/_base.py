@@ -54,6 +54,8 @@ class DiscovererBase:
         check_rho_reduction_func: Optional[Callable] = None,
         create_default_action_func: Optional[Callable] = None,
         obs_linecut: Optional[Any] = None,
+        antenna_mode: bool = False,
+        antenna_meta: Optional[Dict] = None,
     ):
         """
         Initializes the ActionDiscoverer with the necessary context and parameters.
@@ -90,6 +92,12 @@ class DiscovererBase:
         self.obs = obs
         self.obs_defaut = obs_defaut
         self.obs_linecut = obs_linecut
+        # Antenna mode: the overflow graph is a synthetic downstream graph of an
+        # islanded radial pocket. Discovery is restricted to injection actions
+        # (load shedding / renewable curtailment / redispatch); topological
+        # actions are skipped (see OrchestratorMixin.discover_and_prioritize).
+        self.antenna_mode = antenna_mode
+        self.antenna_meta = antenna_meta
         self.action_space = env.action_space
         self.timestep = timestep
         self.lines_defaut = lines_defaut

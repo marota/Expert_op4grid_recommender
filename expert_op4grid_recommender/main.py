@@ -25,7 +25,13 @@ from expert_op4grid_recommender.config import DATE as DEFAULT_DATE, TIMESTEP as 
 from expert_op4grid_recommender.graph_analysis.processor import (
     identify_overload_lines_to_keep_overflow_graph_connected,
     get_constrained_and_dispatch_paths,
-    pre_process_graph_alphadeesp
+    pre_process_graph_alphadeesp,
+    pre_process_antenna_graph,
+    extract_antenna_context,
+)
+from expert_op4grid_recommender.graph_analysis.antenna_graph import (
+    build_antenna_overflow_graph,
+    focus_overflow_graph_on_pocket,
 )
 from expert_op4grid_recommender.graph_analysis.visualization import make_overflow_graph_visualization, \
     get_graph_file_name
@@ -373,19 +379,29 @@ def run_analysis_step1(analysis_date: Optional[datetime],
 
     lines_overloaded_names = [obs_simu_defaut.name_line[i] for i in lines_overloaded_ids]
 
+    antenna_info = None
     if not lines_overloaded_ids_kept:
-        print("Overload breaks the grid apart. No topological solution without load shedding.")
-        return {
-            "lines_overloaded_names": lines_overloaded_names,
-            "prioritized_actions": {},
-            "action_scores": {
-                "line_reconnection": {"scores": {}, "params": {}},
-                "line_disconnection": {"scores": {}, "params": {}},
-                "open_coupling": {"scores": {}, "params": {}},
-                "close_coupling": {"scores": {}, "params": {}},
-                "renewable_curtailment": {"scores": {}, "params": {}},
-            },
-        }, None
+        if config.ENABLE_ANTENNA_RECOMMENDATIONS:
+            antenna_info = extract_antenna_context(obs_simu_defaut, lines_overloaded_ids)
+        if antenna_info is None:
+            print("Overload breaks the grid apart. No topological solution without load shedding.")
+            return {
+                "lines_overloaded_names": lines_overloaded_names,
+                "prioritized_actions": {},
+                "action_scores": {
+                    "line_reconnection": {"scores": {}, "params": {}},
+                    "line_disconnection": {"scores": {}, "params": {}},
+                    "open_coupling": {"scores": {}, "params": {}},
+                    "close_coupling": {"scores": {}, "params": {}},
+                    "renewable_curtailment": {"scores": {}, "params": {}},
+                },
+            }, None
+        print(
+            "Overload islands a radial pocket — switching to antenna mode: building a "
+            "downstream overflow graph on the islanded substations "
+            f"{antenna_info['antenna_sub_names']} and restricting recommendations to "
+            "injection actions (load shedding / curtailment / redispatch)."
+        )
 
     context = {
         "backend": backend,
@@ -414,6 +430,8 @@ def run_analysis_step1(analysis_date: Optional[datetime],
         "actual_fast_mode": actual_fast_mode,
         "check_simu_overloads": check_simu_overloads,
         "switch_to_dc": switch_to_dc,
+        "antenna_mode": antenna_info is not None,
+        "antenna_info": antenna_info,
         "build_overflow_graph": build_overflow_graph,
         "get_env_first_obs": get_env_first_obs,
         "simulate_contingency": simulate_contingency,
@@ -425,8 +443,103 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     return None, context
 
 
+def _make_antenna_visualization(context, df_of_g, g_overflow, hubs,
+                                g_distribution_graph, obs_simu_defaut):
+    """Render the antenna overflow graph (PDF/HTML), best-effort.
+
+    Mirrors the regular step-2 visualization but for the antenna graph: no
+    ``overflow_sim`` (so no before/after rho annotation) and no red dispatch
+    loops (a radial pocket is a pure constrained tree). The analysis graph spans
+    the full grid (the gray healthy lines anchor the root); here we render a copy
+    focused on the pocket. Fully guarded — a rendering failure must never abort
+    the analysis.
+    """
+    with Timer("Antenna Visualization"):
+        graph_file_name = get_graph_file_name(
+            context["current_lines_defaut"], context["chronic_name"],
+            context["current_timestep"], False,
+        )
+        save_folder = config.SAVE_FOLDER_VISUALIZATION
+        lines_constrained_path = None
+        nodes_constrained_path = None
+        try:
+            cp_lines, cp_nodes, _ob_e, _ob_n = g_distribution_graph.get_constrained_edges_nodes()
+            lines_constrained_path = list(cp_lines)
+            nodes_constrained_path = list(cp_nodes)
+        except Exception as exc:
+            print("Could not pre-compute constrained path for antenna viewer: " + str(exc))
+        # Render a pocket-focused copy: the analysis graph is built over the full
+        # grid (the gray healthy lines anchor the root for find_hubs), but the
+        # operator only wants to see the islanded pocket. The visualization never
+        # rebuilds the structured-overload graph, so trimming here is safe.
+        antenna_info = context["antenna_info"]
+        g_overflow_for_viz = focus_overflow_graph_on_pocket(
+            g_overflow, obs_simu_defaut,
+            antenna_info["root_sub_id"], antenna_info["antenna_sub_ids"],
+        )
+        try:
+            make_overflow_graph_visualization(
+                context["env"], None, g_overflow_for_viz, hubs, obs_simu_defaut, save_folder,
+                graph_file_name, lines_swapped=[], custom_layout=None,
+                lines_we_care_about=context.get("lines_we_care_about"),
+                monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
+                lines_constrained_path=lines_constrained_path,
+                nodes_constrained_path=nodes_constrained_path,
+                lines_red_loops=None, nodes_red_loops=None,
+            )
+        except Exception as exc:
+            print(
+                "Antenna overflow-graph visualization failed (continuing without it): "
+                f"{type(exc).__name__}: {exc}"
+            )
+
+
+def _run_antenna_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Step-2 graph build for the islanded-pocket (antenna) case.
+
+    The regular alphaDeesp pipeline cannot run a meaningful load-flow
+    redistribution on a grid that the contingency breaks apart, so we feed the
+    standard ``OverFlowGraph`` machinery the post-disconnection state implied by
+    the islanding (initial flows, zeroed on the pocket) and let it build the
+    graph (see ``graph_analysis.antenna_graph.build_antenna_overflow_graph``).
+    The result is shaped exactly like the regular path so the downstream
+    discovery / reassessment is unchanged — except ``overflow_sim`` is ``None``
+    and the context carries ``antenna_meta``.
+    """
+    obs_simu_defaut = context["obs_simu_defaut"]
+    antenna_info = context["antenna_info"]
+
+    with Timer("Antenna Graph Building"):
+        (df_of_g, overflow_sim, g_overflow, hubs, g_distribution_graph,
+         node_name_mapping, antenna_meta) = build_antenna_overflow_graph(
+            obs_simu_defaut,
+            antenna_info["constraint_line_id"],
+            antenna_info["antenna_sub_ids"],
+            antenna_info["root_sub_id"],
+        )
+
+    if config.DO_VISUALIZATION:
+        _make_antenna_visualization(context, df_of_g, g_overflow, hubs,
+                                    g_distribution_graph, obs_simu_defaut)
+
+    context.update({
+        "df_of_g": df_of_g,
+        "overflow_sim": overflow_sim,  # None — no Grid2opSimulation in antenna mode
+        "g_overflow": g_overflow,
+        "hubs": hubs,
+        "g_distribution_graph": g_distribution_graph,
+        "node_name_mapping": node_name_mapping,
+        "antenna_meta": antenna_meta,
+        "use_dc": False,
+    })
+    return context
+
+
 def run_analysis_step2_graph(context: Dict[str, Any]) -> Dict[str, Any]:
     """Second part of the expert system analysis, focusing on graph generation and visualization."""
+    if context.get("antenna_mode"):
+        return _run_antenna_step2_graph(context)
+
     backend = context["backend"]
     env = context["env"]
     obs = context["obs"]
@@ -632,7 +745,11 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
     Returns ``(prioritized_actions, action_scores)`` from the underlying
     :class:`ActionDiscoverer`.
     """
-    _run_expert_action_filter(context)
+    antenna_mode = bool(context.get("antenna_mode"))
+    if not antenna_mode:
+        # Topological candidate filtering is irrelevant in antenna mode (only
+        # injection actions are discovered, and those are created directly).
+        _run_expert_action_filter(context)
 
     env = context["env"]
     obs = context["obs"]
@@ -665,9 +782,14 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
         n_action_max = config.N_PRIORITIZED_ACTIONS
 
     with Timer("Pre-process for AlphaDeesp"):
-        g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_graph_alphadeesp(
-            g_overflow, overflow_sim, node_name_mapping
-        )
+        if antenna_mode:
+            g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_antenna_graph(
+                g_overflow, node_name_mapping
+            )
+        else:
+            g_overflow_processed, g_distribution_graph_processed, simulator_data = pre_process_graph_alphadeesp(
+                g_overflow, overflow_sim, node_name_mapping
+            )
 
     if use_dc:
         print("Warning: you have used the DC load flow, so results are more approximate")
@@ -676,7 +798,7 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
         context["env"] = env
         context["obs"] = obs
 
-    actions_unfiltered_keys = set(context["filtered_candidate_actions"])
+    actions_unfiltered_keys = set(context.get("filtered_candidate_actions") or [])
 
     with Timer("Action Discovery"):
         discoverer = ActionDiscoverer(
@@ -700,7 +822,9 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
             lines_we_care_about=lines_we_care_about,
             check_rho_reduction_func=check_rho_reduction,
             create_default_action_func=create_default_action,
-            obs_linecut=getattr(overflow_sim, 'obs_linecut', None)
+            obs_linecut=getattr(overflow_sim, 'obs_linecut', None),
+            antenna_mode=antenna_mode,
+            antenna_meta=context.get("antenna_meta"),
         )
 
         if is_pypowsybl:
@@ -766,7 +890,7 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
     # ``inputs.filtered_candidate_actions``, useful for models that
     # want to sample inside the expert-reduced action space. Idempotent
     # — free no-op when already populated (Expert path).
-    if context.get("g_distribution_graph") is not None:
+    if context.get("g_distribution_graph") is not None and not context.get("antenna_mode"):
         _run_expert_action_filter(context)
 
     inputs = build_recommender_inputs(context)
@@ -790,6 +914,10 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         "action_scores": action_scores,
         "pre_existing_overloads": pre_existing_info,
         "combined_actions": combined_actions,
+        # Present only for the islanded-pocket (antenna) case: describes the
+        # disconnected radial pocket and its net direction so callers can flag
+        # it to the operator. ``None`` for the regular path.
+        "antenna_meta": context.get("antenna_meta"),
         # Per-stage execution times (seconds). ``prediction_time`` is the
         # model's intrinsic recommend() call (includes internal candidate
         # simulation done by Expert-style models). ``assessment_time`` is

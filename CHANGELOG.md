@@ -11,6 +11,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.5] - 2026-06-19
+
+### Antenna (islanded-pocket) recommendations
+
+A new analysis mode for the case where a contingency leaves a **radial pocket**
+of substations fed by a single overloaded line — so disconnecting that line
+**breaks the grid apart** (no `lines_overloaded_ids_kept`). Previously the
+analysis gave up ("Overload breaks the grid apart. No topological solution
+without load shedding."). It now describes the islanded pocket, builds a proper
+overflow graph for it, and recommends the **injection actions** that can relieve
+the overload.
+
+- **Detection** (`graph_analysis/processor.py`): `extract_antenna_context`
+  identifies the pocket islanded by removing the max overload — its constraint
+  line, root (main-grid) and entry (pocket) substations, and the full pocket
+  substation set. Gated by `config.ENABLE_ANTENNA_RECOMMENDATIONS` (default
+  `True`); falls back to the legacy "no solution" message when off or when the
+  pocket is not a clean single-feed antenna.
+- **Overflow graph** (`graph_analysis/antenna_graph.py`): the pocket graph is
+  built through the **standard ExpertOp4Grid machinery** (`OverFlowGraph` +
+  `Structured_Overload_Distribution_Graph`), fed the post-disconnection state
+  implied by the islanding — the initial post-contingency flows with every line
+  incident to the pocket zeroed — and the same per-line `delta_flows` frame as
+  `alphaDeesp.Simulation.create_df`. alphaDeesp decides edge colour, orientation
+  and the amont/aval split from the **real signed flows**, so a **consumer
+  pocket** (downstream / aval) and a **producer pocket** feeding the grid up
+  through the overload (upstream / amont) both render with physical flow
+  directions — no inversion, no looping.
+- **Injection-only discovery** (`action_evaluation/discovery/_orchestrator.py`):
+  in antenna mode the topological families are filtered out and only load
+  shedding / renewable curtailment / redispatch are discovered, targeting the
+  **pocket substations directly** (via `antenna_meta`) so a producer pocket —
+  correctly classified amont — still gets candidates. Both redispatch directions
+  are offered; the per-action simulation check keeps only the ones that help.
+- **Result payload**: `run_analysis` results carry `antenna_meta` (pocket
+  substations, total prod/load/net MW, `direction`) so UIs can phrase the
+  recommendation; `antenna_mode` flags the case.
+- **Visualization** (`main.py`): the analysis graph spans the full grid (the
+  gray healthy lines anchor the root for `find_hubs`); the viewer renders a
+  pocket-focused copy via `focus_overflow_graph_on_pocket`.
+- See `docs/antenna_overflow_graph.md`. Tests in `tests/test_antenna_graph.py`.
+
+---
+
 ## [0.2.4.post1] - 2026-06-17
 
 ### Readable voltage-level names as overflow-graph node labels

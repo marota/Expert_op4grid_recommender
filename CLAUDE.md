@@ -318,6 +318,8 @@ tests/
 ├── test_min_action_counts.py            # MIN_* enforcement
 ├── test_islanding_mw.py                 # Islanding MW quantification (v0.1.8+)
 ├── test_environment_detection.py        # Env detection logic
+├── test_antenna_graph.py                # Antenna (islanded-pocket) overflow graph
+│                                        # (see docs/antenna_overflow_graph.md)
 └── test_visualization_filtering.py      # Visualization filters
 ```
 
@@ -409,6 +411,7 @@ See `MIGRATION_PLAN.md` for details. The goal is to remove `grid2op` dependency.
 | Modify expert rules | `action_evaluation/rules.py` |
 | Modify action scoring | `action_evaluation/discovery.py` |
 | Change graph analysis | `graph_analysis/builder.py`, `processor.py` |
+| Antenna (islanded-pocket) graph | `graph_analysis/antenna_graph.py`, `processor.py` (`extract_antenna_context`, `pre_process_antenna_graph`); see `docs/antenna_overflow_graph.md` |
 | pypowsybl migration | `pypowsybl_backend/*`, `environment_pypowsybl.py` |
 | Adjust rho calculation | `pypowsybl_backend/observation.py`, `overflow_analysis.py` |
 | Configure monitoring | `config.py` (`LINES_MONITORING_FILE`, `IGNORE_LINES_MONITORING`) |

@@ -101,6 +101,14 @@ class Settings(BaseSettings):
     DRAW_ONLY_SIGNIFICANT_EDGES: bool = True
     USE_GRID_LAYOUT: bool = False
     DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART: bool = False
+    # When the contingency islands a radial ("antenne") pocket of substations
+    # — i.e. disconnecting even the single max overload breaks the grid apart —
+    # build a synthetic downstream overflow graph of that pocket (each branch
+    # carrying the lost pre-disconnection flow as a negative delta) and let the
+    # recommender propose injection actions (load shedding / renewable
+    # curtailment / redispatch) on it. Topological actions are filtered out for
+    # this case. Set to False to restore the legacy "no solution" early return.
+    ENABLE_ANTENNA_RECOMMENDATIONS: bool = True
     DO_SAVE_DATA_FOR_TEST: bool = False
     CHECK_ACTION_SIMULATION: bool = False
     N_PRIORITIZED_ACTIONS: int = Field(default=20, ge=0)
