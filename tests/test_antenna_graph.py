@@ -52,9 +52,9 @@ def _make_obs(antenna_prod=None):
         (1, 2, "L1_2"), (1, 3, "L1_3"), (3, 4, "L3_4"),                  # antenna
     ]
     n_lines = len(lines)
-    name_line = np.array([l[2] for l in lines])
-    line_or_to_subid = np.array([l[0] for l in lines])
-    line_ex_to_subid = np.array([l[1] for l in lines])
+    name_line = np.array([ln[2] for ln in lines])
+    line_or_to_subid = np.array([ln[0] for ln in lines])
+    line_ex_to_subid = np.array([ln[1] for ln in lines])
     line_or_bus = np.ones(n_lines, dtype=int)
     line_ex_bus = np.ones(n_lines, dtype=int)
     line_status = np.ones(n_lines, dtype=bool)

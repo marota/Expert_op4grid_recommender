@@ -251,7 +251,7 @@ def extract_antenna_context(obs_simu, lines_overloaded_ids):
         return int(str(label).split('_')[1])
 
     n_subs = len(obs_simu.name_sub)
-    antenna_sub_ids = sorted({sid for sid in (_label_to_subid(l) for l in islanded_node_labels)
+    antenna_sub_ids = sorted({sid for sid in (_label_to_subid(lbl) for lbl in islanded_node_labels)
                               if sid < n_subs})
     if not antenna_sub_ids:
         return None
