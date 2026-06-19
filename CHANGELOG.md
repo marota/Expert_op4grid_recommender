@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Antenna (islanded-pocket) overflow graph
+
+When a contingency leaves a radial pocket fed by a single overloaded line,
+disconnecting that line breaks the grid apart, so the normal overflow-graph
+pipeline cannot read a flow redistribution. Antenna mode now builds the pocket
+graph through the **standard ExpertOp4Grid machinery** instead of a hand-rolled
+synthetic graph.
+
+- **Rewrote** `graph_analysis/antenna_graph.py::build_antenna_overflow_graph` to
+  feed `OverFlowGraph` + `Structured_Overload_Distribution_Graph` the
+  post-disconnection state implied by the islanding — the initial
+  post-contingency flows with every line incident to the pocket zeroed — and to
+  compute the same per-line `delta_flows` frame as
+  `alphaDeesp.Simulation.create_df`. alphaDeesp then decides edge colour,
+  orientation and the amont/aval split from the **real signed flows**.
+- **Handles both sub-cases**: a consumer pocket (downstream / aval) and a
+  producer pocket feeding the grid up through the overload (upstream / amont)
+  now both render with physical flow directions — fixing the previous inverted /
+  looping rendering and the "whole pocket = aval" misclassification.
+- **Removed** the synthetic `__GRID_SOURCE__` anchor and the BFS edge
+  orientation. The analysis graph spans the full grid (the gray healthy lines
+  anchor the root for `find_hubs`); the viewer renders a pocket-focused copy via
+  the new `focus_overflow_graph_on_pocket`.
+- **Injection targeting** (`action_evaluation/discovery/_orchestrator.py`): in
+  antenna mode load shedding / curtailment / redispatch now target the pocket
+  substations directly (from `antenna_meta`) rather than `n_aval()`, so a
+  producer pocket — correctly amont now — still gets candidates.
+- See `docs/antenna_overflow_graph.md`.
+
 ---
 
 ## [0.2.4.post1] - 2026-06-17

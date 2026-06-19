@@ -204,12 +204,15 @@ def focus_overflow_graph_on_pocket(g_overflow: Any, obs: Any, root_sub_id: int,
     safe (it would crash ``find_hubs``, which is why the analysis graph keeps the
     full grid).
 
-    ``g_overflow.g`` nodes must already be substation *names*. Nodes absent from
-    the graph (e.g. a node-renaming step ran) are silently skipped.
+    ``g_overflow.g`` nodes must already be substation *names*. Substation ids
+    out of range, and names absent from the graph (e.g. a node-renaming step
+    ran), are silently skipped.
     """
     import copy as _copy
 
-    keep = {obs.name_sub[root_sub_id]} | {obs.name_sub[s] for s in antenna_sub_ids}
+    n_sub = len(obs.name_sub)
+    keep = {obs.name_sub[s] for s in [root_sub_id, *antenna_sub_ids]
+            if 0 <= int(s) < n_sub}
     keep &= set(g_overflow.g.nodes())
     focused = _copy.copy(g_overflow)
     focused.g = g_overflow.g.subgraph(keep).copy()

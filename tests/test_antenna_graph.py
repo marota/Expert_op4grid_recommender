@@ -2,10 +2,12 @@
 # See AUTHORS.txt
 # This Source Code Form is subject to the terms of the Mozilla Public License, version 2.0.
 # SPDX-License-Identifier: MPL-2.0
-"""Unit tests for the synthetic antenna (islanded-pocket) overflow graph.
+"""Unit tests for the antenna (islanded-pocket) overflow graph.
 
 These tests are self-contained: they build a tiny grid2op-compatible
 observation by hand, so they need neither pypowsybl nor a real environment.
+
+See ``docs/antenna_overflow_graph.md`` for the design.
 """
 
 import types
@@ -17,7 +19,11 @@ from alphaDeesp.core.graphsAndPaths import Structured_Overload_Distribution_Grap
 
 from expert_op4grid_recommender.graph_analysis.antenna_graph import (
     SOURCE_NODE_NAME,
+    _build_topo,
+    _compute_delta_flow_frame,
+    _islanded_line_mask,
     build_antenna_overflow_graph,
+    focus_overflow_graph_on_pocket,
 )
 from expert_op4grid_recommender.graph_analysis.processor import (
     extract_antenna_context,
@@ -367,3 +373,152 @@ def test_orchestrator_targets_pocket_when_it_is_amont():
     assert 0 not in set(captured.get("ls", []))
     # Redispatch addresses the pocket on both raise/lower sides.
     assert pocket <= set(captured.get("rd_up", [])) | set(captured.get("rd_down", []))
+
+
+# ---------------------------------------------------------------------------
+# Helper-level unit tests (the pieces build_antenna_overflow_graph composes).
+# ---------------------------------------------------------------------------
+
+def test_islanded_line_mask_marks_pocket_incident_lines_only():
+    """Every line with an endpoint inside the pocket collapses (constraint +
+    internal branches); the healthy main-grid lines do not."""
+    obs = _make_obs()
+    nl = list(obs.name_line)
+    ctx = extract_antenna_context(obs, [nl.index("CONSTRAINT")])
+
+    mask = _islanded_line_mask(obs, ctx["antenna_sub_ids"])
+
+    islanded = {nl[i] for i, m in enumerate(mask) if m}
+    assert islanded == {"CONSTRAINT", "L1_2", "L1_3", "L3_4"}
+    # Healthy main-grid lines are untouched.
+    assert not (islanded & {"L0_5", "L5_6", "L6_7", "L7_8"})
+
+
+def test_build_topo_aggregates_prod_and_load_per_substation():
+    """topo['nodes'] carries per-substation prod/load over the full grid."""
+    obs = _make_obs(antenna_prod=(2, 200.0))  # 200 MW generation on sub 2
+    topo = _build_topo(obs)
+
+    assert len(topo["nodes"]["are_prods"]) == len(obs.name_sub)
+    assert len(topo["edges"]["idx_or"]) == len(obs.name_line)
+    # Sub 2 has both the 200 MW generator and a 30 MW load.
+    assert topo["nodes"]["are_prods"][2] is True
+    assert topo["nodes"]["prods_values"][2] == pytest.approx(200.0)
+    assert topo["nodes"]["are_loads"][2] is True
+    assert topo["nodes"]["loads_values"][2] == pytest.approx(30.0)
+    # Original (pre-swap) line orientation is preserved in the topo edges.
+    assert topo["edges"]["idx_or"] == [int(s) for s in obs.line_or_to_subid]
+    assert topo["edges"]["idx_ex"] == [int(s) for s in obs.line_ex_to_subid]
+
+
+def test_delta_flow_frame_collapse_yields_minus_initial_on_pocket():
+    """With new_flows = initial-with-pocket-zeroed, the pocket branches report
+    delta = -|p_or| (blue) and the healthy grid reports delta = 0 (gray)."""
+    obs = _make_obs()
+    nl = list(obs.name_line)
+    constraint = nl.index("CONSTRAINT")
+
+    new_flows = obs.p_or.copy()
+    new_flows[_islanded_line_mask(obs, [1, 2, 3, 4])] = 0.0
+    df = _compute_delta_flow_frame(obs, new_flows, constraint, threshold=0.05)
+
+    by_name = {r.line_name: r for r in df.itertuples()}
+    # Pocket branches: full negative report equal to the initial flow magnitude.
+    assert by_name["L1_2"].delta_flows == pytest.approx(-30.0)
+    assert by_name["L3_4"].delta_flows == pytest.approx(-10.0)
+    assert by_name["CONSTRAINT"].delta_flows == pytest.approx(-60.0)
+    # Healthy grid: untouched flow → zero delta.
+    assert by_name["L0_5"].delta_flows == pytest.approx(0.0)
+    # The frame has one row per line, in line order.
+    assert list(df["line_name"]) == nl
+
+
+def test_delta_flow_frame_gray_threshold_is_relative_to_constraint():
+    """A pocket branch whose report falls below ThresholdReportOfLine * the
+    constraint report is flagged gray (de-emphasised), like the real builder."""
+    obs = _make_obs()
+    nl = list(obs.name_line)
+    constraint = nl.index("CONSTRAINT")  # report 60
+    new_flows = obs.p_or.copy()
+    new_flows[_islanded_line_mask(obs, [1, 2, 3, 4])] = 0.0
+
+    # threshold 0.2 → max_overload = 0.2 * 60 = 12 MW. L3_4 (10) < 12 → gray.
+    df = _compute_delta_flow_frame(obs, new_flows, constraint, threshold=0.2)
+    by_name = {r.line_name: r for r in df.itertuples()}
+    assert by_name["L3_4"].gray_edges  # 10 < 12
+    assert not by_name["L1_2"].gray_edges  # 30 >= 12
+
+
+def test_build_returns_full_alphadeesp_frame_columns():
+    """df_of_g exposes the same columns the standard builders return."""
+    obs = _make_obs()
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    df, sim, *_ = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    assert sim is None  # no Grid2opSimulation in antenna mode
+    assert {"idx_or", "idx_ex", "init_flows", "new_flows", "delta_flows",
+            "new_flows_swapped", "gray_edges", "line_name"} <= set(df.columns)
+    assert len(df) == len(obs.name_line)
+
+
+def test_producer_pocket_with_real_export_is_amont_and_producer():
+    """A pocket whose generation outweighs its load AND physically exports
+    (reversed flows) is classified amont with direction='producer'."""
+    obs = _make_exporting_obs()
+    # Flip the pocket into a net producer: 200 MW gen on sub 2 > 60 MW load.
+    obs.gen_to_subid = np.array([2])
+    obs.gen_p = np.array([200.0])
+    obs.name_gen = np.array(["G0"])
+
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    _, _, g, _, sdg, _, meta = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    assert meta["direction"] == "producer"
+    assert meta["total_prod_mw"] == pytest.approx(200.0)
+    cp = sdg.get_constrained_path()
+    assert set(cp.n_amont()) == {"S1", "S2", "S3", "S4"}
+    assert "S0" in cp.n_aval()
+
+
+def test_focus_helper_preserves_edge_attributes_and_skips_missing_nodes():
+    """focus_overflow_graph_on_pocket keeps edge styling and never errors on a
+    pocket id that is not in the graph; the source graph stays untouched."""
+    obs = _make_obs()
+    ctx = extract_antenna_context(obs, [list(obs.name_line).index("CONSTRAINT")])
+    _, _, g_overflow, _, _, _, _ = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    # Include a bogus pocket id (99) — must be silently skipped.
+    focused = focus_overflow_graph_on_pocket(
+        g_overflow, obs, ctx["root_sub_id"], ctx["antenna_sub_ids"] + [99])
+
+    assert set(focused.g.nodes()) == {"S0", "S1", "S2", "S3", "S4"}
+    # Edge colours / names survive the subgraph copy.
+    colours = _edge_colors_by_name(focused.g)
+    assert colours["CONSTRAINT"] == "black"
+    assert colours["L1_2"] == "blue"
+    # The original analysis graph is not mutated.
+    assert "S8" in g_overflow.g.nodes()
+    assert focused.g is not g_overflow.g
+
+
+def test_antenna_graph_survives_negative_constraint_flow():
+    """The constraint line stored with a negative p_or (ex→or direction) is
+    handled by the branch-direction-swap and still ends up black + connecting
+    the pocket to the root."""
+    obs = _make_obs()
+    nl = list(obs.name_line)
+    # Force the constraint flow negative without changing topology.
+    obs.p_or = obs.p_or.copy()
+    obs.p_or[nl.index("CONSTRAINT")] = -60.0
+
+    ctx = extract_antenna_context(obs, [nl.index("CONSTRAINT")])
+    _, _, g_overflow, _, sdg, _, _ = build_antenna_overflow_graph(
+        obs, ctx["constraint_line_id"], ctx["antenna_sub_ids"], ctx["root_sub_id"])
+
+    colours = _edge_colors_by_name(g_overflow.g)
+    assert colours["CONSTRAINT"] == "black"
+    # Still a valid radial structure with a usable constrained path.
+    assert sdg.get_constrained_path() is not None
