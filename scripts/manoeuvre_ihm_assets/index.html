@@ -150,7 +150,7 @@
       <input id="dsDate" type="date" style="width:100%;padding:5px" title="Jour du dataset (YYYY-MM-DD)">
     </label>
     <div style="font-size:10px;color:#64748b;margin:4px 0 1px">⚡ Accès rapide — cas d'intérêt
-      <span class="ibubble" title="Journées « connues bonnes » de la documentation (campagne inter-saisons 2021). Survolez une date pour son intérêt.">ⓘ</span></div>
+      <span class="ibubble" title="Journées identifiées intéressantes de la documentation (campagne RTE 7000, 2021-2023). Survolez une date pour son intérêt.">ⓘ</span></div>
     <div id="dsSamples" style="margin:0 0 4px;display:flex;flex-wrap:wrap;gap:4px"></div>
     <label style="font-size:12px;display:block;margin-top:2px">Heure (instantané, pas de 5 min)
       <select id="dsTime" style="width:100%;padding:5px" title="Horodatage de l'instantané (midi par défaut)"></select>
@@ -283,16 +283,19 @@ let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:
   editTarget:false,stale:false,currentVL:null,tab:'local'};
 // État de la source « dataset RTE7000 » (onglet de choix date/heure).
 let DS={enabled:false,repo:'',defaultTime:'12:00'};
-// Cas d'intérêt documentés — repris de la « Table de campagne »
-// (docs/dataset_rte7000/#table-de-campagne-campagnecampagnejson) :
+// Cas d'intérêt documentés — repris de la « Table de campagne » (3 ans
+// 2021-2023, docs/dataset_rte7000/#table-de-campagne-campagnecampagnejson) :
 // jour · saison + blocs / postes actifs / reconfigurations structurelles,
-// affichés en bulle sur les puces d'accès rapide de l'onglet RTE7000.
+// affichés en bulle sur les puces d'accès rapide de l'onglet RTE7000. L'année
+// de la date détermine le dataset HuggingFace interrogé (repo -YYYY).
 const DATE_INFO={
   '2021-01-03':{tag:'dim. · hiver',desc:"Dimanche, hiver — 6 233 blocs, 1 861 postes actifs, 36 reconfigurations structurelles (le MINIMUM) : week-end calme, cas « simple » de référence (journée pilote)."},
   '2021-01-05':{tag:'mar. · hiver',desc:"Mardi, hiver — 6 554 blocs, 2 011 postes actifs, 123 reconfigurations structurelles : jour ouvré d'hiver."},
   '2021-04-14':{tag:'mer. · printemps',desc:"Mercredi, printemps — 7 216 blocs, 2 024 postes actifs, 158 reconfigurations structurelles : mi-saison."},
   '2021-07-15':{tag:'jeu. · été',desc:"Jeudi, été — 7 127 blocs, 2 096 postes actifs (le PLUS), 203 reconfigurations structurelles : pointe estivale."},
   '2021-10-12':{tag:'mar. · automne',desc:"Mardi, automne — 6 760 blocs, 2 056 postes actifs, 208 reconfigurations structurelles (le MAXIMUM) : chantiers d'automne, cas « riche »."},
+  '2022-06-15':{tag:'mer. · été',desc:"Mercredi, été — 6 400 blocs, 2 037 postes actifs, 181 reconfigurations structurelles : autre année (dataset 2022)."},
+  '2023-02-08':{tag:'mer. · hiver',desc:"Mercredi, hiver — 6 442 blocs, 1 984 postes actifs, 185 reconfigurations structurelles, jusqu'à 38 organes manœuvrés (le plus profond) : autre année (dataset 2023)."},
 };
 // --- Onglets « Situation réseau » (Local ⇄ RTE7000) -----------------------
 function selectTab(which){
@@ -354,13 +357,12 @@ function renderPosteList(query){
       d.textContent='… '+(hits.length-POSTE_CAP)+' autres — affinez la recherche.';
       root.appendChild(d);}
     return;}
-  // vide : exploration curée (épinglés + sections par typologie)
-  if(PINNED.length){root.appendChild(_posteSec('★ Postes épinglés'));
-    PINNED.forEach(p=>root.appendChild(_posteItem(p,true,true)));}
+  // vide : exploration curée par typologie (les postes épinglés ★ restent
+  // repérables dans les résultats de recherche, sans section dédiée).
   CATALOG.forEach(sec=>{
     root.appendChild(_posteSec(sec.title+'  ('+sec.n_available+'/'+sec.postes.length+')'));
     sec.postes.forEach(p=>root.appendChild(_posteItem(p.vl,false,p.available)));});
-  if(!PINNED.length&&!CATALOG.length)
+  if(!CATALOG.length)
     root.innerHTML='<div class="empty">Aucun poste — charger une situation.</div>';}
 // Sélecteurs d'algorithme pluggable (manoeuvre.plugins) : phase A (nodale →
 // détaillée, volet nodal) et phase B (séquencement, panneau latéral). Les

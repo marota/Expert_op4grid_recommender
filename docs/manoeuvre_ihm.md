@@ -33,7 +33,7 @@ python scripts/manoeuvre_ihm.py --grid /chemin/vers/grid.xiidm
 | `--scenarios-dir` | `tests/manoeuvre/scenarios` | Dossier de sauvegarde des **scénarios** (cibles) |
 | `--sequences-dir` | `tests/manoeuvre/sequences` | Dossier de sauvegarde des **séquences** générées |
 | `--dataset` | — | Activer la **source dataset RTE 7000** (défaut si `--grid` absent) |
-| `--dataset-repo` | `OpenSynth/D-GITT-RTE7000-2021` (env `DGITT_REPO`) | Dataset HuggingFace source |
+| `--dataset-repo` | `OpenSynth/D-GITT-RTE7000-2021` (env `DGITT_REPO`) | Dataset HuggingFace source (repo **base** ; l'année d'une date d'accès rapide sélectionne `…-2021/-2022/-2023`) |
 | `--cache-dir` | `.cache/dgitt` (env `DGITT_CACHE_DIR`) | Cache local des instantanés téléchargés |
 | `--default-date` | `2021-01-03` (env `DGITT_DEFAULT_DATE`) | Date proposée par défaut dans l'IHM |
 
@@ -51,9 +51,13 @@ CORNIP3, GUARBP6, MORBRP6.
 
 Sans `--grid`, l'IHM démarre en **mode dataset** : au lieu d'un réseau local
 figé, elle source les situations dans le dataset HuggingFace
-[`OpenSynth/D-GITT-RTE7000-2021`](https://huggingface.co/datasets/OpenSynth/D-GITT-RTE7000-2021)
+[`OpenSynth/D-GITT-RTE7000-{2021,2022,2023}`](https://huggingface.co/datasets/OpenSynth/D-GITT-RTE7000-2021)
 (réseau France, **un instantané XIIDM toutes les 5 min**), **téléchargés à la
 demande** (rien n'est embarqué). C'est le mode utilisé par le HuggingFace Space.
+Le dataset existe **par année** ; l'**année** d'une date sélectionne
+automatiquement le repo (`…-2021` / `…-2022` / `…-2023`, cf.
+`dataset_source.repo_pour_date`), de sorte que les 7 journées d'accès rapide
+(2021-2023, « Table de campagne ») fonctionnent toutes.
 
 ```bash
 pip install flask pypowsybl networkx pandas      # dépendances de l'IHM dataset
@@ -97,7 +101,8 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
 > d'information) — chargée par un **unique bouton Charger** (RTE7000 mis en avant
 > par défaut sur le Space hébergé) ;
 > **(2)** le champ **Poste unifié** — une **seule recherche** sur tous les postes
-> NODE_BREAKER (épinglés ★ en tête) plus l'**explorateur curé par typologie** ;
+> NODE_BREAKER (postes épinglés ★ repérés dans les résultats) et, en dessous,
+> l'**exploration curée par typologie** ;
 > **(3)** le schéma unifilaire **de départ** (lecture seule, état de référence),
 > dont l'en-tête porte **↺ État d'origine** (réinitialise la cible à l'état
 > d'origine) ;
@@ -151,9 +156,9 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
   L'onglet **RTE7000 est mis en avant par défaut** sur le HuggingFace Space (mode
   dataset) ; **Local** par défaut en usage local.
 - **Scénario Topologique** : la suite de travail en **trois étapes** —
-  **1 · Poste** (champ de recherche **unique** sur tous les postes, postes
-  épinglés ★ en tête, + explorateur **par typologie** curé), **2 · Topologie
-  cible** (éditer + valider), **3 · Séquence de manœuvres**.
+  **1 · Poste** (champ de recherche **unique** sur tous les postes + liste
+  browsable curée **par typologie** en dessous), **2 · Topologie cible** (éditer
+  + valider), **3 · Séquence de manœuvres**.
 - **Schéma de départ** (centre haut, bandeau bleu) : topologie détaillée
   initiale, **non modifiable** ; sert de référence. Son en-tête porte le bouton
   **↺ État d'origine** (réinitialise la cible à l'état d'origine du poste).
@@ -188,12 +193,12 @@ des variables CSS).
    NODE_BREAKER de la situation et, **en dessous**, une **liste browsable**.
    Champ **vide** → exploration **curée par typologie** (sections : *≥5 jeux de
    barres*, *sectionnement extrême*, *faisceau de couplage partagé*, *organes
-   internes*, *omnibus*, *départs déconnectés*, *gros postes*, …), **postes
-   épinglés ★ en tête** (jeu de test + 7 postes 3 JdB). En **saisissant**, la
-   liste filtre en **recherche plein-texte** sur tous les postes (bornée à 300
-   résultats affichés). Un poste **grisé** (⚠ absent) n'est pas présent dans la
-   situation chargée → charger la grille France (`grid.xiidm`) pour y accéder
-   (le rendu détaillé SLD requiert le réseau).
+   internes*, *omnibus*, *départs déconnectés*, *gros postes*, …). En
+   **saisissant**, la liste filtre en **recherche plein-texte** sur tous les
+   postes (bornée à 300 résultats affichés ; les postes épinglés ★ — jeu de test
+   + 7 postes 3 JdB — y sont marqués). Un poste **grisé** (⚠ absent) n'est pas
+   présent dans la situation chargée → charger la grille France (`grid.xiidm`)
+   pour y accéder (le rendu détaillé SLD requiert le réseau).
 2. **Éditer la cible** : cliquer un disjoncteur/sectionneur dans le schéma du
    bas pour basculer son état (ouvert/fermé). Le nombre de nœuds cible évolue en
    direct.
@@ -489,7 +494,7 @@ assert res.ecarts == []
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
 | Promouvoir la **cible courante** en nouvel état de départ | « ⇧ Nouvelle Topologie Départ » (en-tête du schéma cible) → `/api/promote_cible` (le schéma de départ est mis à jour) |
 | **Recharger** un scénario (départ + cible) | Bouton « ⟳ Recharger » (titre *Scénario Topologique*) → modale (sélecteur + Valider / Annuler) → `/api/load_scenario` (mode `both`) |
-| **Rechercher / explorer un poste** (champ unique) | `#posteSearch` + liste `#posteList` browsable : vide = exploration curée **par typologie** (épinglés ★ en tête) ; saisie = recherche plein-texte sur **tous** les VL NODE_BREAKER |
+| **Rechercher / explorer un poste** (champ unique) | `#posteSearch` + liste `#posteList` browsable : vide = exploration curée **par typologie** ; saisie = recherche plein-texte sur **tous** les VL NODE_BREAKER (épinglés ★ marqués dans les résultats) |
 | **Sauvegarder la séquence** avec lien vers ses topologies | `/api/save_sequence` (JSON autonome + champ `scenario`) |
 | Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | façade `sequencer` (« libtopo » = `determiner_manoeuvres_cible_detaillee`) ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
 | **Avertissement d'écrasement** d'un fichier de sauvegarde existant | Confirmation / renommage (réponse `{exists:true}`) |

@@ -45,8 +45,8 @@ guide: [`docs/manoeuvre_ihm.md`](docs/manoeuvre_ihm.md).
 > `.xiidm` path + native file picker) and *RTE7000* (dataset date/hour, with quick
 > "case-of-interest" chips) — loaded by a single **Charger** button (RTE7000
 > foregrounded on the Space);
-> **(2)** the unified **Poste** search (all NODE_BREAKER substations, pinned ★
-> first) + by-typology explorer;
+> **(2)** the unified **Poste** field — one search over all NODE_BREAKER
+> substations (pinned ★ marked in results) + a browsable by-typology list;
 > **(3)** the read-only **departure** single-line diagram, header **↺ État
 > d'origine** (reset target to pristine);
 > **(4)** the **editable target** diagram (click a breaker/disconnector to

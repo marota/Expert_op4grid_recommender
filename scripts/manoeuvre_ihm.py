@@ -1072,9 +1072,10 @@ def api_dataset_timestamps():
     """Instantanés disponibles (HH:MM) pour la date ``?date=YYYY-MM-DD``, avec
     l'horodatage présélectionné par défaut (le plus proche de midi)."""
     date = (request.args.get("date") or "").strip()
+    repo = dataset_source.repo_pour_date(DATASET["repo"], date)
     try:
         insts = dataset_source.lister_instantanes(
-            DATASET["repo"], date, token=DATASET["token"])
+            repo, date, token=DATASET["token"])
     except ValueError as exc:
         return jsonify(ok=False, error=str(exc)), 400
     except Exception as exc:  # pragma: no cover - dépend du réseau HF
@@ -1094,9 +1095,10 @@ def api_dataset_load():
     body = request.json or {}
     date = (body.get("date") or "").strip()
     heure = (body.get("time") or DATASET["default_time"]).strip()
+    repo = dataset_source.repo_pour_date(DATASET["repo"], date)
     try:
         net, meta = dataset_source.charger_situation(
-            DATASET["repo"], date, DATASET["cache_dir"],
+            repo, date, DATASET["cache_dir"],
             heure=heure, token=DATASET["token"])
     except (ValueError, FileNotFoundError) as exc:
         return jsonify(ok=False, error=str(exc)), 400

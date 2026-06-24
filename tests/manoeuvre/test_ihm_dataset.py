@@ -134,3 +134,27 @@ def test_load_situation_absente(dataset_mode, monkeypatch):
                           json={"date": "2099-01-01", "time": "12:00"})
     assert r.status_code == 400
     assert r.get_json()["ok"] is False
+
+
+# --- repo_pour_date : sélection du dataset par année (2021/2022/2023) -------
+
+def test_repo_pour_date_swaps_year():
+    f = ihm.dataset_source.repo_pour_date
+    base = "OpenSynth/D-GITT-RTE7000-2021"
+    assert f(base, "2022-06-15") == "OpenSynth/D-GITT-RTE7000-2022"
+    assert f(base, "2023-02-08") == "OpenSynth/D-GITT-RTE7000-2023"
+    assert f(base, "2021-01-03") == "OpenSynth/D-GITT-RTE7000-2021"
+    assert f("me/custom-grid", "2022-06-15") == "me/custom-grid"   # pas d'année
+    assert f(base, "notadate") == base                              # date invalide
+
+
+def test_timestamps_uses_year_derived_repo(dataset_mode, monkeypatch):
+    seen = {}
+
+    def fake(repo, date, token=None):
+        seen["repo"] = repo
+        return [{"ts": "12:00", "iso": date + "T12:00", "path": "p"}]
+
+    monkeypatch.setattr(ihm.dataset_source, "lister_instantanes", fake)
+    dataset_mode.get("/api/dataset/timestamps?date=2022-06-15")
+    assert seen["repo"].endswith("D-GITT-RTE7000-2022")

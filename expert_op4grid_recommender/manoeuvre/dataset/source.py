@@ -40,11 +40,28 @@ from .dgitt import _charger_reseau, horodatage_depuis_nom
 #: dataset par défaut (année 2021 ; voir docs/dataset_rte7000/)
 REPO_DEFAUT = "OpenSynth/D-GITT-RTE7000-2021"
 
-#: dates « connues bonnes » (journées traitées dans docs/dataset_rte7000/) —
-#: proposées comme accès rapide dans l'IHM. Toute autre date reste saisissable.
+#: dates **identifiées intéressantes** (journées traitées dans
+#: docs/dataset_rte7000/ — « Table de campagne », 3 ans 2021-2023) — proposées
+#: comme accès rapide dans l'IHM. Toute autre date reste saisissable. L'année
+#: d'une date détermine le repo HuggingFace (cf. ``repo_pour_date``).
 DATES_ECHANTILLON: tuple[str, ...] = (
     "2021-01-03", "2021-01-05", "2021-04-14", "2021-07-15", "2021-10-12",
+    "2022-06-15", "2023-02-08",
 )
+
+
+def repo_pour_date(repo_base: str, date_iso: str) -> str:
+    """Repo HuggingFace à interroger pour la date ``date_iso``.
+
+    Le dataset D-GITT-RTE7000 existe par année (``…-2021`` / ``…-2022`` /
+    ``…-2023``). Si ``repo_base`` se termine par une année (``…-YYYY``), on la
+    remplace par l'année de ``date_iso`` ; sinon ``repo_base`` est renvoyé tel
+    quel (configuration mono-repo / repo personnalisé). Fonction pure."""
+    m = re.match(r"^(.*-)(\d{4})$", repo_base or "")
+    y = re.match(r"^\s*(\d{4})-", date_iso or "")
+    if m and y:
+        return f"{m.group(1)}{y.group(1)}"
+    return repo_base
 
 API = "https://huggingface.co/api/datasets/{repo}/tree/main/{prefix}"
 RESOLVE = "https://huggingface.co/datasets/{repo}/resolve/main/{path}"
