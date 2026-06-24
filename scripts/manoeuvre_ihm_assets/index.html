@@ -89,49 +89,91 @@
  #nodstatus{font-size:11px;padding:4px 8px;white-space:normal}
  #nodstatus.okv{color:#065f46;background:#ecfdf5}
  #nodstatus.kov{color:#92400e;background:#fffbeb}
+ /* Onglets « Situation réseau » (Local / RTE7000) */
+ .tabs{display:flex;gap:0;margin:4px 0 0}
+ .tab{flex:1;padding:6px 4px;border:1px solid #bfdbfe;background:#e9eef5;margin:0;
+   font-size:12px;color:#334155;border-radius:0}
+ .tab:first-child{border-radius:5px 0 0 5px}
+ .tab:last-child{border-radius:0 5px 5px 0;border-left:none}
+ .tab.active{background:#2563eb;color:#fff;border-color:#2563eb;font-weight:bold}
+ .tabpanel{background:#eef6ff;border:1px solid #bfdbfe;border-top:none;
+   border-radius:0 0 6px 6px;padding:8px}
+ /* En-têtes d'étape du « Scénario Topologique » */
+ h2.step{font-size:13px;margin:12px 0 4px;color:#1e3a8a;
+   border-left:3px solid #2563eb;padding-left:6px}
+ .ibubble{cursor:help;color:#2563eb;font-weight:bold}
+ #dsSamples button{display:flex;flex-direction:column;align-items:center;line-height:1.15}
+ #dsSamples .stag{font-size:9px;color:#64748b}
+ .tab.active .stag{color:#dbeafe}
+ /* Petite modale (Recharger un scénario) */
+ .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;
+   align-items:center;justify-content:center;z-index:1000}
+ .modalbox{background:#fff;border-radius:8px;padding:16px 18px;min-width:300px;
+   max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+ .modalbox h3{margin:0 0 10px;font-size:14px}
 </style></head><body>
 <div id="side">
-  <div id="dsBox" style="display:none;background:#eef6ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px;margin-bottom:8px">
-    <h2 style="margin-top:0">📅 Dataset RTE7000</h2>
-    <div style="font-size:11px;color:#555;margin-bottom:4px">Situation réseau France à une date/heure du dataset (téléchargée à la demande).</div>
+  <h2 style="margin-top:0">Situation réseau</h2>
+  <div class="tabs" role="tablist">
+    <button id="tabLocal" class="tab" onclick="selectTab('local')"
+            title="Charger une situation réseau depuis un fichier .xiidm local">📁 Local</button>
+    <button id="tabRte" class="tab" onclick="selectTab('rte')"
+            title="Charger une situation du dataset RTE 7000 (France) par date / heure">📅 RTE7000</button>
+  </div>
+
+  <div id="panelLocal" class="tabpanel">
+    <div style="display:flex;gap:4px">
+      <input id="gridPath" placeholder="chemin .xiidm (situation réseau)" style="flex:1;min-width:0;padding:5px"
+             title="Charge une situation réseau côté serveur, puis liste ses postes">
+      <button onclick="pickGridFile()" title="Parcourir le système de fichiers (sélecteur natif — usage local)">📂</button>
+    </div>
+    <div style="font-size:10px;color:#888;margin-top:2px">Fichier .xiidm côté serveur — 📂 pour parcourir (usage local).</div>
+    <div id="gridMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
+  </div>
+
+  <div id="panelRte" class="tabpanel" style="display:none">
+    <div style="font-size:11px;color:#555;margin-bottom:4px">Situation réseau France à une date/heure du dataset
+      <span class="ibubble" id="dsRepoInfo" title="">RTE 7000&nbsp;ⓘ</span> (téléchargée à la demande).</div>
     <label style="font-size:12px;display:block">Date
       <input id="dsDate" type="date" style="width:100%;padding:5px" title="Jour du dataset (YYYY-MM-DD)">
     </label>
-    <div id="dsSamples" style="margin:4px 0;display:flex;flex-wrap:wrap;gap:4px"></div>
+    <div style="font-size:10px;color:#64748b;margin:4px 0 1px">⚡ Accès rapide — cas d'intérêt
+      <span class="ibubble" title="Journées « connues bonnes » de la documentation (campagne inter-saisons 2021). Survolez une date pour son intérêt.">ⓘ</span></div>
+    <div id="dsSamples" style="margin:0 0 4px;display:flex;flex-wrap:wrap;gap:4px"></div>
     <label style="font-size:12px;display:block;margin-top:2px">Heure (instantané, pas de 5 min)
       <select id="dsTime" style="width:100%;padding:5px" title="Horodatage de l'instantané (midi par défaut)"></select>
     </label>
-    <button class="primary" style="margin-top:6px;width:100%" onclick="loadDataset()">⏬ Charger la situation</button>
     <div id="dsMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
   </div>
 
-  <h2>Situation réseau</h2>
-  <input id="gridPath" placeholder="chemin .xiidm (situation réseau)" style="width:72%;padding:5px"
-         title="Charge une autre situation réseau côté serveur, puis liste ses postes">
-  <button onclick="loadGrid()">Charger</button>
-  <div id="gridMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
+  <button id="btnCharger" class="primary" style="width:100%;margin-top:6px"
+          onclick="chargerSituation()">⏬ Charger la situation</button>
 
-  <h2>Poste</h2>
-  <select id="poste" title="Postes épinglés (jeu de test + 3 jeux de barres identifiés)"></select>
+  <hr style="border:none;border-top:1px solid #d1d5db;margin:12px 0 6px">
+  <h2 style="margin:0;color:#1e3a8a">🗺 Scénario Topologique
+    <button onclick="openReload()" title="Recharger un scénario sauvegardé (départ + cible)"
+            style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">⟳ Recharger</button>
+  </h2>
+  <div style="font-size:10px;color:#888;margin:1px 0 0">Poste → topologie cible → séquence de manœuvres.</div>
+
+  <h2 class="step">1 · Poste</h2>
+  <input id="posteSearch" list="allPostes" placeholder="🔎 rechercher un poste (tous)…"
+         style="width:100%;padding:6px" autocomplete="off"
+         title="Rechercher / inspecter n'importe quel poste NODE_BREAKER de la situation chargée (postes épinglés ★ en tête de liste)">
+  <datalist id="allPostes"></datalist>
   <div style="margin-top:6px">
-    <select id="posteCat" title="Explorer les postes par typologie (sections). Les postes grisés ne sont pas dans la situation chargée — charger la grille France pour y accéder."
+    <select id="posteCat" title="Explorer les postes par typologie (sections) — liste curée. Les postes grisés ne sont pas dans la situation chargée — charger la grille France pour y accéder."
             style="width:100%;padding:6px"></select>
-    <div style="font-size:10px;color:#888;margin-top:2px">📂 par typologie — grisé = absent de la situation chargée</div>
+    <div style="font-size:10px;color:#888;margin-top:2px">📂 explorer par typologie — grisé = absent de la situation chargée</div>
   </div>
-  <div style="margin-top:6px">
-    <input id="posteSearch" list="allPostes" placeholder="🔎 rechercher un poste (tous)…"
-           style="width:100%;padding:6px" autocomplete="off"
-           title="Inspecter n'importe quel poste NODE_BREAKER de la situation chargée">
-    <datalist id="allPostes"></datalist>
-  </div>
-  <div style="margin-top:6px"><button onclick="reset()">↺ État de départ</button></div>
 
-  <h2>1 · Valider la cible</h2>
+  <h2 class="step">2 · Topologie cible</h2>
+  <div style="font-size:11px;color:#555;margin:1px 0 3px">Éditez la cible (clic sur un organe du schéma / volet nodal), puis validez-la.</div>
   <input id="scenName" placeholder="nom du scénario" style="width:62%;padding:5px">
   <button onclick="save()">✓ Valider &amp; sauvegarder</button>
   <div id="savemsg" style="font-size:11px;color:#1a7f37;margin-top:3px"></div>
 
-  <h2>2 · Séquence de manœuvres</h2>
+  <h2 class="step">3 · Séquence de manœuvres</h2>
   <div style="font-size:12px;margin:2px 0">Mode :
     <select id="seqMode" style="width:auto;padding:3px" title="Smooth : dé-énergise au plus près, en place (peu d'ouvrages hors tension à la fois). Agressif : dé-énergise en lot (moins de manœuvres, plus d'ouvrages hors tension simultanément).">
       <option value="smooth">Smooth (sûr, en place)</option>
@@ -145,23 +187,21 @@
   <button id="bmanual" onclick="manualSeq()" disabled title="Construire la séquence à la main : cliquez les organes du schéma (départ → …), la cible s'affiche en référence">✋ Séquence manuelle</button>
   <div id="calchint" style="font-size:11px;color:#b45309">Validez d'abord la cible pour activer le calcul.</div>
 
-  <h2>Scénarios sauvegardés</h2>
-  <select id="scenSel" style="width:100%"><option value="">—</option></select>
-  <div style="display:flex;gap:4px;margin-top:4px">
-    <button onclick="loadScen('both')" title="départ + cible sauvegardés">▷ Rejouer</button>
-    <button onclick="loadScen('as_depart')" title="la cible sauvegardée devient le nouvel état de départ">⇧ Comme départ</button>
-  </div>
   <h2>Nœuds électriques : <span id="nbn" class="badge">–</span></h2>
   <div style="font-size:11px;color:#555">Clic sur un organe du schéma pour basculer son état (départ ➜ cible).</div>
 </div>
 <div id="main">
   <div class="pane" id="paneTop">
     <div class="ttl"><button class="cbtn" onclick="togglePane('paneTop')" title="Réduire / agrandir">▾</button>
+      <button onclick="reset()" title="Réinitialiser la cible à l'état d'origine du poste"
+              style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">↺ État d'origine</button>
       <span id="ttlA">Topologie de départ</span> — <span id="nbA" class="badge">–</span> nœud(s)</div>
     <div class="diag" id="diagTop">Choisissez un poste…</div>
   </div>
   <div class="pane" id="paneBot">
     <div class="ttl"><button class="cbtn" onclick="togglePane('paneBot')" title="Réduire / agrandir">▾</button>
+      <button onclick="loadScen('as_depart')" title="La cible sélectionnée dans « Scénarios sauvegardés » devient le nouvel état de départ"
+              style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">⇧ Nouvelle Topologie Départ</button>
       Topologie cible (éditable, clic sur un organe) — <span id="nbB" class="badge">–</span> nœud(s)
         · animation de la séquence ici</div>
     <div class="diag" id="diagBottom"></div>
@@ -221,11 +261,50 @@
     <div id="nodstatus"></div>
   </div>
 </div>
+<div id="reloadModal" class="modal" style="display:none" onclick="if(event.target===this)closeReload()">
+  <div class="modalbox">
+    <h3>⟳ Recharger un scénario</h3>
+    <select id="scenSel" style="width:100%"><option value="">—</option></select>
+    <div style="font-size:10px;color:#888;margin-top:6px">« Valider » rejoue le scénario (départ + cible). Pour repartir de sa cible, utilisez « ⇧ Nouvelle Topologie Départ » sur le schéma cible.</div>
+    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
+      <button onclick="closeReload()">Annuler</button>
+      <button class="primary" onclick="validateReload()">Valider</button>
+    </div>
+  </div>
+</div>
 <script>
 let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:false,
-  editTarget:false,stale:false,currentVL:null};
-// État de la source « dataset RTE7000 » (bandeau de choix date/heure).
+  editTarget:false,stale:false,currentVL:null,tab:'local'};
+// État de la source « dataset RTE7000 » (onglet de choix date/heure).
 let DS={enabled:false,repo:'',defaultTime:'12:00'};
+// Cas d'intérêt documentés (campagne inter-saisons 2021, cf.
+// docs/dataset_rte7000/) : libellé court + intérêt, affichés en bulle sur les
+// puces d'accès rapide de l'onglet RTE7000.
+const DATE_INFO={
+  '2021-01-03':{tag:'dim. · hiver',desc:"Journée pilote, week-end calme : le MOINS de reconfigurations structurelles (36) — cas « simple » de référence."},
+  '2021-01-05':{tag:'mar. · hiver',desc:"Jour ouvré d'hiver : 123 reconfigurations structurelles, 2 011 postes actifs."},
+  '2021-04-14':{tag:'mer. · printemps',desc:"Mi-saison : 158 reconfigurations structurelles, charge modérée."},
+  '2021-07-15':{tag:'jeu. · été',desc:"Pointe estivale : le PLUS de postes actifs (2 096), 203 reconfigurations."},
+  '2021-10-12':{tag:'mar. · automne',desc:"Le PLUS de reconfigurations structurelles (208) — chantiers d'automne, cas « riche »."},
+};
+// --- Onglets « Situation réseau » (Local ⇄ RTE7000) -----------------------
+function selectTab(which){
+  const local=(which==='local');S.tab=local?'local':'rte';
+  document.getElementById('tabLocal').classList.toggle('active',local);
+  document.getElementById('tabRte').classList.toggle('active',!local);
+  document.getElementById('panelLocal').style.display=local?'block':'none';
+  document.getElementById('panelRte').style.display=local?'none':'block';}
+// Bouton « Charger » unique : aiguille vers l'onglet actif.
+function chargerSituation(){if(S.tab==='rte')loadDataset();else loadGrid();}
+// Sélecteur de fichier natif (onglet Local, usage local) : remplit le chemin.
+async function pickGridFile(){
+  const msg=document.getElementById('gridMsg');msg.textContent='Ouverture du sélecteur…';
+  let r;try{r=await (await fetch('/api/pick_grid_file')).json();}
+  catch(e){msg.textContent='sélecteur indisponible — collez le chemin manuellement.';return;}
+  if(r.error){msg.textContent='Sélecteur indisponible ('+r.error+') — collez le chemin.';return;}
+  if(r.path){document.getElementById('gridPath').value=r.path;
+    msg.textContent='Fichier sélectionné — cliquez « Charger la situation ».';}
+  else msg.textContent='';}
 // État de l'éditeur de topologie nodale (volet de droite).
 let NOD={depart:{groups:[]},departIso:[],labels:{},types:{},flows:{},dirs:{},order:{},
   colors:{},colorsCible:{},groups:[],isolated:[],selBranches:new Set(),selNodes:new Set()};
@@ -235,12 +314,19 @@ function setValidated(v){document.getElementById('bcalc').disabled=!v;
   document.getElementById('bmanual').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
 let ALL_POSTES=[];
+// Champ poste **unique** (recherche sur TOUS les postes de la situation) : le
+// menu épinglé d'autrefois est fusionné ici — les postes épinglés (★) sont
+// listés en tête de la datalist pour rester d'accès rapide ; l'explorateur
+// « par typologie » (liste curée) reste à part.
 function populatePostes(r){
   ALL_POSTES=r.all||r.postes||[];
-  const sel=document.getElementById('poste');sel.innerHTML='';
-  (r.postes||[]).forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
+  const pinned=r.postes||[];
   const dl=document.getElementById('allPostes');dl.innerHTML='';
-  ALL_POSTES.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
+  const seen=new Set();
+  const addOpt=(p,label)=>{if(seen.has(p))return;seen.add(p);
+    const o=document.createElement('option');o.value=p;if(label)o.label=label;dl.appendChild(o);};
+  pinned.forEach(p=>addOpt(p,'★ épinglé'));
+  ALL_POSTES.forEach(p=>addOpt(p));
   populateCatalog(r.catalog||[]);}
 // Sélecteur « par typologie » : un <optgroup> par section ; postes absents de la
 // situation chargée grisés (option disabled).
@@ -275,29 +361,37 @@ function fillAlgoSel(id,phase,r){
   sel.title=sel.disabled?sel.title+' (un seul algorithme disponible)':sel.title;}
 async function init(){const r=await (await fetch('/api/postes')).json();
   populatePostes(r);await refreshAlgos();
-  const sel=document.getElementById('poste');sel.onchange=()=>load(sel.value);
   const cs=document.getElementById('posteCat');cs.onchange=()=>{if(cs.value)load(cs.value);};
-  // Recherche « tous postes » : datalist de tous les VL NODE_BREAKER de la situation.
+  // Champ poste unique : datalist de tous les VL NODE_BREAKER de la situation
+  // (postes épinglés ★ en tête). Charge au choix (Entrée ou sélection).
   const search=document.getElementById('posteSearch');
   const go=()=>{const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);};
   search.onchange=go;search.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
   initNodalResize(); initNodalDnD(); await refreshScenarios(); await initDataset();
-  if(r.postes.length) load(r.postes[0]);}
-// ---- Source « dataset RTE7000 » : choisir une date/heure, charger la situation ----
+  if(r.postes&&r.postes.length) load(r.postes[0]);}
+// ---- Onglet « RTE7000 » : choisir une date/heure, charger la situation -------
+// L'onglet est **toujours présent** (Local d'abord, RTE7000 ensuite) ; le drapeau
+// ``enabled`` du backend ne décide que de l'**onglet actif par défaut** (RTE7000
+// « en avant » sur le Space, Local en usage local). Les endpoints dataset
+// fonctionnent dans les deux modes (accès HuggingFace à la demande).
 async function initDataset(){
-  let cfg;try{cfg=await (await fetch('/api/dataset/config')).json();}catch(e){return;}
-  if(!cfg||!cfg.enabled)return;   // mode local (--grid) : bandeau masqué
-  DS.enabled=true;DS.repo=cfg.repo;DS.defaultTime=cfg.default_time||'12:00';
-  document.getElementById('dsBox').style.display='block';
-  const di=document.getElementById('dsDate');di.value=cfg.default_date||'';
-  di.onchange=()=>loadDatasetTimestamps(di.value);
-  const sm=document.getElementById('dsSamples');sm.innerHTML='';
-  (cfg.sample_dates||[]).forEach(d=>{const b=document.createElement('button');
-    b.textContent=d;b.style.cssText='padding:2px 6px;font-size:11px;margin:0';
-    b.onclick=()=>{di.value=d;loadDatasetTimestamps(d);};sm.appendChild(b);});
-  if(!S.currentVL){const t=document.getElementById('diagTop');
-    if(t)t.textContent='Choisissez une date puis « Charger la situation »…';}
-  await loadDatasetTimestamps(di.value);}
+  let cfg;try{cfg=await (await fetch('/api/dataset/config')).json();}catch(e){cfg=null;}
+  if(cfg){DS.enabled=!!cfg.enabled;DS.repo=cfg.repo||'';DS.defaultTime=cfg.default_time||'12:00';
+    const di=document.getElementById('dsDate');di.value=cfg.default_date||'';
+    di.onchange=()=>loadDatasetTimestamps(di.value);
+    const info=document.getElementById('dsRepoInfo');
+    if(info)info.title='Dataset HuggingFace : '+(cfg.repo||'OpenSynth/D-GITT-RTE7000-*')
+      +' — réseau France, 1 instantané / 5 min, téléchargé à la demande.';
+    const sm=document.getElementById('dsSamples');sm.innerHTML='';
+    (cfg.sample_dates||[]).forEach(d=>{const meta=DATE_INFO[d]||{tag:'',desc:'Journée du dataset.'};
+      const b=document.createElement('button');b.style.cssText='padding:2px 6px;font-size:11px;margin:0';
+      b.title=d+' — '+meta.desc;
+      b.innerHTML=xesc(d)+(meta.tag?'<span class="stag">'+xesc(meta.tag)+'</span>':'');
+      b.onclick=()=>{di.value=d;loadDatasetTimestamps(d);};sm.appendChild(b);});
+    await loadDatasetTimestamps(di.value);}
+  selectTab(DS.enabled?'rte':'local');   // RTE7000 « en avant » sur le Space
+  if(DS.enabled&&!S.currentVL){const t=document.getElementById('diagTop');
+    if(t)t.textContent='Choisissez une date puis « Charger la situation »…';}}
 async function loadDatasetTimestamps(date){
   const sel=document.getElementById('dsTime'),msg=document.getElementById('dsMsg');
   sel.innerHTML='';if(!date)return;
@@ -333,8 +427,7 @@ async function loadGrid(){
   msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
   if(r.postes.length)load(r.postes[0]);else if(ALL_POSTES.length)load(ALL_POSTES[0]);}
 async function load(vl){stopAnim();S.currentVL=vl;const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
-  document.getElementById('poste').value=vl;            // sync menu épinglé (vide si non listé)
-  document.getElementById('posteSearch').value=vl;      // sync champ de recherche
+  document.getElementById('posteSearch').value=vl;      // sync champ poste unique
   document.getElementById('scenName').value=vl+'_cible';}
 async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
   syncNodalCible(d.nodale);hideSeq();setValidated(false);}
@@ -383,6 +476,14 @@ function syncNodalCible(n){if(!n)return;
 async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).json();
   const sel=document.getElementById('scenSel');sel.innerHTML='<option value="">—</option>';
   r.scenarios.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;sel.add(o);});}
+// Modale « Recharger un scénario » (remplace l'ancienne section « Scénarios
+// sauvegardés ») : rafraîchit la liste puis ouvre ; « Valider » rejoue le
+// scénario (départ + cible), « Annuler » referme sans rien recharger.
+async function openReload(){await refreshScenarios();
+  document.getElementById('reloadModal').style.display='flex';}
+function closeReload(){document.getElementById('reloadModal').style.display='none';}
+async function validateReload(){const name=document.getElementById('scenSel').value;
+  if(name)await loadScen('both');closeReload();}
 async function saveWithConfirm(url,name,msgEl){
   let r=await api(url,{name});
   while(r.exists){
@@ -403,7 +504,7 @@ async function save(){const name=document.getElementById('scenName').value;
   setValidated(true);await refreshScenarios();}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
   stopAnim();const d=await api('/api/load_scenario',{name,mode});
-  document.getElementById('poste').value=d.vl;show(d);initNodale(d);hideSeq();
+  document.getElementById('posteSearch').value=d.vl;show(d);initNodale(d);hideSeq();
   if(mode==='as_depart'){
     document.getElementById('scenName').value=name+'_suite';
     document.getElementById('savemsg').textContent='« '+name+' » chargé comme état de départ — éditez puis validez une nouvelle cible.';

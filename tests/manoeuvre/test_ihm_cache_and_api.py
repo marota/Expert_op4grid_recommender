@@ -154,3 +154,44 @@ def test_memoized_topo_matches_fresh_build(session):
         ihm.build_vl_graph(session.net, VL), VL)
     cached = session._topo(session.initial)
     assert cached.meme_topologie(fresh)
+
+
+# --------------------------------------------------------------------------
+# Sélecteur de fichier natif (/api/pick_grid_file) — onglet « Local »
+# --------------------------------------------------------------------------
+
+class _FakeProc:
+    def __init__(self, returncode, stdout="", stderr=""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def test_pick_grid_file_returns_selected_path(monkeypatch):
+    monkeypatch.setattr(ihm.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(ihm.subprocess, "run",
+                        lambda *a, **k: _FakeProc(0, stdout="/data/grid.xiidm\n"))
+    r = ihm.app.test_client().get("/api/pick_grid_file")
+    assert r.status_code == 200
+    assert r.get_json() == {"path": "/data/grid.xiidm"}
+
+
+def test_pick_grid_file_degrades_without_display(monkeypatch):
+    # Sans afficheur / tkinter (Space headless) : le sous-processus échoue ;
+    # l'endpoint renvoie une erreur exploitable (jamais de 500).
+    monkeypatch.setattr(ihm.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(ihm.subprocess, "run",
+                        lambda *a, **k: _FakeProc(1, stderr="No module named tkinter"))
+    d = ihm.app.test_client().get("/api/pick_grid_file").get_json()
+    assert d["path"] == ""
+    assert "tkinter" in d["error"]
+
+
+def test_pick_grid_file_timeout_is_graceful(monkeypatch):
+    def _boom(*a, **k):
+        raise ihm.subprocess.TimeoutExpired(cmd="picker", timeout=300)
+    monkeypatch.setattr(ihm.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(ihm.subprocess, "run", _boom)
+    d = ihm.app.test_client().get("/api/pick_grid_file").get_json()
+    assert d["path"] == ""
+    assert "expiré" in d["error"]

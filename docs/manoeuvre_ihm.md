@@ -89,21 +89,35 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
 ```
 ┌──────────────────────┬─────────────────────────────────┬────────────────────┐
 │ PANNEAU LATÉRAL      │ SCHÉMA — TOPOLOGIE DE DÉPART     │ VOLET NODAL        │
-│                      │ (SLD pypowsybl, couleurs nœud)  │                    │
-│ • Poste (sélecteur)  ├─────────────────────────────────┤ Topo nodale DÉPART │
-│ • ↺ État de départ   │ SCHÉMA — TOPOLOGIE CIBLE        │ (lecture seule)    │
-│ 1 · Valider la cible │ clic organe = bascule ; anim.   ├────────────────────┤
-│ 2 · Calculer séq.    ├─────────────────────────────────┤ Topo nodale CIBLE  │
-│ • Scénarios          │ Contrôles ◀ ▶ Lecture ▶|        │ (éditable : chips) │
-│ • Nœuds électriques  │ Séquence (texte) + 💾           │ ⚙ Calculer la      │
-│                      │                                 │ topo détaillée     │
+│ Situation réseau     │ (SLD pypowsybl)  [↺ État d'orig.]│                    │
+│  [📁 Local|📅 RTE7000]├─────────────────────────────────┤ Topo nodale DÉPART │
+│  ⏬ Charger (unique)  │ SCHÉMA — TOPOLOGIE CIBLE        │ (lecture seule)    │
+│ 🗺 Scénario Topo.     │ [⇧ Nouvelle Topologie Départ]   ├────────────────────┤
+│  1 · Poste (recherche)│ clic organe = bascule ; anim.  │ Topo nodale CIBLE  │
+│  2 · Topologie cible  ├─────────────────────────────────┤ (éditable : chips) │
+│  3 · Séquence         │ Contrôles ◀ ▶ Lecture ▶|        │ ⚙ Calculer la      │
+│ • Scénarios · Nœuds   │ Séquence (texte) + 💾           │ topo détaillée     │
 └──────────────────────┴─────────────────────────────────┴────────────────────┘
 ```
 
+- **Situation réseau** (haut du panneau) : **deux onglets** — **📁 Local**
+  (chemin `.xiidm` côté serveur + bouton **📂** de sélection native, usage local)
+  et **📅 RTE7000** (date / heure du dataset, avec **puces d'accès rapide** vers
+  les journées « cas d'intérêt » documentées, chacune avec sa **bulle**
+  d'explication) — et un **unique bouton ⏬ Charger** qui agit sur l'onglet actif.
+  L'onglet **RTE7000 est mis en avant par défaut** sur le HuggingFace Space (mode
+  dataset) ; **Local** par défaut en usage local.
+- **Scénario Topologique** : la suite de travail en **trois étapes** —
+  **1 · Poste** (champ de recherche **unique** sur tous les postes, postes
+  épinglés ★ en tête, + explorateur **par typologie** curé), **2 · Topologie
+  cible** (éditer + valider), **3 · Séquence de manœuvres**.
 - **Schéma de départ** (centre haut, bandeau bleu) : topologie détaillée
-  initiale, **non modifiable** ; sert de référence.
+  initiale, **non modifiable** ; sert de référence. Son en-tête porte le bouton
+  **↺ État d'origine** (réinitialise la cible à l'état d'origine du poste).
 - **Schéma cible** (centre bas, bandeau orange) : topologie détaillée
-  **éditable** ; c'est aussi là que se déroule l'animation de la séquence.
+  **éditable** ; c'est aussi là que se déroule l'animation de la séquence. Son
+  en-tête porte le bouton **⇧ Nouvelle Topologie Départ** (la cible sélectionnée
+  dans *Scénarios sauvegardés* devient le nouvel état de départ).
 - **Volet nodal** (droite) : représentation **schématique en « vue bus »** (un
   **nœud** = barre horizontale colorée ; chaque **branche** = départ vertical
   portant son **libellé** détaillé et sa **valeur de flux** en MW) de la topologie
@@ -124,14 +138,16 @@ des variables CSS).
 
 ## 3. Flux de travail
 
-1. **Choisir un poste** → les deux schémas affichent l'état de départ (pristine).
-   Trois entrées : le **menu épinglé** (jeu de test + 7 postes 3 JdB), le
-   **sélecteur par typologie** 📂 (sections : *≥5 jeux de barres*, *sectionnement
-   extrême*, *faisceau de couplage partagé*, *organes internes*, *omnibus*,
-   *départs déconnectés*, *gros postes*, …) et le **champ de recherche** (tout VL
-   NODE_BREAKER de la situation). Dans le sélecteur par typologie, un poste
-   **grisé** (⚠) n'est pas présent dans la situation chargée → charger la grille
-   France (`grid.xiidm`) pour y accéder (le rendu détaillé SLD requiert le réseau).
+1. **Choisir un poste** (étape *1 · Poste* du Scénario Topologique) → les deux
+   schémas affichent l'état de départ (pristine). Deux entrées **fusionnées** :
+   le **champ de recherche unique** (tout VL NODE_BREAKER de la situation ; les
+   postes **épinglés ★** — jeu de test + 7 postes 3 JdB — sont listés en tête de
+   liste pour rester d'accès rapide) et l'**explorateur par typologie** 📂
+   (sections : *≥5 jeux de barres*, *sectionnement extrême*, *faisceau de couplage
+   partagé*, *organes internes*, *omnibus*, *départs déconnectés*, *gros postes*,
+   …). Dans l'explorateur par typologie, un poste **grisé** (⚠) n'est pas présent
+   dans la situation chargée → charger la grille France (`grid.xiidm`) pour y
+   accéder (le rendu détaillé SLD requiert le réseau).
 2. **Éditer la cible** : cliquer un disjoncteur/sectionneur dans le schéma du
    bas pour basculer son état (ouvert/fermé). Le nombre de nœuds cible évolue en
    direct.
@@ -216,8 +232,8 @@ Le compteur de nœuds exclut les isolés.
 
 **Synchronisation détaillé ↔ nodal.** La topologie **détaillée** fait foi : le
 volet nodal cible **reflète** la partition de l'état détaillé courant. Toute
-**édition du détail** (bascule d'un organe, `↺ État de départ`) **ou rechargement
-de scénario** (`▷ Rejouer`) **resynchronise** la cible nodale (partition, couleurs,
+**édition du détail** (bascule d'un organe, `↺ État d'origine`) **ou rechargement
+de scénario** (modale **⟳ Recharger**) **resynchronise** la cible nodale (partition, couleurs,
 ouvrages isolés) — par ex. ouvrir le DJ d'un départ le fait passer en *ouvrage
 isolé* dans le volet nodal, et recharger un scénario à N nœuds affiche bien ces N
 nœuds côté nodal. Le
@@ -279,11 +295,14 @@ atteinte ». L'indicateur est recalculé **à chaque étape** côté serveur
 qu'il s'allume exactement lorsque la cible est atteinte et s'éteint sinon.
 
 ### Réutiliser des scénarios
-- **▷ Rejouer** : recharge un scénario (départ **et** cible sauvegardés).
-- **⇧ Comme départ** : la cible sauvegardée devient le **nouvel état de
-  départ** — permet de **chaîner** les scénarios (repartir d'une topologie
-  validée plutôt que de l'état de base du réseau), puis d'éditer une nouvelle
-  cible par-dessus.
+- **⟳ Recharger** (bouton à droite du titre *🗺 Scénario Topologique*) : ouvre une
+  **petite modale** (sélecteur de scénario + **Valider** / **Annuler**) qui
+  **rejoue** le scénario choisi (départ **et** cible sauvegardés). Remplace
+  l'ancienne section « Scénarios sauvegardés ».
+- **⇧ Nouvelle Topologie Départ** (en-tête du schéma cible) : la cible
+  sélectionnée devient le **nouvel état de départ** — permet de **chaîner** les
+  scénarios (repartir d'une topologie validée plutôt que de l'état de base du
+  réseau), puis d'éditer une nouvelle cible par-dessus.
 
 ---
 
@@ -296,10 +315,11 @@ navigateur).
 |-----------------|-------|---------|------|
 | `GET /` | — | HTML | Page de l'IHM |
 | `GET /api/postes` | — | `{postes:[…], all:[…], catalog:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) ; `catalog` = **sections par typologie** (cf. ci-dessous). En mode dataset avant tout chargement : `{postes:[], all:[], catalog:[], needs_date:true}` |
-| `GET /api/dataset/config` | — | `{enabled, repo, default_date, default_time, sample_dates[]}` | Config de la source dataset ; `enabled=false` en mode `--grid` (le bandeau dataset reste masqué) |
+| `GET /api/dataset/config` | — | `{enabled, repo, default_date, default_time, sample_dates[]}` | Config de la source dataset (onglet **RTE7000**) ; `enabled` décide de l'**onglet actif par défaut** (RTE7000 sur le Space, Local en mode `--grid`) — l'onglet RTE7000 reste présent dans les deux cas |
 | `GET /api/dataset/timestamps?date=YYYY-MM-DD` | — | `{ok, date, timestamps:[{ts,path}], default}` / `400` (date invalide) / `502` (HF) | Instantanés disponibles pour la journée (HH:MM), avec l'horodatage présélectionné (le plus proche de **midi**) |
 | `POST /api/dataset/load` | `{date, time}` | `{ok, date, time, iso, postes:[…], all:[…], catalog:[…]}` / `400` (absent) / `502` (HF) | **Télécharge à la demande** l'instantané `(date, time)` du dataset, reconstruit la session et liste les postes (même forme que `/api/load_grid`) |
 | `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…], catalog:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
+| `GET /api/pick_grid_file` | — | `{path, error?}` | Ouvre un **sélecteur de fichier natif** (onglet *Local*, usage local) pour choisir une situation `.xiidm` ; `path` vide si annulé ; `error` si headless / tkinter absent (l'IHM invite à coller le chemin) |
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) — **n'importe quel** VL NODE_BREAKER ; inclut les partitions nodales |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds, nodale}` | Bascule un OC (cible) ; `nodale` = vue nodale resynchronisée |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds, nodale}` | Réinitialise la cible = départ |
@@ -407,7 +427,7 @@ assert res.ecarts == []
 | Spécification | Couverture |
 |---------------|-----------|
 | Modifier **manuellement et interactivement** l'état des DJ/SA depuis une topologie de départ | Clic sur l'organe du schéma cible → `/api/toggle` |
-| **Valider** la topologie cible avant de calculer | Étape 1 « Valider & sauvegarder » ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
+| **Valider** la topologie cible avant de calculer | Étape **2 · Topologie cible** « Valider & sauvegarder » ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
 | **Sauvegarder** la cible pour des tests par ailleurs | Scénario JSON (`/api/save`) avec topologies détaillées + nodales |
 | Demander la **séquence de manœuvres** départ → cible | `/api/sequence` → façade pluggable (`PlanificateurTopologie.sequencer`, phase B ; « libtopo » = `determiner_manoeuvres_cible_detaillee`) |
 | **Choisir l'algorithme** de chaque phase de calcul (natif « libtopo » + plugins enregistrés) | Sélecteurs « Algo » (panneau Séquence = phase B ; volet nodal = phase A) ; `GET/POST /api/algos` (disponibles par phase + sélection de session) ; badge `algo <nom>` dans le statut de séquence. Les plugins tiers (registre / entry points `expert_op4grid_recommender.manoeuvre`) apparaissent automatiquement — cf. `docs/manoeuvre_plugins.md` |
@@ -419,7 +439,9 @@ assert res.ecarts == []
 | Couleurs **natives** par niveau de tension (63 kV violet) | `topological_coloring`, rendu navigateur |
 | **Explorer les postes par typologie** (sections) | Sélecteur 📂 `#posteCat` : un `<optgroup>` par typologie (≥5 JdB, sectionnement extrême, faisceau partagé, organes internes, omnibus, départs déconnectés, gros postes…) ; entrées grisées = absentes de la situation (`catalog` de `/api/postes`) |
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
-| Choisir l'**état de départ** depuis une topologie sauvegardée | « ⇧ Comme départ » |
+| Choisir l'**état de départ** depuis une topologie sauvegardée | « ⇧ Nouvelle Topologie Départ » (en-tête du schéma cible) |
+| **Recharger** un scénario (départ + cible) | Bouton « ⟳ Recharger » (titre *Scénario Topologique*) → modale (sélecteur + Valider / Annuler) → `/api/load_scenario` (mode `both`) |
+| **Rechercher / choisir un poste** (champ unique) | `#posteSearch` (datalist de **tous** les VL NODE_BREAKER, postes épinglés ★ en tête) ; charge au choix / Entrée |
 | **Sauvegarder la séquence** avec lien vers ses topologies | `/api/save_sequence` (JSON autonome + champ `scenario`) |
 | Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | façade `sequencer` (« libtopo » = `determiner_manoeuvres_cible_detaillee`) ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
 | **Avertissement d'écrasement** d'un fichier de sauvegarde existant | Confirmation / renommage (réponse `{exists:true}`) |

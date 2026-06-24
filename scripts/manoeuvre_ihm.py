@@ -54,7 +54,9 @@ import argparse
 import json
 import os
 import pathlib
+import platform
 import re
+import subprocess
 import sys
 from contextlib import contextmanager
 
@@ -1109,6 +1111,59 @@ def api_load_grid():
     SESSION = Session(net)
     return jsonify(ok=True, postes=SESSION.postes, all=SESSION.all_postes,
                    catalog=SESSION.catalog())
+
+
+def _pick_grid_file_macos() -> dict:
+    """Sélecteur de fichier natif macOS (osascript). Best-effort."""
+    script = ('POSIX path of (choose file with prompt '
+              '"Sélectionner une situation réseau (.xiidm)")')
+    proc = subprocess.run(["osascript", "-e", script],
+                          capture_output=True, text=True, timeout=300)
+    if proc.returncode != 0:
+        err = (proc.stderr or "").strip()
+        if "User canceled" in err or "User cancelled" in err or "(-128)" in err:
+            return {"path": ""}            # annulation = pas une erreur
+        return {"path": "", "error": err or "osascript a échoué"}
+    return {"path": proc.stdout.strip()}
+
+
+def _pick_grid_file_tkinter() -> dict:
+    """Sélecteur de fichier natif via ``tkinter`` (sous-processus isolé). Sans
+    afficheur (Space headless) ou sans tkinter, le sous-processus échoue et on
+    renvoie une ``error`` que l'IHM affiche (invite à coller le chemin)."""
+    script = (
+        "import tkinter as tk\n"
+        "from tkinter import filedialog\n"
+        "root = tk.Tk(); root.withdraw()\n"
+        "root.attributes('-topmost', True)\n"
+        "p = filedialog.askopenfilename(\n"
+        "    title='Sélectionner une situation réseau',\n"
+        "    filetypes=[('Réseau XIIDM', '*.xiidm *.xiidm.bz2 *.xiidm.gz *.zip'),\n"
+        "               ('Tous les fichiers', '*.*')])\n"
+        "root.destroy()\n"
+        "print(p or '')\n")
+    proc = subprocess.run([sys.executable, "-c", script],
+                          capture_output=True, text=True, timeout=300)
+    if proc.returncode != 0:
+        return {"path": "",
+                "error": (proc.stderr or "").strip() or "sélecteur indisponible"}
+    return {"path": proc.stdout.strip()}
+
+
+@app.get("/api/pick_grid_file")
+def api_pick_grid_file():
+    """Ouvre un sélecteur de fichier **natif** (usage local) pour choisir une
+    situation réseau ``.xiidm`` et renvoie ``{path, error?}`` — ``path`` vide si
+    l'utilisateur annule. Sur un serveur sans afficheur (Space), renvoie une
+    ``error`` (l'IHM invite alors à coller le chemin à la main)."""
+    try:
+        if platform.system() == "Darwin":
+            return jsonify(_pick_grid_file_macos())
+        return jsonify(_pick_grid_file_tkinter())
+    except subprocess.TimeoutExpired:
+        return jsonify(path="", error="Sélecteur expiré (aucune sélection).")
+    except Exception as exc:  # pragma: no cover - dépend de l'environnement
+        return jsonify(path="", error=str(exc))
 
 
 @app.post("/api/load")
