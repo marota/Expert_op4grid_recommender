@@ -187,8 +187,6 @@
   <button id="bmanual" onclick="manualSeq()" disabled title="Construire la séquence à la main : cliquez les organes du schéma (départ → …), la cible s'affiche en référence">✋ Séquence manuelle</button>
   <div id="calchint" style="font-size:11px;color:#b45309">Validez d'abord la cible pour activer le calcul.</div>
 
-  <h2>Nœuds électriques : <span id="nbn" class="badge">–</span></h2>
-  <div style="font-size:11px;color:#555">Clic sur un organe du schéma pour basculer son état (départ ➜ cible).</div>
 </div>
 <div id="main">
   <div class="pane" id="paneTop">
@@ -445,7 +443,6 @@ async function toggleEditTarget(){
     const d=await api('/api/cible',{});
     document.getElementById('diagBottom').innerHTML=d.svg;
     document.getElementById('nbB').textContent=d.nb_noeuds;
-    document.getElementById('nbn').textContent=d.nb_noeuds;
     bind(d.switches);syncNodalCible(d.nodale);
     document.getElementById('paneBot').classList.remove('reached');
     b.textContent='▶ Revenir à la séquence';b.classList.add('primary');
@@ -524,7 +521,6 @@ function show(d){
     document.getElementById('ttlA').textContent='Topologie de départ';S.manual=false;}
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
-  document.getElementById('nbn').textContent=d.nb_noeuds;
   bind(d.switches);}
 function bind(switches){const root=document.getElementById('diagBottom');
   switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
@@ -847,7 +843,6 @@ async function nodCompute(){
   // Charger la topologie détaillée d'intérêt comme cible (volet du bas).
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
-  document.getElementById('nbn').textContent=d.nb_noeuds;
   bind(d.switches);hideSeq();setValidated(false);
   // Resynchroniser la cible nodale sur la topologie détaillée RÉALISÉE
   // (partition + couleurs + isolés des nœuds obtenus).
