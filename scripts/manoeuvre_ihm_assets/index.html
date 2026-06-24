@@ -256,7 +256,7 @@
       <div class="stitle"><span id="ndCibTitle">Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
       <div class="ntools">
         <button onclick="nodNewNode()" title="Créer un nœud vide (puis y glisser des départs ; ou avec la sélection courante)">＋ Nœud</button>
-        <button onclick="nodReset()" title="Réinitialiser la cible nodale = départ">= départ</button>
+        <button onclick="nodReset()" title="Réinitialiser la cible (nodale + détaillée) à la topologie d'origine du poste (départ)">↺ Réinitialiser</button>
         <button onclick="nodClearSel()" title="Vider la sélection">∅ Désélectionner</button>
       </div>
       <div style="font-size:10px;color:#64748b;padding:0 8px">Glisser un <b>départ</b> (ou une sélection : clic pour (dé)sélectionner) sur une autre barre = réaiguillage. Glisser une <b>barre</b> sur une autre = fusion. Flux en MW (état de départ).</div>
@@ -739,10 +739,12 @@ function initNodale(d){
   document.getElementById('nodstatus').textContent='';
   document.getElementById('nodstatus').className='';
   renderNodaleDepart();renderNodaleCible();}
-function nodReset(){NOD.groups=cloneGroups(NOD.depart.groups||[]);
-  NOD.isolated=(NOD.departIso||[]).slice();
-  NOD.colorsCible=Object.assign({},NOD.colors);  // recouleurs = départ
-  NOD.selBranches=new Set();NOD.selNodes=new Set();renderNodaleCible();}
+// « ↺ Réinitialiser » : ramène la cible à la topologie d'origine du poste
+// (départ) — **détaillée ET nodale**. Réutilise le reset complet (/api/reset,
+// même chemin que « État d'origine ») : l'ancien reset nodal client-only ne
+// remettait que la proposition nodale, pas le schéma détaillé → effet « ne
+// réinitialise pas » dès qu'on avait édité le détail ou calculé.
+async function nodReset(){await reset();}
 function nodNormalize(){NOD.groups=NOD.groups.filter(g=>g.length>0);}
 function nodeColor(i){return NODE_COLORS[i%NODE_COLORS.length];}
 // Couleur de la barre = couleur SLD du nœud (via une branche), sinon palette de repli.

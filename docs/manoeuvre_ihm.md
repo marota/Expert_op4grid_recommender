@@ -266,7 +266,8 @@ L'édition se fait par **glisser-déposer** :
   comme cible de dépose — glisser-y ensuite des départs. Un nœud resté **vide**
   est **ignoré** au calcul de la topologie détaillée (et retiré de l'affichage à
   ce moment-là).
-- **Réinitialiser** : **= départ** ramène la cible à la partition de départ ;
+- **Réinitialiser** : **↺ Réinitialiser** ramène la cible à la topologie
+  d'origine du poste (**détaillée + nodale** = départ, via `/api/reset`) ;
   **∅ Désélectionner** vide la sélection.
 
 Les **ouvrages déconnectés** (organe ouvert → non raccordés à une barre) ne sont
@@ -296,7 +297,7 @@ de scénario** (modale **⟳ Recharger**) **resynchronise** la cible nodale (par
 ouvrages isolés) — par ex. ouvrir le DJ d'un départ le fait passer en *ouvrage
 isolé* dans le volet nodal, et recharger un scénario à N nœuds affiche bien ces N
 nœuds côté nodal. Le
-glisser-déposer nodal et `= départ` sont des **propositions** de partition
+glisser-déposer nodal (et **＋ Nœud**) sont des **propositions** de partition
 (le détail n'est pas encore modifié) ; **⚙ Calculer…** les réalise, charge la
 cible détaillée et resynchronise le volet nodal sur la topologie **obtenue**
 (d'où, en cas de réalisation partielle, un volet nodal qui correspond bien au
