@@ -50,8 +50,8 @@ guide: [`docs/manoeuvre_ihm.md`](docs/manoeuvre_ihm.md).
 > **(3)** the read-only **departure** single-line diagram, header **↺ État
 > d'origine** (reset target to pristine);
 > **(4)** the **editable target** diagram (click a breaker/disconnector to
-> toggle), header **⇧ Nouvelle Topologie Départ** (promote the target to a new
-> departure);
+> toggle), header **⇧ Nouvelle Topologie Départ** (promote the *current edited*
+> target to a new departure — the departure pane above updates);
 > **(5)** the nodal **bus view** (drag a feeder to re-route, drag one busbar onto
 > another to merge, *+ Nœud* to create a node);
 > **(6)** **2 · Topologie cible** — validate & save (locks "Calculer" until

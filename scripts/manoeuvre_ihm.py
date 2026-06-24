@@ -396,6 +396,19 @@ class Session:
         self.current = dict(self.initial)
         self.scenario_name = None
 
+    def promote_cible(self):
+        """Promeut la cible courante (état détaillé édité) en **nouvel état de
+        départ** : ``initial`` prend l'ancienne ``current`` (et ``current`` en
+        repart à l'identique). Séquence et lien de scénario réinitialisés. Permet
+        de **chaîner** depuis une topologie éditée sans passer par un scénario
+        sauvegardé. (Le VL ne change pas : les caches par état restent valides.)"""
+        self.initial = dict(self.current)
+        self.current = dict(self.initial)
+        self.seq_manoeuvres = []
+        self.seq_states, self.seq_highlights, self.seq_labels = [], [], []
+        self.seq_edited = False
+        self.scenario_name = None
+
     def toggle(self, sid):
         if sid in self.current:
             self.current[sid] = not self.current[sid]
@@ -1191,6 +1204,20 @@ def api_reset():
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
                    nodale=SESSION.nodale_state(SESSION.current))
+
+
+@app.post("/api/promote_cible")
+def api_promote_cible():
+    """Promeut la cible courante en **nouvel état de départ** (chaînage sans
+    passer par un scénario sauvegardé). Renvoie les deux schémas (départ + cible)
+    et les vues nodales, comme ``/api/load``."""
+    SESSION.promote_cible()
+    svg_i, _, nb_i = SESSION.view(SESSION.initial)
+    svg_c, sw, nb_c = SESSION.view(SESSION.current)
+    return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl,
+                   nodale_depart=SESSION.nodale_payload(SESSION.initial),
+                   nodale_cible=SESSION.nodale_state(SESSION.current))
 
 
 @app.post("/api/cible")

@@ -111,6 +111,18 @@
  .modalbox{background:#fff;border-radius:8px;padding:16px 18px;min-width:300px;
    max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.25)}
  .modalbox h3{margin:0 0 10px;font-size:14px}
+ /* Liste de postes unifiée (recherche + exploration curée par typologie) */
+ #posteList{max-height:240px;overflow:auto;border:1px solid #cbd5e1;border-radius:5px;
+   background:#fff;margin-top:4px}
+ #posteList .sec{font-size:10px;font-weight:bold;color:#475569;background:#f1f5f9;
+   padding:3px 8px;position:sticky;top:0}
+ #posteList .it{padding:3px 10px;cursor:pointer;font-size:12px;white-space:nowrap;
+   overflow:hidden;text-overflow:ellipsis}
+ #posteList .it:hover{background:#eef2ff}
+ #posteList .it.cur{background:#dbeafe;font-weight:bold}
+ #posteList .it.off{color:#9ca3af;cursor:not-allowed}
+ #posteList .it .pin{color:#d97706}
+ #posteList .empty{padding:6px 10px;font-size:11px;color:#888}
 </style></head><body>
 <div id="side">
   <h2 style="margin-top:0">Situation réseau</h2>
@@ -157,15 +169,11 @@
   <div style="font-size:10px;color:#888;margin:1px 0 0">Poste → topologie cible → séquence de manœuvres.</div>
 
   <h2 class="step">1 · Poste</h2>
-  <input id="posteSearch" list="allPostes" placeholder="🔎 rechercher un poste (tous)…"
+  <input id="posteSearch" placeholder="🔎 rechercher un poste (tous)…"
          style="width:100%;padding:6px" autocomplete="off"
-         title="Rechercher / inspecter n'importe quel poste NODE_BREAKER de la situation chargée (postes épinglés ★ en tête de liste)">
-  <datalist id="allPostes"></datalist>
-  <div style="margin-top:6px">
-    <select id="posteCat" title="Explorer les postes par typologie (sections) — liste curée. Les postes grisés ne sont pas dans la situation chargée — charger la grille France pour y accéder."
-            style="width:100%;padding:6px"></select>
-    <div style="font-size:10px;color:#888;margin-top:2px">📂 explorer par typologie — grisé = absent de la situation chargée</div>
-  </div>
+         title="Rechercher n'importe quel poste NODE_BREAKER de la situation chargée. Vide : exploration curée par typologie (postes épinglés ★ en tête).">
+  <div id="posteList"></div>
+  <div style="font-size:10px;color:#888;margin-top:2px">🔎 recherche sur tous les postes · 📂 vide = exploration curée par typologie (grisé = absent)</div>
 
   <h2 class="step">2 · Topologie cible</h2>
   <div style="font-size:11px;color:#555;margin:1px 0 3px">Éditez la cible (clic sur un organe du schéma / volet nodal), puis validez-la.</div>
@@ -198,7 +206,7 @@
   </div>
   <div class="pane" id="paneBot">
     <div class="ttl"><button class="cbtn" onclick="togglePane('paneBot')" title="Réduire / agrandir">▾</button>
-      <button onclick="loadScen('as_depart')" title="La cible sélectionnée dans « Scénarios sauvegardés » devient le nouvel état de départ"
+      <button onclick="promoteCible()" title="Promouvoir la cible courante (éditée) en nouvel état de départ — pour chaîner les scénarios"
               style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">⇧ Nouvelle Topologie Départ</button>
       Topologie cible (éditable, clic sur un organe) — <span id="nbB" class="badge">–</span> nœud(s)
         · animation de la séquence ici</div>
@@ -263,7 +271,7 @@
   <div class="modalbox">
     <h3>⟳ Recharger un scénario</h3>
     <select id="scenSel" style="width:100%"><option value="">—</option></select>
-    <div style="font-size:10px;color:#888;margin-top:6px">« Valider » rejoue le scénario (départ + cible). Pour repartir de sa cible, utilisez « ⇧ Nouvelle Topologie Départ » sur le schéma cible.</div>
+    <div style="font-size:10px;color:#888;margin-top:6px">« Valider » rejoue le scénario sauvegardé (départ + cible).</div>
     <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
       <button onclick="closeReload()">Annuler</button>
       <button class="primary" onclick="validateReload()">Valider</button>
@@ -275,15 +283,16 @@ let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:
   editTarget:false,stale:false,currentVL:null,tab:'local'};
 // État de la source « dataset RTE7000 » (onglet de choix date/heure).
 let DS={enabled:false,repo:'',defaultTime:'12:00'};
-// Cas d'intérêt documentés (campagne inter-saisons 2021, cf.
-// docs/dataset_rte7000/) : libellé court + intérêt, affichés en bulle sur les
-// puces d'accès rapide de l'onglet RTE7000.
+// Cas d'intérêt documentés — repris de la « Table de campagne »
+// (docs/dataset_rte7000/#table-de-campagne-campagnecampagnejson) :
+// jour · saison + blocs / postes actifs / reconfigurations structurelles,
+// affichés en bulle sur les puces d'accès rapide de l'onglet RTE7000.
 const DATE_INFO={
-  '2021-01-03':{tag:'dim. · hiver',desc:"Journée pilote, week-end calme : le MOINS de reconfigurations structurelles (36) — cas « simple » de référence."},
-  '2021-01-05':{tag:'mar. · hiver',desc:"Jour ouvré d'hiver : 123 reconfigurations structurelles, 2 011 postes actifs."},
-  '2021-04-14':{tag:'mer. · printemps',desc:"Mi-saison : 158 reconfigurations structurelles, charge modérée."},
-  '2021-07-15':{tag:'jeu. · été',desc:"Pointe estivale : le PLUS de postes actifs (2 096), 203 reconfigurations."},
-  '2021-10-12':{tag:'mar. · automne',desc:"Le PLUS de reconfigurations structurelles (208) — chantiers d'automne, cas « riche »."},
+  '2021-01-03':{tag:'dim. · hiver',desc:"Dimanche, hiver — 6 233 blocs, 1 861 postes actifs, 36 reconfigurations structurelles (le MINIMUM) : week-end calme, cas « simple » de référence (journée pilote)."},
+  '2021-01-05':{tag:'mar. · hiver',desc:"Mardi, hiver — 6 554 blocs, 2 011 postes actifs, 123 reconfigurations structurelles : jour ouvré d'hiver."},
+  '2021-04-14':{tag:'mer. · printemps',desc:"Mercredi, printemps — 7 216 blocs, 2 024 postes actifs, 158 reconfigurations structurelles : mi-saison."},
+  '2021-07-15':{tag:'jeu. · été',desc:"Jeudi, été — 7 127 blocs, 2 096 postes actifs (le PLUS), 203 reconfigurations structurelles : pointe estivale."},
+  '2021-10-12':{tag:'mar. · automne',desc:"Mardi, automne — 6 760 blocs, 2 056 postes actifs, 208 reconfigurations structurelles (le MAXIMUM) : chantiers d'automne, cas « riche »."},
 };
 // --- Onglets « Situation réseau » (Local ⇄ RTE7000) -----------------------
 function selectTab(which){
@@ -311,35 +320,48 @@ const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/jso
 function setValidated(v){document.getElementById('bcalc').disabled=!v;
   document.getElementById('bmanual').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
-let ALL_POSTES=[];
-// Champ poste **unique** (recherche sur TOUS les postes de la situation) : le
-// menu épinglé d'autrefois est fusionné ici — les postes épinglés (★) sont
-// listés en tête de la datalist pour rester d'accès rapide ; l'explorateur
-// « par typologie » (liste curée) reste à part.
+let ALL_POSTES=[],PINNED=[],CATALOG=[];
+const POSTE_CAP=300;   // borne d'affichage des résultats de recherche (perf)
+// Champ poste **unique** : un champ de recherche sur TOUS les postes de la
+// situation, et **en dessous** une liste browsable — vide = exploration curée
+// par typologie (postes épinglés ★ en tête) ; saisie = recherche plein-texte
+// sur tous les postes. Fusionne l'ancien champ de recherche et le sélecteur
+// « par typologie » dans une même interaction.
 function populatePostes(r){
   ALL_POSTES=r.all||r.postes||[];
-  const pinned=r.postes||[];
-  const dl=document.getElementById('allPostes');dl.innerHTML='';
-  const seen=new Set();
-  const addOpt=(p,label)=>{if(seen.has(p))return;seen.add(p);
-    const o=document.createElement('option');o.value=p;if(label)o.label=label;dl.appendChild(o);};
-  pinned.forEach(p=>addOpt(p,'★ épinglé'));
-  ALL_POSTES.forEach(p=>addOpt(p));
-  populateCatalog(r.catalog||[]);}
-// Sélecteur « par typologie » : un <optgroup> par section ; postes absents de la
-// situation chargée grisés (option disabled).
-function populateCatalog(catalog){
-  const cs=document.getElementById('posteCat');cs.innerHTML='';
-  const ph=document.createElement('option');ph.value='';ph.text='📂 explorer par typologie…';
-  ph.disabled=true;ph.selected=true;cs.add(ph);
-  catalog.forEach(sec=>{
-    const og=document.createElement('optgroup');
-    og.label=`${sec.title}  (${sec.n_available}/${sec.postes.length})`;
-    sec.postes.forEach(p=>{const o=document.createElement('option');
-      o.value=p.vl;o.text=(p.available?'':'⚠ ')+p.vl;o.disabled=!p.available;
-      if(!p.available)o.title='absent de la situation chargée — charger la grille France';
-      og.appendChild(o);});
-    cs.appendChild(og);});}
+  PINNED=r.postes||[];
+  CATALOG=r.catalog||[];
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');}
+function _posteSec(title){const d=document.createElement('div');
+  d.className='sec';d.textContent=title;return d;}
+function _posteItem(vl,pinned,available){
+  const d=document.createElement('div');
+  d.className='it'+(available?'':' off')+(vl===S.currentVL?' cur':'');
+  d.innerHTML=(pinned?'<span class="pin">★ </span>':'')+xesc(vl)
+    +(available?'':' <span style="font-size:9px">⚠ absent</span>');
+  if(available)d.onclick=()=>load(vl);
+  else d.title='absent de la situation chargée — charger la grille France';
+  return d;}
+function renderPosteList(query){
+  const root=document.getElementById('posteList');if(!root)return;root.innerHTML='';
+  const q=(query||'').trim().toLowerCase();
+  if(q){   // recherche plein-texte sur TOUS les postes de la situation
+    const pin=new Set(PINNED);
+    const hits=ALL_POSTES.filter(p=>p.toLowerCase().includes(q));
+    if(!hits.length){root.innerHTML='<div class="empty">Aucun poste ne correspond.</div>';return;}
+    hits.slice(0,POSTE_CAP).forEach(p=>root.appendChild(_posteItem(p,pin.has(p),true)));
+    if(hits.length>POSTE_CAP){const d=document.createElement('div');d.className='empty';
+      d.textContent='… '+(hits.length-POSTE_CAP)+' autres — affinez la recherche.';
+      root.appendChild(d);}
+    return;}
+  // vide : exploration curée (épinglés + sections par typologie)
+  if(PINNED.length){root.appendChild(_posteSec('★ Postes épinglés'));
+    PINNED.forEach(p=>root.appendChild(_posteItem(p,true,true)));}
+  CATALOG.forEach(sec=>{
+    root.appendChild(_posteSec(sec.title+'  ('+sec.n_available+'/'+sec.postes.length+')'));
+    sec.postes.forEach(p=>root.appendChild(_posteItem(p.vl,false,p.available)));});
+  if(!PINNED.length&&!CATALOG.length)
+    root.innerHTML='<div class="empty">Aucun poste — charger une situation.</div>';}
 // Sélecteurs d'algorithme pluggable (manoeuvre.plugins) : phase A (nodale →
 // détaillée, volet nodal) et phase B (séquencement, panneau latéral). Les
 // plugins tiers enregistrés (registre / entry points) y apparaissent d'office.
@@ -359,12 +381,12 @@ function fillAlgoSel(id,phase,r){
   sel.title=sel.disabled?sel.title+' (un seul algorithme disponible)':sel.title;}
 async function init(){const r=await (await fetch('/api/postes')).json();
   populatePostes(r);await refreshAlgos();
-  const cs=document.getElementById('posteCat');cs.onchange=()=>{if(cs.value)load(cs.value);};
-  // Champ poste unique : datalist de tous les VL NODE_BREAKER de la situation
-  // (postes épinglés ★ en tête). Charge au choix (Entrée ou sélection).
+  // Champ poste unique : la saisie filtre la liste (recherche sur tous les
+  // postes) ; Entrée charge le poste si la saisie correspond exactement.
   const search=document.getElementById('posteSearch');
-  const go=()=>{const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);};
-  search.onchange=go;search.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+  search.addEventListener('input',()=>renderPosteList(search.value));
+  search.addEventListener('keydown',e=>{if(e.key==='Enter'){
+    const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);}});
   initNodalResize(); initNodalDnD(); await refreshScenarios(); await initDataset();
   if(r.postes&&r.postes.length) load(r.postes[0]);}
 // ---- Onglet « RTE7000 » : choisir une date/heure, charger la situation -------
@@ -425,8 +447,17 @@ async function loadGrid(){
   msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
   if(r.postes.length)load(r.postes[0]);else if(ALL_POSTES.length)load(ALL_POSTES[0]);}
 async function load(vl){stopAnim();S.currentVL=vl;const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
-  document.getElementById('posteSearch').value=vl;      // sync champ poste unique
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');  // surligne le poste courant
   document.getElementById('scenName').value=vl+'_cible';}
+// Promouvoir la cible courante (éditée) en nouvel état de DÉPART — met à jour le
+// schéma du haut (départ) et repart d'une cible = nouveau départ ; permet de
+// chaîner sans passer par un scénario sauvegardé.
+async function promoteCible(){stopAnim();
+  const d=await api('/api/promote_cible',{});
+  if(d&&d.vl)S.currentVL=d.vl;
+  show(d);initNodale(d);hideSeq();setValidated(false);
+  document.getElementById('scenName').value=(S.currentVL||'')+'_cible';
+  document.getElementById('savemsg').textContent='Cible promue en nouvel état de départ — éditez puis validez une nouvelle cible.';}
 async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
   syncNodalCible(d.nodale);hideSeq();setValidated(false);}
 async function toggle(id){stopAnim();const d=await api('/api/toggle',{id});show(d);
@@ -501,7 +532,9 @@ async function save(){const name=document.getElementById('scenName').value;
   setValidated(true);await refreshScenarios();}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
   stopAnim();const d=await api('/api/load_scenario',{name,mode});
-  document.getElementById('posteSearch').value=d.vl;show(d);initNodale(d);hideSeq();
+  if(d&&d.vl)S.currentVL=d.vl;
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');
+  show(d);initNodale(d);hideSeq();
   if(mode==='as_depart'){
     document.getElementById('scenName').value=name+'_suite';
     document.getElementById('savemsg').textContent='« '+name+' » chargé comme état de départ — éditez puis validez une nouvelle cible.';

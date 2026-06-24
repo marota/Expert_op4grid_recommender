@@ -195,3 +195,27 @@ def test_pick_grid_file_timeout_is_graceful(monkeypatch):
     d = ihm.app.test_client().get("/api/pick_grid_file").get_json()
     assert d["path"] == ""
     assert "expiré" in d["error"]
+
+
+# --------------------------------------------------------------------------
+# promote_cible : promouvoir la cible courante en nouvel état de départ
+# --------------------------------------------------------------------------
+
+def test_promote_cible_makes_target_the_new_departure(session):
+    sid = next(iter(session.current))
+    session.toggle(sid)                       # édite la cible
+    edited = dict(session.current)
+    session.seq_manoeuvres = [
+        {"switch_id": sid, "action": "OPEN", "raison": "x", "boucle": None}]
+    session.promote_cible()
+    assert session.initial == edited          # départ = ancienne cible
+    assert session.current == edited          # cible repart = nouveau départ
+    assert session.seq_manoeuvres == []       # séquence réinitialisée
+    assert session.scenario_name is None
+
+
+def test_api_promote_cible_returns_both_panes(session, monkeypatch):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    d = ihm.app.test_client().post("/api/promote_cible", json={}).get_json()
+    assert {"initial_svg", "svg", "switches", "nb_noeuds",
+            "nodale_depart", "nodale_cible", "vl"} <= set(d)

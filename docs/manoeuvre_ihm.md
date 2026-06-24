@@ -103,7 +103,7 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
 > d'origine) ;
 > **(4)** le schéma **cible éditable** — clic sur un disjoncteur/sectionneur pour
 > le basculer — dont l'en-tête porte **⇧ Nouvelle Topologie Départ** (promeut la
-> cible sélectionnée en nouveau départ, pour chaîner les scénarios) ;
+> **cible courante (éditée)** en nouveau départ, pour chaîner les scénarios) ;
 > **(5)** la « **vue bus** » nodale — glisser un départ sur une barre =
 > ré-aiguillage, glisser une barre sur une autre = fusion, *+ Nœud* = créer un
 > nœud — en partition de départ (un nœud, lecture seule) et cible (trois nœuds,
@@ -159,8 +159,9 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
   **↺ État d'origine** (réinitialise la cible à l'état d'origine du poste).
 - **Schéma cible** (centre bas, bandeau orange) : topologie détaillée
   **éditable** ; c'est aussi là que se déroule l'animation de la séquence. Son
-  en-tête porte le bouton **⇧ Nouvelle Topologie Départ** (la cible sélectionnée
-  dans *Scénarios sauvegardés* devient le nouvel état de départ).
+  en-tête porte le bouton **⇧ Nouvelle Topologie Départ** (la **cible courante
+  éditée** devient le nouvel état de départ — `/api/promote_cible` ; le schéma de
+  départ ci-dessus est mis à jour).
 - **Volet nodal** (droite) : représentation **schématique en « vue bus »** (un
   **nœud** = barre horizontale colorée ; chaque **branche** = départ vertical
   portant son **libellé** détaillé et sa **valeur de flux** en MW) de la topologie
@@ -182,15 +183,17 @@ des variables CSS).
 ## 3. Flux de travail
 
 1. **Choisir un poste** (étape *1 · Poste* du Scénario Topologique) → les deux
-   schémas affichent l'état de départ (pristine). Deux entrées **fusionnées** :
-   le **champ de recherche unique** (tout VL NODE_BREAKER de la situation ; les
-   postes **épinglés ★** — jeu de test + 7 postes 3 JdB — sont listés en tête de
-   liste pour rester d'accès rapide) et l'**explorateur par typologie** 📂
-   (sections : *≥5 jeux de barres*, *sectionnement extrême*, *faisceau de couplage
-   partagé*, *organes internes*, *omnibus*, *départs déconnectés*, *gros postes*,
-   …). Dans l'explorateur par typologie, un poste **grisé** (⚠) n'est pas présent
-   dans la situation chargée → charger la grille France (`grid.xiidm`) pour y
-   accéder (le rendu détaillé SLD requiert le réseau).
+   schémas affichent l'état de départ (pristine). Un **unique champ** réunit deux
+   modes dans une même interaction : une **recherche** sur **tous** les postes
+   NODE_BREAKER de la situation et, **en dessous**, une **liste browsable**.
+   Champ **vide** → exploration **curée par typologie** (sections : *≥5 jeux de
+   barres*, *sectionnement extrême*, *faisceau de couplage partagé*, *organes
+   internes*, *omnibus*, *départs déconnectés*, *gros postes*, …), **postes
+   épinglés ★ en tête** (jeu de test + 7 postes 3 JdB). En **saisissant**, la
+   liste filtre en **recherche plein-texte** sur tous les postes (bornée à 300
+   résultats affichés). Un poste **grisé** (⚠ absent) n'est pas présent dans la
+   situation chargée → charger la grille France (`grid.xiidm`) pour y accéder
+   (le rendu détaillé SLD requiert le réseau).
 2. **Éditer la cible** : cliquer un disjoncteur/sectionneur dans le schéma du
    bas pour basculer son état (ouvert/fermé). Le nombre de nœuds cible évolue en
    direct.
@@ -342,10 +345,11 @@ qu'il s'allume exactement lorsque la cible est atteinte et s'éteint sinon.
   **petite modale** (sélecteur de scénario + **Valider** / **Annuler**) qui
   **rejoue** le scénario choisi (départ **et** cible sauvegardés). Remplace
   l'ancienne section « Scénarios sauvegardés ».
-- **⇧ Nouvelle Topologie Départ** (en-tête du schéma cible) : la cible
-  sélectionnée devient le **nouvel état de départ** — permet de **chaîner** les
-  scénarios (repartir d'une topologie validée plutôt que de l'état de base du
-  réseau), puis d'éditer une nouvelle cible par-dessus.
+- **⇧ Nouvelle Topologie Départ** (en-tête du schéma cible) : la **cible courante
+  (éditée)** devient le **nouvel état de départ** (`/api/promote_cible`, **sans**
+  passer par un scénario sauvegardé) — le schéma de départ ci-dessus est mis à
+  jour. Permet de **chaîner** (repartir d'une topologie validée plutôt que de
+  l'état de base du réseau), puis d'éditer une nouvelle cible par-dessus.
 
 ---
 
@@ -366,6 +370,7 @@ navigateur).
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) — **n'importe quel** VL NODE_BREAKER ; inclut les partitions nodales |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds, nodale}` | Bascule un OC (cible) ; `nodale` = vue nodale resynchronisée |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds, nodale}` | Réinitialise la cible = départ |
+| `POST /api/promote_cible` | — | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, nodale_depart, nodale_cible}` | **Promeut la cible courante en nouvel état de départ** (chaînage sans scénario sauvegardé) ; met à jour les deux schémas + vues nodales |
 | `POST /api/cible` | — | `{svg, switches, nb_noeuds, nodale}` | Vue de la cible détaillée **courante** (sans la modifier) — pour revenir l'éditer alors qu'une séquence est calculée |
 | `POST /api/nodale` | — | `{nodale_depart, nodale_cible}` | Partitions nodales (cible initialisée = départ) ; `nodale_*` = `{groups[[…]], labels{id:nom}, types{id:type}, flows{id:MW}, dirs{id:TOP\|BOTTOM}, order{id:x}, colors{id:#hex}, isolated[…]}`. `labels`/`dirs`/`order`/`colors` sont **extraits du SLD** (libellés, côté, ordre horizontal et **couleur du nœud `topological_coloring`** identiques à la vue détaillée) ; `flows` provient d'une charge de réseau ; `isolated` liste les départs **déconnectés** (composante sans barre) |
 | `POST /api/nodale_to_detaillee` | `{groups, isolated?}` | `{svg, switches, nb_noeuds, is_verified, message, ecarts[], noeuds_non_realisables[[…]], nb_obtenu, nb_vise, nodale}` | Calcule la **topologie détaillée d'intérêt** réalisant la cible nodale `groups` (les `isolated` sont laissés hors partition) et la charge comme cible détaillée ; `nodale` = `{groups, colors, isolated}` de la topologie **réalisée** (resynchronise le volet nodal) |
@@ -482,9 +487,9 @@ assert res.ecarts == []
 | Couleurs **natives** par niveau de tension (63 kV violet) | `topological_coloring`, rendu navigateur |
 | **Explorer les postes par typologie** (sections) | Sélecteur 📂 `#posteCat` : un `<optgroup>` par typologie (≥5 JdB, sectionnement extrême, faisceau partagé, organes internes, omnibus, départs déconnectés, gros postes…) ; entrées grisées = absentes de la situation (`catalog` de `/api/postes`) |
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
-| Choisir l'**état de départ** depuis une topologie sauvegardée | « ⇧ Nouvelle Topologie Départ » (en-tête du schéma cible) |
+| Promouvoir la **cible courante** en nouvel état de départ | « ⇧ Nouvelle Topologie Départ » (en-tête du schéma cible) → `/api/promote_cible` (le schéma de départ est mis à jour) |
 | **Recharger** un scénario (départ + cible) | Bouton « ⟳ Recharger » (titre *Scénario Topologique*) → modale (sélecteur + Valider / Annuler) → `/api/load_scenario` (mode `both`) |
-| **Rechercher / choisir un poste** (champ unique) | `#posteSearch` (datalist de **tous** les VL NODE_BREAKER, postes épinglés ★ en tête) ; charge au choix / Entrée |
+| **Rechercher / explorer un poste** (champ unique) | `#posteSearch` + liste `#posteList` browsable : vide = exploration curée **par typologie** (épinglés ★ en tête) ; saisie = recherche plein-texte sur **tous** les VL NODE_BREAKER |
 | **Sauvegarder la séquence** avec lien vers ses topologies | `/api/save_sequence` (JSON autonome + champ `scenario`) |
 | Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | façade `sequencer` (« libtopo » = `determiner_manoeuvres_cible_detaillee`) ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
 | **Avertissement d'écrasement** d'un fichier de sauvegarde existant | Confirmation / renommage (réponse `{exists:true}`) |
