@@ -27,6 +27,48 @@ system shipped as the default. See
 
 ---
 
+## Interactive Maneuver Interface (IHM)
+
+A lightweight web IHM (`scripts/manoeuvre_ihm.py`) drives the `manoeuvre`
+module interactively: pick a substation, edit a **target detailed topology**,
+compute and **animate the switching sequence**, and save scenarios/sequences.
+It also backs the hosted **TopologyManoeuver4Grid** HuggingFace Space (network
+situations sourced on demand from the RTE-7000 dataset by date/hour). Full
+guide: [`docs/manoeuvre_ihm.md`](docs/manoeuvre_ihm.md).
+
+![Annotated overview of the maneuver IHM on a node-split scenario at CARRIP3](docs/manoeuvre/manoeuvre_ihm_overview.svg)
+
+> **Fig. — Interactive maneuver environment on a node-split scenario at CARRIP3**
+> (departure: one electrical node; target: three nodes — busbar 1 kept, busbar 2
+> split into 2.1 and 2.2). Numbered affordances:
+> **(1)** the **Situation réseau** source in two tabs — *Local* (server-side
+> `.xiidm` path + native file picker) and *RTE7000* (dataset date/hour, with quick
+> "case-of-interest" chips) — loaded by a single **Charger** button (RTE7000
+> foregrounded on the Space);
+> **(2)** the unified **Poste** search (all NODE_BREAKER substations, pinned ★
+> first) + by-typology explorer;
+> **(3)** the read-only **departure** single-line diagram, header **↺ État
+> d'origine** (reset target to pristine);
+> **(4)** the **editable target** diagram (click a breaker/disconnector to
+> toggle), header **⇧ Nouvelle Topologie Départ** (promote the target to a new
+> departure);
+> **(5)** the nodal **bus view** (drag a feeder to re-route, drag one busbar onto
+> another to merge, *+ Nœud* to create a node);
+> **(6)** **2 · Topologie cible** — validate & save (locks "Calculer" until
+> validated);
+> **(7)** **3 · Séquence de manœuvres** — de-energization mode + compute /
+> **✋ manual**;
+> **(8)** **⚙ Calculer la topologie détaillée d'intérêt** (the nodal→detailed
+> bridge);
+> **(9)** the **step-by-step animated** sequence with a disconnector-operated-
+> under-load flagged in red (here **R18**) + **💾 save**;
+> **(10)** **⟳ Recharger** (next to the *Scénario Topologique* title) opens a modal
+> to replay a saved scenario.
+> Bus colors are the native `topological_coloring`; the three right-hand busbars
+> are the target nodes.
+
+---
+
 ## Installation
 
 1.  **Clone the repository:**

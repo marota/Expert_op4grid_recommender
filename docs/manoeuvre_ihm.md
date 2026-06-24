@@ -86,6 +86,49 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
 
 ## 2. Disposition de l'interface
 
+![Vue d'ensemble annotée de l'IHM de manœuvre sur un scénario de scission de nœud à CARRIP3](manoeuvre/manoeuvre_ihm_overview.svg)
+
+> **Fig. — L'environnement interactif de manœuvre sur un scénario de scission de
+> nœud à CARRIP3** (départ : un nœud électrique ; cible : trois nœuds — barre 1
+> conservée, barre 2 scindée en sections 2.1 et 2.2). Repères :
+> **(1)** la source **Situation réseau**, en **deux onglets** — *📁 Local*
+> (chemin `.xiidm` côté serveur + **sélecteur de fichier natif**) et *📅 RTE7000*
+> (date/heure du dataset RTE-7000, avec **puces « cas d'intérêt »** et bulles
+> d'information) — chargée par un **unique bouton Charger** (RTE7000 mis en avant
+> par défaut sur le Space hébergé) ;
+> **(2)** le champ **Poste unifié** — une **seule recherche** sur tous les postes
+> NODE_BREAKER (épinglés ★ en tête) plus l'**explorateur curé par typologie** ;
+> **(3)** le schéma unifilaire **de départ** (lecture seule, état de référence),
+> dont l'en-tête porte **↺ État d'origine** (réinitialise la cible à l'état
+> d'origine) ;
+> **(4)** le schéma **cible éditable** — clic sur un disjoncteur/sectionneur pour
+> le basculer — dont l'en-tête porte **⇧ Nouvelle Topologie Départ** (promeut la
+> cible sélectionnée en nouveau départ, pour chaîner les scénarios) ;
+> **(5)** la « **vue bus** » nodale — glisser un départ sur une barre =
+> ré-aiguillage, glisser une barre sur une autre = fusion, *+ Nœud* = créer un
+> nœud — en partition de départ (un nœud, lecture seule) et cible (trois nœuds,
+> éditable) ;
+> **(6)** *2 · Topologie cible* : **✓ Valider & sauvegarder** la cible (« Calculer »
+> reste verrouillé tant que la cible n'est pas validée) ;
+> **(7)** *3 · Séquence de manœuvres* : choisir un mode de dé-énergisation
+> (smooth/agressif) et un algorithme, puis **⚙ Calculer** ou construire à la main
+> (**✋ Séquence manuelle**) la séquence ;
+> **(8)** **⚙ Calculer la topologie détaillée d'intérêt** réalise la cible nodale
+> éditée en cible détaillée (le **pont nodal → détaillé**) ;
+> **(9)** la séquence, **animée pas à pas** avec l'étape courante surlignée et les
+> opérations auditées — un sectionneur manœuvré **sous charge** est signalé en
+> **rouge** avec la règle enfreinte (ici **R18**, invariant hors-charge) — plus
+> l'export **💾 Sauvegarder la séquence** ;
+> **(10)** **⟳ Recharger** (à droite du titre *🗺 Scénario Topologique*) ouvre une
+> petite **modale** (sélecteur de scénario + Valider/Annuler) pour **rejouer** un
+> scénario sauvegardé.
+> Les couleurs des barres sont le `topological_coloring` natif des schémas
+> NODE_BREAKER ; à droite, les barres **violette**, **bordeaux** et **bleu clair**
+> sont les trois nœuds cibles (barre 1, et barre 2 scindée en 2.1 et 2.2).
+
+> La figure ci-dessus est un **schéma annoté** (SVG versionné) de la disposition ;
+> structure équivalente en ASCII :
+
 ```
 ┌──────────────────────┬─────────────────────────────────┬────────────────────┐
 │ PANNEAU LATÉRAL      │ SCHÉMA — TOPOLOGIE DE DÉPART     │ VOLET NODAL        │
