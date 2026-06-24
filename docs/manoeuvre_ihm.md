@@ -27,10 +27,15 @@ python scripts/manoeuvre_ihm.py --grid /chemin/vers/grid.xiidm
 
 | Argument | Défaut | Rôle |
 |----------|--------|------|
-| `--grid` | *(requis)* | Réseau `.xiidm` contenant les postes de test |
-| `--port` | `8000` | Port HTTP |
+| `--grid` | *(optionnel)* | Réseau `.xiidm` local. **Omis ⇒ mode dataset** (cf. § 1bis) |
+| `--host` | `127.0.0.1` (env `HOST`) | Interface d'écoute (`0.0.0.0` en conteneur / Space) |
+| `--port` | `8000` (env `PORT`) | Port HTTP |
 | `--scenarios-dir` | `tests/manoeuvre/scenarios` | Dossier de sauvegarde des **scénarios** (cibles) |
 | `--sequences-dir` | `tests/manoeuvre/sequences` | Dossier de sauvegarde des **séquences** générées |
+| `--dataset` | — | Activer la **source dataset RTE 7000** (défaut si `--grid` absent) |
+| `--dataset-repo` | `OpenSynth/D-GITT-RTE7000-2021` (env `DGITT_REPO`) | Dataset HuggingFace source |
+| `--cache-dir` | `.cache/dgitt` (env `DGITT_CACHE_DIR`) | Cache local des instantanés téléchargés |
+| `--default-date` | `2021-01-03` (env `DGITT_DEFAULT_DATE`) | Date proposée par défaut dans l'IHM |
 
 > Le serveur charge le réseau une fois (≈ 15 s pour un grand `.xiidm`) puis
 > affiche les postes de test disponibles. Il est **mono-utilisateur** et
@@ -39,6 +44,43 @@ python scripts/manoeuvre_ihm.py --grid /chemin/vers/grid.xiidm
 **Postes de test** (intersection des fixtures et du réseau) : CARRIP3, CARRIP6,
 CZTRYP6, COMPIP3, BXTO5P3, BXTO5P6, CZBEVP3, PALUNP3, NOVIOP3, SSAVOP3, VIELMP6,
 CORNIP3, GUARBP6, MORBRP6.
+
+---
+
+## 1bis. Mode dataset RTE 7000 + déploiement HuggingFace
+
+Sans `--grid`, l'IHM démarre en **mode dataset** : au lieu d'un réseau local
+figé, elle source les situations dans le dataset HuggingFace
+[`OpenSynth/D-GITT-RTE7000-2021`](https://huggingface.co/datasets/OpenSynth/D-GITT-RTE7000-2021)
+(réseau France, **un instantané XIIDM toutes les 5 min**), **téléchargés à la
+demande** (rien n'est embarqué). C'est le mode utilisé par le HuggingFace Space.
+
+```bash
+pip install flask pypowsybl networkx pandas      # dépendances de l'IHM dataset
+python scripts/manoeuvre_ihm.py --dataset        # http://localhost:8000
+```
+
+Déroulé dans l'IHM (bandeau **📅 Dataset RTE7000** en tête de barre latérale) :
+
+1. choisir une **date** (accès rapides vers des journées documentées) puis une
+   **heure** — menu des instantanés disponibles, **midi présélectionné** ;
+2. **Charger la situation** → le réseau France de cette date/heure est téléchargé
+   puis chargé ; **tous les voltage levels** (postes NODE_BREAKER) se peuplent ;
+3. sélectionner un poste → sa **topologie détaillée** s'affiche (suite du flux
+   habituel : éditer la cible, séquencer, animer). Changer de date/heure recharge
+   la situation **en préservant le poste courant** s'il existe encore.
+
+La couche de sourcing est `manoeuvre/dataset/source.py` (`lister_instantanes`,
+`choisir_instantane`, `charger_situation` — stdlib pur, cache + md5, jeton
+`HF_TOKEN` optionnel). Le **réseau France complet** (~5 900 postes NODE_BREAKER)
+se charge en quelques secondes au premier choix d'une date ; les changements de
+poste à date constante sont quasi instantanés.
+
+**Déploiement HuggingFace Docker Space** : `Dockerfile` (mono-conteneur Flask sur
+`:7860`, mode dataset) + `deploy/huggingface/` (README du Space + `SETUP.md`
+détaillé) + `.github/workflows/deploy-huggingface.yml` (redéploiement auto sur
+merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
+`deploy/huggingface/SETUP.md`.
 
 ---
 
@@ -253,7 +295,10 @@ navigateur).
 | Méthode & route | Corps | Réponse | Rôle |
 |-----------------|-------|---------|------|
 | `GET /` | — | HTML | Page de l'IHM |
-| `GET /api/postes` | — | `{postes:[…], all:[…], catalog:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) ; `catalog` = **sections par typologie** (cf. ci-dessous) |
+| `GET /api/postes` | — | `{postes:[…], all:[…], catalog:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) ; `catalog` = **sections par typologie** (cf. ci-dessous). En mode dataset avant tout chargement : `{postes:[], all:[], catalog:[], needs_date:true}` |
+| `GET /api/dataset/config` | — | `{enabled, repo, default_date, default_time, sample_dates[]}` | Config de la source dataset ; `enabled=false` en mode `--grid` (le bandeau dataset reste masqué) |
+| `GET /api/dataset/timestamps?date=YYYY-MM-DD` | — | `{ok, date, timestamps:[{ts,path}], default}` / `400` (date invalide) / `502` (HF) | Instantanés disponibles pour la journée (HH:MM), avec l'horodatage présélectionné (le plus proche de **midi**) |
+| `POST /api/dataset/load` | `{date, time}` | `{ok, date, time, iso, postes:[…], all:[…], catalog:[…]}` / `400` (absent) / `502` (HF) | **Télécharge à la demande** l'instantané `(date, time)` du dataset, reconstruit la session et liste les postes (même forme que `/api/load_grid`) |
 | `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…], catalog:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) — **n'importe quel** VL NODE_BREAKER ; inclut les partitions nodales |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds, nodale}` | Bascule un OC (cible) ; `nodale` = vue nodale resynchronisée |

@@ -50,6 +50,16 @@ from .structure import (
     poste_from_fixture_json,
     postes_depuis_xiidm,
 )
+from .source import (
+    DATES_ECHANTILLON,
+    REPO_DEFAUT,
+    charger_situation,
+    choisir_instantane,
+    lister_instantanes,
+    prefixe_jour,
+    resoudre_et_telecharger,
+    telecharger_instantane,
+)
 
 __all__ = [
     "Snapshot", "BlocTransition", "Oscillation", "TimelinePoste",
@@ -59,4 +69,7 @@ __all__ = [
     "generer_combinaisons", "stats_blocs",
     "couverture_structure", "graph_from_fixture_json",
     "poste_from_fixture_json", "postes_depuis_xiidm",
+    "DATES_ECHANTILLON", "REPO_DEFAUT", "charger_situation",
+    "choisir_instantane", "lister_instantanes", "prefixe_jour",
+    "resoudre_et_telecharger", "telecharger_instantane",
 ]

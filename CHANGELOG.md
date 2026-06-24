@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### IHM de manœuvre : source dataset RTE 7000 + déploiement HuggingFace Space
+
+L'IHM de manœuvre (`scripts/manoeuvre_ihm.py`) peut désormais **sourcer ses
+situations réseau directement dans le dataset RTE 7000** par date/heure, et se
+**déploie en HuggingFace Docker Space** (sur le modèle de Co-Study4Grid).
+
+- **Couche source par date** (`manoeuvre/dataset/source.py`, nouveau) :
+  `lister_instantanes(repo, date)` (liste les instantanés HH:MM d'une journée via
+  l'API tree HuggingFace), `choisir_instantane(insts, heure)` (le plus proche de
+  l'heure visée, **midi par défaut**), `telecharger_instantane` / `charger_situation`
+  (téléchargement **à la demande** + cache local + vérif md5, puis chargement
+  pypowsybl). Stdlib pur, jeton `HF_TOKEN` optionnel. Ré-exporté par
+  `manoeuvre.dataset`.
+- **Mode dataset de l'IHM** : `--grid` devient **optionnel** ; sans lui (ou avec
+  `--dataset`), l'IHM démarre sur le dataset. Nouveaux endpoints
+  `GET /api/dataset/config`, `GET /api/dataset/timestamps`,
+  `POST /api/dataset/load` ; garde-fous « aucune situation chargée »
+  (`/api/postes` renvoie `needs_date`). Options `--host` / `--port` (+ env `PORT`,
+  `DGITT_REPO`, `DGITT_CACHE_DIR`, `DGITT_DEFAULT_DATE`, `HF_TOKEN`).
+- **Frontend** : bandeau **📅 Dataset RTE7000** (date + heure midi-par-défaut +
+  dates échantillons) ; le poste courant est préservé lors d'un changement de
+  date. Le flux « relever les VL → choisir un poste → éditer/séquencer » est
+  inchangé.
+- **Déploiement** : `Dockerfile` (mono-conteneur Flask léger sur `:7860`, mode
+  dataset), `.dockerignore`, `deploy/huggingface/{README.md, SETUP.md}`,
+  `.github/workflows/deploy-huggingface.yml` (redéploiement auto, inerte sans
+  `HF_TOKEN`/`HF_SPACE`).
+- **Tests** : `tests/manoeuvre/test_dataset_source.py` (logique de résolution /
+  téléchargement, frontière réseau mockée) et `tests/manoeuvre/test_ihm_dataset.py`
+  (endpoints + garde-fous). Le mode local (`--grid`) est strictement préservé.
+
 ---
 
 ## [0.2.5] - 2026-06-19

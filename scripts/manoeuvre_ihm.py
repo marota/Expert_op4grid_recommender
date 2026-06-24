@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import re
 import sys
@@ -87,6 +88,7 @@ from expert_op4grid_recommender.manoeuvre.plugins import (
     PlanificateurTopologie,
     disponibles as algos_disponibles,
 )
+from expert_op4grid_recommender.manoeuvre.dataset import source as dataset_source
 
 # Postes de test retenus (intersectés avec les VL réellement présents)
 POSTES_TEST = [
@@ -995,6 +997,30 @@ def _prefix_svg_ids(svg: str, pfx: str) -> str:
 app = Flask(__name__)
 SESSION: Session = None  # type: ignore
 
+# Configuration de la **source dataset par date** (mode déploiement Space
+# HuggingFace : on charge à la demande un instantané XIIDM du dataset RTE 7000).
+# Renseignée par ``main()`` / variables d'environnement. ``enabled=False`` =>
+# mode local (``--grid``) : le bandeau « Dataset » de l'IHM reste masqué et le
+# comportement historique est strictement préservé.
+DATASET = {
+    "enabled": False,
+    "repo": dataset_source.REPO_DEFAUT,
+    "cache_dir": ".cache/dgitt",
+    "token": None,
+    "default_date": dataset_source.DATES_ECHANTILLON[0],
+    "default_time": "12:00",
+    "sample_dates": list(dataset_source.DATES_ECHANTILLON),
+}
+
+
+def _algos_courants() -> dict[str, str]:
+    """Sélection d'algos courante, ou défauts « libtopo » si aucune session n'est
+    encore chargée (mode dataset avant le choix d'une date)."""
+    if SESSION is not None:
+        return SESSION.algos
+    return {p: "libtopo" for p in ("identificateur", "sequenceur",
+                                   "planificateur")}
+
 
 @app.get("/")
 def index():
@@ -1006,7 +1032,64 @@ def api_postes():
     # ``postes`` : liste épinglée (jeu de test + 3 JdB). ``all`` : tous les postes
     # NODE_BREAKER de la situation chargée (recherche dans l'IHM). ``catalog`` :
     # sections par typologie (cf. POSTES_CATALOG) avec disponibilité par poste.
+    # Mode dataset avant tout chargement : aucune situation => le front affiche
+    # le bandeau de choix de date (``needs_date``).
+    if SESSION is None:
+        return jsonify(postes=[], all=[], catalog=[], needs_date=True)
     return jsonify(postes=SESSION.postes, all=SESSION.all_postes,
+                   catalog=SESSION.catalog())
+
+
+# ── Source dataset RTE 7000 (chargement d'une situation par date / heure) ────
+
+@app.get("/api/dataset/config")
+def api_dataset_config():
+    """Configuration de la source dataset pour le front : si ``enabled``, l'IHM
+    affiche le bandeau date/heure ; sinon (mode ``--grid`` local) il reste masqué."""
+    return jsonify(enabled=DATASET["enabled"], repo=DATASET["repo"],
+                   default_date=DATASET["default_date"],
+                   default_time=DATASET["default_time"],
+                   sample_dates=DATASET["sample_dates"])
+
+
+@app.get("/api/dataset/timestamps")
+def api_dataset_timestamps():
+    """Instantanés disponibles (HH:MM) pour la date ``?date=YYYY-MM-DD``, avec
+    l'horodatage présélectionné par défaut (le plus proche de midi)."""
+    date = (request.args.get("date") or "").strip()
+    try:
+        insts = dataset_source.lister_instantanes(
+            DATASET["repo"], date, token=DATASET["token"])
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    except Exception as exc:  # pragma: no cover - dépend du réseau HF
+        return jsonify(ok=False, error=f"Listing HuggingFace impossible : {exc}"), 502
+    choisi = dataset_source.choisir_instantane(insts, DATASET["default_time"])
+    return jsonify(ok=True, date=date,
+                   timestamps=[{"ts": d["ts"], "path": d["path"]} for d in insts],
+                   default=(choisi["ts"] if choisi else None))
+
+
+@app.post("/api/dataset/load")
+def api_dataset_load():
+    """Charge la **situation réseau** du dataset à ``{date, time}`` (téléchargement
+    à la demande depuis HuggingFace + cache local), reconstruit la session et
+    renvoie la liste des postes (même forme que ``/api/load_grid``)."""
+    global SESSION
+    body = request.json or {}
+    date = (body.get("date") or "").strip()
+    heure = (body.get("time") or DATASET["default_time"]).strip()
+    try:
+        net, meta = dataset_source.charger_situation(
+            DATASET["repo"], date, DATASET["cache_dir"],
+            heure=heure, token=DATASET["token"])
+    except (ValueError, FileNotFoundError) as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    except Exception as exc:  # pragma: no cover - dépend du réseau HF / fichier
+        return jsonify(ok=False, error=f"Chargement impossible : {exc}"), 502
+    SESSION = Session(net)
+    return jsonify(ok=True, date=meta["date"], time=meta["ts"], iso=meta["iso"],
+                   postes=SESSION.postes, all=SESSION.all_postes,
                    catalog=SESSION.catalog())
 
 
@@ -1076,7 +1159,7 @@ def api_algos():
     """Algorithmes pluggables **disponibles** (registre ``manoeuvre.plugins``,
     natifs « libtopo » + plugins tiers enregistrés / entry points), par phase,
     et **sélection courante** de la session."""
-    return jsonify(disponibles=algos_disponibles(), selection=SESSION.algos)
+    return jsonify(disponibles=algos_disponibles(), selection=_algos_courants())
 
 
 @app.post("/api/algos")
@@ -1098,6 +1181,8 @@ def api_nodale_to_detaillee():
 
 @app.get("/api/scenarios")
 def api_scenarios():
+    if SESSION is None:
+        return jsonify(scenarios=[])
     return jsonify(scenarios=SESSION.list_scenarios())
 
 
@@ -1187,24 +1272,51 @@ PAGE = (_ASSETS_DIR / "index.html").read_text(encoding="utf-8")
 def main():
     global SESSION
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--grid", required=True, help="Chemin du réseau .xiidm")
-    ap.add_argument("--port", type=int, default=8000)
+    # ``--grid`` optionnel : s'il est omis, l'IHM démarre en **mode dataset**
+    # (source RTE 7000 par date) ; sinon comportement local historique.
+    ap.add_argument("--grid", default=None,
+                    help="Chemin du réseau .xiidm (mode local). Omis => mode dataset.")
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
+                    help="Interface d'écoute (0.0.0.0 pour un conteneur / Space).")
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     ap.add_argument("--scenarios-dir", default="tests/manoeuvre/scenarios",
                     help="Dossier de sauvegarde des scénarios cible")
     ap.add_argument("--sequences-dir", default="tests/manoeuvre/sequences",
                     help="Dossier de sauvegarde des séquences générées")
+    # Mode dataset (source par date depuis HuggingFace).
+    ap.add_argument("--dataset", action="store_true",
+                    help="Activer la source dataset RTE 7000 (défaut si --grid absent).")
+    ap.add_argument("--dataset-repo",
+                    default=os.environ.get("DGITT_REPO", dataset_source.REPO_DEFAUT),
+                    help="Dataset HuggingFace (défaut : %(default)s)")
+    ap.add_argument("--cache-dir",
+                    default=os.environ.get("DGITT_CACHE_DIR", ".cache/dgitt"),
+                    help="Cache local des instantanés téléchargés")
+    ap.add_argument("--default-date",
+                    default=os.environ.get("DGITT_DEFAULT_DATE",
+                                           dataset_source.DATES_ECHANTILLON[0]),
+                    help="Date proposée par défaut dans l'IHM (YYYY-MM-DD)")
     args = ap.parse_args()
 
     global SCEN_DIR, SEQ_DIR
     SCEN_DIR = pathlib.Path(args.scenarios_dir)
     SEQ_DIR = pathlib.Path(args.sequences_dir)
 
-    print(f"Chargement du réseau {args.grid} …")
-    SESSION = Session(pp.network.load(args.grid))
-    print(f"Postes de test disponibles : {SESSION.postes}")
-    print(f"IHM Manœuvre : http://localhost:{args.port}  (Ctrl-C pour arrêter)")
+    use_dataset = args.dataset or not args.grid
+    DATASET.update(enabled=use_dataset, repo=args.dataset_repo,
+                   cache_dir=args.cache_dir, token=os.environ.get("HF_TOKEN"),
+                   default_date=args.default_date)
+
+    if args.grid:
+        print(f"Chargement du réseau {args.grid} …")
+        SESSION = Session(pp.network.load(args.grid))
+        print(f"Postes de test disponibles : {SESSION.postes}")
+    if use_dataset:
+        print(f"Mode dataset : {DATASET['repo']} (cache {DATASET['cache_dir']}). "
+              "Choisir une date/heure dans l'IHM.")
+    print(f"IHM Manœuvre : http://{args.host}:{args.port}  (Ctrl-C pour arrêter)")
     # threaded=False : sérialise les requêtes (l'état réseau pypowsybl est partagé).
-    app.run(host="127.0.0.1", port=args.port, threaded=False)
+    app.run(host=args.host, port=args.port, threaded=False)
 
 
 if __name__ == "__main__":
