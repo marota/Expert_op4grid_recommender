@@ -158,3 +158,12 @@ def test_timestamps_uses_year_derived_repo(dataset_mode, monkeypatch):
     monkeypatch.setattr(ihm.dataset_source, "lister_instantanes", fake)
     dataset_mode.get("/api/dataset/timestamps?date=2022-06-15")
     assert seen["repo"].endswith("D-GITT-RTE7000-2022")
+
+
+# --- hosted (IHM déportée → téléchargement local côté front) ----------------
+
+def test_config_reports_hosted_flag(monkeypatch):
+    monkeypatch.setitem(ihm.DATASET, "enabled", True)
+    monkeypatch.setitem(ihm.DATASET, "hosted", True)
+    d = ihm.app.test_client().get("/api/dataset/config").get_json()
+    assert d["hosted"] is True

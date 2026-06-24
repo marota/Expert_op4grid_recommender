@@ -113,8 +113,9 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
 > ré-aiguillage, glisser une barre sur une autre = fusion, *+ Nœud* = créer un
 > nœud — en partition de départ (un nœud, lecture seule) et cible (trois nœuds,
 > éditable) ;
-> **(6)** *2 · Topologie cible* : **✓ Valider & sauvegarder** la cible (« Calculer »
-> reste verrouillé tant que la cible n'est pas validée) ;
+> **(6)** *2 · Topologie cible* : **✓ Valider** la cible (active « Calculer », sans
+> écrire de fichier) puis, sur la ligne en dessous, le **nom** + **💾 Sauvegarder**
+> (sur le Space, le fichier est aussi **téléchargé en local**) ;
 > **(7)** *3 · Séquence de manœuvres* : choisir un mode de dé-énergisation
 > (smooth/agressif) et un algorithme, puis **⚙ Calculer** ou construire à la main
 > (**✋ Séquence manuelle**) la séquence ;
@@ -202,8 +203,12 @@ des variables CSS).
 2. **Éditer la cible** : cliquer un disjoncteur/sectionneur dans le schéma du
    bas pour basculer son état (ouvert/fermé). Le nombre de nœuds cible évolue en
    direct.
-3. **Valider & sauvegarder la cible** (étape 1) : nomme et persiste le scénario
-   (départ + cible). **Obligatoire** avant le calcul.
+3. **Valider la cible** (étape *2 · Topologie cible*) : le bouton **✓ Valider**
+   débloque le calcul de séquence **sans écrire de fichier**. Pour la conserver,
+   **💾 Sauvegarder** (champ nom à gauche, bouton à droite) persiste le scénario
+   (départ + cible) ; **sur une IHM déportée (Space)** le JSON est aussi
+   **téléchargé en local** (le FS du Space est éphémère). Sauvegarder valide
+   aussi la cible.
 4. **Calculer la séquence** (étape 2, débloqué après validation) : choisir le
    **mode** (Smooth, défaut, ou Agressif) puis lancer le calcul départ → cible ;
    statut **VÉRIFIÉE / NON VÉRIFIÉE** (+ badge `mode`).
@@ -256,8 +261,11 @@ L'édition se fait par **glisser-déposer** :
   déplace. Pour en déplacer plusieurs d'un coup, **cliquer** d'abord les branches
   voulues (sélection surlignée, inter-nœuds) puis glisser l'une d'elles.
 - **Fusionner des nœuds** : glisser une **barre** sur une autre barre (fusion).
-- **Créer un nœud** : bouton **＋ Nœud** (nœud vide, ou contenant la sélection
-  courante) — puis y glisser des départs.
+- **Créer un nœud** : bouton **＋ Nœud**. Avec une sélection, il y déplace les
+  départs sélectionnés ; **sans sélection, il crée un nœud vide qui persiste**
+  comme cible de dépose — glisser-y ensuite des départs. Un nœud resté **vide**
+  est **ignoré** au calcul de la topologie détaillée (et retiré de l'affichage à
+  ce moment-là).
 - **Réinitialiser** : **= départ** ramène la cible à la partition de départ ;
   **∅ Désélectionner** vide la sélection.
 
@@ -367,7 +375,7 @@ navigateur).
 |-----------------|-------|---------|------|
 | `GET /` | — | HTML | Page de l'IHM |
 | `GET /api/postes` | — | `{postes:[…], all:[…], catalog:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) ; `catalog` = **sections par typologie** (cf. ci-dessous). En mode dataset avant tout chargement : `{postes:[], all:[], catalog:[], needs_date:true}` |
-| `GET /api/dataset/config` | — | `{enabled, repo, default_date, default_time, sample_dates[]}` | Config de la source dataset (onglet **RTE7000**) ; `enabled` décide de l'**onglet actif par défaut** (RTE7000 sur le Space, Local en mode `--grid`) — l'onglet RTE7000 reste présent dans les deux cas |
+| `GET /api/dataset/config` | — | `{enabled, repo, default_date, default_time, sample_dates[], hosted}` | Config de la source dataset (onglet **RTE7000**) ; `enabled` décide de l'**onglet actif par défaut** (RTE7000 sur le Space, Local en mode `--grid`) ; `hosted` = IHM déportée → le front **télécharge en local** les fichiers sauvegardés |
 | `GET /api/dataset/timestamps?date=YYYY-MM-DD` | — | `{ok, date, timestamps:[{ts,path}], default}` / `400` (date invalide) / `502` (HF) | Instantanés disponibles pour la journée (HH:MM), avec l'horodatage présélectionné (le plus proche de **midi**) |
 | `POST /api/dataset/load` | `{date, time}` | `{ok, date, time, iso, postes:[…], all:[…], catalog:[…]}` / `400` (absent) / `502` (HF) | **Télécharge à la demande** l'instantané `(date, time)` du dataset, reconstruit la session et liste les postes (même forme que `/api/load_grid`) |
 | `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…], catalog:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
@@ -386,9 +394,9 @@ navigateur).
 | `POST /api/seq_delete_many` | `{indices:[…]}` | idem `seq_insert` | Supprime en une fois plusieurs manœuvres (sélection / bloc) |
 | `POST /api/manual_start` | — | `{cible_svg, cible_nb, goto, manoeuvres[], n_steps, labels[], …}` | Démarre une séquence **manuelle vierge** (départ → cible affichée en référence) |
 | `GET /api/scenarios` | — | `{scenarios:[…]}` | Liste des scénarios sauvegardés |
-| `POST /api/save` | `{name, overwrite?}` | `{path, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible |
+| `POST /api/save` | `{name, overwrite?}` | `{path, name, content, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible ; `content` = JSON écrit (téléchargement local côté front si IHM déportée) |
 | `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, nodale_depart, nodale_cible}` | Recharge (`mode="both"` ou `"as_depart"`) ; `nodale_cible` = vue nodale de la cible chargée |
-| `POST /api/save_sequence` | `{name, overwrite?}` | `{path}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** (éditée telle quelle) |
+| `POST /api/save_sequence` | `{name, overwrite?}` | `{path, name, content}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** (éditée telle quelle) ; `content` = JSON écrit (téléchargement local côté front si IHM déportée) |
 
 > **Avertissement d'écrasement** : sans `overwrite:true`, si le fichier existe
 > déjà, `/api/save` et `/api/save_sequence` renvoient `{exists:true}` (sans
@@ -480,7 +488,8 @@ assert res.ecarts == []
 | Spécification | Couverture |
 |---------------|-----------|
 | Modifier **manuellement et interactivement** l'état des DJ/SA depuis une topologie de départ | Clic sur l'organe du schéma cible → `/api/toggle` |
-| **Valider** la topologie cible avant de calculer | Étape **2 · Topologie cible** « Valider & sauvegarder » ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
+| **Valider** la topologie cible avant de calculer | Étape **2 · Topologie cible** : bouton **✓ Valider** (sans fichier) ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
+| **Télécharger** les fichiers sauvegardés quand l'IHM est déportée (Space) | `hosted` (`/api/dataset/config`) → `save()` / `saveSeq()` déclenchent un download du `content` renvoyé par `/api/save` / `/api/save_sequence` |
 | **Sauvegarder** la cible pour des tests par ailleurs | Scénario JSON (`/api/save`) avec topologies détaillées + nodales |
 | Demander la **séquence de manœuvres** départ → cible | `/api/sequence` → façade pluggable (`PlanificateurTopologie.sequencer`, phase B ; « libtopo » = `determiner_manoeuvres_cible_detaillee`) |
 | **Choisir l'algorithme** de chaque phase de calcul (natif « libtopo » + plugins enregistrés) | Sélecteurs « Algo » (panneau Séquence = phase B ; volet nodal = phase A) ; `GET/POST /api/algos` (disponibles par phase + sélection de session) ; badge `algo <nom>` dans le statut de séquence. Les plugins tiers (registre / entry points `expert_op4grid_recommender.manoeuvre`) apparaissent automatiquement — cf. `docs/manoeuvre_plugins.md` |

@@ -177,8 +177,11 @@
 
   <h2 class="step">2 · Topologie cible</h2>
   <div style="font-size:11px;color:#555;margin:1px 0 3px">Éditez la cible (clic sur un organe du schéma / volet nodal), puis validez-la.</div>
-  <input id="scenName" placeholder="nom du scénario" style="width:62%;padding:5px">
-  <button onclick="save()">✓ Valider &amp; sauvegarder</button>
+  <button onclick="validateCible()" title="Valider la cible courante pour activer le calcul de séquence (sans sauvegarder de fichier)">✓ Valider</button>
+  <div style="display:flex;gap:4px;margin-top:4px">
+    <input id="scenName" placeholder="nom du scénario" style="flex:1;min-width:0;padding:5px">
+    <button onclick="save()" title="Sauvegarder le scénario (départ + cible). Sur le Space, le fichier est aussi téléchargé en local.">💾 Sauvegarder</button>
+  </div>
   <div id="savemsg" style="font-size:11px;color:#1a7f37;margin-top:3px"></div>
 
   <h2 class="step">3 · Séquence de manœuvres</h2>
@@ -282,7 +285,22 @@
 let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:false,
   editTarget:false,stale:false,currentVL:null,tab:'local'};
 // État de la source « dataset RTE7000 » (onglet de choix date/heure).
-let DS={enabled:false,repo:'',defaultTime:'12:00'};
+// ``hosted`` = IHM déportée (Space HuggingFace) : les fichiers sauvegardés
+// côté serveur y sont éphémères → on les télécharge aussi en local.
+let DS={enabled:false,repo:'',defaultTime:'12:00',hosted:false};
+// Validation de la cible (étape 2) : active le calcul de séquence, **sans**
+// écrire de fichier (la sauvegarde est l'action séparée « 💾 Sauvegarder »).
+function validateCible(){setValidated(true);
+  document.getElementById('savemsg').textContent='✓ Cible validée — calcul de séquence activé (ou « 💾 Sauvegarder »).';}
+// Télécharge le fichier sauvegardé (JSON renvoyé par le backend) **si l'IHM est
+// déportée** (Space) — pour en garder une copie locale malgré le FS éphémère.
+function maybeDownload(r){
+  if(!DS.hosted||!r||!r.content)return false;
+  const blob=new Blob([r.content],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(r.name||'scenario')+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);return true;}
 // Cas d'intérêt documentés — repris de la « Table de campagne » (3 ans
 // 2021-2023, docs/dataset_rte7000/#table-de-campagne-campagnecampagnejson) :
 // jour · saison + blocs / postes actifs / reconfigurations structurelles,
@@ -399,6 +417,7 @@ async function init(){const r=await (await fetch('/api/postes')).json();
 async function initDataset(){
   let cfg;try{cfg=await (await fetch('/api/dataset/config')).json();}catch(e){cfg=null;}
   if(cfg){DS.enabled=!!cfg.enabled;DS.repo=cfg.repo||'';DS.defaultTime=cfg.default_time||'12:00';
+    DS.hosted=!!cfg.hosted;
     const di=document.getElementById('dsDate');di.value=cfg.default_date||'';
     di.onchange=()=>loadDatasetTimestamps(di.value);
     const info=document.getElementById('dsRepoInfo');
@@ -530,8 +549,10 @@ async function saveWithConfirm(url,name,msgEl){
 async function save(){const name=document.getElementById('scenName').value;
   const r=await saveWithConfirm('/api/save',name,document.getElementById('savemsg'));
   if(!r)return;
-  document.getElementById('savemsg').textContent='✓ Sauvegardé : '+r.path;
-  setValidated(true);await refreshScenarios();}
+  setValidated(true);await refreshScenarios();
+  const dl=maybeDownload(r);   // copie locale si IHM déportée (Space)
+  document.getElementById('savemsg').textContent='✓ Sauvegardé : '+r.path
+    +(dl?' · téléchargé en local':'');}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
   stopAnim();const d=await api('/api/load_scenario',{name,mode});
   if(d&&d.vl)S.currentVL=d.vl;
@@ -650,7 +671,8 @@ async function saveSeq(){const name=document.getElementById('seqName').value;
   const msg=document.getElementById('seqsavemsg');
   const r=await saveWithConfirm('/api/save_sequence',name,msg);
   if(!r)return;
-  msg.textContent='✓ '+r.path;}
+  const dl=maybeDownload(r);   // copie locale si IHM déportée (Space)
+  msg.textContent='✓ '+r.path+(dl?' · téléchargé en local':'');}
 function bindStep(switches){const root=document.getElementById('diagBottom');
   switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
     if(el){el.style.cursor='pointer';el.onclick=()=>seqInsert(S.idx,s.id);
@@ -800,7 +822,11 @@ function renderNodaleDepart(){const gs=NOD.depart.groups||[];
   document.getElementById('ndDepN').textContent=gs.length;
   renderNodaleSVG('ndDepart',gs,false,NOD.colors);
   renderIso('ndDepartIso',NOD.departIso,false);}
-function renderNodaleCible(){nodNormalize();
+// NB : on NE normalise PAS ici (sinon un nœud vide tout juste créé via « ＋ Nœud »
+// serait supprimé au re-rendu). Les nœuds vides sont des **cibles de dépose**
+// valides ; ils sont nettoyés par les opérations (déplacement / fusion) et
+// ignorés au calcul de la topologie détaillée.
+function renderNodaleCible(){
   document.getElementById('ndCibTitle').textContent='Cible (éditable)';  // restaure le mode édition
   document.getElementById('ndCibN').textContent=NOD.groups.length;
   renderNodaleSVG('ndCible',NOD.groups,true,NOD.colorsCible);
@@ -862,18 +888,23 @@ function nodMoveBranchesTo(eqs,target){
   NOD.isolated=NOD.isolated.filter(eq=>eqs.indexOf(eq)<0);   // reconnecte les isolés
   NOD.groups=NOD.groups.map(g=>g.filter(eq=>eqs.indexOf(eq)<0));
   eqs.forEach(eq=>{if(!NOD.groups[target].includes(eq))NOD.groups[target].push(eq);});
-  NOD.selBranches=new Set();renderNodaleCible();}
+  NOD.selBranches=new Set();nodNormalize();renderNodaleCible();}  // nettoie les nœuds vidés
 function nodMergeNodes(src,dst){
   if(src===dst||src<0||dst<0||src>=NOD.groups.length||dst>=NOD.groups.length)return;
   NOD.groups[dst]=NOD.groups[dst].concat(
     NOD.groups[src].filter(eq=>NOD.groups[dst].indexOf(eq)<0));
-  NOD.groups[src]=[];NOD.selBranches=new Set();renderNodaleCible();}
+  NOD.groups[src]=[];NOD.selBranches=new Set();nodNormalize();renderNodaleCible();}  // retire le nœud fusionné
+// « ＋ Nœud » : crée un nœud **vide** (cible de dépose). Avec une sélection, on y
+// déplace directement les départs sélectionnés ; sinon le nœud vide persiste —
+// glisser-y ensuite des départs. Un nœud resté vide est ignoré au calcul.
 function nodNewNode(){NOD.groups.push([]);const idx=NOD.groups.length-1;
   if(NOD.selBranches.size)nodMoveSelTo(idx);else renderNodaleCible();}
 function nodClearSel(){NOD.selBranches=new Set();renderNodaleCible();}
 async function nodCompute(){
   const st=document.getElementById('nodstatus');st.className='';st.textContent='Calcul en cours…';
-  const d=await api('/api/nodale_to_detaillee',{groups:NOD.groups,isolated:NOD.isolated});
+  // Les nœuds restés vides sont écartés (ignorés par le calcul de toute façon).
+  const groups=NOD.groups.filter(g=>g.length);
+  const d=await api('/api/nodale_to_detaillee',{groups,isolated:NOD.isolated});
   stopAnim();S.manual=false;
   // Charger la topologie détaillée d'intérêt comme cible (volet du bas).
   document.getElementById('diagBottom').innerHTML=d.svg;

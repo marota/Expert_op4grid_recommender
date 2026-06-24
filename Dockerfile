@@ -49,6 +49,7 @@ COPY --chown=user scripts/ ./scripts/
 ENV DGITT_REPO=OpenSynth/D-GITT-RTE7000-2021 \
     DGITT_CACHE_DIR=/home/user/app/.cache/dgitt \
     DGITT_DEFAULT_DATE=2021-01-03 \
+    MANOEUVRE_IHM_HOSTED=1 \
     PORT=7860
 
 EXPOSE 7860

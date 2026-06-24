@@ -1025,6 +1025,11 @@ DATASET = {
     "default_date": dataset_source.DATES_ECHANTILLON[0],
     "default_time": "12:00",
     "sample_dates": list(dataset_source.DATES_ECHANTILLON),
+    # IHM déportée (Space HuggingFace) : le système de fichiers est éphémère →
+    # le front télécharge aussi en local les scénarios/séquences sauvegardés.
+    # Auto-détecté (HF pose ``SPACE_ID``) ou forcé via env / ``--hosted``.
+    "hosted": bool(os.environ.get("SPACE_ID")
+                   or os.environ.get("MANOEUVRE_IHM_HOSTED")),
 }
 
 
@@ -1064,7 +1069,8 @@ def api_dataset_config():
     return jsonify(enabled=DATASET["enabled"], repo=DATASET["repo"],
                    default_date=DATASET["default_date"],
                    default_time=DATASET["default_time"],
-                   sample_dates=DATASET["sample_dates"])
+                   sample_dates=DATASET["sample_dates"],
+                   hosted=DATASET["hosted"])
 
 
 @app.get("/api/dataset/timestamps")
@@ -1280,7 +1286,11 @@ def api_save():
     if not request.json.get("overwrite") and (SCEN_DIR / f"{name}.json").exists():
         return jsonify(exists=True, name=name, path=str(SCEN_DIR / f"{name}.json"))
     path = SESSION.save_scenario(name)
-    return jsonify(path=path, scenarios=SESSION.list_scenarios())
+    # ``content`` : JSON écrit, renvoyé pour le téléchargement local côté front
+    # (IHM déportée — FS éphémère du Space).
+    content = pathlib.Path(path).read_text(encoding="utf-8")
+    return jsonify(path=path, name=name, content=content,
+                   scenarios=SESSION.list_scenarios())
 
 
 @app.post("/api/load_scenario")
@@ -1307,7 +1317,8 @@ def api_save_sequence():
     if not request.json.get("overwrite") and (SEQ_DIR / f"{name}.json").exists():
         return jsonify(exists=True, name=name, path=str(SEQ_DIR / f"{name}.json"))
     path = SESSION.save_sequence(name)
-    return jsonify(path=path)
+    content = pathlib.Path(path).read_text(encoding="utf-8")   # téléchargement local
+    return jsonify(path=path, name=name, content=content)
 
 
 @app.get("/api/step")
@@ -1380,6 +1391,9 @@ def main():
                     default=os.environ.get("DGITT_DEFAULT_DATE",
                                            dataset_source.DATES_ECHANTILLON[0]),
                     help="Date proposée par défaut dans l'IHM (YYYY-MM-DD)")
+    ap.add_argument("--hosted", action="store_true",
+                    help="IHM déportée (Space) : télécharge aussi en local les "
+                         "fichiers sauvegardés (auto si SPACE_ID/MANOEUVRE_IHM_HOSTED).")
     args = ap.parse_args()
 
     global SCEN_DIR, SEQ_DIR
@@ -1389,7 +1403,8 @@ def main():
     use_dataset = args.dataset or not args.grid
     DATASET.update(enabled=use_dataset, repo=args.dataset_repo,
                    cache_dir=args.cache_dir, token=os.environ.get("HF_TOKEN"),
-                   default_date=args.default_date)
+                   default_date=args.default_date,
+                   hosted=args.hosted or DATASET["hosted"])
 
     if args.grid:
         print(f"Chargement du réseau {args.grid} …")

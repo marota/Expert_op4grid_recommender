@@ -219,3 +219,24 @@ def test_api_promote_cible_returns_both_panes(session, monkeypatch):
     d = ihm.app.test_client().post("/api/promote_cible", json={}).get_json()
     assert {"initial_svg", "svg", "switches", "nb_noeuds",
             "nodale_depart", "nodale_cible", "vl"} <= set(d)
+
+
+# --------------------------------------------------------------------------
+# Sauvegarde : contenu renvoyé (téléchargement local) + nœuds vides ignorés
+# --------------------------------------------------------------------------
+
+def test_api_save_returns_content_for_download(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    d = ihm.app.test_client().post("/api/save", json={"name": "t"}).get_json()
+    assert d["name"] == "t"
+    assert d["content"] and '"voltage_level_id"' in d["content"]
+    assert (tmp_path / "t.json").exists()
+
+
+def test_normalize_groups_ignores_empty_nodes():
+    # Un groupe vide (nœud « ＋ Nœud » resté vide) est ignoré ; l'orphelin va
+    # dans un nœud dédié → aucun nœud vide dans le résultat.
+    out = ihm._normalize_groups(["a", "b", "c"], [["a"], [], ["b"]])
+    assert [] not in out
+    assert ["a"] in out and ["b"] in out and ["c"] in out
