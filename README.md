@@ -54,14 +54,14 @@ ranked feed of corrective actions** from it *(right)*.
 <table>
 <tr>
 <td valign="top" align="center">
-  <img src="docs/img/co_study4grid_overflow_graph.png" width="500"
+  <img src="docs/img/co_study4grid_overflow_graph.png" width="580"
        alt="Interpretable overflow analysis graph with a LAYERS panel (constrained path, red/blue flow paths, hubs) highlighting the contingency's root cause">
   <br/><sub><b>Overflow analysis graph</b> — stackable layer filters reveal the
   constrained path and the flow-redistribution root cause that the candidate
   actions act upon.</sub>
 </td>
 <td valign="top" align="center">
-  <img src="docs/img/co_study4grid_recommender_feed.png" width="220"
+  <img src="docs/img/co_study4grid_recommender_feed.png" width="165"
        alt="Ranked 'Suggested Actions' feed: action cards with per-action max-loading, target chips, and green/amber/red severity badges">
   <br/><sub><b>Ranked action feed</b> — for contingency <code>P.SAOL31RONCI</code>
   (overload <code>BEON L31CPVAN</code>, 98.7%): families <code>disco_</code>,
