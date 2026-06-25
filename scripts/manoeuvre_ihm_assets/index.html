@@ -1340,18 +1340,25 @@ function mapOpenPoste(sub){const p=MAP.bySub[sub]
 function mapOpenVl(sub,vl){mapToTopo(sub,vl,defaultHour());}
 
 // Double-clic / bouton bulle : passe en VUE TOPOLOGIQUE du poste à l'heure visée.
-async function mapToTopo(sub,vl,hour){hideBubble();stopAnim();
+// `cibleHour` (optionnel) : heure cible à conserver (p. ex. en changeant de
+// niveau de tension d'un même poste). À l'ouverture initiale, omis → cible =
+// départ (même heure).
+async function mapToTopo(sub,vl,hour,cibleHour){hideBubble();stopAnim();
   const r=await api('/api/explore_poste',{sub,vl,hour});
   if(!r||!r.ok){alert((r&&r.error)||'Ouverture du poste impossible.');return;}
   exitMapMode();
   // Cible = départ à l'ouverture (même heure) → on met en évidence l'heure cible
   // dès maintenant (bouton bleu), comme l'heure de départ.
-  S.currentVL=r.vl;MAP.topoSub=r.sub;MAP.topoVl=r.vl;MAP.topoHour=r.hour;MAP.cibleHour=r.hour;
+  S.currentVL=r.vl;MAP.topoSub=r.sub;MAP.topoVl=r.vl;MAP.topoHour=r.hour;
+  MAP.cibleHour=cibleHour||r.hour;
   if(r.heures)MAP.heures=r.heures;
   show(r);initNodale(r);hideSeq();setValidated(false);
   document.getElementById('scenName').value=r.vl+'_cible';
   renderExploreBar(r);syncHourPoste(r.hour,r.vl);
-  renderPosteList((document.getElementById('posteSearch')||{}).value||'');}
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');
+  // Niveau de tension changé en conservant une cible à une autre heure :
+  // ré-appliquer cette cible sur le nouveau VL.
+  if(MAP.cibleHour&&MAP.cibleHour!==r.hour){await retainTarget(MAP.cibleHour);}}
 
 function renderExploreBar(r){
   document.getElementById('exploreBar').classList.add('on');
@@ -1373,7 +1380,8 @@ function renderExploreBar(r){
     l.textContent='Niveau :';vd.appendChild(l);
     vls.forEach(v=>{const b=document.createElement('button');b.textContent=fmtKv(v.nv);
       if(v.vl===r.vl)b.classList.add('hcur');b.title=v.vl+' — '+v.total+' OC changés';
-      b.onclick=()=>mapToTopo(r.sub,v.vl,MAP.topoHour);vd.appendChild(b);});}}
+      // changer de niveau de tension : conserver l'heure de départ ET l'heure cible.
+      b.onclick=()=>mapToTopo(r.sub,v.vl,MAP.topoHour,MAP.cibleHour);vd.appendChild(b);});}}
 
 async function exploreHour(hour){stopAnim();
   const r=await api('/api/explore_poste',{sub:MAP.topoSub,vl:MAP.topoVl,hour});

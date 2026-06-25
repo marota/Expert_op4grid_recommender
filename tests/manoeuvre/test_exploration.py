@@ -104,8 +104,10 @@ def test_classer_top_n_ordre():
 _EDGES = {"c": (10, 11), "s0": (10, 0), "s1": (10, 1),
           "s2": (11, 2), "s3": (11, 3)}
 _POIDS = {0: 1, 1: 1, 2: 1, 3: 1, 10: 1, 11: 1}
+_BARRES = {10, 11}                 # nœuds jeux de barres (ancres)
 _FERME = {"c": False, "s0": False, "s1": False, "s2": False, "s3": False}
 _OUVRE_C = {**_FERME, "c": True}   # couplage ouvert → 2 nœuds {0,1,10} {2,3,11}
+_ISOLE_3 = {**_FERME, "s3": True}  # départ 3 déconnecté (isolé) → à ignorer
 
 
 def test_partition_ouvrages_un_puis_deux_noeuds():
@@ -128,7 +130,7 @@ def test_noeuds_deplaces_scission_compte_le_plus_petit_groupe():
 
 
 def test_changements_nodaux_max_sur_transitions_stable():
-    struct = {"VL": {"edges": _EDGES, "poids": _POIDS}}
+    struct = {"VL": {"edges": _EDGES, "poids": _POIDS, "barres": _BARRES}}
     # scission puis fusion : max (pas somme) → 3, pas 6 (stable).
     nd = ex.changements_nodaux_par_vl(
         [{"VL": _FERME}, {"VL": _OUVRE_C}, {"VL": _FERME}], struct)
@@ -137,6 +139,29 @@ def test_changements_nodaux_max_sur_transitions_stable():
     nd0 = ex.changements_nodaux_par_vl(
         [{"VL": _FERME}, {"VL": _FERME}, {"VL": _FERME}], struct)
     assert nd0["VL"] == 0
+
+
+def test_partition_ignore_ouvrages_isoles():
+    # tout fermé : un seul nœud regroupant tous les ouvrages.
+    plein = ex.partition_ouvrages(_FERME, _EDGES, _POIDS, _BARRES)
+    assert set(plein) == set(_POIDS) and len(ex._blocs(plein)) == 1
+    # départ 3 déconnecté (sa composante ne contient aucune barre) → EXCLU.
+    iso = ex.partition_ouvrages(_ISOLE_3, _EDGES, _POIDS, _BARRES)
+    assert 3 not in iso and set(iso) == set(_POIDS) - {3}
+
+
+def test_changements_nodaux_ignore_isolement():
+    """Isoler un ouvrage (le déconnecter) n'est PAS un re-groupement de nœud ;
+    seule une vraie scission/fusion de jeux de barres compte."""
+    struct = {"VL": {"edges": _EDGES, "poids": _POIDS, "barres": _BARRES}}
+    # déconnexion d'un départ → 0 (ouvrage isolé ignoré).
+    nd_iso = ex.changements_nodaux_par_vl(
+        [{"VL": _FERME}, {"VL": _ISOLE_3}, {"VL": _FERME}], struct)
+    assert nd_iso["VL"] == 0
+    # scission du couplage (les deux moitiés restent sur une barre) → comptée.
+    nd_split = ex.changements_nodaux_par_vl(
+        [{"VL": _FERME}, {"VL": _OUVRE_C}, {"VL": _FERME}], struct)
+    assert nd_split["VL"] == 3
 
 
 def test_fusionner_nodaux_ajoute_au_total():
@@ -159,20 +184,18 @@ def test_extraire_structure_topo_reseau_reference():
     s = next(v for v in struct.values() if v["edges"] and v["poids"])
     assert all(isinstance(e, tuple) and len(e) == 2 for e in s["edges"].values())
     assert all(isinstance(w, int) and w >= 1 for w in s["poids"].values())
+    # les jeux de barres (ancres des nœuds) sont identifiés.
+    assert any(v.get("barres") for v in struct.values())
 
 
 def test_changements_nodaux_reseau_reference():
     pp = pytest.importorskip("pypowsybl")
-    import copy
     net = pp.network.create_four_substations_node_breaker_network()
     etats, _ = ex.extraire_etats_kinds(net)
     struct = ex.extraire_structure_topo(net)
-    vl0 = next(v for v in etats if etats[v] and struct.get(v, {}).get("poids"))
-    ouvert = copy.deepcopy(etats)
-    for sid in ouvert[vl0]:          # tout ouvrir → scission maximale du VL
-        ouvert[vl0][sid] = True
-    nd = ex.changements_nodaux_par_vl([etats, ouvert, etats], struct)
-    assert nd[vl0] >= 1              # au moins un ouvrage séparé
+    # situations identiques → aucun re-groupement.
+    nd = ex.changements_nodaux_par_vl([etats, etats, etats], struct)
+    assert nd and all(isinstance(v, int) and v == 0 for v in nd.values())
 
 
 # --- extraction (pypowsybl) -------------------------------------------------

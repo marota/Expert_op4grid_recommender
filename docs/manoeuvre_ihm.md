@@ -117,7 +117,9 @@ situations consécutives, la **distance de transfert** (appariement des blocs
 maximisant les ouvrages conservés → ouvrages déplacés = le plus petit groupe
 séparé / ayant rejoint, `noeuds_deplaces`), en retenant le **max** sur les
 transitions (`changements_nodaux_par_vl` — stable face à une scission suivie d'une
-fusion). Le **classement et la mise en évidence sont au niveau voltage level**
+fusion). Les **ouvrages isolés** (déconnectés, dont la composante ne contient aucun
+jeu de barres) sont **ignorés** : ce ne sont pas des nœuds électriques et leur
+(dé)connexion ne compte pas comme re-groupement. Le **classement et la mise en évidence sont au niveau voltage level**
 (granularité fine, pas par site) : le panneau latéral droit liste les **VL les plus
 actifs** (cliquable) et les **10 premiers VL** sont mis en évidence sur la carte
 (halo doré + rang sur le poste correspondant). Cœur de calcul :

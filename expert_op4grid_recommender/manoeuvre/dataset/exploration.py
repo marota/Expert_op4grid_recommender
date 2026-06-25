@@ -127,17 +127,20 @@ def extraire_structure_topo(net) -> dict[str, dict]:
     struct: dict[str, dict] = {}
 
     def _vl(vl) -> dict:
-        return struct.setdefault(str(vl), {"edges": {}, "poids": {}})
+        return struct.setdefault(str(vl),
+                                 {"edges": {}, "poids": {}, "barres": set()})
 
-    def _ajouter_ouvrage(vl, node) -> None:
+    def _ajouter_ouvrage(vl, node, est_barre: bool = False) -> None:
         try:
             nd = int(node)
         except (TypeError, ValueError):
             return
         if nd != nd:  # NaN
             return
-        p = _vl(vl)["poids"]
-        p[nd] = p.get(nd, 0) + 1
+        s = _vl(vl)
+        s["poids"][nd] = s["poids"].get(nd, 0) + 1
+        if est_barre:
+            s["barres"].add(nd)   # ancres des nœuds électriques (jeux de barres)
 
     # arêtes node1–node2 par VL (mêmes colonnes que extraire_etats_kinds).
     sw = net.get_switches(all_attributes=True)
@@ -162,8 +165,9 @@ def extraire_structure_topo(net) -> dict[str, dict]:
             continue
         if "voltage_level_id" not in df.columns or "node" not in df.columns:
             continue
+        est_barre = (getter == "get_busbar_sections")
         for vl, nd in zip(df["voltage_level_id"].tolist(), df["node"].tolist()):
-            _ajouter_ouvrage(vl, nd)
+            _ajouter_ouvrage(vl, nd, est_barre)
 
     # connectables multi-VL : lignes et TD (chaque extrémité = un ouvrage côté VL).
     multi = {"get_lines": (1, 2), "get_2_windings_transformers": (1, 2),
@@ -247,12 +251,17 @@ def partition_ouvrages(
     etats_vl: dict[str, bool],
     edges: dict[str, tuple[int, int]],
     poids: dict[int, int],
+    barres: Optional[set] = None,
 ) -> dict[int, int]:
     """Partition des **nœuds porteurs d'ouvrage** (clés de ``poids``) en **nœuds
     électriques** : ``{node: id_composante}``. Deux nœuds sont dans la même
     composante s'ils sont reliés par un chemin de switches **fermés**
     (``etats_vl[sid]`` faux = fermé). ``edges`` = ``{switch_id: (n1, n2)}``.
-    Union-find. Fonction pure."""
+
+    Si ``barres`` (nœuds jeux de barres) est fourni, les **ouvrages isolés** —
+    ceux dont la composante ne contient **aucune barre** (équipement déconnecté /
+    hors service) — sont **exclus** : un ouvrage isolé n'est pas un nœud électrique
+    (il ne doit pas gonfler le décompte). Union-find. Fonction pure."""
     parent: dict[int, int] = {}
 
     def find(x: int) -> int:
@@ -273,7 +282,13 @@ def partition_ouvrages(
             ra, rb = find(n1), find(n2)
             if ra != rb:
                 parent[ra] = rb
-    return {node: find(node) for node in poids}
+    part = {node: find(node) for node in poids}
+    if barres:
+        # composantes reliées à au moins une barre = nœuds électriques réels ;
+        # les autres (ouvrages déconnectés) sont ignorées.
+        racines_en_service = {find(b) for b in barres if b in parent}
+        part = {n: c for n, c in part.items() if c in racines_en_service}
+    return part
 
 
 def _blocs(partition: dict[int, int]) -> list[set]:
@@ -337,7 +352,10 @@ def noeuds_deplaces(part_a: dict[int, int], part_b: dict[int, int],
     conserves: set = set()
     for ia, jb in _alignement_max(blocs_a, blocs_b, poids):
         conserves |= (blocs_a[ia] & blocs_b[jb])
-    return set(poids) - conserves
+    # ensemble de référence = ouvrages **en service dans les deux** situations
+    # (présents dans les deux partitions) : une (dé)connexion d'ouvrage isolé
+    # n'est pas un re-groupement.
+    return (set(part_a) & set(part_b)) - conserves
 
 
 def changements_nodaux_par_vl(
@@ -357,10 +375,11 @@ def changements_nodaux_par_vl(
     out: dict[str, int] = {}
     for vl, s in struct.items():
         edges, poids = s.get("edges", {}), s.get("poids", {})
+        barres = s.get("barres") or None
         if not poids:
             out[vl] = 0
             continue
-        parts = [partition_ouvrages(situ[vl], edges, poids)
+        parts = [partition_ouvrages(situ[vl], edges, poids, barres)
                  for situ in situations if vl in situ]
         if len(parts) < 2:
             out[vl] = 0

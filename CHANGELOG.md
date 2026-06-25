@@ -33,6 +33,13 @@ vue topologique d'un poste **à l'heure souhaitée**.
   sur les transitions (`changements_nodaux_par_vl`, stable face à une scission
   suivie d'une fusion). Intégré au `total` (`fusionner_nodaux`) et affiché (badge
   ⚇ dans le classement, ligne dédiée dans la bulle).
+  - **Ouvrages isolés ignorés** : un ouvrage **déconnecté** (composante sans jeu de
+    barres) n'est **pas** un nœud électrique → exclu de la partition
+    (`partition_ouvrages(..., barres)`, jeux de barres relevés par
+    `extraire_structure_topo`) ; (dé)connecter un ouvrage isolé ne compte pas comme
+    re-groupement (seules les vraies scissions/fusions de jeux de barres comptent).
+    Corrige une inflation du décompte (ex. un poste affichant ⊝7 dû à des ouvrages
+    déconnectés).
 - **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) — le
   dataset RTE 7000 ne portant **pas** de coordonnées, chaîne de résolution :
   (1) **plan de masse RTE committé** (`manoeuvre/dataset/grid_layout_rte.json`,
@@ -76,6 +83,10 @@ vue topologique d'un poste **à l'heure souhaitée**.
 - **Heure cible mise en évidence dès l'ouverture** : à l'ouverture d'un poste (ou
   changement de l'heure de départ), la cible vaut le départ → le **bouton heure
   cible est surligné en bleu** immédiatement (`MAP.cibleHour = heure`).
+- **Changement de niveau de tension : heure cible conservée** — basculer entre les
+  VL d'un même poste (boutons « Niveau ») **préserve** l'heure de départ **et**
+  l'heure cible retenue (la cible est ré-appliquée sur le nouveau VL) au lieu de
+  réinitialiser la cible au départ (`mapToTopo(sub, vl, hour, cibleHour)`).
 - **Fond de carte plus lisible** : pays voisins assombris (`.nbr`) pour les
   distinguer nettement des zones maritimes.
 - **Endpoints** : `POST /api/explore_day`, `POST /api/explore_poste`,
