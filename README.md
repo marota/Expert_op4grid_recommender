@@ -46,22 +46,33 @@ companion operator UI **[Co-Study4Grid](https://github.com/marota/Co-Study4Grid)
 
 ### 1 · The recommender — ranked corrective actions
 
-<p align="center">
-  <img src="docs/img/co_study4grid_recommender_feed.png" width="330"
-       alt="Annotated Co-Study4Grid 'Suggested Actions' feed: ranked action cards with per-action max-loading, target chips, and green/amber/red severity badges">
-</p>
+The recommender has two faces in **[Co-Study4Grid](https://github.com/marota/Co-Study4Grid)**:
+it builds an **interpretable overflow graph** of the contingency *(left)* —
+constrained path, red/blue flow-redistribution loops, hubs — and **derives a
+ranked feed of corrective actions** from it *(right)*.
 
-> **Fig. — The recommender's output, rendered in [Co-Study4Grid](https://github.com/marota/Co-Study4Grid).**
-> A feed of **ranked action cards** for contingency `P.SAOL31RONCI` (overload
-> `BEON L31CPVAN` at 98.7%), produced by the *Expert system* model in 0.67 s.
-> Each card shows the action id and **family** — `disco_…` (line disconnection),
-> `node_merging_…`, `load_shedding_…`, `reco_…` (reconnection) — the **max line
-> loading after the action**, the binding line, and a **target chip** (blue =
-> line, green = substation). The left border + badge encode severity:
-> **green ✓** solves the overload, **amber !** leaves a low margin, **red ✗**
-> still overloaded — so the operator scans the best fixes top-down. The header
-> action-type icons and the `150 %` field filter and threshold the feed.
-> *(Screenshot from the companion Co-Study4Grid operator UI.)*
+<table>
+<tr>
+<td valign="top" align="center">
+  <img src="docs/img/co_study4grid_overflow_graph.png" width="500"
+       alt="Interpretable overflow analysis graph with a LAYERS panel (constrained path, red/blue flow paths, hubs) highlighting the contingency's root cause">
+  <br/><sub><b>Overflow analysis graph</b> — stackable layer filters reveal the
+  constrained path and the flow-redistribution root cause that the candidate
+  actions act upon.</sub>
+</td>
+<td valign="top" align="center">
+  <img src="docs/img/co_study4grid_recommender_feed.png" width="220"
+       alt="Ranked 'Suggested Actions' feed: action cards with per-action max-loading, target chips, and green/amber/red severity badges">
+  <br/><sub><b>Ranked action feed</b> — for contingency <code>P.SAOL31RONCI</code>
+  (overload <code>BEON L31CPVAN</code>, 98.7%): families <code>disco_</code>,
+  <code>node_merging_</code>, <code>load_shedding_</code>, <code>reco_</code>,
+  each with its post-action max loading and a green ✓ / amber ! / red ✗ severity
+  badge.</sub>
+</td>
+</tr>
+</table>
+
+> *Screenshots from the companion [Co-Study4Grid](https://github.com/marota/Co-Study4Grid) operator UI.*
 
 ### 2 · The maneuver module — from a nodal action to a switching sequence
 
