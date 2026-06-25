@@ -234,6 +234,15 @@ def test_api_save_returns_content_for_download(session, monkeypatch, tmp_path):
     assert (tmp_path / "t.json").exists()
 
 
+def test_api_save_sequence_returns_content_for_download(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SEQ_DIR", tmp_path)
+    d = ihm.app.test_client().post("/api/save_sequence", json={"name": "sq"}).get_json()
+    assert d["name"] == "sq"
+    assert d["content"] and '"manoeuvres"' in d["content"]
+    assert (tmp_path / "sq.json").exists()
+
+
 def test_normalize_groups_ignores_empty_nodes():
     # Un groupe vide (nœud « ＋ Nœud » resté vide) est ignoré ; l'orphelin va
     # dans un nœud dédié → aucun nœud vide dans le résultat.

@@ -537,6 +537,22 @@ assert res.ecarts == []
   `scripts/manoeuvre_ihm_assets/index.html` (≈ 600 lignes), chargé au démarrage
   du module et servi tel quel par la route `GET /` (`PAGE`). Le `.py` ne contient
   plus de bloc HTML embarqué — édition du front sans toucher au serveur Python.
+- **Couverture de test** (`tests/manoeuvre/`) :
+  - `test_ihm_frontend_asset.py` — asset servi verbatim **+ garde-fou de
+    structure** : liste de **marqueurs requis** (onglets, `posteList`,
+    `promoteCible`, `validateCible`, `toggleNsec`, `Réinitialiser`, dates
+    2022/2023…) **présents** et de **marqueurs retirés** (`dsBox`, `posteCat`,
+    `datalist`, `= départ`, « Scénarios sauvegardés », auto-chargement…)
+    **absents** ; bloc `<script>` unique et accolades équilibrées.
+  - `test_ihm_dataset.py` — `/api/dataset/{config,timestamps,load}`,
+    `repo_pour_date` + **dérivation du repo par année** (timestamps **et** load),
+    drapeau `hosted`.
+  - `test_ihm_cache_and_api.py` — `/api/pick_grid_file` (succès / headless /
+    timeout), `/api/promote_cible` (+ `Session.promote_cible`), `content` renvoyé
+    par `/api/save` **et** `/api/save_sequence` (téléchargement local),
+    `_normalize_groups` ignore les nœuds vides.
+  - `test_ihm_nodale_*` / `test_ihm_sequence_edit.py` / `test_ihm_algo_selection.py`
+    — édition nodale, séquence, sélecteurs d'algo (inchangés).
 - **Couleurs** : pypowsybl encode les couleurs via des variables CSS
   (`var(--sld-vl-color)`). Le navigateur les résout nativement ; aucune palette
   maison n'est appliquée. (Pour un export PNG hors navigateur, voir

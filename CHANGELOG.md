@@ -40,6 +40,38 @@ situations réseau directement dans le dataset RTE 7000** par date/heure, et se
   téléchargement, frontière réseau mockée) et `tests/manoeuvre/test_ihm_dataset.py`
   (endpoints + garde-fous). Le mode local (`--grid`) est strictement préservé.
 
+### IHM de manœuvre : refonte UX du panneau + volet nodal
+
+Refonte ergonomique de l'IHM de manœuvre (`scripts/manoeuvre_ihm_assets/index.html`
++ `scripts/manoeuvre_ihm.py`). Doc : `docs/manoeuvre_ihm.md` ; figure annotée :
+`docs/manoeuvre/manoeuvre_ihm_overview.svg`.
+
+- **Situation réseau en deux onglets** *📁 Local* (chemin `.xiidm` + **sélecteur de
+  fichier natif**, `GET /api/pick_grid_file`) et *📅 RTE7000* (date/heure), avec un
+  **unique bouton Charger** ; RTE7000 mis en avant par défaut sur le Space.
+- **Dates d'accès rapide 2021-2023** (7 journées de la « Table de campagne »),
+  l'**année sélectionnant le dataset** (`dataset_source.repo_pour_date`,
+  `…-2021/-2022/-2023`) ; bulles d'information chiffrées.
+- **Champ poste unifié** : une recherche sur tous les postes NODE_BREAKER +
+  **liste browsable** sous le titre *« Pré-sélection de postes typiques »*
+  (exploration curée par typologie). **Plus d'auto-chargement de poste**.
+- **« 🗺 Scénario Topologique »** en 3 étapes (Poste → Topologie cible → Séquence).
+  **✓ Valider** (active le calcul) et **💾 Sauvegarder** séparés ; sur le Space
+  (`hosted`), les scénarios/séquences sauvegardés sont **aussi téléchargés en
+  local** (`/api/save` + `/api/save_sequence` renvoient `content`).
+- **En-têtes de schéma** : **↺ État d'origine** (départ) et **⇧ Nouvelle Topologie
+  Départ** (cible → promeut la cible courante en départ, `POST /api/promote_cible`).
+  **⟳ Recharger** (modale) remplace la section « Scénarios sauvegardés ».
+- **Volet nodal** : sections **Départ/Cible repliables**, **ouvrages isolés en tête
+  de cadre**, **↺ Réinitialiser** (reset complet détaillé + nodal), et **＋ Nœud**
+  crée un nœud vide **persistant** (cible de dépose ; nœuds vides ignorés au calcul).
+- **Tests** : garde-fou de **structure du front** (`test_ihm_frontend_asset.py` :
+  marqueurs requis présents / retirés absents, bloc script équilibré) ;
+  `test_ihm_cache_and_api.py` (sélecteur de fichier, `promote_cible`, `content` de
+  `/api/save` + `/api/save_sequence`, nœuds vides ignorés) ; `test_ihm_dataset.py`
+  (`repo_pour_date`, dérivation du repo par année sur timestamps **et** load,
+  drapeau `hosted`).
+
 ---
 
 ## [0.2.5] - 2026-06-19

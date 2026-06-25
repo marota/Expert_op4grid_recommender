@@ -160,6 +160,20 @@ def test_timestamps_uses_year_derived_repo(dataset_mode, monkeypatch):
     assert seen["repo"].endswith("D-GITT-RTE7000-2022")
 
 
+def test_load_uses_year_derived_repo(dataset_mode, monkeypatch):
+    seen = {}
+    net = pp.network.create_four_substations_node_breaker_network()
+
+    def fake(repo, date, cache, heure="12:00", token=None):
+        seen["repo"] = repo
+        return net, {"date": date, "ts": heure, "iso": date + "T" + heure,
+                     "path": "p", "local": "/tmp/p"}
+
+    monkeypatch.setattr(ihm.dataset_source, "charger_situation", fake)
+    dataset_mode.post("/api/dataset/load", json={"date": "2023-02-08", "time": "12:00"})
+    assert seen["repo"].endswith("D-GITT-RTE7000-2023")
+
+
 # --- hosted (IHM déportée → téléchargement local côté front) ----------------
 
 def test_config_reports_hosted_flag(monkeypatch):
