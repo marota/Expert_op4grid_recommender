@@ -155,6 +155,32 @@ def test_explore_changes_diff(client):
     assert ch["svgId"] and ch["id"]
 
 
+def test_nb_noeuds_reels_exclut_ouvrages_isoles():
+    """Affichage : ``_nb_noeuds_reels`` ne compte que les nœuds avec barre — les
+    ouvrages isolés (déconnectés) ne sont pas des nœuds (le moteur, lui, garde
+    ``TopologieNodale.nb_noeuds``, isolés inclus)."""
+    from expert_op4grid_recommender.manoeuvre.topologie import TopologieNodale
+    net = pp.network.create_four_substations_node_breaker_network()
+    s = ihm.Session(net)
+    strict = False
+    for vl in list(net.get_voltage_levels().index):
+        try:
+            s.load(vl)
+        except Exception:
+            continue
+        if not s.current:
+            continue
+        allopen = {sid: True for sid in s.current}   # tout ouvrir → départs isolés
+        s.apply(allopen)
+        G = s._graph(allopen)
+        reels = ihm._nb_noeuds_reels(G)
+        full = TopologieNodale.from_graph(G, vl).nb_noeuds
+        assert reels <= full
+        if reels < full:
+            strict = True
+    assert strict   # au moins un VL où des ouvrages isolés ne sont pas comptés
+
+
 def test_explore_poste_guard_sans_day():
     ihm.DAY = None
     ihm.SESSION = ihm.Session(pp.network.create_four_substations_node_breaker_network())

@@ -311,6 +311,21 @@ def _isolated_assets(G: nx.Graph) -> list[str]:
     return iso
 
 
+def _nb_noeuds_reels(G: nx.Graph) -> int:
+    """Nombre de **nœuds électriques réels** : composantes connexes (switches
+    fermés) contenant **au moins une barre**. Les ouvrages **isolés** (déconnectés)
+    ne sont **pas** comptés comme des nœuds — pour l'**affichage** (le moteur de
+    séquencement conserve ``TopologieNodale.nb_noeuds``, isolés inclus). Cohérent
+    avec l'éditeur nodal qui présente les isolés à part. Fonction pure."""
+    closed = nx.Graph()
+    closed.add_nodes_from(G.nodes())
+    for u, v, d in G.edges(data=True):
+        if not d.get("open", False):
+            closed.add_edge(u, v)
+    barres = set(busbar_nodes(G))
+    return sum(1 for comp in nx.connected_components(closed) if comp & barres)
+
+
 class Session:
     """État serveur (mono-utilisateur)."""
 
@@ -559,7 +574,9 @@ class Session:
         svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
         meta = json.loads(svg.metadata)
         switches = self._switches_meta(meta, state)
-        nb = self._topo(state).nb_noeuds
+        # **Affichage** : nœuds réels (avec barre) ; les ouvrages isolés ne sont
+        # pas comptés comme nœuds (le séquencement, lui, garde nb_noeuds).
+        nb = _nb_noeuds_reels(self._graph(state))
         return svg.svg, switches, nb
 
     def svgid_par_switch(self):
@@ -602,7 +619,7 @@ class Session:
             svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
             meta = json.loads(svg.metadata)
             switches = self._switches_meta(meta, state)
-            nb = self._topo(state).nb_noeuds
+            nb = _nb_noeuds_reels(self._graph(state))   # affichage : isolés exclus
         # ``applied`` a restauré le réseau sur ``self.current``.
         reached = self._topo(self.current).meme_topologie(self._topo(state))
         # Vue nodale de l'**état détaillé de l'étape** : permet à l'IHM de faire
@@ -642,7 +659,7 @@ class Session:
         if self.seq_states:
             with self.applied(self.seq_states[-1]):
                 topo_f = self._topo(self.seq_states[-1])
-                nb_final = topo_f.nb_noeuds
+                nb_final = _nb_noeuds_reels(self._graph(self.seq_states[-1]))
             # ``applied`` a restauré le réseau sur ``self.current``.
             matches = self._topo(self.current).meme_topologie(topo_f)
         return {

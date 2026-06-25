@@ -40,6 +40,13 @@ vue topologique d'un poste **à l'heure souhaitée**.
     re-groupement (seules les vraies scissions/fusions de jeux de barres comptent).
     Corrige une inflation du décompte (ex. un poste affichant ⊝7 dû à des ouvrages
     déconnectés).
+- **Vue topologie : décompte de nœuds à l'affichage (ouvrages isolés exclus)** —
+  le badge « X nœud(s) » (départ / cible / étape) et la ligne « obtenu / visé » ne
+  comptent plus que les **nœuds réels** (composantes avec jeu de barres ;
+  `_nb_noeuds_reels`), cohérent avec l'éditeur nodal qui présente les ouvrages
+  isolés à part. **Affichage uniquement** : le moteur de séquencement conserve
+  `TopologieNodale.nb_noeuds` (isolés inclus, requis p. ex. en mise en service) et
+  le verdict de réalisabilité est inchangé.
 - **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) — le
   dataset RTE 7000 ne portant **pas** de coordonnées, chaîne de résolution :
   (1) **plan de masse RTE committé** (`manoeuvre/dataset/grid_layout_rte.json`,
