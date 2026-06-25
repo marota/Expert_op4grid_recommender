@@ -11,7 +11,7 @@
 
 ### Commit `a26531a` — Couche pluggable des 3 phases de calcul (`manoeuvre/plugins/`)
 
-Trois contrats substituables (PEP 544, doc `docs/manoeuvre/plugins.md`) :
+Trois contrats substituables (PEP 544, doc `docs/architecture/plugins.md`) :
 
 - **Phase A** `IdentificateurTopologieDetaillee.identifier(poste, topo_cible)` :
   topologie **nodale** cible → topologie **détaillée** cible ;
@@ -134,7 +134,7 @@ opérateur ×1,10 (smooth) / ×1,06 (aggressive).
 | Campagne 7 journées / 3 ans (table, benchmarks) | `docs/manoeuvre/dataset_rte7000/README.md` |
 | Orchestrateur multi-journées | `scripts/process_dgitt_days.sh` |
 | Résultats première passe réelle (2021-01-03) | `docs/manoeuvre/dataset_rte7000/2021-01-03/` |
-| Doc couche pluggable | `docs/manoeuvre/plugins.md` |
+| Doc couche pluggable | `docs/architecture/plugins.md` |
 | Doc module manoeuvre (conventions, invariants) | `expert_op4grid_recommender/manoeuvre/CLAUDE.md` |
 | Pipeline dataset | `expert_op4grid_recommender/manoeuvre/dataset/` |
 | Téléchargeur dataset HF | `scripts/download_dgitt_subset.py` |

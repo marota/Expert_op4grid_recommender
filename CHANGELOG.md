@@ -190,7 +190,7 @@ changes with each other — previously these pairs were skipped. Based on
   pair shape against ground-truth grid2op DC simulations (~1e-6 MW), plus a
   `TestGstIsAcAnchored` class pinning that the beta RHS and the reconstruction
   read the (AC) observation values verbatim.
-- **Docs**: `docs/architecture/superposition_module.md` §10 now documents the AC-anchoring of
+- **Docs**: `docs/recommender/superposition_module.md` §10 now documents the AC-anchoring of
   the GST (AC values used throughout; the superposition law is DC-exact only, so
   the AC residual is structural) and the accuracy profile (topology+injection ≡
   topology-only EST; the global max-rho line can flip between near-equal low-flow

@@ -14,9 +14,10 @@ system shipped as the default. See
 
 ## Documentation
 
+New here? Start with the **[architecture & overall-understanding overview](docs/architecture/overview.md)**.
 The full documentation index is in [`docs/README.md`](docs/README.md) —
-architecture & simulation pipeline, feature/algorithm design specs, the maneuver
-module & web IHM, the RTE-7000 dataset, release notes, and developer notes.
+architecture & simulation pipeline, the recommender's action designs, the maneuver
+module & web IHM, the RTE-7000 dataset, release notes, and the archive.
 
 ---
 

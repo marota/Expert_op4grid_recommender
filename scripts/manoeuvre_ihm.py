@@ -321,7 +321,7 @@ class Session:
         self.seq_edited: bool = False
         self.seq_mode: str = "smooth"
         # Algorithme sélectionné pour chaque phase pluggable (cf.
-        # ``manoeuvre.plugins`` et docs/manoeuvre/plugins.md) :
+        # ``manoeuvre.plugins`` et docs/architecture/plugins.md) :
         # - "identificateur" : nodale -> détaillée (« calculer la topologie
         #   détaillée d'intérêt ») ;
         # - "sequenceur"     : détaillée -> séquence de manœuvres ;

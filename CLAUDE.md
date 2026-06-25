@@ -17,9 +17,9 @@
 A full, categorized documentation index lives in
 [`docs/README.md`](docs/README.md). Quick map:
 
-- **Architecture**: `docs/architecture/` — simulation pipeline, superposition theorem, recommender-model contract
-- **Recommender action designs**: `docs/recommender/` — antenna graph, load shedding, renewable curtailment
-- **Maneuver module**: `docs/manoeuvre/` — module, rules, plugins, IHM, N-busbar, optimisations, plan
+- **Architecture**: `docs/architecture/` — overview, simulation pipeline, recommender-model contract, maneuver plugin phases
+- **Recommender action designs**: `docs/recommender/` — antenna graph, load shedding, renewable curtailment, superposition theorem
+- **Maneuver module**: `docs/manoeuvre/` — module, rules, IHM, N-busbar, optimisations, plan
 - **RTE-7000 dataset**: `docs/manoeuvre/dataset_rte7000/` — campaign, guide, plan, handoff
 - **Archive**: `docs/archive/` — migration plan, code-quality analysis, setup summary
 - **Release notes**: `docs/release-notes/`
@@ -388,7 +388,7 @@ See `docs/archive/MIGRATION_PLAN.md` for details. The goal is to remove `grid2op
 
 - **Load Shedding & Renewable Curtailment** (`v0.1.9`): `find_relevant_load_shedding` and `find_relevant_renewable_curtailment` in `action_evaluation/discovery.py` identify candidates on downstream nodes of constrained paths. Controlled by `MIN_LOAD_SHEDDING`, `MIN_RENEWABLE_CURTAILMENT`, `LOAD_SHEDDING_MARGIN`, `RENEWABLE_CURTAILMENT_MARGIN`, `RENEWABLE_ENERGY_SOURCES`. Deeply optimized for large networks (#76).
 - **Pathlib migration** (`v0.1.9`): all base directories and file paths use `pathlib.Path` for cross-platform robustness.
-- **Superposition Theorem** (`v0.1.8`): `utils/superposition.py` quantifies topological and PST action impacts using virtual flows and delta-theta. Integrated into analysis results. **Generalized Superposition Theorem (GST)** (unreleased): `compute_combined_pair_gst` + `is_injection_action` extend pair estimation to load shedding / curtailment / redispatch (injection changes), reported with `beta=1.0` so the existing reconstruction is unchanged. See `docs/architecture/superposition_module.md` §10.
+- **Superposition Theorem** (`v0.1.8`): `utils/superposition.py` quantifies topological and PST action impacts using virtual flows and delta-theta. Integrated into analysis results. **Generalized Superposition Theorem (GST)** (unreleased): `compute_combined_pair_gst` + `is_injection_action` extend pair estimation to load shedding / curtailment / redispatch (injection changes), reported with `beta=1.0` so the existing reconstruction is unchanged. See `docs/recommender/superposition_module.md` §10.
 - **Islanding MW impact** (`v0.1.8`): islanding detection now reports disconnected MW.
 - **PST Support** (`v0.1.7+`): phase-shifter transformer tap variations, atomized PST actions from REPAS JSON. `find_relevant_pst_actions` in discovery. Grid2Op conversion support. PST asset-ID matching handles REPAS quirks (leading dots, `_inc1`/`_dec2` suffixes).
 - **Direct XIIDM loading** (`v0.1.8_post1`): `main.py` accepts a direct `.xiidm` file path.

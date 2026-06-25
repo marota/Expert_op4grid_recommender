@@ -18,7 +18,7 @@ de couplage.
 | `troncons.py`  | Etapes 1.3-1.4 : `construire_tronconnement()` — barres, troncons, attribution |
 | `topologie.py` | Etapes 1.5-1.6 : `TopologieNodale`, `PosteTopologique`, `attribuer_noeuds()` |
 | `algo/`        | Phase 2 : `determiner_topo_complete_cible()` — package en couches (voir ci-dessous) |
-| `plugins/`     | Couche **pluggable** : contrats des 3 phases (identification nodale→détaillée, séquencement détaillée→manœuvres, planification bout-en-bout), registre + entry points, façade `PlanificateurTopologie` avec vérification indépendante. Doc : `docs/manoeuvre/plugins.md` |
+| `plugins/`     | Couche **pluggable** : contrats des 3 phases (identification nodale→détaillée, séquencement détaillée→manœuvres, planification bout-en-bout), registre + entry points, façade `PlanificateurTopologie` avec vérification indépendante. Doc : `docs/architecture/plugins.md` |
 | `__init__.py`  | API publique                                     |
 
 ### Package `algo/` (Phase 2, eclate depuis l'ancien `algo.py`)
@@ -52,7 +52,7 @@ La façade `PlanificateurTopologie` compose les phases manquantes et applique
 détaillés, règle du sectionneur, alertes R10ter) à tout résultat, y compris
 tiers. Plugins externes par entry points (groupe
 `expert_op4grid_recommender.manoeuvre`, nom `<phase>.<nom>`). Détails et
-exemples : `docs/manoeuvre/plugins.md` ; tests :
+exemples : `docs/architecture/plugins.md` ; tests :
 `tests/manoeuvre/test_plugins_interface.py`.
 
 L'**IHM est migrée sur cette façade** : sélecteurs « Algo » par phase

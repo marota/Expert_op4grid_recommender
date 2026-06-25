@@ -6,7 +6,7 @@ usage see the [root README](../README.md); for the full release history see
 
 ```
 docs/
-├── architecture/      simulation pipeline & cross-cutting algorithms
+├── architecture/      system overview, pipeline & extension points
 ├── recommender/       corrective-action design specs
 ├── manoeuvre/         detailed-topology maneuver module (+ IHM, assets, dataset)
 │   └── dataset_rte7000/   historical RTE-7000 topology/maneuver benchmark
@@ -15,15 +15,19 @@ docs/
 ```
 
 ## Architecture & algorithms (`architecture/`)
+- [`architecture/overview.md`](architecture/overview.md) — **start here**:
+  architecture & overall-understanding overview — what the tool does, the
+  end-to-end two-step pipeline, the subsystems, the extension points, and a
+  development chronology (mermaid diagrams + tables).
 - [`architecture/simulation-pipeline.md`](architecture/simulation-pipeline.md) —
   the pypowsybl simulation pipeline: AC/DC & fast/slow load-flow modes, voltage
   initialisation, variant lifecycle, thermal-limit hypotheses, retry branches.
-- [`architecture/superposition_module.md`](architecture/superposition_module.md) —
-  superposition theorem and the Generalized Superposition Theorem (§10) used to
-  estimate combined action impact via virtual flows / delta-theta.
 - [`architecture/recommender_models.md`](architecture/recommender_models.md) —
   the pluggable `RecommenderModel` contract: DTO fields, capability flags,
   reusable pipeline phases, integration point, and a minimal new-model example.
+- [`architecture/plugins.md`](architecture/plugins.md) — the maneuver module's
+  pluggable calculation phases (identification / sequencing / end-to-end
+  planning): contracts, registry, entry points, independent verification.
 
 ## Recommender action designs (`recommender/`)
 Design specs for the corrective action types the recommender proposes.
@@ -33,16 +37,18 @@ Design specs for the corrective action types the recommender proposes.
   (downstream consumption reduction) as a corrective action type.
 - [`recommender/renewable_curtailment.md`](recommender/renewable_curtailment.md) —
   renewable curtailment, the upstream counterpart to load shedding.
+- [`recommender/superposition_module.md`](recommender/superposition_module.md) —
+  the superposition theorem and Generalized Superposition Theorem (§10) used to
+  estimate combined action impact via virtual flows / delta-theta.
 
 ## Maneuver module (`manoeuvre/`)
-Detailed-topology (node-breaker) maneuver planning — its rules, plugins, web IHM,
-and the historical dataset it is validated against.
+Detailed-topology (node-breaker) maneuver planning — its rules, web IHM, and the
+historical dataset it is validated against. (Its pluggable calculation phases are
+documented under [`architecture/plugins.md`](architecture/plugins.md).)
 - [`manoeuvre/module.md`](manoeuvre/module.md) — module reference: objectives,
   pipeline, node-breaker topology analysis.
 - [`manoeuvre/regles.md`](manoeuvre/regles.md) — business rules (R1–R16) with
   rule-to-code traceability.
-- [`manoeuvre/plugins.md`](manoeuvre/plugins.md) — pluggable calculation phases
-  (identification / sequencing / end-to-end planning).
 - [`manoeuvre/ihm.md`](manoeuvre/ihm.md) — the interactive web IHM (topology
   editor + sequence animation) and the hosted HuggingFace Space.
 - [`manoeuvre/postes_n_jeux_de_barres.md`](manoeuvre/postes_n_jeux_de_barres.md) —
