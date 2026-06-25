@@ -44,7 +44,9 @@ vue topologique d'un poste **à l'heure souhaitée**.
   (`GET /api/explore_coords_file`, bouton « ⬇ coordonnées »). Toggle
   `MANOEUVRE_ENABLE_OSM`. ODRE (`postes-electriques-rte`) est **tabulaire sans
   géométrie** → inutilisable pour la carte. Sans aucune coordonnée, l'IHM reste
-  utile : **classement en liste** + **diagnostic** d'appariement.
+  utile : **classement en liste** + **diagnostic** d'appariement. Approche
+  détaillée (plan de masse → projection écran → fond calibré) :
+  **`docs/manoeuvre_carte_geographique.md`**.
 - **Carte** (frontend) : SVG **autonome** (sans tuiles ni librairie externe),
   disques **colorés par niveau de tension** sur un **fond géographique réel**
   (frontières départements + pays voisins, calibrées dans le repère du plan de
