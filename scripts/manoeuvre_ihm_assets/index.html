@@ -275,6 +275,8 @@
       <span>🗺 Carte du réseau</span>
       <span class="sub" id="mapHeadInfo"></span>
       <span style="flex:1"></span>
+      <button id="mapDlCoords" onclick="downloadCoordsFile()" style="display:none;background:#0e7490;color:#fff;border-color:#0e7490"
+              title="Télécharger l'instantané des coordonnées résolu depuis ODRE — à committer dans data/postes_rte_geo.json pour éviter de ré-interroger ODRE à chaque démarrage du Space">⬇ coordonnées</button>
       <button onclick="mapZoom(0.8)" title="Zoom +">＋</button>
       <button onclick="mapZoom(1.25)" title="Zoom −">－</button>
       <button onclick="mapReset()" title="Recentrer">⤢ Recentrer</button>
@@ -1086,12 +1088,20 @@ async function exploreDay(){
   renderExplore(r);
 }
 
+function downloadCoordsFile(){const a=document.createElement('a');
+  a.href='/api/explore_coords_file';a.download='postes_rte_geo.json';
+  document.body.appendChild(a);a.click();a.remove();}
 function renderExplore(d){
   MAP.data=d;MAP.heures=d.heures||[];MAP.bySub={};
   const hrs=(d.heures||[]).map(h=>h.ts).join(' · ');
+  const st=d.coord_stats||{};
+  const coord=d.coord_source+(d.coord_source==='odre'&&st.taux!=null
+    ? ' ('+(st.n_apparies||0)+' appariés, '+Math.round(st.taux*100)+'%)':'');
   document.getElementById('mapHeadInfo').textContent=
     d.date+' ('+hrs+') · '+d.n_postes+' postes · '+d.n_actifs+' actifs · '
-    +d.n_geolocalises+' géolocalisés · coord. : '+d.coord_source;
+    +d.n_geolocalises+' géolocalisés · coord. : '+coord;
+  const dl=document.getElementById('mapDlCoords');
+  if(dl)dl.style.display=d.coord_file?'inline-block':'none';
   renderClassement(d);renderLegend();
   const mm=document.getElementById('mapMsg');
   const old=document.getElementById('mapSvg');if(old)old.remove();

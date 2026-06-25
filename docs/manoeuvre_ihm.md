@@ -126,20 +126,31 @@ géographiques (pas d'extension `substationPosition`). Elles sont résolues par 
 **chaîne de sources** (`manoeuvre/dataset/geographie.resoudre`) : (1) extension
 `substationPosition` embarquée si un jour présente ; (2) **instantané committé**
 `data/postes_rte_geo.json` (indexé par `substation_id`) ; (3) **ODRE en direct**
-([`postes-electriques-rte`](https://odre.opendatasoft.com/explore/dataset/postes-electriques-rte/),
-mis en cache) si le réseau sortant l'autorise. L'instantané committé se génère
-**hors-ligne** (là où ODRE est joignable) avec `scripts/fetch_postes_geo.py`, qui
-**apparie** les codes ODRE aux `substation_id` (mnémoniques RTE normalisés) et
-**mesure** le taux d'appariement :
+([`postes-electriques-rte`](https://odre.opendatasoft.com/explore/dataset/postes-electriques-rte/)),
+**apparié à la volée** aux `substation_id` (mnémoniques RTE normalisés).
+
+**Sur le Space HuggingFace** (sortie internet autorisée), l'étape (3) s'exécute
+**automatiquement dès la 1ʳᵉ exploration** : ODRE est interrogé, l'appariement est
+calculé (le **taux d'appariement** est affiché dans l'en-tête de la carte) et
+l'instantané résolu est **persisté** dans `data/postes_rte_geo.json` — les
+explorations suivantes repartent alors du snapshot (instantané, sans re-fetch). Le
+FS du Space étant **éphémère**, le bouton **⬇ coordonnées** télécharge ce fichier
+pour le **committer une fois** (étape (2)) et éviter tout re-fetch au redémarrage.
+`MANOEUVRE_ENABLE_ODRE=0` désactive le fetch ODRE.
+
+On peut aussi générer l'instantané **hors-ligne** (utile si la sortie ODRE est
+restreinte au build) avec `scripts/fetch_postes_geo.py`, qui **mesure** le taux :
 
 ```bash
 python scripts/fetch_postes_geo.py --date 2021-01-03   # → data/postes_rte_geo.json
 ```
 
-Si **aucune** coordonnée n'est résolue, la carte est masquée et l'IHM reste utile :
-le **classement** des postes les plus actifs s'affiche en liste (cliquable pour
-ouvrir la topologie). Pour activer la carte sur le Space, committez
-`data/postes_rte_geo.json` **ou** autorisez la sortie vers `odre.opendatasoft.com`.
+Si **aucune** coordonnée n'est résolue (ODRE bloqué *et* pas de snapshot — échec
+ODRE **rapide**, sans bloquer l'exploration), la carte est masquée et l'IHM reste
+utile : le **classement** des postes les plus actifs s'affiche en liste (cliquable
+pour ouvrir la topologie). Si le **taux d'appariement** est faible (les codes ODRE
+ne recoupent pas les mnémoniques), inspecter un enregistrement ODRE et ajuster
+`geographie._CLES_CODE` / l'appariement.
 
 ---
 
@@ -441,7 +452,8 @@ navigateur).
 | `GET /api/dataset/config` | — | `{enabled, repo, default_date, default_time, sample_dates[], hosted}` | Config de la source dataset (onglet **RTE7000**) ; `enabled` décide de l'**onglet actif par défaut** (RTE7000 sur le Space, Local en mode `--grid`) ; `hosted` = IHM déportée → le front **télécharge en local** les fichiers sauvegardés |
 | `GET /api/dataset/timestamps?date=YYYY-MM-DD` | — | `{ok, date, timestamps:[{ts,path}], default}` / `400` (date invalide) / `502` (HF) | Instantanés disponibles pour la journée (HH:MM), avec l'horodatage présélectionné (le plus proche de **midi**) |
 | `POST /api/dataset/load` | `{date, time}` | `{ok, date, time, iso, postes:[…], all:[…], catalog:[…]}` / `400` (absent) / `502` (HF) | **Télécharge à la demande** l'instantané `(date, time)` du dataset, reconstruit la session et liste les postes (même forme que `/api/load_grid`) |
-| `POST /api/explore_day` | `{date}` | `{ok, date, heures[], coord_source, n_postes, n_actifs, n_geolocalises, types_oc[], postes:[{sub,name,nv,lon,lat,total,BREAKER,DISCONNECTOR,LOAD_BREAK_SWITCH,rank,top_vl,vls[]}], classement:[…]}` / `400` / `502` | **Explorer la journée** : charge 3 situations (minuit/midi/23 h), compte par poste les **OC changés** (par type), résout les coordonnées et reconstruit la session sur le réseau de référence. `postes` = postes **géolocalisés** (carte) ; `classement` = top **actifs** (liste, inclut non géolocalisés) ; `coord_source ∈ {xiidm, snapshot, odre, aucune}` |
+| `POST /api/explore_day` | `{date}` | `{ok, date, heures[], coord_source, coord_stats, coord_file, n_postes, n_actifs, n_geolocalises, types_oc[], postes:[{sub,name,nv,lon,lat,total,BREAKER,DISCONNECTOR,LOAD_BREAK_SWITCH,rank,top_vl,vls[]}], classement:[…]}` / `400` / `502` | **Explorer la journée** : charge 3 situations (minuit/midi/23 h), compte par poste les **OC changés** (par type), résout les coordonnées (chaîne, **ODRE à la volée** sur le Space) et reconstruit la session. `postes` = postes **géolocalisés** (carte) ; `classement` = top **actifs** (liste) ; `coord_source ∈ {xiidm, snapshot, odre, aucune}` ; `coord_stats` = appariement ODRE (`n_apparies, taux…`) ; `coord_file` = un instantané committable a été persisté |
+| `GET /api/explore_coords_file` | — | `postes_rte_geo.json` (pièce jointe) / `404` | Télécharge l'instantané de coordonnées **résolu/persisté** au runtime — à **committer** (`data/postes_rte_geo.json`) pour éviter de ré-interroger ODRE à chaque démarrage (FS du Space éphémère) |
 | `POST /api/explore_poste` | `{sub?, vl?, hour}` | `{ok, initial_svg, nb_initial, svg, switches, nb_noeuds, vl, sub, hour, heures[], sub_vls[], nodale_depart, nodale_cible}` / `400` | Bascule en **vue topologique** d'un poste à une **heure** de la journée explorée (applique les états de l'heure sur le réseau de référence) ; `vl` explicite ou **VL le plus actif** de la `sub` |
 | `POST /api/explore_retain_target` | `{vl?, hour}` | `{ok, svg, switches, nb_noeuds, hour, nodale}` / `400` | **Retient** la topologie du poste à `hour` comme **cible** courante (puis éditable) |
 | `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…], catalog:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |

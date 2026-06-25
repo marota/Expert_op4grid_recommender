@@ -142,6 +142,14 @@ SLD_PAR = ppn.SldParameters(topological_coloring=True)
 SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")    # redéfini dans main()
 SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
 
+# Instantané committable des coordonnées de postes (résolu/persisté par
+# « Explorer la journée »). Chemin **absolu** ancré sur la racine du dépôt
+# (robuste au cwd, y compris sur le Space). Fetch ODRE activé sauf
+# ``MANOEUVRE_ENABLE_ODRE=0``.
+GEO_SNAPSHOT = pathlib.Path(__file__).resolve().parent.parent / geographie.SNAPSHOT_DEFAUT
+ODRE_ENABLED = os.environ.get("MANOEUVRE_ENABLE_ODRE", "1").lower() not in (
+    "0", "false", "no", "off")
+
 
 def _replay_states(initial: dict[str, bool],
                    manoeuvres: list[dict]) -> list[dict[str, bool]]:
@@ -1041,6 +1049,7 @@ class DayExploration:
         self.classement: list[str] = []              # classement plus long (liste)
         self.positions: dict[str, dict] = {}
         self.coord_source: str = "aucune"
+        self.coord_stats: dict = {}
 
     def etats_vl(self, heure: str, vl: str) -> dict[str, bool]:
         return self.etats.get(heure, {}).get(vl, {})
@@ -1081,9 +1090,19 @@ def construire_exploration(date: str,
     de.postes = exploration.agreger_par_poste(changes, de.vl_meta, de.sub_name)
     de.top = exploration.classer_postes(de.postes, 10)
     de.classement = exploration.classer_postes(de.postes, 40)
+    # Résolution des coordonnées (chaîne : XIIDM → snapshot committé → ODRE en
+    # direct). Sur le Space HuggingFace (sortie internet autorisée), l'appariement
+    # ODRE se fait **à la volée** dès la 1ʳᵉ exploration et l'instantané résolu est
+    # **persisté** dans ``data/postes_rte_geo.json`` : les explorations suivantes
+    # repartent du snapshot (instantané) et le fichier est téléchargeable/committable
+    # (bouton « ⬇ coordonnées »). ``MANOEUVRE_ENABLE_ODRE=0`` désactive le fetch ODRE.
+    stats: dict = {}
     de.positions, de.coord_source = geographie.resoudre(
-        list(de.postes), net=ref_net, cache_dir=cache,
-        autoriser_odre=True, token=os.environ.get("ODRE_TOKEN"))
+        list(de.postes), net=ref_net, snapshot_path=GEO_SNAPSHOT,
+        cache_dir=cache, autoriser_odre=ODRE_ENABLED,
+        token=os.environ.get("ODRE_TOKEN"),
+        persist_path=GEO_SNAPSHOT, stats_out=stats)
+    de.coord_stats = stats
     return de, ref_net
 
 
@@ -1122,7 +1141,9 @@ def _explore_payload(de: DayExploration) -> dict:
     n_actifs = sum(1 for p in de.postes.values() if p["total"] > 0)
     return {
         "ok": True, "date": de.date, "heures": de.heures,
-        "coord_source": de.coord_source,
+        "coord_source": de.coord_source, "coord_stats": de.coord_stats,
+        # un instantané committable a-t-il été persisté (fetch ODRE réussi) ?
+        "coord_file": de.coord_source == "odre" and GEO_SNAPSHOT.exists(),
         "n_postes": len(de.postes), "n_actifs": n_actifs,
         "n_geolocalises": len(postes_map),
         "types_oc": list(exploration.TYPES_OC),
@@ -1343,6 +1364,19 @@ def api_explore_retain_target():
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(ok=True, svg=svg, switches=sw, nb_noeuds=nb, hour=heure,
                    nodale=SESSION.nodale_state(SESSION.current))
+
+
+@app.get("/api/explore_coords_file")
+def api_explore_coords_file():
+    """Renvoie l'instantané de coordonnées **résolu et persisté** au runtime
+    (`data/postes_rte_geo.json`), en pièce jointe — pour le **committer** une fois
+    et éviter de re-interroger ODRE à chaque démarrage (FS du Space éphémère)."""
+    if not GEO_SNAPSHOT.exists():
+        return jsonify(ok=False, error="Aucun instantané de coordonnées."), 404
+    return Response(
+        GEO_SNAPSHOT.read_text(encoding="utf-8"),
+        mimetype="application/json",
+        headers={"Content-Disposition": "attachment; filename=postes_rte_geo.json"})
 
 
 @app.post("/api/load_grid")

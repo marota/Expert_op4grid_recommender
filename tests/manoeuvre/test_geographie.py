@@ -84,6 +84,41 @@ def test_resoudre_chaine_snapshot_puis_aucune(tmp_path):
     assert src2 == "aucune" and pos2 == {}
 
 
+def test_ecrire_snapshot_roundtrip(tmp_path):
+    p = tmp_path / "geo.json"
+    g.ecrire_snapshot(p, {"S1": {"lat": 48.0, "lon": 2.0, "nom": "X",
+                                 "tension": "400 kV", "source": "odre"}})
+    snap = g.charger_snapshot(p)
+    assert snap["S1"]["lat"] == 48.0 and snap["S1"]["nom"] == "X"
+    assert snap["S1"]["source"] == "snapshot"   # rechargé → source snapshot
+
+
+def test_resoudre_odre_persiste_et_stats(tmp_path, monkeypatch):
+    # ODRE simulé ; resoudre doit apparier, peupler stats_out et persister le
+    # snapshot (→ source 'odre' la 1ʳᵉ fois, puis 'snapshot' au tour suivant).
+    recs = [{"code": "S1", "nom": "UN", "geo_point_2d": [48.0, 2.0]}]
+    monkeypatch.setattr(g, "fetch_odre_records", lambda *a, **k: recs)
+    persist = tmp_path / "geo.json"
+    stats: dict = {}
+    pos, src = g.resoudre(["S1", "S2"], net=None,
+                          snapshot_path=tmp_path / "absent.json",
+                          persist_path=persist, stats_out=stats)
+    assert src == "odre" and pos["S1"]["lat"] == 48.0 and "S2" not in pos
+    assert stats["n_apparies"] == 1 and "taux" in stats
+    assert persist.exists()
+    # 2ᵉ résolution : le snapshot persisté prime, sans repasser par ODRE.
+    monkeypatch.setattr(g, "fetch_odre_records",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no net")))
+    pos2, src2 = g.resoudre(["S1"], net=None, snapshot_path=persist)
+    assert src2 == "snapshot" and pos2["S1"]["lat"] == 48.0
+
+
+def test_403_non_retriable():
+    # ODRE 403 = refus (politique de sortie) : exclu des codes retentés.
+    assert 403 not in g._RETRIABLE
+    assert 429 in g._RETRIABLE
+
+
 def test_positions_xiidm_absentes_par_defaut():
     pp = pytest.importorskip("pypowsybl")
     net = pp.network.create_four_substations_node_breaker_network()

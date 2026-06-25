@@ -25,9 +25,13 @@ vue topologique d'un poste **à l'heure souhaitée**.
 - **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) : chaîne
   de résolution **extension `substationPosition` embarquée → instantané committé
   `data/postes_rte_geo.json` → ODRE en direct** (échec rapide si bloqué). Le
-  dataset RTE 7000 ne portant **pas** de coordonnées, l'instantané se génère
-  hors-ligne avec `scripts/fetch_postes_geo.py` (apparie les codes ODRE
-  `postes-electriques-rte` aux `substation_id`, **mesure** le taux). Sans aucune
+  dataset RTE 7000 ne portant **pas** de coordonnées : sur le **Space HuggingFace**,
+  l'appariement ODRE (`postes-electriques-rte` ↔ `substation_id`) se fait **à la
+  volée dès la 1ʳᵉ exploration**, le **taux d'appariement** est affiché, et
+  l'instantané résolu est **persisté** (`data/postes_rte_geo.json`) puis
+  **téléchargeable** (`GET /api/explore_coords_file`, bouton « ⬇ coordonnées ») pour
+  le committer une fois (plus de re-fetch). Toggle `MANOEUVRE_ENABLE_ODRE`.
+  Génération hors-ligne possible : `scripts/fetch_postes_geo.py`. Sans aucune
   coordonnée, l'IHM reste utile : **classement en liste** des postes actifs.
 - **Carte** (frontend) : SVG **autonome** (sans tuiles ni librairie externe),
   disques **colorés par niveau de tension**, projection **Web Mercator**,

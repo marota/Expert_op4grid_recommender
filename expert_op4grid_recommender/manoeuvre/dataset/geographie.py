@@ -47,7 +47,11 @@ ODRE_EXPORT = ("https://odre.opendatasoft.com/api/explore/v2.1/catalog/"
 #: emplacement par défaut de l'instantané committé (résolution sans réseau).
 SNAPSHOT_DEFAUT = "data/postes_rte_geo.json"
 
-_RETRIABLE = {403, 429, 500, 502, 503, 504}
+# Codes HTTP **transitoires** d'ODRE (on retente). ``403`` en est **exclu** :
+# côté ODRE c'est un refus (auth / politique de sortie bloquée), pas un aléa —
+# on échoue alors immédiatement et on bascule sur le classement en liste, sans
+# bloquer « Explorer la journée » sur des retries inutiles.
+_RETRIABLE = {429, 500, 502, 503, 504}
 
 
 # ===========================================================================
@@ -302,6 +306,22 @@ def apparier_odre(
 # Résolution en chaîne (runtime)
 # ===========================================================================
 
+def ecrire_snapshot(path: str | Path, positions: dict[str, dict]) -> None:
+    """Écrit un instantané committable ``{substation_id: {lat, lon, nom?,
+    tension?}}`` (best-effort — ne lève pas si l'écriture échoue, p. ex. FS en
+    lecture seule)."""
+    try:
+        out = {sid: {k: v for k, v in (("lat", r.get("lat")), ("lon", r.get("lon")),
+                                       ("nom", r.get("nom")), ("tension", r.get("tension")))
+                     if v is not None}
+               for sid, r in positions.items()}
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def resoudre(
     substation_ids: Iterable[str],
     net=None,
@@ -309,6 +329,10 @@ def resoudre(
     cache_dir: str | Path | None = None,
     autoriser_odre: bool = True,
     token: Optional[str] = None,
+    essais: int = 2,
+    timeout: int = 30,
+    persist_path: str | Path | None = None,
+    stats_out: Optional[dict] = None,
 ) -> tuple[dict[str, dict], str]:
     """Résout les coordonnées des ``substation_ids`` par chaîne de sources.
 
@@ -316,7 +340,12 @@ def resoudre(
     ``'snapshot'``, ``'odre'``, ``'aucune'``}. Best-effort : un échec ODRE
     (réseau bloqué) n'interrompt pas — on renvoie ce qui a pu être résolu (au
     pire ``{}`` + ``'aucune'``, l'IHM bascule alors sur le classement en liste).
-    """
+
+    ``persist_path`` : après un appariement ODRE réussi, **écrit l'instantané**
+    (indexé par ``substation_id``) à ce chemin → les explorations suivantes
+    repassent par la source ``snapshot`` (instantanée, sans re-fetch) et le
+    fichier est committable. ``stats_out`` (dict muté) reçoit les statistiques
+    d'appariement ODRE (``n_apparies``, ``taux``…) pour affichage."""
     ids = list(dict.fromkeys(map(str, substation_ids)))
 
     if net is not None:
@@ -332,13 +361,14 @@ def resoudre(
 
     if autoriser_odre:
         try:
-            # Échec rapide (essais=1, timeout court) : si la sortie vers ODRE est
-            # bloquée, on ne pénalise pas « Explorer la journée » de longs retries
-            # — on retombe sur le classement en liste.
-            records = fetch_odre_records(cache_dir, token=token, essais=1,
-                                         timeout=20)
-            positions, _ = apparier_odre(records, ids)
+            records = fetch_odre_records(cache_dir, token=token, essais=essais,
+                                         timeout=timeout)
+            positions, stats = apparier_odre(records, ids)
+            if stats_out is not None:
+                stats_out.update(stats)
             if positions:
+                if persist_path:
+                    ecrire_snapshot(persist_path, positions)
                 return positions, "odre"
         except Exception:
             pass

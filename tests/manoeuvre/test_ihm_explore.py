@@ -86,6 +86,22 @@ def test_explore_payload_shape():
     assert isinstance(payload["classement"], list) and payload["classement"]
     # le poste actif figure en tête de classement.
     assert payload["classement"][0]["total"] >= 1
+    # champs de résolution des coordonnées présents (carte / téléchargement).
+    assert "coord_stats" in payload and "coord_file" in payload
+
+
+def test_explore_coords_file_endpoint(tmp_path, monkeypatch):
+    client = ihm.app.test_client()
+    snap = tmp_path / "postes_rte_geo.json"
+    monkeypatch.setattr(ihm, "GEO_SNAPSHOT", snap)
+    # absent → 404
+    assert client.get("/api/explore_coords_file").status_code == 404
+    # présent → 200 + pièce jointe
+    snap.write_text('{"S1": {"lat": 48.0, "lon": 2.0}}', encoding="utf-8")
+    r = client.get("/api/explore_coords_file")
+    assert r.status_code == 200
+    assert "attachment" in r.headers.get("Content-Disposition", "")
+    assert "S1" in r.get_data(as_text=True)
 
 
 def test_explore_poste_par_vl(client):
