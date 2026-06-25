@@ -190,13 +190,16 @@ des variables CSS).
 
 ## 3. Flux de travail
 
-1. **Choisir un poste** (étape *1 · Poste* du Scénario Topologique) → les deux
-   schémas affichent l'état de départ (pristine). Un **unique champ** réunit deux
-   modes dans une même interaction : une **recherche** sur **tous** les postes
-   NODE_BREAKER de la situation et, **en dessous**, une **liste browsable**.
-   Champ **vide** → exploration **curée par typologie** (sections : *≥5 jeux de
-   barres*, *sectionnement extrême*, *faisceau de couplage partagé*, *organes
-   internes*, *omnibus*, *départs déconnectés*, *gros postes*, …). En
+1. **Choisir un poste** (étape *1 · Poste* du Scénario Topologique). **Aucun poste
+   n'est chargé automatiquement** (au lancement ni au chargement d'une situation) :
+   les schémas restent sur « Choisissez un poste… » tant qu'on n'en a pas
+   sélectionné un — alors les deux schémas affichent son état de départ (pristine).
+   Un **unique champ** réunit deux modes dans une même interaction : une
+   **recherche** sur **tous** les postes NODE_BREAKER de la situation et, **en
+   dessous** (sous le titre **« Pré-sélection de postes typiques »**), une **liste
+   browsable**. Champ **vide** → exploration **curée par typologie** (sections :
+   *≥5 jeux de barres*, *sectionnement extrême*, *faisceau de couplage partagé*,
+   *organes internes*, *omnibus*, *départs déconnectés*, *gros postes*, …). En
    **saisissant**, la liste filtre en **recherche plein-texte** sur tous les
    postes (bornée à 300 résultats affichés ; les postes épinglés ★ — jeu de test
    + 7 postes 3 JdB — y sont marqués). Un poste **grisé** (⚠ absent) n'est pas

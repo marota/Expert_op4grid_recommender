@@ -175,7 +175,8 @@
   <h2 class="step">1 · Poste</h2>
   <input id="posteSearch" placeholder="🔎 rechercher un poste (tous)…"
          style="width:100%;padding:6px" autocomplete="off"
-         title="Rechercher n'importe quel poste NODE_BREAKER de la situation chargée. Vide : exploration curée par typologie (postes épinglés ★ en tête).">
+         title="Rechercher n'importe quel poste NODE_BREAKER de la situation chargée. Vide : pré-sélection de postes typiques par typologie.">
+  <div id="posteListTitle" style="font-size:11px;font-weight:bold;color:#475569;margin:5px 0 1px">📂 Pré-sélection de postes typiques</div>
   <div id="posteList"></div>
   <div style="font-size:10px;color:#888;margin-top:2px">🔎 recherche sur tous les postes · 📂 vide = exploration curée par typologie (grisé = absent)</div>
 
@@ -372,6 +373,10 @@ function _posteItem(vl,pinned,available){
 function renderPosteList(query){
   const root=document.getElementById('posteList');if(!root)return;root.innerHTML='';
   const q=(query||'').trim().toLowerCase();
+  // Le titre « Pré-sélection de postes typiques » ne concerne que la vue curée
+  // (champ vide) ; masqué pendant une recherche.
+  const title=document.getElementById('posteListTitle');
+  if(title)title.style.display=q?'none':'block';
   if(q){   // recherche plein-texte sur TOUS les postes de la situation
     const pin=new Set(PINNED);
     const hits=ALL_POSTES.filter(p=>p.toLowerCase().includes(q));
@@ -414,7 +419,16 @@ async function init(){const r=await (await fetch('/api/postes')).json();
   search.addEventListener('keydown',e=>{if(e.key==='Enter'){
     const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);}});
   initNodalResize(); initNodalDnD(); await refreshScenarios(); await initDataset();
-  if(r.postes&&r.postes.length) load(r.postes[0]);}
+  // Pas d'auto-chargement de poste : on attend que l'utilisateur en choisisse un
+  // (le schéma reste sur « Choisissez un poste… » tant qu'aucun n'est sélectionné).
+  if(r.postes&&r.postes.length){const t=document.getElementById('diagTop');
+    if(t&&!DS.enabled)t.textContent='Choisissez un poste…';}}
+// Réinitialise les vues quand aucun poste n'est encore choisi (après chargement
+// d'une situation, en attente du choix de poste).
+function awaitPosteChoice(){S.currentVL=null;
+  const t=document.getElementById('diagTop');if(t)t.textContent='Choisissez un poste…';
+  const b=document.getElementById('diagBottom');if(b)b.innerHTML='';
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');}
 // ---- Onglet « RTE7000 » : choisir une date/heure, charger la situation -------
 // L'onglet est **toujours présent** (Local d'abord, RTE7000 ensuite) ; le drapeau
 // ``enabled`` du backend ne décide que de l'**onglet actif par défaut** (RTE7000
@@ -459,10 +473,10 @@ async function loadDataset(){
   if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
   populatePostes(r);await refreshAlgos();await refreshScenarios();
   msg.textContent='✓ '+r.date+' '+r.time+' — '+(r.all||[]).length+' postes NODE_BREAKER';
-  // Préserver le poste courant si encore présent à la nouvelle date, sinon premier.
-  const keep=(S.currentVL&&(r.all||[]).includes(S.currentVL))?S.currentVL
-            :((r.postes&&r.postes.length)?r.postes[0]:((r.all||[])[0]));
-  if(keep)load(keep);}
+  // Préserver le poste courant s'il existe encore (changement de date) ; sinon
+  // **ne pas** auto-charger — attendre que l'utilisateur choisisse un poste.
+  if(S.currentVL&&(r.all||[]).includes(S.currentVL))load(S.currentVL);
+  else awaitPosteChoice();}
 // Charger une **situation réseau** quelconque (chemin .xiidm côté serveur).
 async function loadGrid(){
   const path=document.getElementById('gridPath').value.trim();if(!path)return;
@@ -472,7 +486,7 @@ async function loadGrid(){
   if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
   populatePostes(r);await refreshAlgos();   // nouvelle session => sélection d'algos réinitialisée
   msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
-  if(r.postes.length)load(r.postes[0]);else if(ALL_POSTES.length)load(ALL_POSTES[0]);}
+  awaitPosteChoice();}   // pas d'auto-chargement : l'utilisateur choisit un poste
 async function load(vl){stopAnim();S.currentVL=vl;const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');  // surligne le poste courant
   document.getElementById('scenName').value=vl+'_cible';}
