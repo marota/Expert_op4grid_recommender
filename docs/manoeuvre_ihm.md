@@ -107,10 +107,13 @@ liste les **VL les plus actifs** (cliquable) et les **10 premiers VL** sont mis 
 calcul : `manoeuvre/dataset/exploration.py` (`changements_par_vl` — Python pur).
 
 **Carte** — chaque poste (substation) est un **disque coloré par niveau de
-tension** (palette type RTE : 400 kV rouge, 225 kV vert…), sur un **fond** qui
-détoure la France (enveloppe convexe du réseau, « Hexagone »). Coordonnées du
-**plan de masse RTE** (planaire) ; sources lon/lat projetées **Web Mercator** côté
-serveur. Un **sélecteur d'heure** (en-tête de la carte : 00 h / 12 h / 23 h) choisit
+tension** (palette type RTE : 400 kV rouge, 225 kV vert…), sur un **fond
+géographique réel** : frontières des **départements** France + pays voisins,
+pré-projetées dans le repère du plan de masse (calibrage affine sur les centroïdes
+de départements ODRE — cf. `scripts/build_france_basemap.py` ; servi par
+`GET /api/explore_basemap`, repli silhouette/enveloppe convexe si absent).
+Coordonnées du **plan de masse RTE** (planaire). Un **sélecteur d'heure** (en-tête
+de la carte : 00 h / 12 h / 23 h) choisit
 l'heure de la topologie ouverte au double-clic. Carte **autonome** (SVG,
 sans tuiles ni librairie externe) avec **zoom molette** et **déplacement au
 glisser** (manipulation du `viewBox`, fluide jusqu'à ~6 000 postes). Interactions :
@@ -123,7 +126,15 @@ glisser** (manipulation du `viewBox`, fluide jusqu'à ~6 000 postes). Interactio
   **Retenir comme cible** (00 h / 12 h / 23 h) pour fixer la **cible** = topologie
   du poste à cette heure (**ensuite éditable** comme n'importe quelle cible), et un
   sélecteur de **niveau de tension** si le poste en a plusieurs. L'**heure** (menu
-  de la colonne de gauche) et le **champ du poste ciblé** sont mis à jour.
+  de la colonne de gauche) et le **champ du poste ciblé** sont mis à jour. En vue
+  topologique, les **organes dont l'état diffère entre départ et cible** sont mis
+  en évidence sur les deux schémas — **vert** = fermé à la cible (était ouvert),
+  **orange** = ouvert à la cible — pour visualiser la différence d'un coup d'œil
+  (recalculé à chaque bascule d'organe / changement d'heure / rétention de cible).
+
+La **légende des tensions** est **filtrante** : cliquer une bande affiche/masque
+les disques de ce niveau ; les boutons **« tout »** / **« aucun »** (dé)sélectionnent
+toutes les bandes — utile pour isoler un niveau (p. ex. n'afficher que le 400 kV).
 
 **Coordonnées des postes** — le dataset RTE 7000 ne porte **pas** de coordonnées
 géographiques (pas d'extension `substationPosition`). Elles sont résolues par une
@@ -150,7 +161,10 @@ vérifié via l'API records) : inutilisable pour la carte.
 Les coordonnées du plan de masse sont une **projection planaire RTE** (utilisée
 telle quelle ; les sources lon/lat sont projetées en Web Mercator côté serveur) —
 la carte n'a pas besoin de lon/lat vrais, seulement de positions relatives
-cohérentes.
+cohérentes. Le plan de masse a déjà le **nord en haut** dans son repère (y
+croissant vers le sud) : disques **et** fond de carte sont donc servis **sans
+inversion d'axe** (l'inversion n'est appliquée qu'aux sources lon/lat projetées
+en Web Mercator).
 
 Si **aucune** coordonnée n'est résolue (plan absent *et* OSM bloqué), la carte est
 masquée et l'IHM reste utile : le **classement** des postes les plus actifs
@@ -459,6 +473,7 @@ navigateur).
 | `GET /api/dataset/timestamps?date=YYYY-MM-DD` | — | `{ok, date, timestamps:[{ts,path}], default}` / `400` (date invalide) / `502` (HF) | Instantanés disponibles pour la journée (HH:MM), avec l'horodatage présélectionné (le plus proche de **midi**) |
 | `POST /api/dataset/load` | `{date, time}` | `{ok, date, time, iso, postes:[…], all:[…], catalog:[…]}` / `400` (absent) / `502` (HF) | **Télécharge à la demande** l'instantané `(date, time)` du dataset, reconstruit la session et liste les postes (même forme que `/api/load_grid`) |
 | `POST /api/explore_day` | `{date}` | `{ok, date, heures[], coord_source, coord_stats, coord_file, n_postes, n_actifs, n_geolocalises, types_oc[], postes:[{sub,name,nv,x,y,total,BREAKER,DISCONNECTOR,LOAD_BREAK_SWITCH,rank,top_vl,vls[]}], classement:[…]}` / `400` / `502` | **Explorer la journée** : charge 3 situations (minuit/midi/23 h), compte par poste les **OC changés** (par type), résout les coordonnées (**plan de masse committé** en primaire, repli OSM) et reconstruit la session. `postes` = postes **géolocalisés** (carte ; `x,y` = coords planaires **prêtes pour l'écran**) ; `classement` = top **actifs** (liste) ; `coord_source ∈ {layout, xiidm, snapshot, osm, aucune}` ; `coord_file` = un instantané committable a été persisté (source osm) |
+| `GET /api/explore_basemap` | — | `{depts:[[[x,y],…],…], neighbors:[…]}` | **Fond de carte** (frontières départements + voisins) dans le **repère écran** du plan de masse (statique, mis en cache ; récupéré une fois par le front) |
 | `GET /api/explore_coords_file` | — | `postes_rte_geo.json` (pièce jointe) / `404` | Télécharge l'instantané de coordonnées **résolu/persisté** au runtime — à **committer** (`data/postes_rte_geo.json`) pour éviter de ré-interroger ODRE à chaque démarrage (FS du Space éphémère) |
 | `POST /api/explore_poste` | `{sub?, vl?, hour}` | `{ok, initial_svg, nb_initial, svg, switches, nb_noeuds, vl, sub, hour, heures[], sub_vls[], nodale_depart, nodale_cible}` / `400` | Bascule en **vue topologique** d'un poste à une **heure** de la journée explorée (applique les états de l'heure sur le réseau de référence) ; `vl` explicite ou **VL le plus actif** de la `sub` |
 | `POST /api/explore_retain_target` | `{vl?, hour}` | `{ok, svg, switches, nb_noeuds, hour, nodale}` / `400` | **Retient** la topologie du poste à `hour` comme **cible** courante (puis éditable) |

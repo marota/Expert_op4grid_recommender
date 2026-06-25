@@ -66,6 +66,21 @@ SNAPSHOT_DEFAUT = "data/postes_rte_geo.json"
 #: indépendant du réseau). Livré dans le package (copié dans l'image du Space).
 LAYOUT_DEFAUT = str(Path(__file__).resolve().parent / "grid_layout_rte.json")
 
+#: **fond de carte** committé : frontières (départements France + pays voisins)
+#: **déjà projetées dans le repère du plan de masse RTE** (calibré sur les
+#: centroïdes de départements ODRE) → s'aligne sur les disques sans repro runtime.
+BASEMAP_DEFAUT = str(Path(__file__).resolve().parent / "france_basemap.json")
+
+
+def charger_basemap(path: str | Path = BASEMAP_DEFAUT) -> dict:
+    """Fond de carte committé ``{'depts': [[[x, y], …], …], 'neighbors': […]}``
+    (repère du plan de masse). ``{}`` si absent/illisible. Best-effort."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
 #: rayon terrestre (Web Mercator) — projection des sources lon/lat (OSM).
 _EARTH_R = 6378137.0
 

@@ -35,14 +35,31 @@ vue topologique d'un poste **à l'heure souhaitée**.
   géométrie** → inutilisable pour la carte. Sans aucune coordonnée, l'IHM reste
   utile : **classement en liste** + **diagnostic** d'appariement.
 - **Carte** (frontend) : SVG **autonome** (sans tuiles ni librairie externe),
-  disques **colorés par niveau de tension** sur un **fond détourant la France**
-  (enveloppe convexe), coordonnées planaires **projetées côté serveur**,
-  **zoom/déplacement** par `viewBox`, **sélecteur d'heure** d'ouverture en en-tête.
-  **Clic** →
+  disques **colorés par niveau de tension** sur un **fond géographique réel**
+  (frontières départements + pays voisins, calibrées dans le repère du plan de
+  masse — `scripts/build_france_basemap.py`, `france_basemap.json`,
+  `GET /api/explore_basemap`), **zoom/déplacement** par `viewBox`, **sélecteur
+  d'heure** d'ouverture en en-tête. **Clic** →
   bulle d'information ; **double-clic** → vue topologique du poste, avec une barre
   d'exploration (**Départ** 00 h/12 h/23 h, **Retenir comme cible** 00 h/12 h/23 h,
   sélecteur de niveau de tension) ; l'**heure** et le **champ du poste** sont
   synchronisés.
+- **Légende des tensions filtrante** : clic sur une bande de tension de la
+  légende **affiche/masque** les disques correspondants ; boutons **« tout »** /
+  **« aucun »** pour (dé)sélectionner toutes les bandes (`voltToggle`, `voltAll`,
+  `voltBand`, `MAP.voltOff`). Permet d'isoler un niveau (p. ex. 400 kV) sur la
+  carte.
+- **Orientation nord en haut** : le plan de masse RTE ayant déjà le nord en haut
+  dans son repère (y croissant vers le sud), disques **et** fond de carte sont
+  servis **sans inversion d'axe** (les sources lon/lat OSM restent projetées
+  Web Mercator avec inversion). Corrige un rendu précédemment « à l'envers ».
+- **Mise en évidence des écarts départ/cible** : en vue topologique, les organes
+  dont l'état **diffère entre la topologie de départ et la cible** sont colorés
+  sur les deux schémas — **vert** = fermé à la cible (était ouvert), **orange** =
+  ouvert à la cible. Diff calculé côté serveur (`Session.diff_states`, champ
+  `changes` des réponses) et appliqué par `highlightChanges` (classes
+  `.octog-closed` / `.octog-opened`). Se met à jour à chaque bascule d'organe,
+  changement d'heure ou rétention de cible.
 - **Endpoints** : `POST /api/explore_day`, `POST /api/explore_poste`,
   `POST /api/explore_retain_target`. **Tests** :
   `tests/manoeuvre/test_exploration.py`, `tests/manoeuvre/test_geographie.py`,

@@ -157,6 +157,9 @@ GEO_SNAPSHOT = pathlib.Path(os.environ.get(
 # carte (hors-ligne, ~98 % des postes). ``MANOEUVRE_GEO_LAYOUT`` force un autre chemin.
 GEO_LAYOUT = pathlib.Path(os.environ.get("MANOEUVRE_GEO_LAYOUT",
                                          geographie.LAYOUT_DEFAUT))
+# Fond de carte (frontières) déjà projeté dans le repère du plan de masse.
+GEO_BASEMAP = pathlib.Path(os.environ.get("MANOEUVRE_GEO_BASEMAP",
+                                          geographie.BASEMAP_DEFAUT))
 OSM_ENABLED = (os.environ.get("MANOEUVRE_ENABLE_OSM")
                or os.environ.get("MANOEUVRE_ENABLE_ODRE", "1")).lower() not in (
     "0", "false", "no", "off")
@@ -565,6 +568,23 @@ class Session:
         return {nd["equipmentId"]: nd["id"] for nd in meta.get("nodes", [])
                 if nd.get("componentType") in ("BREAKER", "DISCONNECTOR")
                 and nd.get("equipmentId")}
+
+    def diff_states(self):
+        """Organes dont l'état **diffère entre départ et cible** courants —
+        ``[{id, svgId, direction}]`` où ``direction`` vaut ``"closed"`` (organe
+        ouvert au départ et fermé à la cible → mis en évidence en vert) ou
+        ``"opened"`` (fermé au départ, ouvert à la cible → orange). Sert à
+        visualiser la différence départ/cible sur les deux schémas (les ids du
+        schéma de départ étant préfixés ``A_``). ``open=True`` ⇒ organe ouvert."""
+        svgmap = self.svgid_par_switch()
+        out = []
+        for eq, svgid in svgmap.items():
+            dep = bool(self.initial.get(eq, False))
+            cur = bool(self.current.get(eq, False))
+            if dep != cur:
+                out.append({"id": eq, "svgId": svgid,
+                            "direction": "closed" if (dep and not cur) else "opened"})
+        return out
 
     def step_view(self, i: int):
         """Vue **interactive** de l'étape i :
@@ -1127,10 +1147,12 @@ def construire_exploration(date: str,
 
 def _xy(pos: dict) -> tuple[float, float]:
     """Coordonnées **planaires prêtes pour l'écran** (y vers le bas, nord en
-    haut) depuis une position résolue : plan de masse (``x``/``y``) tel quel
-    (y inversé), ou lon/lat (OSM/embarqué) projeté en Web Mercator."""
+    haut) depuis une position résolue. Le **plan de masse RTE** a déjà le nord en
+    haut dans son repère (y croît vers le sud) → utilisé **tel quel** ; les sources
+    **lon/lat** (OSM/embarqué) sont projetées Web Mercator puis **y inversé** (le
+    Mercator a le nord en y croissant)."""
     if "x" in pos:
-        return float(pos["x"]), -float(pos["y"])
+        return float(pos["x"]), float(pos["y"])
     mx, my = geographie.merc(float(pos["lon"]), float(pos["lat"]))
     return mx, -my
 
@@ -1383,6 +1405,7 @@ def api_explore_poste():
     return jsonify(ok=True, initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
                    svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=vl, sub=sub,
                    hour=heure, heures=DAY.heures, sub_vls=_sub_vls(sub),
+                   changes=SESSION.diff_states(),
                    nodale_depart=SESSION.nodale_payload(SESSION.initial),
                    nodale_cible=SESSION.nodale_state(SESSION.current))
 
@@ -1400,7 +1423,26 @@ def api_explore_retain_target():
     SESSION.set_target_states(DAY.etats_vl(heure, vl))
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(ok=True, svg=svg, switches=sw, nb_noeuds=nb, hour=heure,
+                   changes=SESSION.diff_states(),
                    nodale=SESSION.nodale_state(SESSION.current))
+
+
+_BASEMAP_SCREEN = None  # cache du fond de carte projeté écran (y inversé)
+
+
+@app.get("/api/explore_basemap")
+def api_explore_basemap():
+    """Fond de carte (frontières départements + pays voisins) **dans le repère
+    écran** (mêmes coordonnées que les disques : y inversé). Statique → mis en
+    cache ; le front le récupère une fois."""
+    global _BASEMAP_SCREEN
+    if _BASEMAP_SCREEN is None:
+        # Le fond est déjà dans le repère du plan de masse (même que les disques,
+        # nord en haut) → servi tel quel, sans inversion.
+        bm = geographie.charger_basemap(GEO_BASEMAP)
+        _BASEMAP_SCREEN = {"depts": bm.get("depts", []),
+                           "neighbors": bm.get("neighbors", [])}
+    return jsonify(_BASEMAP_SCREEN)
 
 
 @app.get("/api/explore_coords_file")
@@ -1494,6 +1536,7 @@ def api_load():
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
                    svg=svg_c, switches=sw, nb_noeuds=nb_c,
+                   changes=SESSION.diff_states(),
                    nodale_depart=SESSION.nodale_payload(SESSION.initial),
                    nodale_cible=SESSION.nodale_state(SESSION.current))
 
@@ -1503,6 +1546,7 @@ def api_toggle():
     SESSION.toggle(request.json["id"])
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   changes=SESSION.diff_states(),
                    nodale=SESSION.nodale_state(SESSION.current))
 
 
@@ -1511,6 +1555,7 @@ def api_reset():
     SESSION.reset()
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   changes=SESSION.diff_states(),
                    nodale=SESSION.nodale_state(SESSION.current))
 
 
@@ -1524,6 +1569,7 @@ def api_promote_cible():
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
                    svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl,
+                   changes=SESSION.diff_states(),
                    nodale_depart=SESSION.nodale_payload(SESSION.initial),
                    nodale_cible=SESSION.nodale_state(SESSION.current))
 
@@ -1534,6 +1580,7 @@ def api_cible():
     revenir en édition de la cible alors qu'une séquence est déjà calculée."""
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   changes=SESSION.diff_states(),
                    nodale=SESSION.nodale_state(SESSION.current))
 
 
@@ -1601,6 +1648,7 @@ def api_load_scenario():
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
                    svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl,
+                   changes=SESSION.diff_states(),
                    nodale_depart=SESSION.nodale_payload(SESSION.initial),
                    nodale_cible=SESSION.nodale_state(SESSION.current))
 

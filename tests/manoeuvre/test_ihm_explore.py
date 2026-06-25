@@ -104,6 +104,12 @@ def test_explore_coords_file_endpoint(tmp_path, monkeypatch):
     assert "S1" in r.get_data(as_text=True)
 
 
+def test_explore_basemap_endpoint():
+    r = ihm.app.test_client().get("/api/explore_basemap").get_json()
+    assert r["depts"] and r["neighbors"]
+    assert len(r["depts"][0][0]) == 2   # anneaux de points écran [x, y]
+
+
 def test_explore_poste_par_vl(client):
     vl0 = client._vl0
     r = client.post("/api/explore_poste", json={"vl": vl0, "hour": "12:00"}).get_json()
@@ -127,6 +133,22 @@ def test_explore_retain_target(client):
     assert r["ok"] and r["hour"] == "00:00" and r["svg"]
 
 
+def test_explore_changes_diff(client):
+    """Différence départ/cible : nulle à iso-heure, non vide après rétention
+    d'une cible à une autre heure ; chaque entrée a un sens et un ``svgId``."""
+    vl0 = client._vl0
+    r = client.post("/api/explore_poste", json={"vl": vl0, "hour": "12:00"}).get_json()
+    # départ == cible (même heure) → aucun organe en écart.
+    assert r["changes"] == []
+    # cible = 00:00 (un organe basculé vs 12:00) → exactement un écart.
+    r2 = client.post("/api/explore_retain_target",
+                     json={"vl": vl0, "hour": "00:00"}).get_json()
+    assert len(r2["changes"]) == 1
+    ch = r2["changes"][0]
+    assert ch["direction"] in ("closed", "opened")
+    assert ch["svgId"] and ch["id"]
+
+
 def test_explore_poste_guard_sans_day():
     ihm.DAY = None
     ihm.SESSION = ihm.Session(pp.network.create_four_substations_node_breaker_network())
@@ -141,5 +163,9 @@ def test_asset_contient_la_carte():
     for token in ("exploreDay", "renderExplore", "buildMap", "mapToTopo",
                   "id=\"mapPane\"", "id=\"exploreBar\"", "id=\"btnExplore\"",
                   "Explorer la journée", "convexHull", "frhull",
-                  "id=\"mapHours\"", "renderMapHours"):
+                  "id=\"mapHours\"", "renderMapHours",
+                  # filtrage des tensions par la légende
+                  "voltToggle", "voltAll", "voltBand", "voltOff",
+                  # mise en évidence des écarts départ/cible
+                  "highlightChanges", "octog-closed", "octog-opened"):
         assert token in txt, f"jeton front-end manquant : {token}"

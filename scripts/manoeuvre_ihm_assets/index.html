@@ -48,6 +48,12 @@
  .pane.reached{box-shadow:inset 0 0 0 5px #facc15;transition:box-shadow .2s}
  .pane.reached>.ttl{background:#fef9c3 !important}
  .pane.reached>.ttl::after{content:" — ✓ topologie cible atteinte";color:#a16207;font-weight:bold}
+ /* Organes dont l'état diffère entre départ et cible (vue exploration) :
+    vert = fermé à la cible (était ouvert), orange = ouvert à la cible. */
+ .diag .octog-closed,.diag .octog-closed *{stroke:#0c9f5f !important;stroke-width:3px !important}
+ .diag .octog-opened,.diag .octog-opened *{stroke:#ef8a17 !important;stroke-width:3px !important}
+ .diag .octog-closed circle,.diag .octog-closed rect{fill:#d6f5e6 !important}
+ .diag .octog-opened circle,.diag .octog-opened rect{fill:#fdebcf !important}
  /* Séparateur déplaçable entre le schéma détaillé (col. 2) et le volet nodal */
  #ndresize{flex:0 0 auto;width:6px;cursor:col-resize;background:#d1d5db}
  #ndresize:hover,#ndresize.drag{background:#6366f1}
@@ -141,6 +147,8 @@
  #mapSvgWrap.grabbing{cursor:grabbing}
  #mapSvgWrap svg{display:block;width:100%;height:100%;touch-action:none}
  .frhull{fill:#f3f1e9;stroke:#c7cdb8;stroke-width:2;stroke-linejoin:round;pointer-events:none}
+ .nbr{fill:#e6ebf2;stroke:#c3ccd9;stroke-width:1;stroke-linejoin:round;pointer-events:none}
+ .dept{fill:#f4f1e8;stroke:#d9d2c0;stroke-width:0.8;stroke-linejoin:round;pointer-events:none}
  .pdisk{cursor:pointer;stroke:#ffffff;stroke-width:0.5}
  .pdisk:hover{stroke:#1e293b;stroke-width:2}
  .ptop{stroke:#111;stroke-width:1.5}
@@ -162,8 +170,12 @@
  .clrow .nogeo{color:#94a3b8;font-size:9px}
  #mapLegend{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.92);border:1px solid #cbd5e1;
    border-radius:6px;padding:6px 8px;font-size:10px;box-shadow:0 1px 6px rgba(0,0,0,.12)}
- #mapLegend .lg{display:flex;align-items:center;gap:5px;margin:1px 0}
+ #mapLegend .lg{display:flex;align-items:center;gap:5px;margin:1px 0;cursor:pointer;border-radius:3px;padding:0 3px}
+ #mapLegend .lg:hover{background:#eef2ff}
+ #mapLegend .lg.off{opacity:.35;text-decoration:line-through}
  #mapLegend .dot{width:11px;height:11px;border-radius:50%;display:inline-block;border:1px solid #0003}
+ #mapLegend .lghd{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;gap:6px}
+ #mapLegend .lgbtn{font-size:9px;padding:1px 5px;margin:0 0 0 2px;border:1px solid #b6c0cf;border-radius:3px;background:#fff;cursor:pointer}
  #mapLegend .hint{color:#64748b;margin-top:3px;max-width:170px}
  #mapBubble{position:absolute;display:none;min-width:180px;max-width:260px;background:#fff;border:1px solid #94a3b8;
    border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,.22);padding:8px 10px;font-size:12px;z-index:20}
@@ -613,7 +625,7 @@ async function toggleEditTarget(){
     const d=await api('/api/cible',{});
     document.getElementById('diagBottom').innerHTML=d.svg;
     document.getElementById('nbB').textContent=d.nb_noeuds;
-    bind(d.switches);syncNodalCible(d.nodale);
+    bind(d.switches);highlightChanges(d.changes);syncNodalCible(d.nodale);
     document.getElementById('paneBot').classList.remove('reached');
     b.textContent='▶ Revenir à la séquence';b.classList.add('primary');
     ['bprev','bplay','bnext'].forEach(id=>document.getElementById(id).disabled=true);
@@ -695,11 +707,25 @@ function show(d){
     document.getElementById('ttlA').textContent='Topologie de départ';S.manual=false;}
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
-  bind(d.switches);}
+  bind(d.switches);highlightChanges(d.changes);}
 function bind(switches){const root=document.getElementById('diagBottom');
   switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
     if(el){el.style.cursor='pointer';el.onclick=()=>toggle(s.id);
       el.querySelectorAll('*').forEach(c=>c.style.cursor='pointer');}});}
+// Met en évidence les organes dont l'état **diffère entre départ et cible**
+// (vert = fermé à la cible / était ouvert ; orange = ouvert à la cible) sur les
+// deux schémas — le schéma de départ (haut) a ses ids préfixés « A_ ». On purge
+// d'abord les marques précédentes (le schéma du haut n'étant pas toujours
+// re-rendu) puis on réapplique selon `changes`.
+function highlightChanges(changes){
+  ['diagTop','diagBottom'].forEach(host=>{
+    const root=document.getElementById(host);if(!root)return;
+    root.querySelectorAll('.octog-closed,.octog-opened').forEach(el=>
+      el.classList.remove('octog-closed','octog-opened'));
+    const pfx=host==='diagTop'?'A_':'';
+    (changes||[]).forEach(ch=>{
+      const el=root.querySelector('[id="'+pfx+ch.svgId+'"]');
+      if(el)el.classList.add(ch.direction==='closed'?'octog-closed':'octog-opened');});});}
 async function sequence(){stopAnim();S.manual=false;resetEditTarget();clearSeqStale();
   const d=await api('/api/sequence',{mode:document.getElementById('seqMode').value});
   document.getElementById('seqwrap').style.display='block';
@@ -1050,7 +1076,7 @@ async function nodCompute(){
 // viewBox courant (pan/zoom) ; ``box`` = viewBox de référence (recentrage) ;
 // ``bySub`` = index poste géolocalisé ; ``topo*`` = poste/heure en vue topo.
 let MAP={data:null,vb:null,box:null,bySub:{},heures:[],clickTimer:null,
-  openHour:null,topoSub:null,topoVl:null,topoHour:null};
+  openHour:null,topoSub:null,topoVl:null,topoHour:null,cibleHour:null,voltOff:new Set()};
 const EARTH_R=6378137;   // Web Mercator (même projection que Co-Study4Grid)
 function merc(lon,lat){return [EARTH_R*lon*Math.PI/180,
   EARTH_R*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))];}
@@ -1065,6 +1091,8 @@ const VOLT_BANDS=[
   {min:30, color:'#c2569b',label:'45 kV'},
   {min:0,  color:'#64748b',label:'< 45 kV'}];
 function voltColor(nv){for(const b of VOLT_BANDS)if(nv>=b.min)return b.color;return '#64748b';}
+// Indice de la bande de tension (pour le filtrage par légende).
+function voltBand(nv){for(let i=0;i<VOLT_BANDS.length;i++)if(nv>=VOLT_BANDS[i].min)return i;return VOLT_BANDS.length-1;}
 function fmtKv(nv){return Math.round(nv||0)+' kV';}
 function kindShort(t){return {BREAKER:'DJ',DISCONNECTOR:'SA',LOAD_BREAK_SWITCH:'INT'}[t]||t;}
 function vbStr(v){return v.x.toFixed(1)+' '+v.y.toFixed(1)+' '+v.w.toFixed(1)+' '+v.h.toFixed(1);}
@@ -1092,6 +1120,9 @@ async function exploreDay(){
   if(!r||!r.ok){spin.style.display='block';spin.textContent=(r&&r.error)||'Échec de l’exploration.';
     msg.textContent=(r&&r.error)||'échec';return;}
   spin.style.display='none';msg.textContent='✓ '+date+' exploré.';
+  // Fond de carte (frontières, repère du plan de masse) — récupéré une fois.
+  if(MAP.basemap===undefined){try{MAP.basemap=await (await fetch('/api/explore_basemap')).json();}
+    catch(e){MAP.basemap=null;}}
   renderExplore(r);
 }
 
@@ -1116,7 +1147,7 @@ function downloadCoordsFile(){const a=document.createElement('a');
   a.href='/api/explore_coords_file';a.download='postes_rte_geo.json';
   document.body.appendChild(a);a.click();a.remove();}
 function renderExplore(d){
-  MAP.data=d;MAP.heures=d.heures||[];MAP.bySub={};MAP.openHour=null;renderMapHours();
+  MAP.data=d;MAP.heures=d.heures||[];MAP.bySub={};MAP.openHour=null;MAP.voltOff=new Set();renderMapHours();
   const hrs=(d.heures||[]).map(h=>h.ts).join(' · ');
   const st=d.coord_stats||{};
   const coord=d.coord_source+((d.coord_source==='osm'||d.coord_source==='layout')&&st.taux!=null
@@ -1154,27 +1185,48 @@ function buildMap(postes){
   // coordonnées planaires prêtes pour l'écran (projetées côté serveur : plan de
   // masse RTE, ou Mercator des sources lon/lat).
   const pts=postes.map(p=>{MAP.bySub[p.sub]=p;return {p,x:p.x,y:p.y};});
+  const bm=MAP.basemap||{},depts=bm.depts||[],nbrs=bm.neighbors||[];
+  // Fond géographique réel uniquement avec le plan de masse (repère calibré) ;
+  // sinon (OSM/Mercator) repli silhouette (enveloppe convexe du réseau).
+  const useBasemap=depts.length&&MAP.data&&MAP.data.coord_source==='layout';
+  // bbox = postes + frontières France (si fond utilisé) ; voisins peuvent
+  // déborder (contexte, écrêtés par overflow:hidden).
   let xmin=1/0,xmax=-1/0,ymin=1/0,ymax=-1/0;
-  pts.forEach(q=>{xmin=Math.min(xmin,q.x);xmax=Math.max(xmax,q.x);
-    ymin=Math.min(ymin,q.y);ymax=Math.max(ymax,q.y);});
-  const sx=xmax-xmin||1,sy=ymax-ymin||1,span=Math.max(sx,sy),pad=span*0.04;
+  const ext=(x,y)=>{xmin=Math.min(xmin,x);xmax=Math.max(xmax,x);ymin=Math.min(ymin,y);ymax=Math.max(ymax,y);};
+  pts.forEach(q=>ext(q.x,q.y));
+  if(useBasemap)depts.forEach(ring=>ring.forEach(p=>ext(p[0],p[1])));
+  const sx=xmax-xmin||1,sy=ymax-ymin||1,span=Math.max(sx,sy),pad=span*0.03;
   MAP.box={x:xmin-pad,y:ymin-pad,w:sx+2*pad,h:sy+2*pad};MAP.vb=Object.assign({},MAP.box);
   // Disques nettement plus grands (lisibilité) ; top-10 encore plus gros + halo.
   const r=span/520,rtop=span/200;
-  // Fond : silhouette (enveloppe convexe) du réseau.
-  const hull=convexHull(pts);
+  const poly=(cls,ring)=>'<polygon class="'+cls+'" points="'
+    +ring.map(p=>p[0].toFixed(0)+','+p[1].toFixed(0)).join(' ')+'"/>';
   let s='';
-  if(hull.length>=3)
-    s+='<polygon class="frhull" points="'+hull.map(h=>h[0].toFixed(0)+','+h[1].toFixed(0)).join(' ')+'"/>';
-  pts.forEach(q=>{const top=!!q.p.rank,rr=top?rtop:r,col=voltColor(q.p.nv);
-    if(top)s+='<circle class="phalo" cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(rr*1.55).toFixed(1)+'"/>';
-    s+='<circle class="pdisk'+(top?' ptop':'')+'" data-sub="'+xesc(q.p.sub)+'" cx="'+q.x.toFixed(1)
+  if(useBasemap){
+    nbrs.forEach(ring=>{if(ring.length>=3)s+=poly('nbr',ring);});
+    depts.forEach(ring=>{if(ring.length>=3)s+=poly('dept',ring);});
+  }else{
+    const hull=convexHull(pts);if(hull.length>=3)s+=poly('frhull',hull);
+  }
+  pts.forEach(q=>{const top=!!q.p.rank,rr=top?rtop:r,col=voltColor(q.p.nv),vb=voltBand(q.p.nv);
+    if(top)s+='<circle class="phalo" data-vb="'+vb+'" cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(rr*1.55).toFixed(1)+'"/>';
+    s+='<circle class="pdisk'+(top?' ptop':'')+'" data-vb="'+vb+'" data-sub="'+xesc(q.p.sub)+'" cx="'+q.x.toFixed(1)
       +'" cy="'+q.y.toFixed(1)+'" r="'+rr.toFixed(1)+'" fill="'+col+'" fill-opacity="'
       +(q.p.total>0?0.95:0.62)+'"/>';});
   const wrap=document.getElementById('mapSvgWrap');
   wrap.insertAdjacentHTML('afterbegin','<svg id="mapSvg" viewBox="'+vbStr(MAP.vb)
     +'" preserveAspectRatio="xMidYMid meet">'+s+'</svg>');
+  applyVoltFilter();
 }
+// Filtrage par tension (légende cliquable) : masque les disques+halos des bandes
+// désélectionnées (MAP.voltOff = indices de VOLT_BANDS masqués).
+function applyVoltFilter(){const svg=document.getElementById('mapSvg');if(!svg)return;
+  svg.querySelectorAll('.pdisk,.phalo').forEach(el=>{
+    el.style.display=MAP.voltOff.has(+el.getAttribute('data-vb'))?'none':'';});}
+function voltToggle(i){if(MAP.voltOff.has(i))MAP.voltOff.delete(i);else MAP.voltOff.add(i);
+  applyVoltFilter();renderLegend();}
+function voltAll(on){MAP.voltOff=on?new Set():new Set(VOLT_BANDS.map((_,i)=>i));
+  applyVoltFilter();renderLegend();}
 
 // Pan/zoom par manipulation du viewBox + délégation d'événements (≈6000 disques,
 // fluide : aucun re-rendu au pan/zoom, un seul écouteur par type).
@@ -1237,9 +1289,14 @@ function showBubble(sub,e){const p=MAP.bySub[sub];if(!p)return;
 function hideBubble(){const b=document.getElementById('mapBubble');if(b)b.style.display='none';}
 
 function renderLegend(){const lg=document.getElementById('mapLegend');
-  let h='<div style="font-weight:bold;margin-bottom:2px">Tension</div>';
-  VOLT_BANDS.forEach(b=>{h+='<div class="lg"><span class="dot" style="background:'+b.color+'"></span>'+b.label+'</div>';});
-  h+='<div class="hint">⭐ halo = top 10 · clic = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
+  let h='<div class="lghd"><span style="font-weight:bold">Tension</span><span>'
+    +'<button class="lgbtn" onclick="voltAll(true)">tout</button>'
+    +'<button class="lgbtn" onclick="voltAll(false)">aucun</button></span></div>';
+  VOLT_BANDS.forEach((b,i)=>{const off=MAP.voltOff.has(i);
+    h+='<div class="lg'+(off?' off':'')+'" onclick="voltToggle('+i+')" title="Cliquer pour '
+      +(off?'afficher':'masquer')+' cette tension"><span class="dot" style="background:'
+      +b.color+'"></span>'+b.label+'</div>';});
+  h+='<div class="hint">⭐ halo = top 10 · clic tension = afficher/masquer · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
   lg.innerHTML=h;}
 
 // Classement **par voltage level** (plus fin que par poste) : chaque ligne = un
@@ -1284,7 +1341,7 @@ async function mapToTopo(sub,vl,hour){hideBubble();stopAnim();
   const r=await api('/api/explore_poste',{sub,vl,hour});
   if(!r||!r.ok){alert((r&&r.error)||'Ouverture du poste impossible.');return;}
   exitMapMode();
-  S.currentVL=r.vl;MAP.topoSub=r.sub;MAP.topoVl=r.vl;MAP.topoHour=r.hour;
+  S.currentVL=r.vl;MAP.topoSub=r.sub;MAP.topoVl=r.vl;MAP.topoHour=r.hour;MAP.cibleHour=null;
   if(r.heures)MAP.heures=r.heures;
   show(r);initNodale(r);hideSeq();setValidated(false);
   document.getElementById('scenName').value=r.vl+'_cible';
@@ -1298,11 +1355,12 @@ function renderExploreBar(r){
   const hrs=r.heures||MAP.heures||[];
   const mk=(host,onclick,activeReq,title)=>{host.innerHTML='';
     hrs.forEach(h=>{const b=document.createElement('button');b.textContent=h.ts;
+      b.setAttribute('data-req',h.requested);
       if(h.requested===activeReq)b.classList.add('hcur');b.title=title(h);
       b.onclick=()=>onclick(h.requested);host.appendChild(b);});};
   mk(document.getElementById('exploreHours'),exploreHour,MAP.topoHour,
      h=>'Charger la topologie de DÉPART à '+h.ts);
-  mk(document.getElementById('exploreTargets'),retainTarget,null,
+  mk(document.getElementById('exploreTargets'),retainTarget,MAP.cibleHour,
      h=>'Définir la CIBLE = topologie du poste à '+h.ts+' (puis éditable)');
   const vd=document.getElementById('exploreVls');vd.innerHTML='';
   const vls=r.sub_vls||[];
@@ -1314,16 +1372,19 @@ function renderExploreBar(r){
 
 async function exploreHour(hour){stopAnim();
   const r=await api('/api/explore_poste',{sub:MAP.topoSub,vl:MAP.topoVl,hour});
-  if(!r||!r.ok)return;MAP.topoHour=r.hour;
+  if(!r||!r.ok)return;MAP.topoHour=r.hour;MAP.cibleHour=null;  // départ change → cible repart du départ
   show(r);initNodale(r);hideSeq();setValidated(false);
   renderExploreBar(r);syncHourPoste(r.hour,r.vl);}
 
 async function retainTarget(hour){
   const r=await api('/api/explore_retain_target',{vl:MAP.topoVl,hour});
   if(!r||!r.ok)return;
+  MAP.cibleHour=hour;   // mémorise + met en évidence le bouton cible choisi
+  document.querySelectorAll('#exploreTargets button').forEach(b=>
+    b.classList.toggle('hcur', b.getAttribute('data-req')===hour));
   document.getElementById('diagBottom').innerHTML=r.svg;
   document.getElementById('nbB').textContent=r.nb_noeuds;
-  bind(r.switches);syncNodalCible(r.nodale);setValidated(false);
+  bind(r.switches);highlightChanges(r.changes);syncNodalCible(r.nodale);setValidated(false);
   if(S.n>0)markSeqStale();else hideSeq();
   const ts=((MAP.heures||[]).find(h=>h.requested===hour)||{}).ts||hour;
   document.getElementById('savemsg').textContent='Cible = topologie de '+ts

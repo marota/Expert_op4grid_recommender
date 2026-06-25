@@ -41,6 +41,15 @@ def test_charger_layout_bundle():
     assert g.charger_layout("/inexistant.json") == {}
 
 
+def test_charger_basemap_bundle():
+    # le fond de carte committé (départements + voisins) est présent et structuré.
+    bm = g.charger_basemap()
+    assert isinstance(bm, dict) and bm.get("depts") and bm.get("neighbors")
+    ring = bm["depts"][0]
+    assert len(ring) >= 3 and len(ring[0]) == 2   # anneaux de points [x, y]
+    assert g.charger_basemap("/inexistant.json") == {}
+
+
 def test_merc():
     x, y = g.merc(0.0, 0.0)
     assert abs(x) < 1e-6 and abs(y) < 1e-6
