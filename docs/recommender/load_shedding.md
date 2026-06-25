@@ -6,9 +6,9 @@
 
 ---
 
-> **Voir aussi** : [`renewable_curtailment_design.md`](renewable_curtailment_design.md)
+> **Voir aussi** : [`renewable_curtailment.md`](renewable_curtailment.md)
 > (analogue **amont** — écrêtement de production renouvelable),
-> [`superposition_module.md`](superposition_module.md) (estimation d'impact via le
+> [`../architecture/superposition_module.md`](../architecture/superposition_module.md) (estimation d'impact via le
 > théorème de superposition généralisé). Index : [`../README.md`](../README.md).
 
 ## 1. Objectif

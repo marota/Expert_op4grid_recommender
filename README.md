@@ -270,7 +270,7 @@ the registration mechanism, and the step-by-step plug-in guide are in
 
 ### Full reference
 
-[`docs/design/recommender_models.md`](docs/design/recommender_models.md) — complete
+[`docs/architecture/recommender_models.md`](docs/architecture/recommender_models.md) — complete
 contract reference: every field on `RecommenderInputs` and
 `RecommenderOutput` with descriptions, the reusable pipeline phases,
 the integration point (`run_analysis_step2_discovery`), a minimal
