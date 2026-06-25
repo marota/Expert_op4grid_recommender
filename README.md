@@ -12,6 +12,14 @@ system shipped as the default. See
 
 ---
 
+## Documentation
+
+The full documentation index is in [`docs/README.md`](docs/README.md) —
+architecture & simulation pipeline, feature/algorithm design specs, the maneuver
+module & web IHM, the RTE-7000 dataset, release notes, and developer notes.
+
+---
+
 ## Features
 
 * **Contingency Simulation**: Simulates N-1 contingencies in a Grid2Op environment.
@@ -34,7 +42,7 @@ module interactively: pick a substation, edit a **target detailed topology**,
 compute and **animate the switching sequence**, and save scenarios/sequences.
 It also backs the hosted **TopologyManoeuver4Grid** HuggingFace Space (network
 situations sourced on demand from the RTE-7000 dataset by date/hour). Full
-guide: [`docs/manoeuvre_ihm.md`](docs/manoeuvre_ihm.md).
+guide: [`docs/manoeuvre/ihm.md`](docs/manoeuvre/ihm.md).
 
 ![Annotated overview of the maneuver IHM on a node-split scenario at CARRIP3](docs/manoeuvre/manoeuvre_ihm_overview.svg)
 
@@ -262,7 +270,7 @@ the registration mechanism, and the step-by-step plug-in guide are in
 
 ### Full reference
 
-[`docs/recommender_models.md`](docs/recommender_models.md) — complete
+[`docs/design/recommender_models.md`](docs/design/recommender_models.md) — complete
 contract reference: every field on `RecommenderInputs` and
 `RecommenderOutput` with descriptions, the reusable pipeline phases,
 the integration point (`run_analysis_step2_discovery`), a minimal
