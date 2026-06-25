@@ -27,10 +27,15 @@ python scripts/manoeuvre_ihm.py --grid /chemin/vers/grid.xiidm
 
 | Argument | Défaut | Rôle |
 |----------|--------|------|
-| `--grid` | *(requis)* | Réseau `.xiidm` contenant les postes de test |
-| `--port` | `8000` | Port HTTP |
+| `--grid` | *(optionnel)* | Réseau `.xiidm` local. **Omis ⇒ mode dataset** (cf. § 1bis) |
+| `--host` | `127.0.0.1` (env `HOST`) | Interface d'écoute (`0.0.0.0` en conteneur / Space) |
+| `--port` | `8000` (env `PORT`) | Port HTTP |
 | `--scenarios-dir` | `tests/manoeuvre/scenarios` | Dossier de sauvegarde des **scénarios** (cibles) |
 | `--sequences-dir` | `tests/manoeuvre/sequences` | Dossier de sauvegarde des **séquences** générées |
+| `--dataset` | — | Activer la **source dataset RTE 7000** (défaut si `--grid` absent) |
+| `--dataset-repo` | `OpenSynth/D-GITT-RTE7000-2021` (env `DGITT_REPO`) | Dataset HuggingFace source (repo **base** ; l'année d'une date d'accès rapide sélectionne `…-2021/-2022/-2023`) |
+| `--cache-dir` | `.cache/dgitt` (env `DGITT_CACHE_DIR`) | Cache local des instantanés téléchargés |
+| `--default-date` | `2021-01-03` (env `DGITT_DEFAULT_DATE`) | Date proposée par défaut dans l'IHM |
 
 > Le serveur charge le réseau une fois (≈ 15 s pour un grand `.xiidm`) puis
 > affiche les postes de test disponibles. Il est **mono-utilisateur** et
@@ -42,31 +47,134 @@ CORNIP3, GUARBP6, MORBRP6.
 
 ---
 
+## 1bis. Mode dataset RTE 7000 + déploiement HuggingFace
+
+Sans `--grid`, l'IHM démarre en **mode dataset** : au lieu d'un réseau local
+figé, elle source les situations dans le dataset HuggingFace
+[`OpenSynth/D-GITT-RTE7000-{2021,2022,2023}`](https://huggingface.co/datasets/OpenSynth/D-GITT-RTE7000-2021)
+(réseau France, **un instantané XIIDM toutes les 5 min**), **téléchargés à la
+demande** (rien n'est embarqué). C'est le mode utilisé par le HuggingFace Space.
+Le dataset existe **par année** ; l'**année** d'une date sélectionne
+automatiquement le repo (`…-2021` / `…-2022` / `…-2023`, cf.
+`dataset_source.repo_pour_date`), de sorte que les 7 journées d'accès rapide
+(2021-2023, « Table de campagne ») fonctionnent toutes.
+
+```bash
+pip install flask pypowsybl networkx pandas      # dépendances de l'IHM dataset
+python scripts/manoeuvre_ihm.py --dataset        # http://localhost:8000
+```
+
+Déroulé dans l'IHM (bandeau **📅 Dataset RTE7000** en tête de barre latérale) :
+
+1. choisir une **date** (accès rapides vers des journées documentées) puis une
+   **heure** — menu des instantanés disponibles, **midi présélectionné** ;
+2. **Charger la situation** → le réseau France de cette date/heure est téléchargé
+   puis chargé ; **tous les voltage levels** (postes NODE_BREAKER) se peuplent ;
+3. sélectionner un poste → sa **topologie détaillée** s'affiche (suite du flux
+   habituel : éditer la cible, séquencer, animer). Changer de date/heure recharge
+   la situation **en préservant le poste courant** s'il existe encore.
+
+La couche de sourcing est `manoeuvre/dataset/source.py` (`lister_instantanes`,
+`choisir_instantane`, `charger_situation` — stdlib pur, cache + md5, jeton
+`HF_TOKEN` optionnel). Le **réseau France complet** (~5 900 postes NODE_BREAKER)
+se charge en quelques secondes au premier choix d'une date ; les changements de
+poste à date constante sont quasi instantanés.
+
+**Déploiement HuggingFace Docker Space** : `Dockerfile` (mono-conteneur Flask sur
+`:7860`, mode dataset) + `deploy/huggingface/` (README du Space + `SETUP.md`
+détaillé) + `.github/workflows/deploy-huggingface.yml` (redéploiement auto sur
+merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
+`deploy/huggingface/SETUP.md`.
+
+---
+
 ## 2. Disposition de l'interface
+
+![Vue d'ensemble annotée de l'IHM de manœuvre sur un scénario de scission de nœud à CARRIP3](manoeuvre/manoeuvre_ihm_overview.svg)
+
+> **Fig. — L'environnement interactif de manœuvre sur un scénario de scission de
+> nœud à CARRIP3** (départ : un nœud électrique ; cible : trois nœuds — barre 1
+> conservée, barre 2 scindée en sections 2.1 et 2.2). Repères :
+> **(1)** la source **Situation réseau**, en **deux onglets** — *📁 Local*
+> (chemin `.xiidm` côté serveur + **sélecteur de fichier natif**) et *📅 RTE7000*
+> (date/heure du dataset RTE-7000, avec **puces « cas d'intérêt »** et bulles
+> d'information) — chargée par un **unique bouton Charger** (RTE7000 mis en avant
+> par défaut sur le Space hébergé) ;
+> **(2)** le champ **Poste unifié** — une **seule recherche** sur tous les postes
+> NODE_BREAKER (postes épinglés ★ repérés dans les résultats) et, en dessous,
+> l'**exploration curée par typologie** ;
+> **(3)** le schéma unifilaire **de départ** (lecture seule, état de référence),
+> dont l'en-tête porte **↺ État d'origine** (réinitialise la cible à l'état
+> d'origine) ;
+> **(4)** le schéma **cible éditable** — clic sur un disjoncteur/sectionneur pour
+> le basculer — dont l'en-tête porte **⇧ Nouvelle Topologie Départ** (promeut la
+> **cible courante (éditée)** en nouveau départ, pour chaîner les scénarios) ;
+> **(5)** la « **vue bus** » nodale — glisser un départ sur une barre =
+> ré-aiguillage, glisser une barre sur une autre = fusion, *+ Nœud* = créer un
+> nœud — en partition de départ (un nœud, lecture seule) et cible (trois nœuds,
+> éditable) ;
+> **(6)** *2 · Topologie cible* : **✓ Valider** la cible (active « Calculer », sans
+> écrire de fichier) puis, sur la ligne en dessous, le **nom** + **💾 Sauvegarder**
+> (sur le Space, le fichier est aussi **téléchargé en local**) ;
+> **(7)** *3 · Séquence de manœuvres* : choisir un mode de dé-énergisation
+> (smooth/agressif) et un algorithme, puis **⚙ Calculer** ou construire à la main
+> (**✋ Séquence manuelle**) la séquence ;
+> **(8)** **⚙ Calculer la topologie détaillée d'intérêt** réalise la cible nodale
+> éditée en cible détaillée (le **pont nodal → détaillé**) ;
+> **(9)** la séquence, **animée pas à pas** avec l'étape courante surlignée et les
+> opérations auditées — un sectionneur manœuvré **sous charge** est signalé en
+> **rouge** avec la règle enfreinte (ici **R18**, invariant hors-charge) — plus
+> l'export **💾 Sauvegarder la séquence** ;
+> **(10)** **⟳ Recharger** (à droite du titre *🗺 Scénario Topologique*) ouvre une
+> petite **modale** (sélecteur de scénario + Valider/Annuler) pour **rejouer** un
+> scénario sauvegardé.
+> Les couleurs des barres sont le `topological_coloring` natif des schémas
+> NODE_BREAKER ; à droite, les barres **violette**, **bordeaux** et **bleu clair**
+> sont les trois nœuds cibles (barre 1, et barre 2 scindée en 2.1 et 2.2).
+
+> La figure ci-dessus est un **schéma annoté** (SVG versionné) de la disposition ;
+> structure équivalente en ASCII :
 
 ```
 ┌──────────────────────┬─────────────────────────────────┬────────────────────┐
 │ PANNEAU LATÉRAL      │ SCHÉMA — TOPOLOGIE DE DÉPART     │ VOLET NODAL        │
-│                      │ (SLD pypowsybl, couleurs nœud)  │                    │
-│ • Poste (sélecteur)  ├─────────────────────────────────┤ Topo nodale DÉPART │
-│ • ↺ État de départ   │ SCHÉMA — TOPOLOGIE CIBLE        │ (lecture seule)    │
-│ 1 · Valider la cible │ clic organe = bascule ; anim.   ├────────────────────┤
-│ 2 · Calculer séq.    ├─────────────────────────────────┤ Topo nodale CIBLE  │
-│ • Scénarios          │ Contrôles ◀ ▶ Lecture ▶|        │ (éditable : chips) │
-│ • Nœuds électriques  │ Séquence (texte) + 💾           │ ⚙ Calculer la      │
-│                      │                                 │ topo détaillée     │
+│ Situation réseau     │ (SLD pypowsybl)  [↺ État d'orig.]│                    │
+│  [📁 Local|📅 RTE7000]├─────────────────────────────────┤ Topo nodale DÉPART │
+│  ⏬ Charger (unique)  │ SCHÉMA — TOPOLOGIE CIBLE        │ (lecture seule)    │
+│ 🗺 Scénario Topo.     │ [⇧ Nouvelle Topologie Départ]   ├────────────────────┤
+│  1 · Poste (recherche)│ clic organe = bascule ; anim.  │ Topo nodale CIBLE  │
+│  2 · Topologie cible  ├─────────────────────────────────┤ (éditable : chips) │
+│  3 · Séquence         │ Contrôles ◀ ▶ Lecture ▶|        │ ⚙ Calculer la      │
+│ • Scénarios · Nœuds   │ Séquence (texte) + 💾           │ topo détaillée     │
 └──────────────────────┴─────────────────────────────────┴────────────────────┘
 ```
 
+- **Situation réseau** (haut du panneau) : **deux onglets** — **📁 Local**
+  (chemin `.xiidm` côté serveur + bouton **📂** de sélection native, usage local)
+  et **📅 RTE7000** (date / heure du dataset, avec **puces d'accès rapide** vers
+  les journées « cas d'intérêt » documentées, chacune avec sa **bulle**
+  d'explication) — et un **unique bouton ⏬ Charger** qui agit sur l'onglet actif.
+  L'onglet **RTE7000 est mis en avant par défaut** sur le HuggingFace Space (mode
+  dataset) ; **Local** par défaut en usage local.
+- **Scénario Topologique** : la suite de travail en **trois étapes** —
+  **1 · Poste** (champ de recherche **unique** sur tous les postes + liste
+  browsable curée **par typologie** en dessous), **2 · Topologie cible** (éditer
+  + valider), **3 · Séquence de manœuvres**.
 - **Schéma de départ** (centre haut, bandeau bleu) : topologie détaillée
-  initiale, **non modifiable** ; sert de référence.
+  initiale, **non modifiable** ; sert de référence. Son en-tête porte le bouton
+  **↺ État d'origine** (réinitialise la cible à l'état d'origine du poste).
 - **Schéma cible** (centre bas, bandeau orange) : topologie détaillée
-  **éditable** ; c'est aussi là que se déroule l'animation de la séquence.
+  **éditable** ; c'est aussi là que se déroule l'animation de la séquence. Son
+  en-tête porte le bouton **⇧ Nouvelle Topologie Départ** (la **cible courante
+  éditée** devient le nouvel état de départ — `/api/promote_cible` ; le schéma de
+  départ ci-dessus est mis à jour).
 - **Volet nodal** (droite) : représentation **schématique en « vue bus »** (un
   **nœud** = barre horizontale colorée ; chaque **branche** = départ vertical
   portant son **libellé** détaillé et sa **valeur de flux** en MW) de la topologie
   nodale de départ et d'une **cible nodale éditable par glisser-déposer**. Voir §3
-  *Éditer une topologie nodale cible*. Repliable via ◂.
+  *Éditer une topologie nodale cible*. Le volet entier est repliable via ◂, et
+  ses sections **Départ** et **Cible** sont **repliables indépendamment** (bouton
+  **▾ / ▸** dans leur en-tête — replier l'une donne tout l'espace à l'autre).
 - Le **nombre de nœuds électriques** est affiché par schéma et se met à jour à
   chaque modification.
 - Chaque en-tête porte un bouton **▾ / ▸** pour **replier** son schéma : l'autre
@@ -82,19 +190,30 @@ des variables CSS).
 
 ## 3. Flux de travail
 
-1. **Choisir un poste** → les deux schémas affichent l'état de départ (pristine).
-   Trois entrées : le **menu épinglé** (jeu de test + 7 postes 3 JdB), le
-   **sélecteur par typologie** 📂 (sections : *≥5 jeux de barres*, *sectionnement
-   extrême*, *faisceau de couplage partagé*, *organes internes*, *omnibus*,
-   *départs déconnectés*, *gros postes*, …) et le **champ de recherche** (tout VL
-   NODE_BREAKER de la situation). Dans le sélecteur par typologie, un poste
-   **grisé** (⚠) n'est pas présent dans la situation chargée → charger la grille
-   France (`grid.xiidm`) pour y accéder (le rendu détaillé SLD requiert le réseau).
+1. **Choisir un poste** (étape *1 · Poste* du Scénario Topologique). **Aucun poste
+   n'est chargé automatiquement** (au lancement ni au chargement d'une situation) :
+   les schémas restent sur « Choisissez un poste… » tant qu'on n'en a pas
+   sélectionné un — alors les deux schémas affichent son état de départ (pristine).
+   Un **unique champ** réunit deux modes dans une même interaction : une
+   **recherche** sur **tous** les postes NODE_BREAKER de la situation et, **en
+   dessous** (sous le titre **« Pré-sélection de postes typiques »**), une **liste
+   browsable**. Champ **vide** → exploration **curée par typologie** (sections :
+   *≥5 jeux de barres*, *sectionnement extrême*, *faisceau de couplage partagé*,
+   *organes internes*, *omnibus*, *départs déconnectés*, *gros postes*, …). En
+   **saisissant**, la liste filtre en **recherche plein-texte** sur tous les
+   postes (bornée à 300 résultats affichés ; les postes épinglés ★ — jeu de test
+   + 7 postes 3 JdB — y sont marqués). Un poste **grisé** (⚠ absent) n'est pas
+   présent dans la situation chargée → charger la grille France (`grid.xiidm`)
+   pour y accéder (le rendu détaillé SLD requiert le réseau).
 2. **Éditer la cible** : cliquer un disjoncteur/sectionneur dans le schéma du
    bas pour basculer son état (ouvert/fermé). Le nombre de nœuds cible évolue en
    direct.
-3. **Valider & sauvegarder la cible** (étape 1) : nomme et persiste le scénario
-   (départ + cible). **Obligatoire** avant le calcul.
+3. **Valider la cible** (étape *2 · Topologie cible*) : le bouton **✓ Valider**
+   débloque le calcul de séquence **sans écrire de fichier**. Pour la conserver,
+   **💾 Sauvegarder** (champ nom à gauche, bouton à droite) persiste le scénario
+   (départ + cible) ; **sur une IHM déportée (Space)** le JSON est aussi
+   **téléchargé en local** (le FS du Space est éphémère). Sauvegarder valide
+   aussi la cible.
 4. **Calculer la séquence** (étape 2, débloqué après validation) : choisir le
    **mode** (Smooth, défaut, ou Agressif) puis lancer le calcul départ → cible ;
    statut **VÉRIFIÉE / NON VÉRIFIÉE** (+ badge `mode`).
@@ -147,16 +266,22 @@ L'édition se fait par **glisser-déposer** :
   déplace. Pour en déplacer plusieurs d'un coup, **cliquer** d'abord les branches
   voulues (sélection surlignée, inter-nœuds) puis glisser l'une d'elles.
 - **Fusionner des nœuds** : glisser une **barre** sur une autre barre (fusion).
-- **Créer un nœud** : bouton **＋ Nœud** (nœud vide, ou contenant la sélection
-  courante) — puis y glisser des départs.
-- **Réinitialiser** : **= départ** ramène la cible à la partition de départ ;
+- **Créer un nœud** : bouton **＋ Nœud**. Avec une sélection, il y déplace les
+  départs sélectionnés ; **sans sélection, il crée un nœud vide qui persiste**
+  comme cible de dépose — glisser-y ensuite des départs. Un nœud resté **vide**
+  est **ignoré** au calcul de la topologie détaillée (et retiré de l'affichage à
+  ce moment-là).
+- **Réinitialiser** : **↺ Réinitialiser** ramène la cible à la topologie
+  d'origine du poste (**détaillée + nodale** = départ, via `/api/reset`) ;
   **∅ Désélectionner** vide la sélection.
 
 Les **ouvrages déconnectés** (organe ouvert → non raccordés à une barre) ne sont
-**pas** des nœuds électriques : ils sont listés à part (chips **⚠ Ouvrages
-isolés**, sous chaque schéma) et n'occupent pas d'espace en barre. Pour en
-**reconnecter** un, le **glisser sur une barre** (il rejoint ce nœud) ; côté
-serveur, les isolés restants sont **laissés déconnectés** (hors partition cible).
+**pas** des nœuds électriques : ils sont listés à part, en **tête de chaque
+cadre** (chips **⚠ Ouvrages isolés**, première ligne sous le titre de section),
+**individuellement sélectionnables** (clic) et **glissables**, et n'occupent pas
+d'espace en barre. Pour en **reconnecter** un, le **glisser sur une barre** (il
+rejoint ce nœud) ; côté serveur, les isolés restants sont **laissés déconnectés**
+(hors partition cible).
 Le compteur de nœuds exclut les isolés.
 - **⚙ Calculer la topologie détaillée d'intérêt** : envoie la partition nodale
   (`/api/nodale_to_detaillee`) ; l'IHM **charge l'état détaillé réalisant** cette
@@ -174,12 +299,12 @@ Le compteur de nœuds exclut les isolés.
 
 **Synchronisation détaillé ↔ nodal.** La topologie **détaillée** fait foi : le
 volet nodal cible **reflète** la partition de l'état détaillé courant. Toute
-**édition du détail** (bascule d'un organe, `↺ État de départ`) **ou rechargement
-de scénario** (`▷ Rejouer`) **resynchronise** la cible nodale (partition, couleurs,
+**édition du détail** (bascule d'un organe, `↺ État d'origine`) **ou rechargement
+de scénario** (modale **⟳ Recharger**) **resynchronise** la cible nodale (partition, couleurs,
 ouvrages isolés) — par ex. ouvrir le DJ d'un départ le fait passer en *ouvrage
 isolé* dans le volet nodal, et recharger un scénario à N nœuds affiche bien ces N
 nœuds côté nodal. Le
-glisser-déposer nodal et `= départ` sont des **propositions** de partition
+glisser-déposer nodal (et **＋ Nœud**) sont des **propositions** de partition
 (le détail n'est pas encore modifié) ; **⚙ Calculer…** les réalise, charge la
 cible détaillée et resynchronise le volet nodal sur la topologie **obtenue**
 (d'où, en cas de réalisation partielle, un volet nodal qui correspond bien au
@@ -237,11 +362,15 @@ atteinte ». L'indicateur est recalculé **à chaque étape** côté serveur
 qu'il s'allume exactement lorsque la cible est atteinte et s'éteint sinon.
 
 ### Réutiliser des scénarios
-- **▷ Rejouer** : recharge un scénario (départ **et** cible sauvegardés).
-- **⇧ Comme départ** : la cible sauvegardée devient le **nouvel état de
-  départ** — permet de **chaîner** les scénarios (repartir d'une topologie
-  validée plutôt que de l'état de base du réseau), puis d'éditer une nouvelle
-  cible par-dessus.
+- **⟳ Recharger** (bouton à droite du titre *🗺 Scénario Topologique*) : ouvre une
+  **petite modale** (sélecteur de scénario + **Valider** / **Annuler**) qui
+  **rejoue** le scénario choisi (départ **et** cible sauvegardés). Remplace
+  l'ancienne section « Scénarios sauvegardés ».
+- **⇧ Nouvelle Topologie Départ** (en-tête du schéma cible) : la **cible courante
+  (éditée)** devient le **nouvel état de départ** (`/api/promote_cible`, **sans**
+  passer par un scénario sauvegardé) — le schéma de départ ci-dessus est mis à
+  jour. Permet de **chaîner** (repartir d'une topologie validée plutôt que de
+  l'état de base du réseau), puis d'éditer une nouvelle cible par-dessus.
 
 ---
 
@@ -253,11 +382,16 @@ navigateur).
 | Méthode & route | Corps | Réponse | Rôle |
 |-----------------|-------|---------|------|
 | `GET /` | — | HTML | Page de l'IHM |
-| `GET /api/postes` | — | `{postes:[…], all:[…], catalog:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) ; `catalog` = **sections par typologie** (cf. ci-dessous) |
+| `GET /api/postes` | — | `{postes:[…], all:[…], catalog:[…]}` | `postes` = liste **épinglée** (jeu de test + 7 postes 400 kV à **3 jeux de barres** identifiés) ; `all` = **tous** les postes NODE_BREAKER de la situation (champ de recherche) ; `catalog` = **sections par typologie** (cf. ci-dessous). En mode dataset avant tout chargement : `{postes:[], all:[], catalog:[], needs_date:true}` |
+| `GET /api/dataset/config` | — | `{enabled, repo, default_date, default_time, sample_dates[], hosted}` | Config de la source dataset (onglet **RTE7000**) ; `enabled` décide de l'**onglet actif par défaut** (RTE7000 sur le Space, Local en mode `--grid`) ; `hosted` = IHM déportée → le front **télécharge en local** les fichiers sauvegardés |
+| `GET /api/dataset/timestamps?date=YYYY-MM-DD` | — | `{ok, date, timestamps:[{ts,path}], default}` / `400` (date invalide) / `502` (HF) | Instantanés disponibles pour la journée (HH:MM), avec l'horodatage présélectionné (le plus proche de **midi**) |
+| `POST /api/dataset/load` | `{date, time}` | `{ok, date, time, iso, postes:[…], all:[…], catalog:[…]}` / `400` (absent) / `502` (HF) | **Télécharge à la demande** l'instantané `(date, time)` du dataset, reconstruit la session et liste les postes (même forme que `/api/load_grid`) |
 | `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…], catalog:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
+| `GET /api/pick_grid_file` | — | `{path, error?}` | Ouvre un **sélecteur de fichier natif** (onglet *Local*, usage local) pour choisir une situation `.xiidm` ; `path` vide si annulé ; `error` si headless / tkinter absent (l'IHM invite à coller le chemin) |
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) — **n'importe quel** VL NODE_BREAKER ; inclut les partitions nodales |
 | `POST /api/toggle` | `{id}` | `{svg, switches, nb_noeuds, nodale}` | Bascule un OC (cible) ; `nodale` = vue nodale resynchronisée |
 | `POST /api/reset` | — | `{svg, switches, nb_noeuds, nodale}` | Réinitialise la cible = départ |
+| `POST /api/promote_cible` | — | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, nodale_depart, nodale_cible}` | **Promeut la cible courante en nouvel état de départ** (chaînage sans scénario sauvegardé) ; met à jour les deux schémas + vues nodales |
 | `POST /api/cible` | — | `{svg, switches, nb_noeuds, nodale}` | Vue de la cible détaillée **courante** (sans la modifier) — pour revenir l'éditer alors qu'une séquence est calculée |
 | `POST /api/nodale` | — | `{nodale_depart, nodale_cible}` | Partitions nodales (cible initialisée = départ) ; `nodale_*` = `{groups[[…]], labels{id:nom}, types{id:type}, flows{id:MW}, dirs{id:TOP\|BOTTOM}, order{id:x}, colors{id:#hex}, isolated[…]}`. `labels`/`dirs`/`order`/`colors` sont **extraits du SLD** (libellés, côté, ordre horizontal et **couleur du nœud `topological_coloring`** identiques à la vue détaillée) ; `flows` provient d'une charge de réseau ; `isolated` liste les départs **déconnectés** (composante sans barre) |
 | `POST /api/nodale_to_detaillee` | `{groups, isolated?}` | `{svg, switches, nb_noeuds, is_verified, message, ecarts[], noeuds_non_realisables[[…]], nb_obtenu, nb_vise, nodale}` | Calcule la **topologie détaillée d'intérêt** réalisant la cible nodale `groups` (les `isolated` sont laissés hors partition) et la charge comme cible détaillée ; `nodale` = `{groups, colors, isolated}` de la topologie **réalisée** (resynchronise le volet nodal) |
@@ -268,9 +402,9 @@ navigateur).
 | `POST /api/seq_delete_many` | `{indices:[…]}` | idem `seq_insert` | Supprime en une fois plusieurs manœuvres (sélection / bloc) |
 | `POST /api/manual_start` | — | `{cible_svg, cible_nb, goto, manoeuvres[], n_steps, labels[], …}` | Démarre une séquence **manuelle vierge** (départ → cible affichée en référence) |
 | `GET /api/scenarios` | — | `{scenarios:[…]}` | Liste des scénarios sauvegardés |
-| `POST /api/save` | `{name, overwrite?}` | `{path, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible |
+| `POST /api/save` | `{name, overwrite?}` | `{path, name, content, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible ; `content` = JSON écrit (téléchargement local côté front si IHM déportée) |
 | `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, nodale_depart, nodale_cible}` | Recharge (`mode="both"` ou `"as_depart"`) ; `nodale_cible` = vue nodale de la cible chargée |
-| `POST /api/save_sequence` | `{name, overwrite?}` | `{path}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** (éditée telle quelle) |
+| `POST /api/save_sequence` | `{name, overwrite?}` | `{path, name, content}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** (éditée telle quelle) ; `content` = JSON écrit (téléchargement local côté front si IHM déportée) |
 
 > **Avertissement d'écrasement** : sans `overwrite:true`, si le fichier existe
 > déjà, `/api/save` et `/api/save_sequence` renvoient `{exists:true}` (sans
@@ -362,7 +496,8 @@ assert res.ecarts == []
 | Spécification | Couverture |
 |---------------|-----------|
 | Modifier **manuellement et interactivement** l'état des DJ/SA depuis une topologie de départ | Clic sur l'organe du schéma cible → `/api/toggle` |
-| **Valider** la topologie cible avant de calculer | Étape 1 « Valider & sauvegarder » ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
+| **Valider** la topologie cible avant de calculer | Étape **2 · Topologie cible** : bouton **✓ Valider** (sans fichier) ; le bouton « Calculer » reste verrouillé tant que la cible n'est pas validée |
+| **Télécharger** les fichiers sauvegardés quand l'IHM est déportée (Space) | `hosted` (`/api/dataset/config`) → `save()` / `saveSeq()` déclenchent un download du `content` renvoyé par `/api/save` / `/api/save_sequence` |
 | **Sauvegarder** la cible pour des tests par ailleurs | Scénario JSON (`/api/save`) avec topologies détaillées + nodales |
 | Demander la **séquence de manœuvres** départ → cible | `/api/sequence` → façade pluggable (`PlanificateurTopologie.sequencer`, phase B ; « libtopo » = `determiner_manoeuvres_cible_detaillee`) |
 | **Choisir l'algorithme** de chaque phase de calcul (natif « libtopo » + plugins enregistrés) | Sélecteurs « Algo » (panneau Séquence = phase B ; volet nodal = phase A) ; `GET/POST /api/algos` (disponibles par phase + sélection de session) ; badge `algo <nom>` dans le statut de séquence. Les plugins tiers (registre / entry points `expert_op4grid_recommender.manoeuvre`) apparaissent automatiquement — cf. `docs/manoeuvre_plugins.md` |
@@ -372,9 +507,11 @@ assert res.ecarts == []
 | **Topologie nodale qui suit l'étape** d'animation | Volet nodal « cible » rendu en lecture seule depuis `nodale` de `/api/step` (titre « Étape k/n (vue) ») ; restauré à « Cible (éditable) » à la sortie |
 | Voir **départ en haut** et **cible éditable en bas** | Deux schémas empilés |
 | Couleurs **natives** par niveau de tension (63 kV violet) | `topological_coloring`, rendu navigateur |
-| **Explorer les postes par typologie** (sections) | Sélecteur 📂 `#posteCat` : un `<optgroup>` par typologie (≥5 JdB, sectionnement extrême, faisceau partagé, organes internes, omnibus, départs déconnectés, gros postes…) ; entrées grisées = absentes de la situation (`catalog` de `/api/postes`) |
+| **Explorer les postes par typologie** (sections) | Liste `#posteList` (champ vide) : une section par typologie (≥5 JdB, sectionnement extrême, faisceau partagé, organes internes, omnibus, départs déconnectés, gros postes…) ; entrées grisées = absentes de la situation (`catalog` de `/api/postes`) |
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
-| Choisir l'**état de départ** depuis une topologie sauvegardée | « ⇧ Comme départ » |
+| Promouvoir la **cible courante** en nouvel état de départ | « ⇧ Nouvelle Topologie Départ » (en-tête du schéma cible) → `/api/promote_cible` (le schéma de départ est mis à jour) |
+| **Recharger** un scénario (départ + cible) | Bouton « ⟳ Recharger » (titre *Scénario Topologique*) → modale (sélecteur + Valider / Annuler) → `/api/load_scenario` (mode `both`) |
+| **Rechercher / explorer un poste** (champ unique) | `#posteSearch` + liste `#posteList` browsable : vide = exploration curée **par typologie** ; saisie = recherche plein-texte sur **tous** les VL NODE_BREAKER (épinglés ★ marqués dans les résultats) |
 | **Sauvegarder la séquence** avec lien vers ses topologies | `/api/save_sequence` (JSON autonome + champ `scenario`) |
 | Atteindre la **topologie détaillée** imposée (barre exacte) + vérification | façade `sequencer` (« libtopo » = `determiner_manoeuvres_cible_detaillee`) ; statut « DÉTAILLÉE VÉRIFIÉE » / « NODALE OK · N écart(s) » |
 | **Avertissement d'écrasement** d'un fichier de sauvegarde existant | Confirmation / renommage (réponse `{exists:true}`) |
@@ -387,7 +524,8 @@ assert res.ecarts == []
 | **Signaler visuellement** l'atteinte de la topologie cible | Halo jaune sur la vue du poste + « ✓ topologie cible atteinte » (champ `reached` de `/api/step`) |
 | **Éditer une topologie nodale cible** (réaiguillage / fusion / nouveau nœud) | Volet nodal SVG « vue bus » (barre + départs verticaux, libellés SLD + flux MW) ; **glisser-déposer** (départ→barre = réaiguillage, barre→barre = fusion) côté client |
 | **Élargir** le volet nodal pour afficher tous les nœuds | Séparateur déplaçable entre colonnes 2 et 3 (`#ndresize`) |
-| **Ouvrages déconnectés** présentés en liste (pas en nœud), reconnectables | Liste « ⚠ Ouvrages isolés » (chips) ; glisser sur une barre = reconnexion ; `isolated` dans `/api/nodale*` |
+| **Ouvrages déconnectés** présentés en liste (pas en nœud), reconnectables | Chips « ⚠ Ouvrages isolés » **en tête de cadre** (sous le titre de section), individuellement sélectionnables ; glisser sur une barre = reconnexion ; `isolated` dans `/api/nodale*` |
+| **Replier** indépendamment les sections nodales **Départ** / **Cible** | Bouton **▾ / ▸** dans le `.stitle` → `toggleNsec()` (replie tout sauf le titre ; l'autre section prend l'espace) |
 | **Re-éditer la cible détaillée** après calcul de séquence + signaler l'obsolescence | Bouton **✎ Modifier la cible** (`/api/cible`) ; bandeau « la séquence n'atteint plus cet état cible » |
 | Demander un **calcul de topologie détaillée d'intérêt** depuis la cible nodale | `/api/nodale_to_detaillee` → façade `identifier_topologie_detaillee` (phase A, algo sélectionné), cible détaillée chargée |
 
@@ -399,6 +537,22 @@ assert res.ecarts == []
   `scripts/manoeuvre_ihm_assets/index.html` (≈ 600 lignes), chargé au démarrage
   du module et servi tel quel par la route `GET /` (`PAGE`). Le `.py` ne contient
   plus de bloc HTML embarqué — édition du front sans toucher au serveur Python.
+- **Couverture de test** (`tests/manoeuvre/`) :
+  - `test_ihm_frontend_asset.py` — asset servi verbatim **+ garde-fou de
+    structure** : liste de **marqueurs requis** (onglets, `posteList`,
+    `promoteCible`, `validateCible`, `toggleNsec`, `Réinitialiser`, dates
+    2022/2023…) **présents** et de **marqueurs retirés** (`dsBox`, `posteCat`,
+    `datalist`, `= départ`, « Scénarios sauvegardés », auto-chargement…)
+    **absents** ; bloc `<script>` unique et accolades équilibrées.
+  - `test_ihm_dataset.py` — `/api/dataset/{config,timestamps,load}`,
+    `repo_pour_date` + **dérivation du repo par année** (timestamps **et** load),
+    drapeau `hosted`.
+  - `test_ihm_cache_and_api.py` — `/api/pick_grid_file` (succès / headless /
+    timeout), `/api/promote_cible` (+ `Session.promote_cible`), `content` renvoyé
+    par `/api/save` **et** `/api/save_sequence` (téléchargement local),
+    `_normalize_groups` ignore les nœuds vides.
+  - `test_ihm_nodale_*` / `test_ihm_sequence_edit.py` / `test_ihm_algo_selection.py`
+    — édition nodale, séquence, sélecteurs d'algo (inchangés).
 - **Couleurs** : pypowsybl encode les couleurs via des variables CSS
   (`var(--sld-vl-color)`). Le navigateur les résout nativement ; aucune palette
   maison n'est appliquée. (Pour un export PNG hors navigateur, voir

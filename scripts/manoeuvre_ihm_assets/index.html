@@ -57,7 +57,10 @@
  #nodal.collapsed .nbody{display:none}
  #nodal .nhead{font-size:12px;font-weight:bold;padding:6px 8px;background:#ecfdf5;border-bottom:1px solid #ccc;display:flex;align-items:center;gap:6px}
  #nodal .nsec{display:flex;flex-direction:column;min-height:0;border-bottom:2px solid #d1fae5}
- #nodal .nsec .stitle{font-size:11px;font-weight:bold;padding:4px 8px;color:#065f46;display:flex;justify-content:space-between}
+ #nodal .nsec.collapsed{flex:0 0 auto !important}
+ /* !important : renderIso pose un display:block inline qu'il faut surclasser */
+ #nodal .nsec.collapsed > :not(.stitle){display:none !important}
+ #nodal .nsec .stitle{font-size:11px;font-weight:bold;padding:4px 8px;color:#065f46;display:flex;align-items:center;justify-content:space-between}
  #nodal .nbody{flex:1;overflow:auto;padding:4px}
  #nodal .ntools{padding:4px 8px;display:flex;flex-wrap:wrap;gap:4px;background:#fff;border-bottom:1px solid #e5e7eb}
  #nodal .ntools button{padding:3px 7px;font-size:11px;margin:0}
@@ -77,8 +80,9 @@
  .nbus.droptarget .nbushit{fill:rgba(99,102,241,.13)}
  .nbus.droptarget .nbusbar{stroke-dasharray:5 3}
  body.ndndrag,body.ndndrag *{cursor:grabbing !important}
- /* Ouvrages isolés (déconnectés) : liste compacte, pas de nœud électrique */
- .nodiso{flex:0 0 auto;padding:3px 8px 6px;border-top:1px dashed #e2e8f0;background:#fffdf7}
+ /* Ouvrages isolés (déconnectés) : liste compacte en TÊTE de cadre (pas de nœud
+    électrique) — chips individuellement sélectionnables / glissables sur un nœud */
+ .nodiso{flex:0 0 auto;padding:4px 8px 5px;border-bottom:1px dashed #e2e8f0;background:#fffdf7}
  .nodiso .isohd{font-size:10px;color:#b45309;font-weight:bold;margin:2px 0}
  .nodiso.ro{background:#f8fafc}
  .nodiso.ro .isohd{color:#64748b}
@@ -89,35 +93,103 @@
  #nodstatus{font-size:11px;padding:4px 8px;white-space:normal}
  #nodstatus.okv{color:#065f46;background:#ecfdf5}
  #nodstatus.kov{color:#92400e;background:#fffbeb}
+ /* Onglets « Situation réseau » (Local / RTE7000) */
+ .tabs{display:flex;gap:0;margin:4px 0 0}
+ .tab{flex:1;padding:6px 4px;border:1px solid #bfdbfe;background:#e9eef5;margin:0;
+   font-size:12px;color:#334155;border-radius:0}
+ .tab:first-child{border-radius:5px 0 0 5px}
+ .tab:last-child{border-radius:0 5px 5px 0;border-left:none}
+ .tab.active{background:#2563eb;color:#fff;border-color:#2563eb;font-weight:bold}
+ .tabpanel{background:#eef6ff;border:1px solid #bfdbfe;border-top:none;
+   border-radius:0 0 6px 6px;padding:8px}
+ /* En-têtes d'étape du « Scénario Topologique » */
+ h2.step{font-size:13px;margin:12px 0 4px;color:#1e3a8a;
+   border-left:3px solid #2563eb;padding-left:6px}
+ .ibubble{cursor:help;color:#2563eb;font-weight:bold}
+ #dsSamples button{display:flex;flex-direction:column;align-items:center;line-height:1.15}
+ #dsSamples .stag{font-size:9px;color:#64748b}
+ .tab.active .stag{color:#dbeafe}
+ /* Petite modale (Recharger un scénario) */
+ .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;
+   align-items:center;justify-content:center;z-index:1000}
+ .modalbox{background:#fff;border-radius:8px;padding:16px 18px;min-width:300px;
+   max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+ .modalbox h3{margin:0 0 10px;font-size:14px}
+ /* Liste de postes unifiée (recherche + exploration curée par typologie) */
+ #posteList{max-height:240px;overflow:auto;border:1px solid #cbd5e1;border-radius:5px;
+   background:#fff;margin-top:4px}
+ #posteList .sec{font-size:10px;font-weight:bold;color:#475569;background:#f1f5f9;
+   padding:3px 8px;position:sticky;top:0}
+ #posteList .it{padding:3px 10px;cursor:pointer;font-size:12px;white-space:nowrap;
+   overflow:hidden;text-overflow:ellipsis}
+ #posteList .it:hover{background:#eef2ff}
+ #posteList .it.cur{background:#dbeafe;font-weight:bold}
+ #posteList .it.off{color:#9ca3af;cursor:not-allowed}
+ #posteList .it .pin{color:#d97706}
+ #posteList .empty{padding:6px 10px;font-size:11px;color:#888}
 </style></head><body>
 <div id="side">
-  <h2>Situation réseau</h2>
-  <input id="gridPath" placeholder="chemin .xiidm (situation réseau)" style="width:72%;padding:5px"
-         title="Charge une autre situation réseau côté serveur, puis liste ses postes">
-  <button onclick="loadGrid()">Charger</button>
-  <div id="gridMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
-
-  <h2>Poste</h2>
-  <select id="poste" title="Postes épinglés (jeu de test + 3 jeux de barres identifiés)"></select>
-  <div style="margin-top:6px">
-    <select id="posteCat" title="Explorer les postes par typologie (sections). Les postes grisés ne sont pas dans la situation chargée — charger la grille France pour y accéder."
-            style="width:100%;padding:6px"></select>
-    <div style="font-size:10px;color:#888;margin-top:2px">📂 par typologie — grisé = absent de la situation chargée</div>
+  <h2 style="margin-top:0">Situation réseau</h2>
+  <div class="tabs" role="tablist">
+    <button id="tabLocal" class="tab" onclick="selectTab('local')"
+            title="Charger une situation réseau depuis un fichier .xiidm local">📁 Local</button>
+    <button id="tabRte" class="tab" onclick="selectTab('rte')"
+            title="Charger une situation du dataset RTE 7000 (France) par date / heure">📅 RTE7000</button>
   </div>
-  <div style="margin-top:6px">
-    <input id="posteSearch" list="allPostes" placeholder="🔎 rechercher un poste (tous)…"
-           style="width:100%;padding:6px" autocomplete="off"
-           title="Inspecter n'importe quel poste NODE_BREAKER de la situation chargée">
-    <datalist id="allPostes"></datalist>
-  </div>
-  <div style="margin-top:6px"><button onclick="reset()">↺ État de départ</button></div>
 
-  <h2>1 · Valider la cible</h2>
-  <input id="scenName" placeholder="nom du scénario" style="width:62%;padding:5px">
-  <button onclick="save()">✓ Valider &amp; sauvegarder</button>
+  <div id="panelLocal" class="tabpanel">
+    <div style="display:flex;gap:4px">
+      <input id="gridPath" placeholder="chemin .xiidm (situation réseau)" style="flex:1;min-width:0;padding:5px"
+             title="Charge une situation réseau côté serveur, puis liste ses postes">
+      <button onclick="pickGridFile()" title="Parcourir le système de fichiers (sélecteur natif — usage local)">📂</button>
+    </div>
+    <div style="font-size:10px;color:#888;margin-top:2px">Fichier .xiidm côté serveur — 📂 pour parcourir (usage local).</div>
+    <div id="gridMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
+  </div>
+
+  <div id="panelRte" class="tabpanel" style="display:none">
+    <div style="font-size:11px;color:#555;margin-bottom:4px">Situation réseau France à une date/heure du dataset
+      <span class="ibubble" id="dsRepoInfo" title="">RTE 7000&nbsp;ⓘ</span> (téléchargée à la demande).</div>
+    <label style="font-size:12px;display:block">Date
+      <input id="dsDate" type="date" style="width:100%;padding:5px" title="Jour du dataset (YYYY-MM-DD)">
+    </label>
+    <div style="font-size:10px;color:#64748b;margin:4px 0 1px">⚡ Accès rapide — cas d'intérêt
+      <span class="ibubble" title="Journées identifiées intéressantes de la documentation (campagne RTE 7000, 2021-2023). Survolez une date pour son intérêt.">ⓘ</span></div>
+    <div id="dsSamples" style="margin:0 0 4px;display:flex;flex-wrap:wrap;gap:4px"></div>
+    <label style="font-size:12px;display:block;margin-top:2px">Heure (instantané, pas de 5 min)
+      <select id="dsTime" style="width:100%;padding:5px" title="Horodatage de l'instantané (midi par défaut)"></select>
+    </label>
+    <div id="dsMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
+  </div>
+
+  <button id="btnCharger" class="primary" style="width:100%;margin-top:6px"
+          onclick="chargerSituation()">⏬ Charger la situation</button>
+
+  <hr style="border:none;border-top:1px solid #d1d5db;margin:12px 0 6px">
+  <h2 style="margin:0;color:#1e3a8a">🗺 Scénario Topologique
+    <button onclick="openReload()" title="Recharger un scénario sauvegardé (départ + cible)"
+            style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">⟳ Recharger</button>
+  </h2>
+  <div style="font-size:10px;color:#888;margin:1px 0 0">Poste → topologie cible → séquence de manœuvres.</div>
+
+  <h2 class="step">1 · Poste</h2>
+  <input id="posteSearch" placeholder="🔎 rechercher un poste (tous)…"
+         style="width:100%;padding:6px" autocomplete="off"
+         title="Rechercher n'importe quel poste NODE_BREAKER de la situation chargée. Vide : pré-sélection de postes typiques par typologie.">
+  <div id="posteListTitle" style="font-size:11px;font-weight:bold;color:#475569;margin:5px 0 1px">📂 Pré-sélection de postes typiques</div>
+  <div id="posteList"></div>
+  <div style="font-size:10px;color:#888;margin-top:2px">🔎 recherche sur tous les postes · 📂 vide = exploration curée par typologie (grisé = absent)</div>
+
+  <h2 class="step">2 · Topologie cible</h2>
+  <div style="font-size:11px;color:#555;margin:1px 0 3px">Éditez la cible (clic sur un organe du schéma / volet nodal), puis validez-la.</div>
+  <button onclick="validateCible()" title="Valider la cible courante pour activer le calcul de séquence (sans sauvegarder de fichier)">✓ Valider</button>
+  <div style="display:flex;gap:4px;margin-top:4px">
+    <input id="scenName" placeholder="nom du scénario" style="flex:1;min-width:0;padding:5px">
+    <button onclick="save()" title="Sauvegarder le scénario (départ + cible). Sur le Space, le fichier est aussi téléchargé en local.">💾 Sauvegarder</button>
+  </div>
   <div id="savemsg" style="font-size:11px;color:#1a7f37;margin-top:3px"></div>
 
-  <h2>2 · Séquence de manœuvres</h2>
+  <h2 class="step">3 · Séquence de manœuvres</h2>
   <div style="font-size:12px;margin:2px 0">Mode :
     <select id="seqMode" style="width:auto;padding:3px" title="Smooth : dé-énergise au plus près, en place (peu d'ouvrages hors tension à la fois). Agressif : dé-énergise en lot (moins de manœuvres, plus d'ouvrages hors tension simultanément).">
       <option value="smooth">Smooth (sûr, en place)</option>
@@ -131,23 +203,19 @@
   <button id="bmanual" onclick="manualSeq()" disabled title="Construire la séquence à la main : cliquez les organes du schéma (départ → …), la cible s'affiche en référence">✋ Séquence manuelle</button>
   <div id="calchint" style="font-size:11px;color:#b45309">Validez d'abord la cible pour activer le calcul.</div>
 
-  <h2>Scénarios sauvegardés</h2>
-  <select id="scenSel" style="width:100%"><option value="">—</option></select>
-  <div style="display:flex;gap:4px;margin-top:4px">
-    <button onclick="loadScen('both')" title="départ + cible sauvegardés">▷ Rejouer</button>
-    <button onclick="loadScen('as_depart')" title="la cible sauvegardée devient le nouvel état de départ">⇧ Comme départ</button>
-  </div>
-  <h2>Nœuds électriques : <span id="nbn" class="badge">–</span></h2>
-  <div style="font-size:11px;color:#555">Clic sur un organe du schéma pour basculer son état (départ ➜ cible).</div>
 </div>
 <div id="main">
   <div class="pane" id="paneTop">
     <div class="ttl"><button class="cbtn" onclick="togglePane('paneTop')" title="Réduire / agrandir">▾</button>
+      <button onclick="reset()" title="Réinitialiser la cible à l'état d'origine du poste"
+              style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">↺ État d'origine</button>
       <span id="ttlA">Topologie de départ</span> — <span id="nbA" class="badge">–</span> nœud(s)</div>
     <div class="diag" id="diagTop">Choisissez un poste…</div>
   </div>
   <div class="pane" id="paneBot">
     <div class="ttl"><button class="cbtn" onclick="togglePane('paneBot')" title="Réduire / agrandir">▾</button>
+      <button onclick="promoteCible()" title="Promouvoir la cible courante (éditée) en nouvel état de départ — pour chaîner les scénarios"
+              style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">⇧ Nouvelle Topologie Départ</button>
       Topologie cible (éditable, clic sur un organe) — <span id="nbB" class="badge">–</span> nœud(s)
         · animation de la séquence ici</div>
     <div class="diag" id="diagBottom"></div>
@@ -185,20 +253,22 @@
     Topologie nodale</div>
   <div class="nbody" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
     <div class="nsec" style="flex:1">
-      <div class="stitle"><span>Départ</span><span class="badge" id="ndDepN">–</span></div>
-      <div class="nbody" id="ndDepart"></div>
+      <div class="stitle"><button class="cbtn" onclick="toggleNsec(this)" title="Replier / déplier">▾</button>
+        <span style="flex:1">Départ</span><span class="badge" id="ndDepN">–</span></div>
       <div class="nodiso ro" id="ndDepartIso" style="display:none"></div>
+      <div class="nbody" id="ndDepart"></div>
     </div>
     <div class="nsec" style="flex:2">
-      <div class="stitle"><span id="ndCibTitle">Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
+      <div class="stitle"><button class="cbtn" onclick="toggleNsec(this)" title="Replier / déplier">▾</button>
+        <span id="ndCibTitle" style="flex:1">Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
+      <div class="nodiso ed" id="ndCibleIso" style="display:none"></div>
       <div class="ntools">
         <button onclick="nodNewNode()" title="Créer un nœud vide (puis y glisser des départs ; ou avec la sélection courante)">＋ Nœud</button>
-        <button onclick="nodReset()" title="Réinitialiser la cible nodale = départ">= départ</button>
+        <button onclick="nodReset()" title="Réinitialiser la cible (nodale + détaillée) à la topologie d'origine du poste (départ)">↺ Réinitialiser</button>
         <button onclick="nodClearSel()" title="Vider la sélection">∅ Désélectionner</button>
       </div>
       <div style="font-size:10px;color:#64748b;padding:0 8px">Glisser un <b>départ</b> (ou une sélection : clic pour (dé)sélectionner) sur une autre barre = réaiguillage. Glisser une <b>barre</b> sur une autre = fusion. Flux en MW (état de départ).</div>
       <div class="nbody" id="ndCible"></div>
-      <div class="nodiso ed" id="ndCibleIso" style="display:none"></div>
     </div>
     <div style="font-size:11px;color:#555;margin:4px 8px 0">Algo :
       <select id="nodAlgo" style="width:auto;padding:2px" title="Algorithme d'identification de la topologie détaillée depuis la cible nodale (phase A de manoeuvre.plugins) : « libtopo » natif + plugins enregistrés."></select>
@@ -207,9 +277,69 @@
     <div id="nodstatus"></div>
   </div>
 </div>
+<div id="reloadModal" class="modal" style="display:none" onclick="if(event.target===this)closeReload()">
+  <div class="modalbox">
+    <h3>⟳ Recharger un scénario</h3>
+    <select id="scenSel" style="width:100%"><option value="">—</option></select>
+    <div style="font-size:10px;color:#888;margin-top:6px">« Valider » rejoue le scénario sauvegardé (départ + cible).</div>
+    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
+      <button onclick="closeReload()">Annuler</button>
+      <button class="primary" onclick="validateReload()">Valider</button>
+    </div>
+  </div>
+</div>
 <script>
 let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:false,
-  editTarget:false,stale:false};
+  editTarget:false,stale:false,currentVL:null,tab:'local'};
+// État de la source « dataset RTE7000 » (onglet de choix date/heure).
+// ``hosted`` = IHM déportée (Space HuggingFace) : les fichiers sauvegardés
+// côté serveur y sont éphémères → on les télécharge aussi en local.
+let DS={enabled:false,repo:'',defaultTime:'12:00',hosted:false};
+// Validation de la cible (étape 2) : active le calcul de séquence, **sans**
+// écrire de fichier (la sauvegarde est l'action séparée « 💾 Sauvegarder »).
+function validateCible(){setValidated(true);
+  document.getElementById('savemsg').textContent='✓ Cible validée — calcul de séquence activé (ou « 💾 Sauvegarder »).';}
+// Télécharge le fichier sauvegardé (JSON renvoyé par le backend) **si l'IHM est
+// déportée** (Space) — pour en garder une copie locale malgré le FS éphémère.
+function maybeDownload(r){
+  if(!DS.hosted||!r||!r.content)return false;
+  const blob=new Blob([r.content],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(r.name||'scenario')+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);return true;}
+// Cas d'intérêt documentés — repris de la « Table de campagne » (3 ans
+// 2021-2023, docs/dataset_rte7000/#table-de-campagne-campagnecampagnejson) :
+// jour · saison + blocs / postes actifs / reconfigurations structurelles,
+// affichés en bulle sur les puces d'accès rapide de l'onglet RTE7000. L'année
+// de la date détermine le dataset HuggingFace interrogé (repo -YYYY).
+const DATE_INFO={
+  '2021-01-03':{tag:'dim. · hiver',desc:"Dimanche, hiver — 6 233 blocs, 1 861 postes actifs, 36 reconfigurations structurelles (le MINIMUM) : week-end calme, cas « simple » de référence (journée pilote)."},
+  '2021-01-05':{tag:'mar. · hiver',desc:"Mardi, hiver — 6 554 blocs, 2 011 postes actifs, 123 reconfigurations structurelles : jour ouvré d'hiver."},
+  '2021-04-14':{tag:'mer. · printemps',desc:"Mercredi, printemps — 7 216 blocs, 2 024 postes actifs, 158 reconfigurations structurelles : mi-saison."},
+  '2021-07-15':{tag:'jeu. · été',desc:"Jeudi, été — 7 127 blocs, 2 096 postes actifs (le PLUS), 203 reconfigurations structurelles : pointe estivale."},
+  '2021-10-12':{tag:'mar. · automne',desc:"Mardi, automne — 6 760 blocs, 2 056 postes actifs, 208 reconfigurations structurelles (le MAXIMUM) : chantiers d'automne, cas « riche »."},
+  '2022-06-15':{tag:'mer. · été',desc:"Mercredi, été — 6 400 blocs, 2 037 postes actifs, 181 reconfigurations structurelles : autre année (dataset 2022)."},
+  '2023-02-08':{tag:'mer. · hiver',desc:"Mercredi, hiver — 6 442 blocs, 1 984 postes actifs, 185 reconfigurations structurelles, jusqu'à 38 organes manœuvrés (le plus profond) : autre année (dataset 2023)."},
+};
+// --- Onglets « Situation réseau » (Local ⇄ RTE7000) -----------------------
+function selectTab(which){
+  const local=(which==='local');S.tab=local?'local':'rte';
+  document.getElementById('tabLocal').classList.toggle('active',local);
+  document.getElementById('tabRte').classList.toggle('active',!local);
+  document.getElementById('panelLocal').style.display=local?'block':'none';
+  document.getElementById('panelRte').style.display=local?'none':'block';}
+// Bouton « Charger » unique : aiguille vers l'onglet actif.
+function chargerSituation(){if(S.tab==='rte')loadDataset();else loadGrid();}
+// Sélecteur de fichier natif (onglet Local, usage local) : remplit le chemin.
+async function pickGridFile(){
+  const msg=document.getElementById('gridMsg');msg.textContent='Ouverture du sélecteur…';
+  let r;try{r=await (await fetch('/api/pick_grid_file')).json();}
+  catch(e){msg.textContent='sélecteur indisponible — collez le chemin manuellement.';return;}
+  if(r.error){msg.textContent='Sélecteur indisponible ('+r.error+') — collez le chemin.';return;}
+  if(r.path){document.getElementById('gridPath').value=r.path;
+    msg.textContent='Fichier sélectionné — cliquez « Charger la situation ».';}
+  else msg.textContent='';}
 // État de l'éditeur de topologie nodale (volet de droite).
 let NOD={depart:{groups:[]},departIso:[],labels:{},types:{},flows:{},dirs:{},order:{},
   colors:{},colorsCible:{},groups:[],isolated:[],selBranches:new Set(),selNodes:new Set()};
@@ -218,28 +348,51 @@ const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/jso
 function setValidated(v){document.getElementById('bcalc').disabled=!v;
   document.getElementById('bmanual').disabled=!v;
   document.getElementById('calchint').style.display=v?'none':'block';}
-let ALL_POSTES=[];
+let ALL_POSTES=[],PINNED=[],CATALOG=[];
+const POSTE_CAP=300;   // borne d'affichage des résultats de recherche (perf)
+// Champ poste **unique** : un champ de recherche sur TOUS les postes de la
+// situation, et **en dessous** une liste browsable — vide = exploration curée
+// par typologie (postes épinglés ★ en tête) ; saisie = recherche plein-texte
+// sur tous les postes. Fusionne l'ancien champ de recherche et le sélecteur
+// « par typologie » dans une même interaction.
 function populatePostes(r){
   ALL_POSTES=r.all||r.postes||[];
-  const sel=document.getElementById('poste');sel.innerHTML='';
-  (r.postes||[]).forEach(p=>{const o=document.createElement('option');o.value=p;o.text=p;sel.add(o);});
-  const dl=document.getElementById('allPostes');dl.innerHTML='';
-  ALL_POSTES.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
-  populateCatalog(r.catalog||[]);}
-// Sélecteur « par typologie » : un <optgroup> par section ; postes absents de la
-// situation chargée grisés (option disabled).
-function populateCatalog(catalog){
-  const cs=document.getElementById('posteCat');cs.innerHTML='';
-  const ph=document.createElement('option');ph.value='';ph.text='📂 explorer par typologie…';
-  ph.disabled=true;ph.selected=true;cs.add(ph);
-  catalog.forEach(sec=>{
-    const og=document.createElement('optgroup');
-    og.label=`${sec.title}  (${sec.n_available}/${sec.postes.length})`;
-    sec.postes.forEach(p=>{const o=document.createElement('option');
-      o.value=p.vl;o.text=(p.available?'':'⚠ ')+p.vl;o.disabled=!p.available;
-      if(!p.available)o.title='absent de la situation chargée — charger la grille France';
-      og.appendChild(o);});
-    cs.appendChild(og);});}
+  PINNED=r.postes||[];
+  CATALOG=r.catalog||[];
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');}
+function _posteSec(title){const d=document.createElement('div');
+  d.className='sec';d.textContent=title;return d;}
+function _posteItem(vl,pinned,available){
+  const d=document.createElement('div');
+  d.className='it'+(available?'':' off')+(vl===S.currentVL?' cur':'');
+  d.innerHTML=(pinned?'<span class="pin">★ </span>':'')+xesc(vl)
+    +(available?'':' <span style="font-size:9px">⚠ absent</span>');
+  if(available)d.onclick=()=>load(vl);
+  else d.title='absent de la situation chargée — charger la grille France';
+  return d;}
+function renderPosteList(query){
+  const root=document.getElementById('posteList');if(!root)return;root.innerHTML='';
+  const q=(query||'').trim().toLowerCase();
+  // Le titre « Pré-sélection de postes typiques » ne concerne que la vue curée
+  // (champ vide) ; masqué pendant une recherche.
+  const title=document.getElementById('posteListTitle');
+  if(title)title.style.display=q?'none':'block';
+  if(q){   // recherche plein-texte sur TOUS les postes de la situation
+    const pin=new Set(PINNED);
+    const hits=ALL_POSTES.filter(p=>p.toLowerCase().includes(q));
+    if(!hits.length){root.innerHTML='<div class="empty">Aucun poste ne correspond.</div>';return;}
+    hits.slice(0,POSTE_CAP).forEach(p=>root.appendChild(_posteItem(p,pin.has(p),true)));
+    if(hits.length>POSTE_CAP){const d=document.createElement('div');d.className='empty';
+      d.textContent='… '+(hits.length-POSTE_CAP)+' autres — affinez la recherche.';
+      root.appendChild(d);}
+    return;}
+  // vide : exploration curée par typologie (les postes épinglés ★ restent
+  // repérables dans les résultats de recherche, sans section dédiée).
+  CATALOG.forEach(sec=>{
+    root.appendChild(_posteSec(sec.title+'  ('+sec.n_available+'/'+sec.postes.length+')'));
+    sec.postes.forEach(p=>root.appendChild(_posteItem(p.vl,false,p.available)));});
+  if(!CATALOG.length)
+    root.innerHTML='<div class="empty">Aucun poste — charger une situation.</div>';}
 // Sélecteurs d'algorithme pluggable (manoeuvre.plugins) : phase A (nodale →
 // détaillée, volet nodal) et phase B (séquencement, panneau latéral). Les
 // plugins tiers enregistrés (registre / entry points) y apparaissent d'office.
@@ -259,13 +412,71 @@ function fillAlgoSel(id,phase,r){
   sel.title=sel.disabled?sel.title+' (un seul algorithme disponible)':sel.title;}
 async function init(){const r=await (await fetch('/api/postes')).json();
   populatePostes(r);await refreshAlgos();
-  const sel=document.getElementById('poste');sel.onchange=()=>load(sel.value);
-  const cs=document.getElementById('posteCat');cs.onchange=()=>{if(cs.value)load(cs.value);};
-  // Recherche « tous postes » : datalist de tous les VL NODE_BREAKER de la situation.
+  // Champ poste unique : la saisie filtre la liste (recherche sur tous les
+  // postes) ; Entrée charge le poste si la saisie correspond exactement.
   const search=document.getElementById('posteSearch');
-  const go=()=>{const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);};
-  search.onchange=go;search.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
-  initNodalResize(); initNodalDnD(); await refreshScenarios(); if(r.postes.length) load(r.postes[0]);}
+  search.addEventListener('input',()=>renderPosteList(search.value));
+  search.addEventListener('keydown',e=>{if(e.key==='Enter'){
+    const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);}});
+  initNodalResize(); initNodalDnD(); await refreshScenarios(); await initDataset();
+  // Pas d'auto-chargement de poste : on attend que l'utilisateur en choisisse un
+  // (le schéma reste sur « Choisissez un poste… » tant qu'aucun n'est sélectionné).
+  if(r.postes&&r.postes.length){const t=document.getElementById('diagTop');
+    if(t&&!DS.enabled)t.textContent='Choisissez un poste…';}}
+// Réinitialise les vues quand aucun poste n'est encore choisi (après chargement
+// d'une situation, en attente du choix de poste).
+function awaitPosteChoice(){S.currentVL=null;
+  const t=document.getElementById('diagTop');if(t)t.textContent='Choisissez un poste…';
+  const b=document.getElementById('diagBottom');if(b)b.innerHTML='';
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');}
+// ---- Onglet « RTE7000 » : choisir une date/heure, charger la situation -------
+// L'onglet est **toujours présent** (Local d'abord, RTE7000 ensuite) ; le drapeau
+// ``enabled`` du backend ne décide que de l'**onglet actif par défaut** (RTE7000
+// « en avant » sur le Space, Local en usage local). Les endpoints dataset
+// fonctionnent dans les deux modes (accès HuggingFace à la demande).
+async function initDataset(){
+  let cfg;try{cfg=await (await fetch('/api/dataset/config')).json();}catch(e){cfg=null;}
+  if(cfg){DS.enabled=!!cfg.enabled;DS.repo=cfg.repo||'';DS.defaultTime=cfg.default_time||'12:00';
+    DS.hosted=!!cfg.hosted;
+    const di=document.getElementById('dsDate');di.value=cfg.default_date||'';
+    di.onchange=()=>loadDatasetTimestamps(di.value);
+    const info=document.getElementById('dsRepoInfo');
+    if(info)info.title='Dataset HuggingFace : '+(cfg.repo||'OpenSynth/D-GITT-RTE7000-*')
+      +' — réseau France, 1 instantané / 5 min, téléchargé à la demande.';
+    const sm=document.getElementById('dsSamples');sm.innerHTML='';
+    (cfg.sample_dates||[]).forEach(d=>{const meta=DATE_INFO[d]||{tag:'',desc:'Journée du dataset.'};
+      const b=document.createElement('button');b.style.cssText='padding:2px 6px;font-size:11px;margin:0';
+      b.title=d+' — '+meta.desc;
+      b.innerHTML=xesc(d)+(meta.tag?'<span class="stag">'+xesc(meta.tag)+'</span>':'');
+      b.onclick=()=>{di.value=d;loadDatasetTimestamps(d);};sm.appendChild(b);});
+    await loadDatasetTimestamps(di.value);}
+  selectTab(DS.enabled?'rte':'local');   // RTE7000 « en avant » sur le Space
+  if(DS.enabled&&!S.currentVL){const t=document.getElementById('diagTop');
+    if(t)t.textContent='Choisissez une date puis « Charger la situation »…';}}
+async function loadDatasetTimestamps(date){
+  const sel=document.getElementById('dsTime'),msg=document.getElementById('dsMsg');
+  sel.innerHTML='';if(!date)return;
+  msg.textContent='Liste des instantanés…';
+  let r;try{r=await (await fetch('/api/dataset/timestamps?date='+encodeURIComponent(date))).json();}
+  catch(e){msg.textContent='erreur réseau (HuggingFace)';return;}
+  if(!r||!r.ok){msg.textContent=(r&&r.error)||'aucun instantané pour cette date';return;}
+  (r.timestamps||[]).forEach(t=>{const o=document.createElement('option');o.value=t.ts;o.text=t.ts;sel.add(o);});
+  if(r.default)sel.value=r.default;
+  msg.textContent=(r.timestamps||[]).length+' instantané(s) — '+(r.default||'midi')+' présélectionné';}
+async function loadDataset(){
+  const date=document.getElementById('dsDate').value;
+  const time=document.getElementById('dsTime').value||DS.defaultTime;
+  const msg=document.getElementById('dsMsg');
+  if(!date){msg.textContent='choisir une date';return;}
+  msg.textContent='Chargement '+date+' '+time+' … (téléchargement + réseau France, quelques secondes)';
+  let r;try{r=await api('/api/dataset/load',{date,time});}catch(e){msg.textContent='erreur réseau';return;}
+  if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
+  populatePostes(r);await refreshAlgos();await refreshScenarios();
+  msg.textContent='✓ '+r.date+' '+r.time+' — '+(r.all||[]).length+' postes NODE_BREAKER';
+  // Préserver le poste courant s'il existe encore (changement de date) ; sinon
+  // **ne pas** auto-charger — attendre que l'utilisateur choisisse un poste.
+  if(S.currentVL&&(r.all||[]).includes(S.currentVL))load(S.currentVL);
+  else awaitPosteChoice();}
 // Charger une **situation réseau** quelconque (chemin .xiidm côté serveur).
 async function loadGrid(){
   const path=document.getElementById('gridPath').value.trim();if(!path)return;
@@ -275,11 +486,19 @@ async function loadGrid(){
   if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
   populatePostes(r);await refreshAlgos();   // nouvelle session => sélection d'algos réinitialisée
   msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
-  if(r.postes.length)load(r.postes[0]);else if(ALL_POSTES.length)load(ALL_POSTES[0]);}
-async function load(vl){stopAnim();const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
-  document.getElementById('poste').value=vl;            // sync menu épinglé (vide si non listé)
-  document.getElementById('posteSearch').value=vl;      // sync champ de recherche
+  awaitPosteChoice();}   // pas d'auto-chargement : l'utilisateur choisit un poste
+async function load(vl){stopAnim();S.currentVL=vl;const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');  // surligne le poste courant
   document.getElementById('scenName').value=vl+'_cible';}
+// Promouvoir la cible courante (éditée) en nouvel état de DÉPART — met à jour le
+// schéma du haut (départ) et repart d'une cible = nouveau départ ; permet de
+// chaîner sans passer par un scénario sauvegardé.
+async function promoteCible(){stopAnim();
+  const d=await api('/api/promote_cible',{});
+  if(d&&d.vl)S.currentVL=d.vl;
+  show(d);initNodale(d);hideSeq();setValidated(false);
+  document.getElementById('scenName').value=(S.currentVL||'')+'_cible';
+  document.getElementById('savemsg').textContent='Cible promue en nouvel état de départ — éditez puis validez une nouvelle cible.';}
 async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
   syncNodalCible(d.nodale);hideSeq();setValidated(false);}
 async function toggle(id){stopAnim();const d=await api('/api/toggle',{id});show(d);
@@ -296,7 +515,6 @@ async function toggleEditTarget(){
     const d=await api('/api/cible',{});
     document.getElementById('diagBottom').innerHTML=d.svg;
     document.getElementById('nbB').textContent=d.nb_noeuds;
-    document.getElementById('nbn').textContent=d.nb_noeuds;
     bind(d.switches);syncNodalCible(d.nodale);
     document.getElementById('paneBot').classList.remove('reached');
     b.textContent='▶ Revenir à la séquence';b.classList.add('primary');
@@ -327,6 +545,14 @@ function syncNodalCible(n){if(!n)return;
 async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).json();
   const sel=document.getElementById('scenSel');sel.innerHTML='<option value="">—</option>';
   r.scenarios.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;sel.add(o);});}
+// Modale « Recharger un scénario » (remplace l'ancienne section « Scénarios
+// sauvegardés ») : rafraîchit la liste puis ouvre ; « Valider » rejoue le
+// scénario (départ + cible), « Annuler » referme sans rien recharger.
+async function openReload(){await refreshScenarios();
+  document.getElementById('reloadModal').style.display='flex';}
+function closeReload(){document.getElementById('reloadModal').style.display='none';}
+async function validateReload(){const name=document.getElementById('scenSel').value;
+  if(name)await loadScen('both');closeReload();}
 async function saveWithConfirm(url,name,msgEl){
   let r=await api(url,{name});
   while(r.exists){
@@ -343,11 +569,15 @@ async function saveWithConfirm(url,name,msgEl){
 async function save(){const name=document.getElementById('scenName').value;
   const r=await saveWithConfirm('/api/save',name,document.getElementById('savemsg'));
   if(!r)return;
-  document.getElementById('savemsg').textContent='✓ Sauvegardé : '+r.path;
-  setValidated(true);await refreshScenarios();}
+  setValidated(true);await refreshScenarios();
+  const dl=maybeDownload(r);   // copie locale si IHM déportée (Space)
+  document.getElementById('savemsg').textContent='✓ Sauvegardé : '+r.path
+    +(dl?' · téléchargé en local':'');}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
   stopAnim();const d=await api('/api/load_scenario',{name,mode});
-  document.getElementById('poste').value=d.vl;show(d);initNodale(d);hideSeq();
+  if(d&&d.vl)S.currentVL=d.vl;
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');
+  show(d);initNodale(d);hideSeq();
   if(mode==='as_depart'){
     document.getElementById('scenName').value=name+'_suite';
     document.getElementById('savemsg').textContent='« '+name+' » chargé comme état de départ — éditez puis validez une nouvelle cible.';
@@ -367,7 +597,6 @@ function show(d){
     document.getElementById('ttlA').textContent='Topologie de départ';S.manual=false;}
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
-  document.getElementById('nbn').textContent=d.nb_noeuds;
   bind(d.switches);}
 function bind(switches){const root=document.getElementById('diagBottom');
   switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
@@ -462,7 +691,8 @@ async function saveSeq(){const name=document.getElementById('seqName').value;
   const msg=document.getElementById('seqsavemsg');
   const r=await saveWithConfirm('/api/save_sequence',name,msg);
   if(!r)return;
-  msg.textContent='✓ '+r.path;}
+  const dl=maybeDownload(r);   // copie locale si IHM déportée (Space)
+  msg.textContent='✓ '+r.path+(dl?' · téléchargé en local':'');}
 function bindStep(switches){const root=document.getElementById('diagBottom');
   switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
     if(el){el.style.cursor='pointer';el.onclick=()=>seqInsert(S.idx,s.id);
@@ -497,6 +727,9 @@ function toggleNodal(){const p=document.getElementById('nodal');
   if(p.classList.toggle('collapsed')){p.dataset.w=p.style.width||'';p.style.width='';}
   else if(p.dataset.w){p.style.width=p.dataset.w;}
   const b=p.querySelector('.cbtn');if(b)b.textContent=p.classList.contains('collapsed')?'▸':'◂';}
+// Replier / déplier une section nodale (Départ / Cible) — l'autre prend l'espace.
+function toggleNsec(btn){const sec=btn.closest('.nsec');if(!sec)return;
+  btn.textContent=sec.classList.toggle('collapsed')?'▸':'▾';}
 function initNodalResize(){const rz=document.getElementById('ndresize');
   const nod=document.getElementById('nodal');let drag=false;
   rz.addEventListener('mousedown',e=>{if(nod.classList.contains('collapsed'))return;
@@ -529,10 +762,12 @@ function initNodale(d){
   document.getElementById('nodstatus').textContent='';
   document.getElementById('nodstatus').className='';
   renderNodaleDepart();renderNodaleCible();}
-function nodReset(){NOD.groups=cloneGroups(NOD.depart.groups||[]);
-  NOD.isolated=(NOD.departIso||[]).slice();
-  NOD.colorsCible=Object.assign({},NOD.colors);  // recouleurs = départ
-  NOD.selBranches=new Set();NOD.selNodes=new Set();renderNodaleCible();}
+// « ↺ Réinitialiser » : ramène la cible à la topologie d'origine du poste
+// (départ) — **détaillée ET nodale**. Réutilise le reset complet (/api/reset,
+// même chemin que « État d'origine ») : l'ancien reset nodal client-only ne
+// remettait que la proposition nodale, pas le schéma détaillé → effet « ne
+// réinitialise pas » dès qu'on avait édité le détail ou calculé.
+async function nodReset(){await reset();}
 function nodNormalize(){NOD.groups=NOD.groups.filter(g=>g.length>0);}
 function nodeColor(i){return NODE_COLORS[i%NODE_COLORS.length];}
 // Couleur de la barre = couleur SLD du nœud (via une branche), sinon palette de repli.
@@ -612,7 +847,11 @@ function renderNodaleDepart(){const gs=NOD.depart.groups||[];
   document.getElementById('ndDepN').textContent=gs.length;
   renderNodaleSVG('ndDepart',gs,false,NOD.colors);
   renderIso('ndDepartIso',NOD.departIso,false);}
-function renderNodaleCible(){nodNormalize();
+// NB : on NE normalise PAS ici (sinon un nœud vide tout juste créé via « ＋ Nœud »
+// serait supprimé au re-rendu). Les nœuds vides sont des **cibles de dépose**
+// valides ; ils sont nettoyés par les opérations (déplacement / fusion) et
+// ignorés au calcul de la topologie détaillée.
+function renderNodaleCible(){
   document.getElementById('ndCibTitle').textContent='Cible (éditable)';  // restaure le mode édition
   document.getElementById('ndCibN').textContent=NOD.groups.length;
   renderNodaleSVG('ndCible',NOD.groups,true,NOD.colorsCible);
@@ -674,23 +913,27 @@ function nodMoveBranchesTo(eqs,target){
   NOD.isolated=NOD.isolated.filter(eq=>eqs.indexOf(eq)<0);   // reconnecte les isolés
   NOD.groups=NOD.groups.map(g=>g.filter(eq=>eqs.indexOf(eq)<0));
   eqs.forEach(eq=>{if(!NOD.groups[target].includes(eq))NOD.groups[target].push(eq);});
-  NOD.selBranches=new Set();renderNodaleCible();}
+  NOD.selBranches=new Set();nodNormalize();renderNodaleCible();}  // nettoie les nœuds vidés
 function nodMergeNodes(src,dst){
   if(src===dst||src<0||dst<0||src>=NOD.groups.length||dst>=NOD.groups.length)return;
   NOD.groups[dst]=NOD.groups[dst].concat(
     NOD.groups[src].filter(eq=>NOD.groups[dst].indexOf(eq)<0));
-  NOD.groups[src]=[];NOD.selBranches=new Set();renderNodaleCible();}
+  NOD.groups[src]=[];NOD.selBranches=new Set();nodNormalize();renderNodaleCible();}  // retire le nœud fusionné
+// « ＋ Nœud » : crée un nœud **vide** (cible de dépose). Avec une sélection, on y
+// déplace directement les départs sélectionnés ; sinon le nœud vide persiste —
+// glisser-y ensuite des départs. Un nœud resté vide est ignoré au calcul.
 function nodNewNode(){NOD.groups.push([]);const idx=NOD.groups.length-1;
   if(NOD.selBranches.size)nodMoveSelTo(idx);else renderNodaleCible();}
 function nodClearSel(){NOD.selBranches=new Set();renderNodaleCible();}
 async function nodCompute(){
   const st=document.getElementById('nodstatus');st.className='';st.textContent='Calcul en cours…';
-  const d=await api('/api/nodale_to_detaillee',{groups:NOD.groups,isolated:NOD.isolated});
+  // Les nœuds restés vides sont écartés (ignorés par le calcul de toute façon).
+  const groups=NOD.groups.filter(g=>g.length);
+  const d=await api('/api/nodale_to_detaillee',{groups,isolated:NOD.isolated});
   stopAnim();S.manual=false;
   // Charger la topologie détaillée d'intérêt comme cible (volet du bas).
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
-  document.getElementById('nbn').textContent=d.nb_noeuds;
   bind(d.switches);hideSeq();setValidated(false);
   // Resynchroniser la cible nodale sur la topologie détaillée RÉALISÉE
   // (partition + couleurs + isolés des nœuds obtenus).

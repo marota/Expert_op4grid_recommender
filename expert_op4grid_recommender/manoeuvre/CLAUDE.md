@@ -77,6 +77,12 @@ python scripts/render_carrip3_sld.py --grid path/to/grid.xiidm
 #   docs/manoeuvre_ihm.md
 pip install -e ".[ihm]"   # guillemets requis sous zsh (sinon: pip install flask)
 python scripts/manoeuvre_ihm.py --grid path/to/grid.xiidm   # http://localhost:8000
+
+# Mode dataset RTE 7000 (sans --grid) : source les situations par date/heure
+# dans le dataset HF OpenSynth/D-GITT-RTE7000-* (telechargement a la demande).
+# Couche dans manoeuvre/dataset/source.py ; deploiement HF Space dans
+# Dockerfile + deploy/huggingface/. Doc : docs/manoeuvre_ihm.md (S 1bis).
+python scripts/manoeuvre_ihm.py --dataset                   # http://localhost:8000
 ```
 
 ## Conventions critiques

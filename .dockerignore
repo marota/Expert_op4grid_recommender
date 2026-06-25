@@ -1,0 +1,25 @@
+# Trims the Docker build context (the IHM image only needs the package +
+# scripts; everything below is rebuilt, downloaded at runtime, or irrelevant).
+**/__pycache__
+**/*.pyc
+**/*.pyo
+*.egg-info
+
+# Local virtualenvs.
+venv
+.venv
+env
+
+# VCS / CI / editor.
+.git
+.github
+.circleci
+.idea
+.vscode
+
+# Not needed at runtime (the IHM downloads its data from HuggingFace on demand).
+docs
+tests
+data
+.cache
+Overflow_Graph

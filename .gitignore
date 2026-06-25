@@ -27,3 +27,10 @@ venv/
 .coverage.*
 htmlcov/
 coverage.xml
+
+# environnements virtuels (noms personnalisés)
+venv*/
+
+# artefacts non versionnés sur le Space (profiling, slides)
+*.prof
+*.pptx

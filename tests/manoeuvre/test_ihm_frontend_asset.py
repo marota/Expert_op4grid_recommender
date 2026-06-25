@@ -63,3 +63,74 @@ def test_python_source_no_longer_embeds_full_page():
     src = _IHM_PATH.read_text(encoding="utf-8")
     assert 'PAGE = r"""' not in src
     assert "manoeuvre_ihm_assets" in src
+
+
+# ---------------------------------------------------------------------------
+# Garde-fou de **structure** : verrouille la présence des éléments / handlers
+# de la refonte IHM (onglets, poste unifié, Scénario Topologique, promote,
+# Recharger, Valider/Sauvegarder, sections nodales repliables…) et l'**absence**
+# des éléments retirés/renommés. Un retrait accidentel casse la CI tout de suite.
+# ---------------------------------------------------------------------------
+
+#: marqueurs qui DOIVENT être présents dans l'asset servi
+REQUIRED_MARKERS = [
+    # Situation réseau : onglets + bouton unique + sélecteur de fichier
+    'id="tabLocal"', 'id="tabRte"', 'id="panelLocal"', 'id="panelRte"',
+    'id="btnCharger"', 'onclick="chargerSituation()"', 'onclick="pickGridFile()"',
+    'function selectTab', '/api/pick_grid_file',
+    # Champ poste unifié + titre + liste browsable + pas d'auto-chargement
+    'id="posteSearch"', 'id="posteList"', 'id="posteListTitle"',
+    "Pré-sélection de postes typiques", 'function renderPosteList',
+    'function awaitPosteChoice',
+    # Scénario Topologique en 3 étapes
+    "🗺 Scénario Topologique", "1 · Poste", "2 · Topologie cible",
+    "3 · Séquence de manœuvres",
+    # Recharger (modale)
+    'onclick="openReload()"', 'id="reloadModal"', 'id="scenSel"',
+    'function validateReload',
+    # Valider / Sauvegarder séparés + téléchargement local
+    'onclick="validateCible()"', "💾 Sauvegarder", 'function maybeDownload',
+    # Boutons en en-tête de schéma : reset + promote cible→départ
+    "↺ État d'origine", "⇧ Nouvelle Topologie Départ", 'onclick="promoteCible()"',
+    '/api/promote_cible',
+    # Volet nodal : sections repliables + Réinitialiser + isolés (conteneurs)
+    'onclick="toggleNsec(this)"', 'function toggleNsec', "↺ Réinitialiser",
+    "＋ Nœud", 'id="ndDepartIso"', 'id="ndCibleIso"',
+    # Dates d'accès rapide 2021-2023
+    "'2022-06-15'", "'2023-02-08'",
+]
+
+#: marqueurs qui ne DOIVENT PLUS apparaître (éléments retirés / renommés)
+FORBIDDEN_MARKERS = [
+    'id="dsBox"',                 # ancien encart dataset → onglets
+    'id="poste"',                 # ancien menu épinglé → recherche unifiée
+    'id="posteCat"',              # ancien sélecteur par typologie → posteList
+    "<datalist",                  # ancienne datalist → posteList
+    ">= départ<",                 # reset nodal renommé « ↺ Réinitialiser »
+    "Scénarios sauvegardés",      # section → modale Recharger
+    "Nœuds électriques",          # section redondante retirée
+    "loadScen('as_depart')",      # bouton recâblé sur promoteCible()
+    "Valider &amp; sauvegarder",  # scindé en Valider + Sauvegarder
+    "load(r.postes[0])",          # auto-chargement de poste supprimé
+]
+
+
+def test_frontend_structure_required_markers():
+    txt = _ASSET.read_text(encoding="utf-8")
+    missing = [m for m in REQUIRED_MARKERS if m not in txt]
+    assert not missing, f"marqueurs IHM attendus absents : {missing}"
+
+
+def test_frontend_structure_removed_markers_absent():
+    txt = _ASSET.read_text(encoding="utf-8")
+    present = [m for m in FORBIDDEN_MARKERS if m in txt]
+    assert not present, f"marqueurs retirés encore présents : {present}"
+
+
+def test_frontend_script_block_balanced():
+    # Un seul bloc <script> non vide (garde-fou contre une troncature de l'asset).
+    txt = _ASSET.read_text(encoding="utf-8")
+    assert txt.count("<script>") == 1 and txt.count("</script>") == 1
+    body = txt.split("<script>", 1)[1].split("</script>", 1)[0]
+    assert len(body) > 10_000          # le JS de l'IHM est substantiel
+    assert body.count("{") == body.count("}")   # accolades équilibrées
