@@ -143,13 +143,15 @@ SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")    # redéfini dans main()
 SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
 
 # Instantané des coordonnées de postes (résolu/persisté par « Explorer la
-# journée »). Par défaut sous la racine du dépôt (`data/`, usage local) ; sur le
-# Space le Dockerfile pointe ``MANOEUVRE_GEO_SNAPSHOT`` vers le **cache
-# inscriptible** (peut être adossé au stockage persistant HF pour survivre aux
-# redémarrages). Fetch ODRE actif sauf ``MANOEUVRE_ENABLE_ODRE=0``.
+# journée »). Par défaut **dans le cache** (``DGITT_CACHE_DIR``) : ainsi, pointer
+# ce cache vers le **stockage persistant HF** (``DGITT_CACHE_DIR=/data/dgitt``)
+# fait survivre **et** les instantanés XIIDM **et** les coordonnées aux
+# redémarrages — une seule variable. ``MANOEUVRE_GEO_SNAPSHOT`` force un autre
+# chemin. Fetch ODRE actif sauf ``MANOEUVRE_ENABLE_ODRE=0``.
 GEO_SNAPSHOT = pathlib.Path(os.environ.get(
     "MANOEUVRE_GEO_SNAPSHOT",
-    str(pathlib.Path(__file__).resolve().parent.parent / geographie.SNAPSHOT_DEFAUT)))
+    str(pathlib.Path(os.environ.get("DGITT_CACHE_DIR", ".cache/dgitt"))
+        / "postes_rte_geo.json")))
 ODRE_ENABLED = os.environ.get("MANOEUVRE_ENABLE_ODRE", "1").lower() not in (
     "0", "false", "no", "off")
 

@@ -49,16 +49,16 @@ COPY --chown=user scripts/ ./scripts/
 #
 # « Explorer la journée » (carte des postes) : les coordonnées sont résolues à la
 # volée depuis ODRE (postes-electriques-rte) — la sortie internet des Spaces étant
-# ouverte, **rien à configurer**. L'instantané résolu est persisté dans le cache
-# inscriptible ; adosser ce cache au **stockage persistant HF** (Settings → monter
-# sur /data, puis DGITT_CACHE_DIR=/data/dgitt) le fait survivre aux redémarrages
-# (et évite de re-télécharger les instantanés XIIDM). MANOEUVRE_ENABLE_ODRE=0
-# désactive le fetch ; ODRE_TOKEN (secret) est optionnel (rate-limit).
+# ouverte, **rien à configurer**. L'instantané résolu est persisté **dans le cache**
+# (donc sous DGITT_CACHE_DIR, à côté des XIIDM). Pour tout faire survivre aux
+# redémarrages : monter le **stockage persistant HF** sur /data et définir la
+# variable du Space DGITT_CACHE_DIR=/data/dgitt (une seule variable couvre les
+# instantanés XIIDM **et** les coordonnées). MANOEUVRE_ENABLE_ODRE=0 désactive le
+# fetch ; ODRE_TOKEN (secret) est optionnel (rate-limit).
 ENV DGITT_REPO=OpenSynth/D-GITT-RTE7000-2021 \
     DGITT_CACHE_DIR=/home/user/app/.cache/dgitt \
     DGITT_DEFAULT_DATE=2021-01-03 \
     MANOEUVRE_IHM_HOSTED=1 \
-    MANOEUVRE_GEO_SNAPSHOT=/home/user/app/.cache/dgitt/postes_rte_geo.json \
     PORT=7860
 
 EXPOSE 7860

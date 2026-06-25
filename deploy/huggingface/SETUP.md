@@ -40,7 +40,7 @@ gros fichier dans l'historique à gérer.
 | `HF_TOKEN` | *(absent)* | **Optionnel** : jeton de lecture HF pour desserrer le rate-limit anonyme du CDN. Le mettre en **secret** du Space. |
 | `MANOEUVRE_ENABLE_ODRE` | `1` | « Explorer la journée » : interroger **ODRE** pour les coordonnées des postes (carte). `0` pour désactiver (l'IHM bascule alors sur le **classement en liste**). |
 | `ODRE_TOKEN` | *(absent)* | **Optionnel** : clé API ODRE (rate-limit). Secret du Space ; l'accès anonyme suffit pour le dataset public. |
-| `MANOEUVRE_GEO_SNAPSHOT` | `…/.cache/dgitt/postes_rte_geo.json` | Chemin de l'instantané de coordonnées résolu/persisté (le pointer sur le **stockage persistant** pour survivre aux redémarrages). |
+| `MANOEUVRE_GEO_SNAPSHOT` | `$DGITT_CACHE_DIR/postes_rte_geo.json` | Chemin de l'instantané de coordonnées résolu/persisté. **Par défaut dans le cache** → il suffit de pointer `DGITT_CACHE_DIR` sur le stockage persistant pour le faire survivre (pas besoin de définir cette variable). |
 | `PORT` | `7860` | Port d'écoute (HF expose `:7860`). |
 
 ### « Explorer la journée » — carte des postes / ODRE
