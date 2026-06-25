@@ -83,7 +83,26 @@ python scripts/manoeuvre_ihm.py --grid path/to/grid.xiidm   # http://localhost:8
 # Couche dans manoeuvre/dataset/source.py ; deploiement HF Space dans
 # Dockerfile + deploy/huggingface/. Doc : docs/manoeuvre_ihm.md (S 1bis).
 python scripts/manoeuvre_ihm.py --dataset                   # http://localhost:8000
+
+# « Explorer la journee » (IHM, onglet RTE7000) : carte des postes localises +
+# bilan des changements d'OC sur 3 situations (minuit/midi/23h). Cœur de calcul
+# dans manoeuvre/dataset/exploration.py (changements par poste, par type d'OC) ;
+# coordonnees resolues par manoeuvre/dataset/geographie.py (substationPosition
+# embarquee -> snapshot data/postes_rte_geo.json -> ODRE en direct). Le snapshot
+# se genere hors-ligne : python scripts/fetch_postes_geo.py --date 2021-01-03.
+# Doc : docs/manoeuvre_ihm.md (S 1ter).
 ```
+
+### Sous-package `dataset/` (historique + exploration)
+
+| Fichier            | Role                                                       |
+|--------------------|------------------------------------------------------------|
+| `source.py`        | Source par date/heure du dataset HF (download a la demande)|
+| `dgitt.py`         | Lecture XIIDM -> etats d'organes par VL ; chronologies     |
+| `timeline.py`      | Chronologie de topologies, blocs de transition             |
+| `tagging.py`       | Tags d'intervention (consignation, scission, fusion…)      |
+| `exploration.py`   | **Intérêt d'une journée** : OC changés par poste, par type, top-10 |
+| `geographie.py`    | **Coordonnées des postes** (chaîne : XIIDM → snapshot → ODRE) |
 
 ## Conventions critiques
 

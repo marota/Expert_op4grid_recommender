@@ -127,6 +127,61 @@
  #posteList .it.off{color:#9ca3af;cursor:not-allowed}
  #posteList .it .pin{color:#d97706}
  #posteList .empty{padding:6px 10px;font-size:11px;color:#888}
+ /* ── Explorer la journée : carte des postes + bilan des changements ── */
+ #main{position:relative}
+ #mapPane{position:absolute;inset:0;display:none;flex-direction:column;background:#f8fafc;z-index:5}
+ #mapPane.on{display:flex}
+ /* En mode carte, le volet nodal auxiliaire cède la place (carte pleine largeur). */
+ body.mapmode #nodal,body.mapmode #ndresize{display:none}
+ #mapHead{font-size:12px;font-weight:bold;padding:6px 10px;background:#eef2ff;border-bottom:1px solid #c7d2fe;
+   display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+ #mapHead .sub{font-weight:normal;color:#475569}
+ #mapBody{flex:1;display:flex;min-height:0}
+ #mapSvgWrap{flex:1;position:relative;overflow:hidden;background:#f1f5f9;cursor:grab}
+ #mapSvgWrap.grabbing{cursor:grabbing}
+ #mapSvgWrap svg{display:block;width:100%;height:100%;touch-action:none}
+ .pdisk{cursor:pointer}
+ .pdisk:hover{stroke:#1e293b;stroke-width:1.2}
+ .ptop{stroke:#111;stroke-width:1.5}
+ .phalo{fill:none;stroke:#facc15;stroke-width:3;pointer-events:none}
+ #mapSide{width:230px;border-left:1px solid #cbd5e1;background:#fff;overflow:auto;display:flex;flex-direction:column}
+ #mapSide .sh{font-size:11px;font-weight:bold;color:#1e3a8a;padding:6px 8px;background:#eef2ff;
+   position:sticky;top:0;border-bottom:1px solid #e2e8f0}
+ .clrow{padding:4px 8px;font-size:11px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;
+   align-items:center;gap:6px}
+ .clrow:hover{background:#eef2ff}
+ .clrow .rk{flex:0 0 18px;height:18px;border-radius:9px;color:#fff;font-weight:bold;font-size:10px;
+   display:flex;align-items:center;justify-content:center;background:#64748b}
+ .clrow.top .rk{background:#d97706}
+ .clrow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:bold;color:#0f172a}
+ .clrow .tot{font-family:monospace;color:#b91c1c;font-weight:bold}
+ .clrow .nogeo{color:#94a3b8;font-size:9px}
+ #mapLegend{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.92);border:1px solid #cbd5e1;
+   border-radius:6px;padding:6px 8px;font-size:10px;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+ #mapLegend .lg{display:flex;align-items:center;gap:5px;margin:1px 0}
+ #mapLegend .dot{width:11px;height:11px;border-radius:50%;display:inline-block;border:1px solid #0003}
+ #mapLegend .hint{color:#64748b;margin-top:3px;max-width:170px}
+ #mapBubble{position:absolute;display:none;min-width:180px;max-width:260px;background:#fff;border:1px solid #94a3b8;
+   border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,.22);padding:8px 10px;font-size:12px;z-index:20}
+ #mapBubble h4{margin:0 0 4px;font-size:13px;display:flex;align-items:center;gap:6px}
+ #mapBubble .vchip{font-size:9px;padding:1px 5px;border-radius:8px;color:#fff}
+ #mapBubble .kindrow{font-family:monospace;font-size:11px;color:#334155;margin:2px 0}
+ #mapBubble .vls{max-height:90px;overflow:auto;margin:3px 0;border-top:1px dashed #e2e8f0;padding-top:3px}
+ #mapBubble .vlrow{font-size:11px;display:flex;justify-content:space-between;gap:8px;cursor:pointer;padding:1px 2px}
+ #mapBubble .vlrow:hover{background:#eef2ff}
+ #mapBubble .x{margin-left:auto;cursor:pointer;color:#94a3b8;font-weight:bold}
+ #mapBubble .go{margin-top:5px;width:100%}
+ #mapMsg{font-size:11px;color:#92400e;background:#fffbeb;padding:6px 10px;border-top:1px solid #fde68a}
+ #mapSpin{padding:20px;font-size:13px;color:#334155}
+ /* Barre d'exploration (vue topologique atteinte depuis la carte) */
+ #exploreBar{display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;background:#ecfeff;
+   border-bottom:1px solid #a5f3fc;font-size:12px}
+ #exploreBar.on{display:flex}
+ #exploreBar .grp{display:flex;align-items:center;gap:3px}
+ #exploreBar .lbl{color:#155e75;font-weight:bold}
+ #exploreBar button{padding:3px 8px;font-size:12px;margin:0}
+ #exploreBar button.hcur{background:#0891b2;color:#fff;border-color:#0891b2}
+ #btnExplore{width:100%;margin-top:4px;background:#0e7490;color:#fff;border-color:#0e7490}
 </style></head><body>
 <div id="side">
   <h2 style="margin-top:0">Situation réseau</h2>
@@ -160,6 +215,9 @@
       <select id="dsTime" style="width:100%;padding:5px" title="Horodatage de l'instantané (midi par défaut)"></select>
     </label>
     <div id="dsMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
+    <button id="btnExplore" onclick="exploreDay()"
+            title="Charge 3 situations (minuit / midi / 23 h), cartographie les postes et met en évidence ceux qui changent le plus dans la journée.">🗺 Explorer la journée</button>
+    <div id="exploreMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
   </div>
 
   <button id="btnCharger" class="primary" style="width:100%;margin-top:6px"
@@ -205,6 +263,36 @@
 
 </div>
 <div id="main">
+  <div id="exploreBar">
+    <button onclick="backToMap()" title="Revenir à la carte des postes">🗺 ← Carte</button>
+    <span class="sub" id="exploreSub" style="font-weight:bold;color:#0f172a"></span>
+    <div class="grp"><span class="lbl">Départ&nbsp;:</span><span id="exploreHours"></span></div>
+    <div class="grp"><span class="lbl">Retenir comme cible&nbsp;:</span><span id="exploreTargets"></span></div>
+    <span id="exploreVls" class="grp"></span>
+  </div>
+  <div id="mapPane">
+    <div id="mapHead">
+      <span>🗺 Carte du réseau</span>
+      <span class="sub" id="mapHeadInfo"></span>
+      <span style="flex:1"></span>
+      <button onclick="mapZoom(0.8)" title="Zoom +">＋</button>
+      <button onclick="mapZoom(1.25)" title="Zoom −">－</button>
+      <button onclick="mapReset()" title="Recentrer">⤢ Recentrer</button>
+      <button onclick="exitMapMode()" title="Fermer la carte (revenir à la vue topologique)">✕ Fermer</button>
+    </div>
+    <div id="mapBody">
+      <div id="mapSvgWrap">
+        <div id="mapSpin" style="display:none">Chargement de la journée…</div>
+        <div id="mapBubble"></div>
+        <div id="mapLegend"></div>
+      </div>
+      <div id="mapSide">
+        <div class="sh">⭐ Postes les plus actifs</div>
+        <div id="mapList"></div>
+      </div>
+    </div>
+    <div id="mapMsg" style="display:none"></div>
+  </div>
   <div class="pane" id="paneTop">
     <div class="ttl"><button class="cbtn" onclick="togglePane('paneTop')" title="Réduire / agrandir">▾</button>
       <button onclick="reset()" title="Réinitialiser la cible à l'état d'origine du poste"
@@ -418,7 +506,7 @@ async function init(){const r=await (await fetch('/api/postes')).json();
   search.addEventListener('input',()=>renderPosteList(search.value));
   search.addEventListener('keydown',e=>{if(e.key==='Enter'){
     const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);}});
-  initNodalResize(); initNodalDnD(); await refreshScenarios(); await initDataset();
+  initNodalResize(); initNodalDnD(); initMap(); await refreshScenarios(); await initDataset();
   // Pas d'auto-chargement de poste : on attend que l'utilisateur en choisisse un
   // (le schéma reste sur « Choisissez un poste… » tant qu'aucun n'est sélectionné).
   if(r.postes&&r.postes.length){const t=document.getElementById('diagTop');
@@ -488,6 +576,7 @@ async function loadGrid(){
   msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
   awaitPosteChoice();}   // pas d'auto-chargement : l'utilisateur choisit un poste
 async function load(vl){stopAnim();S.currentVL=vl;const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
+  document.getElementById('exploreBar').classList.remove('on');  // chargement « normal » (hors carte)
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');  // surligne le poste courant
   document.getElementById('scenName').value=vl+'_cible';}
 // Promouvoir la cible courante (éditée) en nouvel état de DÉPART — met à jour le
@@ -944,6 +1033,249 @@ async function nodCompute(){
     if(d.noeuds_non_realisables&&d.noeuds_non_realisables.length)msg+=' Nœuds non réalisables : '+d.noeuds_non_realisables.map(g=>g.join(',')).join(' | ')+'.';}
   if(d.ecarts&&d.ecarts.length)msg+=' Écarts : '+d.ecarts.join(' ; ')+'.';
   st.textContent=msg;}
+
+// ============================================================================
+//  Explorer la journée — carte des postes localisés + bilan des changements
+// ============================================================================
+// État de la carte/exploration. ``data`` = dernier /api/explore_day ; ``vb`` =
+// viewBox courant (pan/zoom) ; ``box`` = viewBox de référence (recentrage) ;
+// ``bySub`` = index poste géolocalisé ; ``topo*`` = poste/heure en vue topo.
+let MAP={data:null,vb:null,box:null,bySub:{},heures:[],clickTimer:null,
+  topoSub:null,topoVl:null,topoHour:null};
+const EARTH_R=6378137;   // Web Mercator (même projection que Co-Study4Grid)
+function merc(lon,lat){return [EARTH_R*lon*Math.PI/180,
+  EARTH_R*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))];}
+// Code couleur par niveau de tension (palette type RTE).
+const VOLT_BANDS=[
+  {min:380,color:'#e1140a',label:'400 kV'},
+  {min:300,color:'#df7000',label:'≥ 300 kV'},
+  {min:200,color:'#1f9d3c',label:'225 kV'},
+  {min:130,color:'#1aa0a0',label:'150 kV'},
+  {min:80, color:'#d4691e',label:'90 kV'},
+  {min:55, color:'#7c3aed',label:'63 kV'},
+  {min:30, color:'#c2569b',label:'45 kV'},
+  {min:0,  color:'#64748b',label:'< 45 kV'}];
+function voltColor(nv){for(const b of VOLT_BANDS)if(nv>=b.min)return b.color;return '#64748b';}
+function fmtKv(nv){return Math.round(nv||0)+' kV';}
+function kindShort(t){return {BREAKER:'DJ',DISCONNECTOR:'SA',LOAD_BREAK_SWITCH:'INT'}[t]||t;}
+function vbStr(v){return v.x.toFixed(1)+' '+v.y.toFixed(1)+' '+v.w.toFixed(1)+' '+v.h.toFixed(1);}
+function applyVB(){const s=document.getElementById('mapSvg');if(s&&MAP.vb)s.setAttribute('viewBox',vbStr(MAP.vb));}
+
+function enterMapMode(){document.getElementById('mapPane').classList.add('on');
+  document.body.classList.add('mapmode');
+  document.getElementById('exploreBar').classList.remove('on');hideBubble();}
+function exitMapMode(){document.getElementById('mapPane').classList.remove('on');
+  document.body.classList.remove('mapmode');}
+function backToMap(){if(MAP.data)enterMapMode();}
+
+async function exploreDay(){
+  const date=document.getElementById('dsDate').value;
+  const msg=document.getElementById('exploreMsg');
+  if(!date){msg.textContent='Choisir une date d’abord.';return;}
+  enterMapMode();stopAnim();
+  const spin=document.getElementById('mapSpin');spin.style.display='block';
+  spin.textContent='Chargement des 3 situations (minuit · midi · 23 h) de '+date
+    +' … téléchargement + calcul des changements d’OC (≈ 1 min).';
+  document.getElementById('mapHeadInfo').textContent=date+' — exploration en cours…';
+  msg.textContent='Exploration de '+date+' …';
+  let r;try{r=await api('/api/explore_day',{date});}
+  catch(e){spin.textContent='Erreur réseau.';msg.textContent='erreur réseau';return;}
+  if(!r||!r.ok){spin.style.display='block';spin.textContent=(r&&r.error)||'Échec de l’exploration.';
+    msg.textContent=(r&&r.error)||'échec';return;}
+  spin.style.display='none';msg.textContent='✓ '+date+' exploré.';
+  renderExplore(r);
+}
+
+function renderExplore(d){
+  MAP.data=d;MAP.heures=d.heures||[];MAP.bySub={};
+  const hrs=(d.heures||[]).map(h=>h.ts).join(' · ');
+  document.getElementById('mapHeadInfo').textContent=
+    d.date+' ('+hrs+') · '+d.n_postes+' postes · '+d.n_actifs+' actifs · '
+    +d.n_geolocalises+' géolocalisés · coord. : '+d.coord_source;
+  renderClassement(d);renderLegend();
+  const mm=document.getElementById('mapMsg');
+  const old=document.getElementById('mapSvg');if(old)old.remove();
+  if(!d.postes||!d.postes.length){
+    mm.style.display='block';
+    mm.innerHTML='⚠ Aucune coordonnée de poste résolue (source : <b>'+xesc(d.coord_source)
+      +'</b>). La carte est indisponible ; utilisez le <b>classement</b> à droite '
+      +'(cliquez un poste pour ouvrir sa topologie). Pour activer la carte : générez '
+      +'<code>data/postes_rte_geo.json</code> via <code>scripts/fetch_postes_geo.py</code> '
+      +'(là où ODRE est joignable), ou autorisez <code>odre.opendatasoft.com</code>.';
+    return;}
+  mm.style.display='none';
+  buildMap(d.postes);
+}
+
+function buildMap(postes){
+  const pts=postes.map(p=>{const m=merc(p.lon,p.lat);MAP.bySub[p.sub]=p;
+    return {p,x:m[0],y:-m[1]};});   // y inversé (SVG vers le bas)
+  let xmin=1/0,xmax=-1/0,ymin=1/0,ymax=-1/0;
+  pts.forEach(q=>{xmin=Math.min(xmin,q.x);xmax=Math.max(xmax,q.x);
+    ymin=Math.min(ymin,q.y);ymax=Math.max(ymax,q.y);});
+  const sx=xmax-xmin||1,sy=ymax-ymin||1,span=Math.max(sx,sy),pad=span*0.04;
+  MAP.box={x:xmin-pad,y:ymin-pad,w:sx+2*pad,h:sy+2*pad};MAP.vb=Object.assign({},MAP.box);
+  const r=span/1400,rtop=span/430;
+  let s='';
+  pts.forEach(q=>{const top=!!q.p.rank,rr=top?rtop:r,col=voltColor(q.p.nv);
+    if(top)s+='<circle class="phalo" cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(rr*1.7).toFixed(1)+'"/>';
+    s+='<circle class="pdisk'+(top?' ptop':'')+'" data-sub="'+xesc(q.p.sub)+'" cx="'+q.x.toFixed(1)
+      +'" cy="'+q.y.toFixed(1)+'" r="'+rr.toFixed(1)+'" fill="'+col+'" fill-opacity="'
+      +(q.p.total>0?0.95:0.5)+'"/>';});
+  const wrap=document.getElementById('mapSvgWrap');
+  wrap.insertAdjacentHTML('afterbegin','<svg id="mapSvg" viewBox="'+vbStr(MAP.vb)
+    +'" preserveAspectRatio="xMidYMid meet">'+s+'</svg>');
+}
+
+// Pan/zoom par manipulation du viewBox + délégation d'événements (≈6000 disques,
+// fluide : aucun re-rendu au pan/zoom, un seul écouteur par type).
+function initMap(){
+  const wrap=document.getElementById('mapSvgWrap');let pan=null;
+  function svgPt(e){const r=wrap.getBoundingClientRect();
+    return {px:(e.clientX-r.left)/r.width,py:(e.clientY-r.top)/r.height,r};}
+  function zoomAt(e,f){if(!MAP.vb)return;const {px,py}=svgPt(e);
+    const cx=MAP.vb.x+px*MAP.vb.w,cy=MAP.vb.y+py*MAP.vb.h,nw=MAP.vb.w*f,nh=MAP.vb.h*f;
+    MAP.vb={x:cx-px*nw,y:cy-py*nh,w:nw,h:nh};applyVB();}
+  MAP._zoomAt=zoomAt;
+  wrap.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e,e.deltaY<0?0.85:1/0.85);},{passive:false});
+  wrap.addEventListener('mousedown',e=>{if(!MAP.vb||e.target.closest('.pdisk'))return;
+    pan={x:e.clientX,y:e.clientY,vb:Object.assign({},MAP.vb)};wrap.classList.add('grabbing');});
+  window.addEventListener('mousemove',e=>{if(!pan||!MAP.vb)return;const r=wrap.getBoundingClientRect();
+    MAP.vb={x:pan.vb.x-(e.clientX-pan.x)/r.width*pan.vb.w,
+      y:pan.vb.y-(e.clientY-pan.y)/r.height*pan.vb.h,w:pan.vb.w,h:pan.vb.h};applyVB();});
+  window.addEventListener('mouseup',()=>{if(pan){pan=null;wrap.classList.remove('grabbing');}});
+  wrap.addEventListener('click',e=>{const el=e.target.closest('.pdisk');if(!el)return;
+    if(MAP.clickTimer){clearTimeout(MAP.clickTimer);MAP.clickTimer=null;return;}  // 2e clic
+    const sub=el.getAttribute('data-sub'),ev={clientX:e.clientX,clientY:e.clientY};
+    MAP.clickTimer=setTimeout(()=>{MAP.clickTimer=null;showBubble(sub,ev);},230);});
+  wrap.addEventListener('dblclick',e=>{const el=e.target.closest('.pdisk');if(!el)return;
+    if(MAP.clickTimer){clearTimeout(MAP.clickTimer);MAP.clickTimer=null;}
+    hideBubble();mapOpenPoste(el.getAttribute('data-sub'));});
+}
+function mapZoom(f){const w=document.getElementById('mapSvgWrap').getBoundingClientRect();
+  if(MAP._zoomAt)MAP._zoomAt({clientX:w.left+w.width/2,clientY:w.top+w.height/2},f);}
+function mapReset(){if(MAP.box){MAP.vb=Object.assign({},MAP.box);applyVB();}}
+function flyTo(sub){const p=MAP.bySub[sub];if(!p||!MAP.box)return;const m=merc(p.lon,p.lat);
+  const w=MAP.box.w*0.16,h=MAP.box.h*0.16;MAP.vb={x:m[0]-w/2,y:-m[1]-h/2,w,h};applyVB();}
+
+function showBubble(sub,e){const p=MAP.bySub[sub];if(!p)return;
+  const b=document.getElementById('mapBubble'),col=voltColor(p.nv);
+  const types=(MAP.data&&MAP.data.types_oc)||['BREAKER','DISCONNECTOR'];
+  const kinds=types.map(t=>kindShort(t)+' '+(p[t]||0)).join(' · ');
+  b.innerHTML='';
+  const h=document.createElement('h4');
+  h.innerHTML='<span class="vchip" style="background:'+col+'">'+fmtKv(p.nv)+'</span>'+xesc(p.name)
+    +(p.rank?' <span class="vchip" style="background:#d97706">#'+p.rank+'</span>':'')
+    +'<span class="x">✕</span>';
+  h.querySelector('.x').onclick=hideBubble;b.appendChild(h);
+  const kr=document.createElement('div');kr.className='kindrow';
+  kr.textContent='Σ '+p.total+' OC changés — '+kinds;b.appendChild(kr);
+  const vls=document.createElement('div');vls.className='vls';
+  (p.vls||[]).forEach(v=>{const row=document.createElement('div');row.className='vlrow';
+    row.innerHTML='<span>'+xesc(v.vl)+' <b style="color:'+voltColor(v.nv)+'">'+fmtKv(v.nv)
+      +'</b></span><span class="tot">'+v.total+' chg</span>';
+    row.onclick=()=>mapOpenVl(sub,v.vl);vls.appendChild(row);});
+  if(!(p.vls||[]).length)vls.innerHTML='<i>—</i>';
+  b.appendChild(vls);
+  const go=document.createElement('button');go.className='go primary';
+  go.textContent='▶ Topologie de ce poste';go.onclick=()=>mapOpenPoste(sub);b.appendChild(go);
+  const wr=document.getElementById('mapSvgWrap').getBoundingClientRect();
+  b.style.display='block';
+  let x=e.clientX-wr.left+12,y=e.clientY-wr.top+12;
+  if(x+b.offsetWidth>wr.width)x=wr.width-b.offsetWidth-6;
+  if(y+b.offsetHeight>wr.height)y=wr.height-b.offsetHeight-6;
+  b.style.left=Math.max(4,x)+'px';b.style.top=Math.max(4,y)+'px';}
+function hideBubble(){const b=document.getElementById('mapBubble');if(b)b.style.display='none';}
+
+function renderLegend(){const lg=document.getElementById('mapLegend');
+  let h='<div style="font-weight:bold;margin-bottom:2px">Tension</div>';
+  VOLT_BANDS.forEach(b=>{h+='<div class="lg"><span class="dot" style="background:'+b.color+'"></span>'+b.label+'</div>';});
+  h+='<div class="hint">⭐ halo = top 10 · clic = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
+  lg.innerHTML=h;}
+
+function renderClassement(d){const root=document.getElementById('mapList');root.innerHTML='';
+  (d.classement||[]).forEach(c=>{const row=document.createElement('div');
+    row.className='clrow'+(c.rank&&c.rank<=10?' top':'');
+    const extra=(c.LOAD_BREAK_SWITCH?', INT '+c.LOAD_BREAK_SWITCH:'');
+    row.innerHTML='<span class="rk">'+(c.rank||'')+'</span>'
+      +'<span class="nm" style="border-left:3px solid '+voltColor(c.nv)+';padding-left:4px">'+xesc(c.name)+'</span>'
+      +'<span class="tot">'+c.total+'</span>'+(c.geo?'':'<span class="nogeo">⌖?</span>');
+    row.title=c.name+' — '+c.total+' OC changés (DJ '+(c.BREAKER||0)+', SA '+(c.DISCONNECTOR||0)+extra+')'
+      +(c.geo?'':' — non géolocalisé');
+    row.onclick=()=>{if(c.geo&&MAP.bySub[c.sub]){flyTo(c.sub);
+        const wr=document.getElementById('mapSvgWrap').getBoundingClientRect();
+        showBubble(c.sub,{clientX:wr.left+wr.width/2,clientY:wr.top+wr.height/2});}
+      else mapToTopo(c.sub,c.top_vl,defaultHour());};
+    root.appendChild(row);});}
+
+function defaultHour(){const hs=MAP.heures||[];
+  const m=hs.find(h=>h.requested==='12:00')||hs[Math.floor(hs.length/2)]||hs[0];
+  return m?m.requested:'12:00';}
+function mapOpenPoste(sub){const p=MAP.bySub[sub]
+    ||((MAP.data&&MAP.data.classement)||[]).find(c=>c.sub===sub);
+  mapToTopo(sub,p&&p.top_vl,defaultHour());}
+function mapOpenVl(sub,vl){mapToTopo(sub,vl,defaultHour());}
+
+// Double-clic / bouton bulle : passe en VUE TOPOLOGIQUE du poste à l'heure visée.
+async function mapToTopo(sub,vl,hour){hideBubble();stopAnim();
+  const r=await api('/api/explore_poste',{sub,vl,hour});
+  if(!r||!r.ok){alert((r&&r.error)||'Ouverture du poste impossible.');return;}
+  exitMapMode();
+  S.currentVL=r.vl;MAP.topoSub=r.sub;MAP.topoVl=r.vl;MAP.topoHour=r.hour;
+  if(r.heures)MAP.heures=r.heures;
+  show(r);initNodale(r);hideSeq();setValidated(false);
+  document.getElementById('scenName').value=r.vl+'_cible';
+  renderExploreBar(r);syncHourPoste(r.hour,r.vl);
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');}
+
+function renderExploreBar(r){
+  document.getElementById('exploreBar').classList.add('on');
+  const nm=(MAP.bySub[r.sub]&&MAP.bySub[r.sub].name)||r.sub;
+  document.getElementById('exploreSub').textContent='📍 '+nm+' — '+r.vl;
+  const hrs=r.heures||MAP.heures||[];
+  const mk=(host,onclick,activeReq,title)=>{host.innerHTML='';
+    hrs.forEach(h=>{const b=document.createElement('button');b.textContent=h.ts;
+      if(h.requested===activeReq)b.classList.add('hcur');b.title=title(h);
+      b.onclick=()=>onclick(h.requested);host.appendChild(b);});};
+  mk(document.getElementById('exploreHours'),exploreHour,MAP.topoHour,
+     h=>'Charger la topologie de DÉPART à '+h.ts);
+  mk(document.getElementById('exploreTargets'),retainTarget,null,
+     h=>'Définir la CIBLE = topologie du poste à '+h.ts+' (puis éditable)');
+  const vd=document.getElementById('exploreVls');vd.innerHTML='';
+  const vls=r.sub_vls||[];
+  if(vls.length>1){const l=document.createElement('span');l.className='lbl';
+    l.textContent='Niveau :';vd.appendChild(l);
+    vls.forEach(v=>{const b=document.createElement('button');b.textContent=fmtKv(v.nv);
+      if(v.vl===r.vl)b.classList.add('hcur');b.title=v.vl+' — '+v.total+' OC changés';
+      b.onclick=()=>mapToTopo(r.sub,v.vl,MAP.topoHour);vd.appendChild(b);});}}
+
+async function exploreHour(hour){stopAnim();
+  const r=await api('/api/explore_poste',{sub:MAP.topoSub,vl:MAP.topoVl,hour});
+  if(!r||!r.ok)return;MAP.topoHour=r.hour;
+  show(r);initNodale(r);hideSeq();setValidated(false);
+  renderExploreBar(r);syncHourPoste(r.hour,r.vl);}
+
+async function retainTarget(hour){
+  const r=await api('/api/explore_retain_target',{vl:MAP.topoVl,hour});
+  if(!r||!r.ok)return;
+  document.getElementById('diagBottom').innerHTML=r.svg;
+  document.getElementById('nbB').textContent=r.nb_noeuds;
+  bind(r.switches);syncNodalCible(r.nodale);setValidated(false);
+  if(S.n>0)markSeqStale();else hideSeq();
+  const ts=((MAP.heures||[]).find(h=>h.requested===hour)||{}).ts||hour;
+  document.getElementById('savemsg').textContent='Cible = topologie de '+ts
+    +' (éditable). Validez puis calculez la séquence.';}
+
+// Reflète l'heure et le poste ciblé dans les sélecteurs de la colonne de gauche.
+function syncHourPoste(hourReq,vl){
+  const ts=((MAP.heures||[]).find(h=>h.requested===hourReq)||{}).ts||hourReq;
+  const sel=document.getElementById('dsTime');
+  if(sel){if(![...sel.options].some(o=>o.value===ts)){
+      const o=document.createElement('option');o.value=ts;o.text=ts;sel.add(o);}
+    sel.value=ts;}
+  const ps=document.getElementById('posteSearch');if(ps){ps.value=vl;
+    renderPosteList(vl);}}
+
 init();
 </script>
 </body></html>

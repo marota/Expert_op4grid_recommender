@@ -91,6 +91,9 @@ from expert_op4grid_recommender.manoeuvre.plugins import (
     disponibles as algos_disponibles,
 )
 from expert_op4grid_recommender.manoeuvre.dataset import source as dataset_source
+from expert_op4grid_recommender.manoeuvre.dataset import geographie
+from expert_op4grid_recommender.manoeuvre.dataset import exploration
+from expert_op4grid_recommender.manoeuvre.dataset.dgitt import _charger_reseau
 
 # Postes de test retenus (intersectés avec les VL réellement présents)
 POSTES_TEST = [
@@ -390,6 +393,37 @@ class Session:
         self.seq_manoeuvres = []
         self.seq_states, self.seq_highlights, self.seq_labels = [], [], []
         self.seq_edited = False
+        self.scenario_name = None
+
+    def load_states(self, vl, states: dict[str, bool]):
+        """Charge un poste avec un **état de départ explicite** (au lieu du
+        pristine du réseau de référence) : utilisé par l'exploration de journée
+        pour afficher la topologie d'un poste **à une heure donnée** (minuit /
+        midi / 23 h), sans recharger un réseau France entier — on applique les
+        états de l'heure visée pour ce VL sur le réseau de référence.
+
+        ``states`` couvre les organes du VL à l'heure visée ; les organes
+        absents retombent sur l'état courant du réseau (pristine)."""
+        self.vl = vl
+        self._graph_cache.clear()
+        self._topo_cache.clear()
+        self._flow_cache.clear()
+        df = self.switches_df(vl)
+        self.initial = {sid: bool(states.get(sid, self.pristine.get(sid, False)))
+                        for sid in df.index}
+        self.current = dict(self.initial)
+        self.apply(self.initial)   # le SLD du VL reflète l'heure visée
+        self.seq_manoeuvres = []
+        self.seq_states, self.seq_highlights, self.seq_labels = [], [], []
+        self.seq_edited = False
+        self.scenario_name = None
+
+    def set_target_states(self, states: dict[str, bool]):
+        """Définit la **cible courante** depuis un état d'organes (p. ex. la
+        topologie du poste à une autre heure de la journée : « retenir cette
+        topologie comme cible »). Les organes absents gardent l'état de départ."""
+        self.current = {sid: bool(states.get(sid, self.initial[sid]))
+                        for sid in self.initial}
         self.scenario_name = None
 
     def reset(self):
@@ -983,6 +1017,119 @@ class Session:
         return str(path)
 
 
+class DayExploration:
+    """Exploration de l'**intérêt d'une journée** : trois situations (par défaut
+    minuit / midi / 23 h) chargées pour une date, et le **bilan des changements
+    d'OC par poste** sur la journée (cf. ``manoeuvre.dataset.exploration``).
+
+    Mémoire : on ne garde **qu'un réseau de référence** (le 1ᵉʳ chargé), réutilisé
+    par la ``Session`` pour rendre les SLD ; pour chaque heure, seuls les **états
+    d'organes par VL** sont conservés (légers). Afficher la topologie d'un poste à
+    une heure = appliquer ces états sur le réseau de référence (pas de rechargement
+    d'un réseau France entier)."""
+
+    def __init__(self, date: str, repo: str):
+        self.date = date
+        self.repo = repo
+        self.heures: list[dict] = []                 # [{requested, ts, iso}]
+        self.etats: dict[str, dict[str, dict[str, bool]]] = {}  # heure -> {vl:{sw:open}}
+        self.kinds: dict[str, str] = {}
+        self.vl_meta: dict[str, dict] = {}
+        self.sub_name: dict[str, str] = {}
+        self.postes: dict[str, dict] = {}
+        self.top: list[str] = []                     # top-10 substations
+        self.classement: list[str] = []              # classement plus long (liste)
+        self.positions: dict[str, dict] = {}
+        self.coord_source: str = "aucune"
+
+    def etats_vl(self, heure: str, vl: str) -> dict[str, bool]:
+        return self.etats.get(heure, {}).get(vl, {})
+
+
+def construire_exploration(date: str,
+                           heures: tuple[str, ...] = exploration.HEURES_DEFAUT):
+    """Charge les 3 situations de ``date``, calcule le bilan par poste, résout
+    les coordonnées. Retourne ``(DayExploration, reseau_de_reference)``.
+
+    Lève ``FileNotFoundError`` si la journée est absente du dataset."""
+    repo = dataset_source.repo_pour_date(DATASET["repo"], date)
+    token = DATASET["token"]
+    cache = DATASET["cache_dir"]
+    insts = dataset_source.lister_instantanes(repo, date, token=token)
+    if not insts:
+        raise FileNotFoundError(f"Aucun instantané pour {date} dans {repo}.")
+
+    de = DayExploration(date, repo)
+    ref_net = None
+    for h in heures:
+        choisi = dataset_source.choisir_instantane(insts, h)
+        local = dataset_source.telecharger_instantane(
+            repo, choisi["path"], cache, token=token)
+        net = _charger_reseau(local)
+        etats, kinds = exploration.extraire_etats_kinds(net)
+        de.etats[h] = etats
+        if not de.kinds:
+            de.kinds = kinds
+        de.heures.append({"requested": h, "ts": choisi["ts"], "iso": choisi["iso"]})
+        if ref_net is None:
+            de.vl_meta, de.sub_name = exploration.structure_reseau(net)
+            ref_net = net
+        # les réseaux des autres heures sont libérés (déréférencés) ici.
+
+    situations = [de.etats[h] for h in heures]
+    changes = exploration.changements_par_vl(situations, de.kinds)
+    de.postes = exploration.agreger_par_poste(changes, de.vl_meta, de.sub_name)
+    de.top = exploration.classer_postes(de.postes, 10)
+    de.classement = exploration.classer_postes(de.postes, 40)
+    de.positions, de.coord_source = geographie.resoudre(
+        list(de.postes), net=ref_net, cache_dir=cache,
+        autoriser_odre=True, token=os.environ.get("ODRE_TOKEN"))
+    return de, ref_net
+
+
+def _explore_payload(de: DayExploration) -> dict:
+    """Charge utile carte + classement pour le front."""
+    rang = {s: i + 1 for i, s in enumerate(de.top)}
+
+    def _kinds(p):
+        return {t: p.get(t, 0) for t in exploration.TYPES_OC}
+
+    postes_map = []
+    for sub, p in de.postes.items():
+        pos = de.positions.get(sub)
+        if not pos:
+            continue
+        postes_map.append({
+            "sub": sub, "name": p["name"], "nv": p["nominal_v_max"],
+            "lon": pos["lon"], "lat": pos["lat"], "total": p["total"],
+            **_kinds(p), "rank": rang.get(sub),
+            "top_vl": exploration.vl_le_plus_actif(p),
+            "vls": [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"]}
+                    for v in p["vls"]],
+        })
+    classement = []
+    for sub in de.classement:
+        p = de.postes[sub]
+        classement.append({
+            "sub": sub, "name": p["name"], "nv": p["nominal_v_max"],
+            "total": p["total"], **_kinds(p),
+            "rank": rang.get(sub), "geo": sub in de.positions,
+            "top_vl": exploration.vl_le_plus_actif(p),
+            "vls": [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"],
+                     **{t: v.get(t, 0) for t in exploration.TYPES_OC}}
+                    for v in p["vls"]],
+        })
+    n_actifs = sum(1 for p in de.postes.values() if p["total"] > 0)
+    return {
+        "ok": True, "date": de.date, "heures": de.heures,
+        "coord_source": de.coord_source,
+        "n_postes": len(de.postes), "n_actifs": n_actifs,
+        "n_geolocalises": len(postes_map),
+        "types_oc": list(exploration.TYPES_OC),
+        "postes": postes_map, "classement": classement,
+    }
+
+
 def _highlight(svg: str, svg_id: str | None) -> str:
     if not svg_id:
         return svg
@@ -1011,6 +1158,9 @@ def _prefix_svg_ids(svg: str, pfx: str) -> str:
 
 app = Flask(__name__)
 SESSION: Session = None  # type: ignore
+# Exploration de journée en cours (carte des postes + bilan des changements).
+# ``None`` tant qu'aucune journée n'a été explorée (« Explorer la journée »).
+DAY: DayExploration = None  # type: ignore
 
 # Configuration de la **source dataset par date** (mode déploiement Space
 # HuggingFace : on charge à la demande un instantané XIIDM du dataset RTE 7000).
@@ -1114,6 +1264,85 @@ def api_dataset_load():
     return jsonify(ok=True, date=meta["date"], time=meta["ts"], iso=meta["iso"],
                    postes=SESSION.postes, all=SESSION.all_postes,
                    catalog=SESSION.catalog())
+
+
+# ── Exploration de journée (carte des postes + bilan des changements d'OC) ──
+
+@app.post("/api/explore_day")
+def api_explore_day():
+    """Explore une **journée** : charge 3 situations (minuit / midi / 23 h),
+    calcule par poste le nombre d'OC dont l'état change sur la journée (ventilé
+    par type), résout les coordonnées et renvoie la carte + le classement.
+
+    Reconstruit aussi la ``Session`` sur le réseau de référence (1ʳᵉ heure) pour
+    que le reste de l'IHM (vue topologique d'un poste) fonctionne ensuite."""
+    global SESSION, DAY
+    body = request.json or {}
+    date = (body.get("date") or "").strip()
+    if not date:
+        return jsonify(ok=False, error="Choisir une date."), 400
+    try:
+        de, ref_net = construire_exploration(date)
+    except (ValueError, FileNotFoundError) as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    except Exception as exc:  # pragma: no cover - dépend du réseau HF / fichier
+        return jsonify(ok=False, error=f"Exploration impossible : {exc}"), 502
+    DAY = de
+    SESSION = Session(ref_net)
+    return jsonify(_explore_payload(de))
+
+
+def _sub_vls(sub: str) -> list[dict]:
+    """VL d'un poste (substation) avec leurs changements — pour basculer entre
+    les niveaux de tension d'un même poste dans la vue topologique."""
+    p = (DAY.postes.get(sub) if DAY else None) or {}
+    return [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"],
+             "name": v.get("name") or v["vl"]} for v in p.get("vls", [])]
+
+
+@app.post("/api/explore_poste")
+def api_explore_poste():
+    """Passe en **vue topologique** d'un poste à une **heure** de la journée
+    explorée (double-clic sur la carte). Applique les états d'organes de l'heure
+    visée sur le réseau de référence (pas de rechargement). ``vl`` explicite, ou
+    le VL le plus actif de la ``sub`` à défaut."""
+    if DAY is None or SESSION is None:
+        return jsonify(ok=False, error="Explorer une journée d'abord."), 400
+    body = request.json or {}
+    heure = body.get("hour") or (DAY.heures[0]["requested"] if DAY.heures else "12:00")
+    vl = body.get("vl")
+    sub = body.get("sub")
+    if not vl and sub:
+        p = DAY.postes.get(sub)
+        vl = exploration.vl_le_plus_actif(p) if p else None
+    if not vl:
+        return jsonify(ok=False, error="Poste/VL introuvable."), 400
+    if sub is None:
+        sub = (DAY.vl_meta.get(vl) or {}).get("substation") or vl
+    SESSION.load_states(vl, DAY.etats_vl(heure, vl))
+    svg_i, _, nb_i = SESSION.view(SESSION.initial)
+    svg_c, sw, nb_c = SESSION.view(SESSION.current)
+    return jsonify(ok=True, initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=vl, sub=sub,
+                   hour=heure, heures=DAY.heures, sub_vls=_sub_vls(sub),
+                   nodale_depart=SESSION.nodale_payload(SESSION.initial),
+                   nodale_cible=SESSION.nodale_state(SESSION.current))
+
+
+@app.post("/api/explore_retain_target")
+def api_explore_retain_target():
+    """Retient la topologie du poste **à une autre heure** comme **cible**
+    courante (« retenir cette topologie comme cible »), le départ restant l'heure
+    choisie. La cible reste ensuite éditable par l'utilisateur."""
+    if DAY is None or SESSION is None or SESSION.vl is None:
+        return jsonify(ok=False, error="Vue topologique d'un poste requise."), 400
+    body = request.json or {}
+    heure = body.get("hour")
+    vl = body.get("vl") or SESSION.vl
+    SESSION.set_target_states(DAY.etats_vl(heure, vl))
+    svg, sw, nb = SESSION.view(SESSION.current)
+    return jsonify(ok=True, svg=svg, switches=sw, nb_noeuds=nb, hour=heure,
+                   nodale=SESSION.nodale_state(SESSION.current))
 
 
 @app.post("/api/load_grid")

@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### IHM de manœuvre : « Explorer la journée » — carte des postes + intérêt
+
+Sous l'onglet **RTE7000**, après le choix d'une date, le bouton **🗺 Explorer la
+journée** ouvre une **carte du réseau France** (postes localisés) qui met en
+évidence les postes **les plus actifs** de la journée, et permet de basculer en
+vue topologique d'un poste **à l'heure souhaitée**.
+
+- **Estimation de l'intérêt** (`manoeuvre/dataset/exploration.py`, nouveau) :
+  charge **3 situations** (minuit / midi / 23 h) et compte, **par poste**, le
+  **nombre d'OC dont l'état change** sur la journée, **ventilé par type d'OC**
+  (`BREAKER` / `DISCONNECTOR` / `LOAD_BREAK_SWITCH`). Cœur d'agrégation **Python
+  pur** (`changements_par_vl`, `agreger_par_poste`, `classer_postes`) ; les
+  **10 postes** les plus actifs sont mis en évidence.
+- **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) : chaîne
+  de résolution **extension `substationPosition` embarquée → instantané committé
+  `data/postes_rte_geo.json` → ODRE en direct** (échec rapide si bloqué). Le
+  dataset RTE 7000 ne portant **pas** de coordonnées, l'instantané se génère
+  hors-ligne avec `scripts/fetch_postes_geo.py` (apparie les codes ODRE
+  `postes-electriques-rte` aux `substation_id`, **mesure** le taux). Sans aucune
+  coordonnée, l'IHM reste utile : **classement en liste** des postes actifs.
+- **Carte** (frontend) : SVG **autonome** (sans tuiles ni librairie externe),
+  disques **colorés par niveau de tension**, projection **Web Mercator**,
+  **zoom/déplacement** par `viewBox` (fluide jusqu'à ~6 000 postes). **Clic** →
+  bulle d'information ; **double-clic** → vue topologique du poste, avec une barre
+  d'exploration (**Départ** 00 h/12 h/23 h, **Retenir comme cible** 00 h/12 h/23 h,
+  sélecteur de niveau de tension) ; l'**heure** et le **champ du poste** sont
+  synchronisés.
+- **Endpoints** : `POST /api/explore_day`, `POST /api/explore_poste`,
+  `POST /api/explore_retain_target`. **Tests** :
+  `tests/manoeuvre/test_exploration.py`, `tests/manoeuvre/test_geographie.py`,
+  `tests/manoeuvre/test_ihm_explore.py`. Doc : `docs/manoeuvre_ihm.md` (§ 1ter).
+
 ### IHM de manœuvre : source dataset RTE 7000 + déploiement HuggingFace Space
 
 L'IHM de manœuvre (`scripts/manoeuvre_ihm.py`) peut désormais **sourcer ses

@@ -60,6 +60,24 @@ from .source import (
     resoudre_et_telecharger,
     telecharger_instantane,
 )
+from .exploration import (
+    HEURES_DEFAUT,
+    TYPES_OC,
+    agreger_par_poste,
+    changements_par_vl,
+    classer_postes,
+    extraire_etats_kinds,
+    structure_reseau,
+    vl_le_plus_actif,
+)
+from .geographie import (
+    apparier_odre,
+    charger_snapshot,
+    fetch_odre_records,
+    normaliser_mnemonique,
+    positions_xiidm,
+    resoudre as resoudre_positions,
+)
 
 __all__ = [
     "Snapshot", "BlocTransition", "Oscillation", "TimelinePoste",
@@ -72,4 +90,9 @@ __all__ = [
     "DATES_ECHANTILLON", "REPO_DEFAUT", "charger_situation",
     "choisir_instantane", "lister_instantanes", "prefixe_jour",
     "resoudre_et_telecharger", "telecharger_instantane",
+    "HEURES_DEFAUT", "TYPES_OC", "agreger_par_poste", "changements_par_vl",
+    "classer_postes", "extraire_etats_kinds", "structure_reseau",
+    "vl_le_plus_actif",
+    "apparier_odre", "charger_snapshot", "fetch_odre_records",
+    "normaliser_mnemonique", "positions_xiidm", "resoudre_positions",
 ]

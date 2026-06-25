@@ -88,6 +88,61 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
 
 ---
 
+## 1ter. Explorer la journée — carte des postes localisés
+
+Sous l'onglet **📅 RTE7000**, après le choix d'une **date**, le bouton **🗺
+Explorer la journée** ouvre une **carte du réseau France** dans l'espace de
+visualisation (à la place des schémas de poste), pour repérer d'un coup d'œil les
+postes **intéressants** d'une journée.
+
+**Estimation de l'intérêt** — trois situations sont chargées : **minuit (00:00)**,
+**midi (12:00)** et **23 h** (l'instantané le plus proche de chaque heure). Pour
+chaque poste, on compte le **nombre d'organes de coupure (OC) dont l'état change**
+sur la journée (un OC dont l'état n'est pas constant sur les trois instantanés),
+**ventilé par type d'OC** : `BREAKER` (disjoncteur), `DISCONNECTOR` (sectionneur),
+`LOAD_BREAK_SWITCH` (interrupteur). Les **10 postes les plus actifs** sont mis en
+évidence (halo doré + numéro de rang) ; le panneau latéral droit liste le
+classement (cliquable). Cœur de calcul : `manoeuvre/dataset/exploration.py`
+(`changements_par_vl`, `agreger_par_poste`, `classer_postes` — Python pur).
+
+**Carte** — chaque poste (substation) est un **disque coloré par niveau de
+tension** (palette type RTE : 400 kV rouge, 225 kV vert…), placé par projection
+**Web Mercator** (mêmes conventions que Co-Study4Grid). Carte **autonome** (SVG,
+sans tuiles ni librairie externe) avec **zoom molette** et **déplacement au
+glisser** (manipulation du `viewBox`, fluide jusqu'à ~6 000 postes). Interactions :
+
+- **clic** sur un disque → **bulle d'information** (nom, tension, total d'OC
+  changés + ventilation par type, détail par voltage level, rang) ;
+- **double-clic** (ou bouton de la bulle) → bascule en **vue topologique** du
+  poste à l'heure visée, avec une **barre d'exploration** : boutons **Départ**
+  (00 h / 12 h / 23 h) pour choisir la **topologie de départ** souhaitée, boutons
+  **Retenir comme cible** (00 h / 12 h / 23 h) pour fixer la **cible** = topologie
+  du poste à cette heure (**ensuite éditable** comme n'importe quelle cible), et un
+  sélecteur de **niveau de tension** si le poste en a plusieurs. L'**heure** (menu
+  de la colonne de gauche) et le **champ du poste ciblé** sont mis à jour.
+
+**Coordonnées des postes** — le dataset RTE 7000 ne porte **pas** de coordonnées
+géographiques (pas d'extension `substationPosition`). Elles sont résolues par une
+**chaîne de sources** (`manoeuvre/dataset/geographie.resoudre`) : (1) extension
+`substationPosition` embarquée si un jour présente ; (2) **instantané committé**
+`data/postes_rte_geo.json` (indexé par `substation_id`) ; (3) **ODRE en direct**
+([`postes-electriques-rte`](https://odre.opendatasoft.com/explore/dataset/postes-electriques-rte/),
+mis en cache) si le réseau sortant l'autorise. L'instantané committé se génère
+**hors-ligne** (là où ODRE est joignable) avec `scripts/fetch_postes_geo.py`, qui
+**apparie** les codes ODRE aux `substation_id` (mnémoniques RTE normalisés) et
+**mesure** le taux d'appariement :
+
+```bash
+python scripts/fetch_postes_geo.py --date 2021-01-03   # → data/postes_rte_geo.json
+```
+
+Si **aucune** coordonnée n'est résolue, la carte est masquée et l'IHM reste utile :
+le **classement** des postes les plus actifs s'affiche en liste (cliquable pour
+ouvrir la topologie). Pour activer la carte sur le Space, committez
+`data/postes_rte_geo.json` **ou** autorisez la sortie vers `odre.opendatasoft.com`.
+
+---
+
 ## 2. Disposition de l'interface
 
 ![Vue d'ensemble annotée de l'IHM de manœuvre sur un scénario de scission de nœud à CARRIP3](manoeuvre/manoeuvre_ihm_overview.svg)
@@ -386,6 +441,9 @@ navigateur).
 | `GET /api/dataset/config` | — | `{enabled, repo, default_date, default_time, sample_dates[], hosted}` | Config de la source dataset (onglet **RTE7000**) ; `enabled` décide de l'**onglet actif par défaut** (RTE7000 sur le Space, Local en mode `--grid`) ; `hosted` = IHM déportée → le front **télécharge en local** les fichiers sauvegardés |
 | `GET /api/dataset/timestamps?date=YYYY-MM-DD` | — | `{ok, date, timestamps:[{ts,path}], default}` / `400` (date invalide) / `502` (HF) | Instantanés disponibles pour la journée (HH:MM), avec l'horodatage présélectionné (le plus proche de **midi**) |
 | `POST /api/dataset/load` | `{date, time}` | `{ok, date, time, iso, postes:[…], all:[…], catalog:[…]}` / `400` (absent) / `502` (HF) | **Télécharge à la demande** l'instantané `(date, time)` du dataset, reconstruit la session et liste les postes (même forme que `/api/load_grid`) |
+| `POST /api/explore_day` | `{date}` | `{ok, date, heures[], coord_source, n_postes, n_actifs, n_geolocalises, types_oc[], postes:[{sub,name,nv,lon,lat,total,BREAKER,DISCONNECTOR,LOAD_BREAK_SWITCH,rank,top_vl,vls[]}], classement:[…]}` / `400` / `502` | **Explorer la journée** : charge 3 situations (minuit/midi/23 h), compte par poste les **OC changés** (par type), résout les coordonnées et reconstruit la session sur le réseau de référence. `postes` = postes **géolocalisés** (carte) ; `classement` = top **actifs** (liste, inclut non géolocalisés) ; `coord_source ∈ {xiidm, snapshot, odre, aucune}` |
+| `POST /api/explore_poste` | `{sub?, vl?, hour}` | `{ok, initial_svg, nb_initial, svg, switches, nb_noeuds, vl, sub, hour, heures[], sub_vls[], nodale_depart, nodale_cible}` / `400` | Bascule en **vue topologique** d'un poste à une **heure** de la journée explorée (applique les états de l'heure sur le réseau de référence) ; `vl` explicite ou **VL le plus actif** de la `sub` |
+| `POST /api/explore_retain_target` | `{vl?, hour}` | `{ok, svg, switches, nb_noeuds, hour, nodale}` / `400` | **Retient** la topologie du poste à `hour` comme **cible** courante (puis éditable) |
 | `POST /api/load_grid` | `{path}` | `{ok, postes:[…], all:[…], catalog:[…]}` / `400 {ok:false, error}` | Charge **dynamiquement** une autre situation réseau `.xiidm` (chemin **côté serveur**) et réinitialise la session ; 400 propre si fichier introuvable/illisible (session inchangée) |
 | `GET /api/pick_grid_file` | — | `{path, error?}` | Ouvre un **sélecteur de fichier natif** (onglet *Local*, usage local) pour choisir une situation `.xiidm` ; `path` vide si annulé ; `error` si headless / tkinter absent (l'IHM invite à coller le chemin) |
 | `POST /api/load` | `{vl}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, nodale_depart, nodale_cible}` | Charge un poste (départ pristine) — **n'importe quel** VL NODE_BREAKER ; inclut les partitions nodales |
