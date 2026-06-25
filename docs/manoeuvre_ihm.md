@@ -172,7 +172,9 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
   **nœud** = barre horizontale colorée ; chaque **branche** = départ vertical
   portant son **libellé** détaillé et sa **valeur de flux** en MW) de la topologie
   nodale de départ et d'une **cible nodale éditable par glisser-déposer**. Voir §3
-  *Éditer une topologie nodale cible*. Repliable via ◂.
+  *Éditer une topologie nodale cible*. Le volet entier est repliable via ◂, et
+  ses sections **Départ** et **Cible** sont **repliables indépendamment** (bouton
+  **▾ / ▸** dans leur en-tête — replier l'une donne tout l'espace à l'autre).
 - Le **nombre de nœuds électriques** est affiché par schéma et se met à jour à
   chaque modification.
 - Chaque en-tête porte un bouton **▾ / ▸** pour **replier** son schéma : l'autre
@@ -271,10 +273,12 @@ L'édition se fait par **glisser-déposer** :
   **∅ Désélectionner** vide la sélection.
 
 Les **ouvrages déconnectés** (organe ouvert → non raccordés à une barre) ne sont
-**pas** des nœuds électriques : ils sont listés à part (chips **⚠ Ouvrages
-isolés**, sous chaque schéma) et n'occupent pas d'espace en barre. Pour en
-**reconnecter** un, le **glisser sur une barre** (il rejoint ce nœud) ; côté
-serveur, les isolés restants sont **laissés déconnectés** (hors partition cible).
+**pas** des nœuds électriques : ils sont listés à part, en **tête de chaque
+cadre** (chips **⚠ Ouvrages isolés**, première ligne sous le titre de section),
+**individuellement sélectionnables** (clic) et **glissables**, et n'occupent pas
+d'espace en barre. Pour en **reconnecter** un, le **glisser sur une barre** (il
+rejoint ce nœud) ; côté serveur, les isolés restants sont **laissés déconnectés**
+(hors partition cible).
 Le compteur de nœuds exclut les isolés.
 - **⚙ Calculer la topologie détaillée d'intérêt** : envoie la partition nodale
   (`/api/nodale_to_detaillee`) ; l'IHM **charge l'état détaillé réalisant** cette
@@ -500,7 +504,7 @@ assert res.ecarts == []
 | **Topologie nodale qui suit l'étape** d'animation | Volet nodal « cible » rendu en lecture seule depuis `nodale` de `/api/step` (titre « Étape k/n (vue) ») ; restauré à « Cible (éditable) » à la sortie |
 | Voir **départ en haut** et **cible éditable en bas** | Deux schémas empilés |
 | Couleurs **natives** par niveau de tension (63 kV violet) | `topological_coloring`, rendu navigateur |
-| **Explorer les postes par typologie** (sections) | Sélecteur 📂 `#posteCat` : un `<optgroup>` par typologie (≥5 JdB, sectionnement extrême, faisceau partagé, organes internes, omnibus, départs déconnectés, gros postes…) ; entrées grisées = absentes de la situation (`catalog` de `/api/postes`) |
+| **Explorer les postes par typologie** (sections) | Liste `#posteList` (champ vide) : une section par typologie (≥5 JdB, sectionnement extrême, faisceau partagé, organes internes, omnibus, départs déconnectés, gros postes…) ; entrées grisées = absentes de la situation (`catalog` de `/api/postes`) |
 | **Recharger** une cible sauvegardée pour recalculer | « ▷ Rejouer » |
 | Promouvoir la **cible courante** en nouvel état de départ | « ⇧ Nouvelle Topologie Départ » (en-tête du schéma cible) → `/api/promote_cible` (le schéma de départ est mis à jour) |
 | **Recharger** un scénario (départ + cible) | Bouton « ⟳ Recharger » (titre *Scénario Topologique*) → modale (sélecteur + Valider / Annuler) → `/api/load_scenario` (mode `both`) |
@@ -517,7 +521,8 @@ assert res.ecarts == []
 | **Signaler visuellement** l'atteinte de la topologie cible | Halo jaune sur la vue du poste + « ✓ topologie cible atteinte » (champ `reached` de `/api/step`) |
 | **Éditer une topologie nodale cible** (réaiguillage / fusion / nouveau nœud) | Volet nodal SVG « vue bus » (barre + départs verticaux, libellés SLD + flux MW) ; **glisser-déposer** (départ→barre = réaiguillage, barre→barre = fusion) côté client |
 | **Élargir** le volet nodal pour afficher tous les nœuds | Séparateur déplaçable entre colonnes 2 et 3 (`#ndresize`) |
-| **Ouvrages déconnectés** présentés en liste (pas en nœud), reconnectables | Liste « ⚠ Ouvrages isolés » (chips) ; glisser sur une barre = reconnexion ; `isolated` dans `/api/nodale*` |
+| **Ouvrages déconnectés** présentés en liste (pas en nœud), reconnectables | Chips « ⚠ Ouvrages isolés » **en tête de cadre** (sous le titre de section), individuellement sélectionnables ; glisser sur une barre = reconnexion ; `isolated` dans `/api/nodale*` |
+| **Replier** indépendamment les sections nodales **Départ** / **Cible** | Bouton **▾ / ▸** dans le `.stitle` → `toggleNsec()` (replie tout sauf le titre ; l'autre section prend l'espace) |
 | **Re-éditer la cible détaillée** après calcul de séquence + signaler l'obsolescence | Bouton **✎ Modifier la cible** (`/api/cible`) ; bandeau « la séquence n'atteint plus cet état cible » |
 | Demander un **calcul de topologie détaillée d'intérêt** depuis la cible nodale | `/api/nodale_to_detaillee` → façade `identifier_topologie_detaillee` (phase A, algo sélectionné), cible détaillée chargée |
 

@@ -57,7 +57,10 @@
  #nodal.collapsed .nbody{display:none}
  #nodal .nhead{font-size:12px;font-weight:bold;padding:6px 8px;background:#ecfdf5;border-bottom:1px solid #ccc;display:flex;align-items:center;gap:6px}
  #nodal .nsec{display:flex;flex-direction:column;min-height:0;border-bottom:2px solid #d1fae5}
- #nodal .nsec .stitle{font-size:11px;font-weight:bold;padding:4px 8px;color:#065f46;display:flex;justify-content:space-between}
+ #nodal .nsec.collapsed{flex:0 0 auto !important}
+ /* !important : renderIso pose un display:block inline qu'il faut surclasser */
+ #nodal .nsec.collapsed > :not(.stitle){display:none !important}
+ #nodal .nsec .stitle{font-size:11px;font-weight:bold;padding:4px 8px;color:#065f46;display:flex;align-items:center;justify-content:space-between}
  #nodal .nbody{flex:1;overflow:auto;padding:4px}
  #nodal .ntools{padding:4px 8px;display:flex;flex-wrap:wrap;gap:4px;background:#fff;border-bottom:1px solid #e5e7eb}
  #nodal .ntools button{padding:3px 7px;font-size:11px;margin:0}
@@ -77,8 +80,9 @@
  .nbus.droptarget .nbushit{fill:rgba(99,102,241,.13)}
  .nbus.droptarget .nbusbar{stroke-dasharray:5 3}
  body.ndndrag,body.ndndrag *{cursor:grabbing !important}
- /* Ouvrages isolés (déconnectés) : liste compacte, pas de nœud électrique */
- .nodiso{flex:0 0 auto;padding:3px 8px 6px;border-top:1px dashed #e2e8f0;background:#fffdf7}
+ /* Ouvrages isolés (déconnectés) : liste compacte en TÊTE de cadre (pas de nœud
+    électrique) — chips individuellement sélectionnables / glissables sur un nœud */
+ .nodiso{flex:0 0 auto;padding:4px 8px 5px;border-bottom:1px dashed #e2e8f0;background:#fffdf7}
  .nodiso .isohd{font-size:10px;color:#b45309;font-weight:bold;margin:2px 0}
  .nodiso.ro{background:#f8fafc}
  .nodiso.ro .isohd{color:#64748b}
@@ -248,12 +252,15 @@
     Topologie nodale</div>
   <div class="nbody" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
     <div class="nsec" style="flex:1">
-      <div class="stitle"><span>Départ</span><span class="badge" id="ndDepN">–</span></div>
-      <div class="nbody" id="ndDepart"></div>
+      <div class="stitle"><button class="cbtn" onclick="toggleNsec(this)" title="Replier / déplier">▾</button>
+        <span style="flex:1">Départ</span><span class="badge" id="ndDepN">–</span></div>
       <div class="nodiso ro" id="ndDepartIso" style="display:none"></div>
+      <div class="nbody" id="ndDepart"></div>
     </div>
     <div class="nsec" style="flex:2">
-      <div class="stitle"><span id="ndCibTitle">Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
+      <div class="stitle"><button class="cbtn" onclick="toggleNsec(this)" title="Replier / déplier">▾</button>
+        <span id="ndCibTitle" style="flex:1">Cible (éditable)</span><span class="badge" id="ndCibN">–</span></div>
+      <div class="nodiso ed" id="ndCibleIso" style="display:none"></div>
       <div class="ntools">
         <button onclick="nodNewNode()" title="Créer un nœud vide (puis y glisser des départs ; ou avec la sélection courante)">＋ Nœud</button>
         <button onclick="nodReset()" title="Réinitialiser la cible (nodale + détaillée) à la topologie d'origine du poste (départ)">↺ Réinitialiser</button>
@@ -261,7 +268,6 @@
       </div>
       <div style="font-size:10px;color:#64748b;padding:0 8px">Glisser un <b>départ</b> (ou une sélection : clic pour (dé)sélectionner) sur une autre barre = réaiguillage. Glisser une <b>barre</b> sur une autre = fusion. Flux en MW (état de départ).</div>
       <div class="nbody" id="ndCible"></div>
-      <div class="nodiso ed" id="ndCibleIso" style="display:none"></div>
     </div>
     <div style="font-size:11px;color:#555;margin:4px 8px 0">Algo :
       <select id="nodAlgo" style="width:auto;padding:2px" title="Algorithme d'identification de la topologie détaillée depuis la cible nodale (phase A de manoeuvre.plugins) : « libtopo » natif + plugins enregistrés."></select>
@@ -707,6 +713,9 @@ function toggleNodal(){const p=document.getElementById('nodal');
   if(p.classList.toggle('collapsed')){p.dataset.w=p.style.width||'';p.style.width='';}
   else if(p.dataset.w){p.style.width=p.dataset.w;}
   const b=p.querySelector('.cbtn');if(b)b.textContent=p.classList.contains('collapsed')?'▸':'◂';}
+// Replier / déplier une section nodale (Départ / Cible) — l'autre prend l'espace.
+function toggleNsec(btn){const sec=btn.closest('.nsec');if(!sec)return;
+  btn.textContent=sec.classList.toggle('collapsed')?'▸':'▾';}
 function initNodalResize(){const rz=document.getElementById('ndresize');
   const nod=document.getElementById('nodal');let drag=false;
   rz.addEventListener('mousedown',e=>{if(nod.classList.contains('collapsed'))return;
