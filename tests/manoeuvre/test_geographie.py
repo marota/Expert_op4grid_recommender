@@ -53,6 +53,28 @@ def test_apparier_odre_exact_et_prefixe():
     assert 0.0 < stats["taux"] <= 1.0
 
 
+def test_apparier_par_nom_et_prefixe():
+    # ODRE n'expose qu'un **nom** (CONCARNEAU) là où le réseau porte le mnémonique
+    # (CONCA) : appariement par nom + repli préfixe.
+    recs = [{"nom_poste": "CONCARNEAU", "geo_point_2d": [47.9, -3.9]},
+            {"libelle": "TIVERVAL", "geo_point_2d": [48.7, 1.9]}]
+    pos, stats = g.apparier_odre(recs, ["CONCA", "TIVER", "ZZZZZ"])
+    assert pos["CONCA"]["lat"] == 47.9
+    assert pos["TIVER"]["lat"] == 48.7
+    assert "ZZZZZ" not in pos
+    assert stats["n_index_nom"] == 2 and stats["n_apparies"] == 2
+    # diagnostic présent pour le cas « 0 apparié ».
+    assert "sample_fields" in stats and "sample_subs" in stats
+
+
+def test_apparier_diagnostic_zero():
+    recs = [{"code_poste": "9999", "geo_point_2d": [1.0, 2.0]}]
+    pos, stats = g.apparier_odre(recs, ["CONCA", "TIVER"])
+    assert pos == {} and stats["n_apparies"] == 0 and stats["n_odre"] == 1
+    assert stats["sample_codes"] == ["9999"]
+    assert set(stats["sample_subs"]) == {"CONCA", "TIVER"}
+
+
 def test_apparier_sans_prefixe():
     # CARRIP vs code "CARRI" : seulement via préfixe (désactivable).
     recs = [{"code": "CARRI", "geo_point_2d": [47.0, 1.0]}]

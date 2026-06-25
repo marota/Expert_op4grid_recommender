@@ -1088,6 +1088,25 @@ async function exploreDay(){
   renderExplore(r);
 }
 
+// Diagnostic d'appariement ODRE (affiché quand la carte est vide) : distingue
+// « ODRE injoignable » de « joignable mais 0 apparié » (et montre les
+// échantillons de champs/codes/noms ODRE vs substation_id pour ajuster).
+function coordDiag(st){
+  const j=a=>(a||[]).map(x=>x==null?'∅':x).join(', ');
+  if(st.odre_error)
+    return '<br>↳ <b>ODRE injoignable</b> : <code>'+xesc(st.odre_error)+'</code>. '
+      +'Vérifiez la sortie internet du Space (ou committez/persistez '
+      +'<code>postes_rte_geo.json</code>).';
+  if(st.n_odre!=null)
+    return '<br>↳ <b>ODRE joignable</b> ('+st.n_odre+' enreg.) mais '
+      +(st.n_apparies||0)+' apparié(s). Champs : <code>'+xesc(j((st.sample_fields||[]).slice(0,14)))
+      +'</code>. Codes ODRE : <code>'+xesc(j(st.sample_codes))+'</code>. Noms ODRE : <code>'
+      +xesc(j(st.sample_noms))+'</code>. Postes réseau : <code>'+xesc(j(st.sample_subs))
+      +'</code>. → les identifiants ne se recoupent pas ; ajuster '
+      +'<code>geographie._CLES_CODE/_CLES_NOM</code>.';
+  return ' Pour activer la carte : générez <code>postes_rte_geo.json</code> via '
+    +'<code>scripts/fetch_postes_geo.py</code>, ou autorisez <code>odre.opendatasoft.com</code>.';
+}
 function downloadCoordsFile(){const a=document.createElement('a');
   a.href='/api/explore_coords_file';a.download='postes_rte_geo.json';
   document.body.appendChild(a);a.click();a.remove();}
@@ -1109,9 +1128,7 @@ function renderExplore(d){
     mm.style.display='block';
     mm.innerHTML='⚠ Aucune coordonnée de poste résolue (source : <b>'+xesc(d.coord_source)
       +'</b>). La carte est indisponible ; utilisez le <b>classement</b> à droite '
-      +'(cliquez un poste pour ouvrir sa topologie). Pour activer la carte : générez '
-      +'<code>data/postes_rte_geo.json</code> via <code>scripts/fetch_postes_geo.py</code> '
-      +'(là où ODRE est joignable), ou autorisez <code>odre.opendatasoft.com</code>.';
+      +'(cliquez un poste pour ouvrir sa topologie).'+coordDiag(d.coord_stats||{});
     return;}
   mm.style.display='none';
   buildMap(d.postes);

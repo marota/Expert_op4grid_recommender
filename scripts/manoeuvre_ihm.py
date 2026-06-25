@@ -1108,6 +1108,11 @@ def construire_exploration(date: str,
         token=os.environ.get("ODRE_TOKEN"),
         persist_path=GEO_SNAPSHOT, stats_out=stats)
     de.coord_stats = stats
+    # Journalisé (visible dans les logs du Space) pour diagnostiquer la carte :
+    # source, taux d'appariement, échantillons de champs/codes/noms ODRE et de
+    # substation_id — pour voir *pourquoi* 0 apparié (injoignable vs champ ODRE).
+    print(f"[explore_day] coord_source={de.coord_source} "
+          f"stats={json.dumps(stats, ensure_ascii=False)}", flush=True)
     return de, ref_net
 
 

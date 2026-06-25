@@ -246,6 +246,38 @@ def normaliser_mnemonique(s: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
 
 
+def _index_par(records: list[dict], cles: Iterable[str]) -> dict[str, dict]:
+    """Index ``{mnémonique normalisé: {lat, lon, nom, tension}}`` à partir du
+    **premier champ renseigné** de ``cles`` (code OU nom), pour les enregistrements
+    géolocalisés. La 1ʳᵉ occurrence d'une clé gagne."""
+    idx: dict[str, dict] = {}
+    for rec in records:
+        geo = _extraire_geo(rec)
+        if geo is None:
+            continue
+        val = _premier(rec, cles)
+        if not val:
+            continue
+        norm = normaliser_mnemonique(val)
+        if norm and norm not in idx:
+            idx[norm] = {"lat": geo[0], "lon": geo[1],
+                         "nom": _premier(rec, _CLES_NOM) or val,
+                         "tension": _premier(rec, _CLES_TENSION)}
+    return idx
+
+
+def _match_prefixe(norm: str, index: dict[str, dict]) -> Optional[dict]:
+    """Unique entrée d'``index`` dont la clé est préfixe de ``norm`` ou inversement
+    (≥ 4 caractères communs). ``None`` si zéro ou plusieurs candidats (ambigu)."""
+    trouve = None
+    for k, v in index.items():
+        if (k.startswith(norm) or norm.startswith(k)) and min(len(k), len(norm)) >= 4:
+            if trouve is not None:
+                return None        # ambigu
+            trouve = v
+    return trouve
+
+
 def apparier_odre(
     records: list[dict],
     substation_ids: Iterable[str],
@@ -253,52 +285,51 @@ def apparier_odre(
 ) -> tuple[dict[str, dict], dict]:
     """Apparie les enregistrements ODRE aux ``substation_ids`` du réseau.
 
-    Retourne ``(positions, stats)`` :
+    Retourne ``(positions, stats)``. ``positions`` : ``{substation_id: {'lat',
+    'lon', 'nom', 'tension', 'source': 'odre'}}``. ``stats`` mesure la qualité
+    **et** aide au diagnostic (``n_odre``, ``n_apparies``, ``taux``,
+    ``sample_fields``, ``sample_codes``, ``sample_noms``, ``sample_subs``,
+    ``sample_non_apparies``).
 
-    - ``positions`` : ``{substation_id: {'lat', 'lon', 'nom', 'tension',
-      'source': 'odre'}}`` pour les postes appariés ;
-    - ``stats`` : ``{'n_substations', 'n_odre', 'n_apparies', 'taux',
-      'n_exact', 'n_prefixe'}`` — pour **mesurer la qualité** de l'appariement
-      (le script de fetch l'affiche).
-
-    Stratégie : index ODRE par mnémonique normalisé (``code`` ODRE) ; match
-    **exact** d'abord ; repli optionnel par **préfixe** (un côté préfixe de
-    l'autre, ≥ 3 caractères). Fonction pure (aucune E/S)."""
-    index: dict[str, dict] = {}
-    for rec in records:
-        code = _premier(rec, _CLES_CODE)
-        geo = _extraire_geo(rec)
-        if code is None or geo is None:
-            continue
-        norm = normaliser_mnemonique(code)
-        if norm and norm not in index:
-            index[norm] = {"lat": geo[0], "lon": geo[1],
-                           "nom": _premier(rec, _CLES_NOM) or code,
-                           "tension": _premier(rec, _CLES_TENSION)}
+    Stratégie : on indexe ODRE **par code** (``_CLES_CODE``) **et par nom**
+    (``_CLES_NOM``), mnémoniques normalisés ; pour chaque ``substation_id`` : match
+    **exact** (code puis nom), puis repli optionnel par **préfixe** (un côté
+    préfixe de l'autre, ≥ 4 car.). Couvre le cas où ODRE n'expose qu'un **nom**
+    (``CONCARNEAU``) là où le réseau porte un **mnémonique** (``CONCA``). Pure."""
+    code_index = _index_par(records, _CLES_CODE)
+    name_index = _index_par(records, _CLES_NOM)
     sub_ids = list(dict.fromkeys(map(str, substation_ids)))
     positions: dict[str, dict] = {}
     n_exact = n_prefixe = 0
+    non_apparies: list[str] = []
     for sid in sub_ids:
         norm = normaliser_mnemonique(sid)
-        rec = index.get(norm)
+        rec = code_index.get(norm) or name_index.get(norm)
         if rec is not None:
             n_exact += 1
-        elif prefix_fallback and len(norm) >= 3:
-            cand = [k for k in index
-                    if (k.startswith(norm) or norm.startswith(k))
-                    and min(len(k), len(norm)) >= 3]
-            if len(cand) == 1:
-                rec = index[cand[0]]
+        elif prefix_fallback and len(norm) >= 4:
+            rec = _match_prefixe(norm, code_index) or _match_prefixe(norm, name_index)
+            if rec is not None:
                 n_prefixe += 1
         if rec is not None:
             positions[sid] = {"lat": rec["lat"], "lon": rec["lon"],
                               "nom": rec["nom"], "tension": rec.get("tension"),
                               "source": "odre"}
+        else:
+            non_apparies.append(sid)
     n = len(sub_ids)
-    stats = {"n_substations": n, "n_odre": len(index),
+    # Échantillons de diagnostic (pourquoi 0 apparié ? quel champ ODRE ?).
+    sample_fields = sorted(records[0].keys())[:40] if records else []
+    sample_codes = [_premier(r, _CLES_CODE) for r in records[:6]]
+    sample_noms = [_premier(r, _CLES_NOM) for r in records[:6]]
+    stats = {"n_substations": n, "n_odre": len(records),
+             "n_index_code": len(code_index), "n_index_nom": len(name_index),
              "n_apparies": len(positions), "n_exact": n_exact,
              "n_prefixe": n_prefixe,
-             "taux": round(len(positions) / n, 3) if n else 0.0}
+             "taux": round(len(positions) / n, 3) if n else 0.0,
+             "sample_fields": sample_fields, "sample_codes": sample_codes,
+             "sample_noms": sample_noms, "sample_subs": sub_ids[:6],
+             "sample_non_apparies": non_apparies[:6]}
     return positions, stats
 
 
@@ -370,7 +401,9 @@ def resoudre(
                 if persist_path:
                     ecrire_snapshot(persist_path, positions)
                 return positions, "odre"
-        except Exception:
-            pass
+        except Exception as exc:
+            # Diagnostic : distinguer « ODRE injoignable » de « 0 apparié ».
+            if stats_out is not None:
+                stats_out.update({"odre_error": f"{type(exc).__name__}: {exc}"})
 
     return {}, "aucune"
