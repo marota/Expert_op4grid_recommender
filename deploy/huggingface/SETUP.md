@@ -38,7 +38,30 @@ gros fichier dans l'historique à gérer.
 | `DGITT_DEFAULT_DATE` | `2021-01-03` | Date proposée par défaut dans l'IHM. |
 | `DGITT_CACHE_DIR` | `/home/user/app/.cache/dgitt` | Cache local des instantanés (éphémère sur un Space). |
 | `HF_TOKEN` | *(absent)* | **Optionnel** : jeton de lecture HF pour desserrer le rate-limit anonyme du CDN. Le mettre en **secret** du Space. |
+| `MANOEUVRE_ENABLE_ODRE` | `1` | « Explorer la journée » : interroger **ODRE** pour les coordonnées des postes (carte). `0` pour désactiver (l'IHM bascule alors sur le **classement en liste**). |
+| `ODRE_TOKEN` | *(absent)* | **Optionnel** : clé API ODRE (rate-limit). Secret du Space ; l'accès anonyme suffit pour le dataset public. |
+| `MANOEUVRE_GEO_SNAPSHOT` | `…/.cache/dgitt/postes_rte_geo.json` | Chemin de l'instantané de coordonnées résolu/persisté (le pointer sur le **stockage persistant** pour survivre aux redémarrages). |
 | `PORT` | `7860` | Port d'écoute (HF expose `:7860`). |
+
+### « Explorer la journée » — carte des postes / ODRE
+
+**Rien à configurer pour que ça marche** : la sortie internet des Spaces est
+ouverte, donc dès la 1ʳᵉ exploration les coordonnées sont **téléchargées
+automatiquement depuis ODRE** (`postes-electriques-rte`) et appariées aux postes
+(le **taux d'appariement** s'affiche dans l'en-tête de la carte). Notes :
+
+- **Persistance** : le FS du Space est éphémère → ODRE est ré-interrogé **une fois
+  par démarrage à froid** (quelques secondes). Pour l'éviter, soit **télécharger**
+  l'instantané résolu (bouton **⬇ coordonnées**) et le re-servir, soit attacher le
+  **stockage persistant HF** (Settings → *Persistent storage*, monté sur `/data`)
+  et pointer `DGITT_CACHE_DIR=/data/dgitt` — le cache des coordonnées **et** des
+  instantanés XIIDM survit alors aux redémarrages.
+- **Mémoire** : l'exploration charge **3 réseaux France** (minuit/midi/23 h)
+  séquentiellement ; le pic mémoire reste sous ~2 Go → le tier **CPU basic (16 Go)**
+  suffit.
+- **Si la carte reste vide** (taux d'appariement nul) : les codes ODRE ne recoupent
+  pas les mnémoniques RTE — voir `docs/manoeuvre_ihm.md` (§ 1ter) pour ajuster
+  l'appariement. L'IHM reste utilisable via le **classement en liste**.
 
 ## Étapes de déploiement
 
