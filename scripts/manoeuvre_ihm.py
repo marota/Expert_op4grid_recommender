@@ -1073,6 +1073,7 @@ class DayExploration:
         self.heures: list[dict] = []                 # [{requested, ts, iso}]
         self.etats: dict[str, dict[str, dict[str, bool]]] = {}  # heure -> {vl:{sw:open}}
         self.kinds: dict[str, str] = {}
+        self.struct: dict[str, dict] = {}            # {vl:{edges,poids}} (invariant)
         self.vl_meta: dict[str, dict] = {}
         self.sub_name: dict[str, str] = {}
         self.postes: dict[str, dict] = {}
@@ -1113,11 +1114,16 @@ def construire_exploration(date: str,
         de.heures.append({"requested": h, "ts": choisi["ts"], "iso": choisi["iso"]})
         if ref_net is None:
             de.vl_meta, de.sub_name = exploration.structure_reseau(net)
+            # structure topologique invariante (arêtes + ouvrages par nœud) pour
+            # quantifier les re-groupements de nœuds (scissions / fusions).
+            de.struct = exploration.extraire_structure_topo(net)
             ref_net = net
         # les réseaux des autres heures sont libérés (déréférencés) ici.
 
     situations = [de.etats[h] for h in heures]
     changes = exploration.changements_par_vl(situations, de.kinds)
+    nodaux = exploration.changements_nodaux_par_vl(situations, de.struct)
+    exploration.fusionner_nodaux(changes, nodaux)
     de.postes = exploration.agreger_par_poste(changes, de.vl_meta, de.sub_name)
     de.top = exploration.classer_postes(de.postes, 10)
     de.classement = exploration.classer_postes(de.postes, 40)
@@ -1173,7 +1179,7 @@ def _explore_payload(de: DayExploration) -> dict:
                 all_vls.append({"vl": v["vl"], "sub": sub,
                                 "name": v.get("name") or v["vl"],
                                 "nv": v["nominal_v"], "total": v["total"],
-                                **_kinds(v)})
+                                "nodal": v.get("nodal", 0), **_kinds(v)})
     all_vls.sort(key=lambda d: (-d["total"], -d["nv"], d["vl"]))
     for i, v in enumerate(all_vls):
         v["rank"] = i + 1
@@ -1192,10 +1198,10 @@ def _explore_payload(de: DayExploration) -> dict:
         postes_map.append({
             "sub": sub, "name": p["name"], "nv": p["nominal_v_max"],
             "x": round(x, 1), "y": round(y, 1), "total": p["total"],
-            **_kinds(p), "rank": rang.get(sub),
+            "nodal": p.get("nodal", 0), **_kinds(p), "rank": rang.get(sub),
             "top_vl": exploration.vl_le_plus_actif(p),
-            "vls": [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"]}
-                    for v in p["vls"]],
+            "vls": [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"],
+                     "nodal": v.get("nodal", 0)} for v in p["vls"]],
         })
     n_actifs = sum(1 for v in all_vls)
     return {
@@ -1377,7 +1383,8 @@ def _sub_vls(sub: str) -> list[dict]:
     les niveaux de tension d'un même poste dans la vue topologique."""
     p = (DAY.postes.get(sub) if DAY else None) or {}
     return [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"],
-             "name": v.get("name") or v["vl"]} for v in p.get("vls", [])]
+             "nodal": v.get("nodal", 0), "name": v.get("name") or v["vl"]}
+            for v in p.get("vls", [])]
 
 
 @app.post("/api/explore_poste")

@@ -101,7 +101,7 @@ python scripts/manoeuvre_ihm.py --dataset                   # http://localhost:8
 | `dgitt.py`         | Lecture XIIDM -> etats d'organes par VL ; chronologies     |
 | `timeline.py`      | Chronologie de topologies, blocs de transition             |
 | `tagging.py`       | Tags d'intervention (consignation, scission, fusion…)      |
-| `exploration.py`   | **Intérêt d'une journée** : OC changés par poste, par type, top-10 |
+| `exploration.py`   | **Intérêt d'une journée** : OC changés par poste/type + **re-groupements de nœuds** (scissions/fusions : ouvrages déplacés), top-10 |
 | `geographie.py`    | **Coordonnées des postes** (plan de masse committé → snapshot → OSM) |
 | `grid_layout_rte.json` | Plan de masse RTE committé (`{nom_VL: [x, y]}`, ~98 % des postes) |
 

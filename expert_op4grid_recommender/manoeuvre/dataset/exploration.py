@@ -7,6 +7,12 @@ défaut **minuit**, **midi** et **23 h**) et on estime, **par poste**, les
 le **nombre d'OC dont l'état diffère** entre les trois instantanés, **ventilé
 par type d'OC** (``BREAKER`` = disjoncteur, ``DISCONNECTOR`` = sectionneur).
 
+S'y ajoutent les **re-groupements de nœuds** (scissions / fusions) : le nombre
+**minimal d'ouvrages** ayant été séparés dans un nouveau nœud ou ayant rejoint un
+nœud au cours de la journée (``extraire_structure_topo`` +
+``changements_nodaux_par_vl``) — ce sont aussi des configurations intéressantes,
+comptabilisées dans le total.
+
 Les postes les plus « actifs » (le plus de changements) sont mis en évidence :
 ce sont les journées/postes intéressants à inspecter dans l'IHM de manœuvre.
 
@@ -104,6 +110,78 @@ def structure_reseau(net) -> tuple[dict[str, dict], dict[str, str]]:
     return vl_meta, sub_name
 
 
+def extraire_structure_topo(net) -> dict[str, dict]:
+    """Structure topologique **invariante** (par VL) servant à quantifier les
+    **re-groupements de nœuds** (scissions / fusions) au cours de la journée :
+
+        ``{vl: {'edges': {switch_id: (node1, node2)}, 'poids': {node: n_ouvrages}}}``
+
+    - ``edges`` : arêtes du graphe nœud-disjoncteur (un switch relie ``node1`` et
+      ``node2``) — seul l'état *ouvert/fermé* varie dans la journée, pas la
+      structure ;
+    - ``poids`` : nombre d'**ouvrages** (connectables : jeux de barres + départs)
+      raccordés à chaque nœud — pour pondérer « combien d'ouvrages » bougent.
+
+    Lue **une fois** sur le réseau de référence (les nœuds n'existent que pour les
+    VL NODE_BREAKER ; les autres getters renvoient ``NaN`` → ignorés). pypowsybl."""
+    struct: dict[str, dict] = {}
+
+    def _vl(vl) -> dict:
+        return struct.setdefault(str(vl), {"edges": {}, "poids": {}})
+
+    def _ajouter_ouvrage(vl, node) -> None:
+        try:
+            nd = int(node)
+        except (TypeError, ValueError):
+            return
+        if nd != nd:  # NaN
+            return
+        p = _vl(vl)["poids"]
+        p[nd] = p.get(nd, 0) + 1
+
+    # arêtes node1–node2 par VL (mêmes colonnes que extraire_etats_kinds).
+    sw = net.get_switches(all_attributes=True)
+    if {"voltage_level_id", "node1", "node2"} <= set(sw.columns):
+        for sid, vl, n1, n2 in zip(sw.index.tolist(),
+                                   sw["voltage_level_id"].tolist(),
+                                   sw["node1"].tolist(), sw["node2"].tolist()):
+            try:
+                _vl(vl)["edges"][str(sid)] = (int(n1), int(n2))
+            except (TypeError, ValueError):
+                pass
+
+    # connectables mono-VL (un (voltage_level_id, node)).
+    mono = ("get_busbar_sections", "get_loads", "get_generators", "get_batteries",
+            "get_shunt_compensators", "get_static_var_compensators",
+            "get_dangling_lines", "get_lcc_converter_stations",
+            "get_vsc_converter_stations")
+    for getter in mono:
+        try:
+            df = getattr(net, getter)(all_attributes=True)
+        except Exception:
+            continue
+        if "voltage_level_id" not in df.columns or "node" not in df.columns:
+            continue
+        for vl, nd in zip(df["voltage_level_id"].tolist(), df["node"].tolist()):
+            _ajouter_ouvrage(vl, nd)
+
+    # connectables multi-VL : lignes et TD (chaque extrémité = un ouvrage côté VL).
+    multi = {"get_lines": (1, 2), "get_2_windings_transformers": (1, 2),
+             "get_3_windings_transformers": (1, 2, 3)}
+    for getter, cotes in multi.items():
+        try:
+            df = getattr(net, getter)(all_attributes=True)
+        except Exception:
+            continue
+        for k in cotes:
+            vlc, ndc = f"voltage_level{k}_id", f"node{k}"
+            if vlc not in df.columns or ndc not in df.columns:
+                continue
+            for vl, nd in zip(df[vlc].tolist(), df[ndc].tolist()):
+                _ajouter_ouvrage(vl, nd)
+    return struct
+
+
 # ===========================================================================
 # Cœur d'agrégation (Python pur — testable sans pypowsybl)
 # ===========================================================================
@@ -163,6 +241,150 @@ def changements_par_vl(
     return out
 
 
+# --- Re-groupements de nœuds (scissions / fusions) — Python pur --------------
+
+def partition_ouvrages(
+    etats_vl: dict[str, bool],
+    edges: dict[str, tuple[int, int]],
+    poids: dict[int, int],
+) -> dict[int, int]:
+    """Partition des **nœuds porteurs d'ouvrage** (clés de ``poids``) en **nœuds
+    électriques** : ``{node: id_composante}``. Deux nœuds sont dans la même
+    composante s'ils sont reliés par un chemin de switches **fermés**
+    (``etats_vl[sid]`` faux = fermé). ``edges`` = ``{switch_id: (n1, n2)}``.
+    Union-find. Fonction pure."""
+    parent: dict[int, int] = {}
+
+    def find(x: int) -> int:
+        parent.setdefault(x, x)
+        r = x
+        while parent[r] != r:
+            r = parent[r]
+        while parent[x] != r:
+            parent[x], x = r, parent[x]
+        return r
+
+    for node in poids:
+        find(node)
+    for sid, (n1, n2) in edges.items():
+        find(n1)
+        find(n2)
+        if not etats_vl.get(sid, False):   # fermé → fusionne les deux nœuds
+            ra, rb = find(n1), find(n2)
+            if ra != rb:
+                parent[ra] = rb
+    return {node: find(node) for node in poids}
+
+
+def _blocs(partition: dict[int, int]) -> list[set]:
+    """Liste des blocs (ensembles de nœuds) d'une partition ``{node: comp}``."""
+    blocs: dict[int, set] = {}
+    for node, comp in partition.items():
+        blocs.setdefault(comp, set()).add(node)
+    return list(blocs.values())
+
+
+def _alignement_max(blocs_a: list[set], blocs_b: list[set],
+                    poids: dict[int, int]) -> list[tuple[int, int]]:
+    """Appariement bloc_a ↔ bloc_b **maximisant le poids des ouvrages conservés**
+    (intersection). Exact pour de petits effectifs (DP sur masque de bits des
+    blocs B) ; repli glouton au-delà de 12 blocs. Renvoie les paires d'indices."""
+    na, nb = len(blocs_a), len(blocs_b)
+    if not na or not nb:
+        return []
+    ov = [[sum(poids.get(n, 0) for n in (blocs_a[i] & blocs_b[j]))
+           for j in range(nb)] for i in range(na)]
+    if na > 12 or nb > 12:   # repli glouton (rare)
+        cand = sorted(((ov[i][j], i, j) for i in range(na) for j in range(nb)),
+                      reverse=True)
+        ua, ub, pairs = set(), set(), []
+        for w, i, j in cand:
+            if w <= 0:
+                break
+            if i in ua or j in ub:
+                continue
+            ua.add(i)
+            ub.add(j)
+            pairs.append((i, j))
+        return pairs
+    memo: dict[tuple[int, int], tuple[int, list]] = {}
+
+    def rec(i: int, mask: int) -> tuple[int, list]:
+        if i == na:
+            return 0, []
+        key = (i, mask)
+        if key in memo:
+            return memo[key]
+        best_w, best_p = rec(i + 1, mask)   # bloc A_i non apparié
+        for j in range(nb):
+            if not (mask >> j) & 1 and ov[i][j] > 0:
+                w1, p1 = rec(i + 1, mask | (1 << j))
+                if w1 + ov[i][j] > best_w:
+                    best_w, best_p = w1 + ov[i][j], [(i, j)] + p1
+        memo[key] = (best_w, best_p)
+        return memo[key]
+
+    return rec(0, 0)[1]
+
+
+def noeuds_deplaces(part_a: dict[int, int], part_b: dict[int, int],
+                    poids: dict[int, int]) -> set:
+    """Ensemble **minimal** de nœuds porteurs d'ouvrage ayant changé de nœud
+    électrique entre deux partitions (ceux hors de l'intersection de leurs blocs
+    appariés au mieux). Sur une scission ou une fusion simple = le **plus petit**
+    groupe séparé / ayant rejoint. Fonction pure."""
+    blocs_a, blocs_b = _blocs(part_a), _blocs(part_b)
+    conserves: set = set()
+    for ia, jb in _alignement_max(blocs_a, blocs_b, poids):
+        conserves |= (blocs_a[ia] & blocs_b[jb])
+    return set(poids) - conserves
+
+
+def changements_nodaux_par_vl(
+    situations: list[dict[str, dict[str, bool]]],
+    struct: dict[str, dict],
+) -> dict[str, int]:
+    """Nombre d'**ouvrages re-groupés** (scission / fusion de nœuds) **par VL**
+    sur la journée : pour chaque VL, on compare les partitions nodales des
+    situations **consécutives** et on retient le **plus grand** nombre (pondéré
+    par ``poids``) d'ouvrages minimalement déplacés en une transition — le « plus
+    petit » groupe séparé / ayant rejoint, lors de la reconfiguration la plus
+    marquée de la journée. ``struct`` = sortie de ``extraire_structure_topo``.
+
+    On prend le **max** (et non la somme/union) sur les transitions : stable et
+    sans double-comptage d'une scission suivie d'une fusion (l'ancrage du bloc
+    « conservé » est ambigu sur une scission symétrique). Fonction pure."""
+    out: dict[str, int] = {}
+    for vl, s in struct.items():
+        edges, poids = s.get("edges", {}), s.get("poids", {})
+        if not poids:
+            out[vl] = 0
+            continue
+        parts = [partition_ouvrages(situ[vl], edges, poids)
+                 for situ in situations if vl in situ]
+        if len(parts) < 2:
+            out[vl] = 0
+            continue
+        out[vl] = max(
+            (sum(poids.get(n, 0) for n in noeuds_deplaces(a, b, poids))
+             for a, b in zip(parts, parts[1:])),
+            default=0)
+    return out
+
+
+def fusionner_nodaux(changes: dict[str, dict],
+                     nodaux: dict[str, int]) -> dict[str, dict]:
+    """Intègre les re-groupements de nœuds (``nodaux``) aux changements par VL :
+    ajoute le champ ``nodal`` et **l'additionne au ``total``** (une scission /
+    fusion est une configuration intéressante même si peu d'OC ont bougé).
+    Modifie ``changes`` en place. Fonction pure."""
+    for vl, ch in changes.items():
+        n = int(nodaux.get(vl, 0))
+        ch["nodal"] = n
+        ch["total"] = ch.get("total", 0) + n
+    return changes
+
+
 def agreger_par_poste(
     changes_par_vl: dict[str, dict],
     vl_meta: dict[str, dict],
@@ -186,19 +408,21 @@ def agreger_par_poste(
                 "substation": sub,
                 "name": sub_name.get(sub) or sub,
                 "nominal_v_max": 0.0,
-                "total": 0, "n_oc": 0,
+                "total": 0, "n_oc": 0, "nodal": 0,
                 **{t: 0 for t in TYPES_OC},
                 "vls": [],
             }
         p["nominal_v_max"] = max(p["nominal_v_max"], nv)
         p["total"] += ch["total"]
         p["n_oc"] += ch["n_oc"]
+        p["nodal"] += ch.get("nodal", 0)
         for t in TYPES_OC:
             p[t] += ch.get(t, 0)
         p["vls"].append({
             "vl": vl, "nominal_v": nv,
             "name": meta.get("name") or vl,
             "total": ch["total"], "n_oc": ch["n_oc"],
+            "nodal": ch.get("nodal", 0),
             **{t: ch.get(t, 0) for t in TYPES_OC},
         })
     for p in postes.values():

@@ -57,7 +57,10 @@ def _build_day(mod):
     de.heures = [{"requested": h, "ts": h, "iso": "2021-01-01T" + h}
                  for h in ("00:00", "12:00", "23:00")]
     de.kinds, de.vl_meta, de.sub_name = kinds, vl_meta, sub_name
+    de.struct = exploration.extraire_structure_topo(net)
     ch = exploration.changements_par_vl([h0, h12, h23], kinds)
+    nodaux = exploration.changements_nodaux_par_vl([h0, h12, h23], de.struct)
+    exploration.fusionner_nodaux(ch, nodaux)
     de.postes = exploration.agreger_par_poste(ch, vl_meta, sub_name)
     de.top = exploration.classer_postes(de.postes, 10)
     de.classement = exploration.classer_postes(de.postes, 40)
@@ -86,6 +89,9 @@ def test_explore_payload_shape():
     assert isinstance(payload["classement"], list) and payload["classement"]
     # le poste actif figure en tête de classement.
     assert payload["classement"][0]["total"] >= 1
+    # le décompte des re-groupements de nœuds est exposé (carte + classement).
+    assert "nodal" in payload["classement"][0]
+    assert all("nodal" in p for p in payload["postes"])
     # champs de résolution des coordonnées présents (carte / téléchargement).
     assert "coord_stats" in payload and "coord_file" in payload
 
@@ -167,5 +173,7 @@ def test_asset_contient_la_carte():
                   # filtrage des tensions par la légende
                   "voltToggle", "voltAll", "voltBand", "voltOff",
                   # mise en évidence des écarts départ/cible
-                  "highlightChanges", "octog-closed", "octog-opened"):
+                  "highlightChanges", "octog-closed", "octog-opened",
+                  # décompte des re-groupements de nœuds (scission/fusion)
+                  "re-groupé", "nodbadge"):
         assert token in txt, f"jeton front-end manquant : {token}"

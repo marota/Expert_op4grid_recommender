@@ -22,6 +22,17 @@ vue topologique d'un poste **à l'heure souhaitée**.
   (`BREAKER` / `DISCONNECTOR` / `LOAD_BREAK_SWITCH`). Cœur d'agrégation **Python
   pur** (`changements_par_vl`). **Classement et mise en évidence au niveau voltage
   level** (granularité fine) ; les **10 premiers VL** sont haloés sur la carte.
+- **Re-groupements de nœuds (scissions / fusions) comptabilisés** : au-delà des
+  OC, le décompte intègre le **nombre minimal d'ouvrages** séparés dans un nouveau
+  nœud ou ayant rejoint un nœud au cours de la journée — des configurations tout
+  aussi intéressantes à inspecter. La structure topologique invariante (arêtes +
+  ouvrages par nœud) est extraite une fois (`extraire_structure_topo`) ; le cœur
+  pur calcule la **partition nodale** par situation (`partition_ouvrages`) et la
+  **distance de transfert** entre situations consécutives (appariement de blocs
+  maximisant les ouvrages conservés → `noeuds_deplaces`), en retenant le **max**
+  sur les transitions (`changements_nodaux_par_vl`, stable face à une scission
+  suivie d'une fusion). Intégré au `total` (`fusionner_nodaux`) et affiché (badge
+  ⚇ dans le classement, ligne dédiée dans la bulle).
 - **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) — le
   dataset RTE 7000 ne portant **pas** de coordonnées, chaîne de résolution :
   (1) **plan de masse RTE committé** (`manoeuvre/dataset/grid_layout_rte.json`,
@@ -55,11 +66,16 @@ vue topologique d'un poste **à l'heure souhaitée**.
   Web Mercator avec inversion). Corrige un rendu précédemment « à l'envers ».
 - **Mise en évidence des écarts départ/cible** : en vue topologique, les organes
   dont l'état **diffère entre la topologie de départ et la cible** sont colorés
-  sur les deux schémas — **vert** = fermé à la cible (était ouvert), **orange** =
-  ouvert à la cible. Diff calculé côté serveur (`Session.diff_states`, champ
-  `changes` des réponses) et appliqué par `highlightChanges` (classes
-  `.octog-closed` / `.octog-opened`). Se met à jour à chaque bascule d'organe,
-  changement d'heure ou rétention de cible.
+  **uniquement sur le schéma cible**, en **couleurs vives** — **vert flashy** =
+  fermé à la cible (était ouvert), **orange flashy** = ouvert à la cible. Diff
+  calculé côté serveur (`Session.diff_states`, champ `changes` des réponses) et
+  appliqué par `highlightChanges` (classes `.octog-closed` / `.octog-opened`). Se
+  met à jour à chaque bascule d'organe, changement d'heure ou rétention de cible.
+- **Heure cible mise en évidence dès l'ouverture** : à l'ouverture d'un poste (ou
+  changement de l'heure de départ), la cible vaut le départ → le **bouton heure
+  cible est surligné en bleu** immédiatement (`MAP.cibleHour = heure`).
+- **Fond de carte plus lisible** : pays voisins assombris (`.nbr`) pour les
+  distinguer nettement des zones maritimes.
 - **Endpoints** : `POST /api/explore_day`, `POST /api/explore_poste`,
   `POST /api/explore_retain_target`. **Tests** :
   `tests/manoeuvre/test_exploration.py`, `tests/manoeuvre/test_geographie.py`,

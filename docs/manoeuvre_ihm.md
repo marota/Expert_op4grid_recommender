@@ -100,11 +100,25 @@ postes **intéressants** d'une journée.
 chaque poste, on compte le **nombre d'organes de coupure (OC) dont l'état change**
 sur la journée (un OC dont l'état n'est pas constant sur les trois instantanés),
 **ventilé par type d'OC** : `BREAKER` (disjoncteur), `DISCONNECTOR` (sectionneur),
-`LOAD_BREAK_SWITCH` (interrupteur). Le **classement et la mise en évidence sont au
-niveau voltage level** (granularité fine, pas par site) : le panneau latéral droit
-liste les **VL les plus actifs** (cliquable) et les **10 premiers VL** sont mis en
-évidence sur la carte (halo doré + rang sur le poste correspondant). Cœur de
-calcul : `manoeuvre/dataset/exploration.py` (`changements_par_vl` — Python pur).
+`LOAD_BREAK_SWITCH` (interrupteur). S'y **ajoutent les re-groupements de nœuds**
+(scissions / fusions) : le **nombre minimal d'ouvrages** ayant été séparés dans un
+nouveau nœud ou ayant rejoint un nœud au cours de la journée — des configurations
+tout aussi intéressantes à inspecter (affiché par un badge **⚇** dans le classement
+et une ligne dédiée dans la bulle, et **comptabilisé dans le total**). Concrètement,
+on extrait une fois la **structure topologique invariante** du réseau (arêtes
+nœud-disjoncteur + nombre d'ouvrages par nœud, `extraire_structure_topo`) ; pour
+chaque VL et chaque situation on calcule la **partition en nœuds électriques**
+(`partition_ouvrages`, connexité par switches fermés) et l'on mesure, entre
+situations consécutives, la **distance de transfert** (appariement des blocs
+maximisant les ouvrages conservés → ouvrages déplacés = le plus petit groupe
+séparé / ayant rejoint, `noeuds_deplaces`), en retenant le **max** sur les
+transitions (`changements_nodaux_par_vl` — stable face à une scission suivie d'une
+fusion). Le **classement et la mise en évidence sont au niveau voltage level**
+(granularité fine, pas par site) : le panneau latéral droit liste les **VL les plus
+actifs** (cliquable) et les **10 premiers VL** sont mis en évidence sur la carte
+(halo doré + rang sur le poste correspondant). Cœur de calcul :
+`manoeuvre/dataset/exploration.py` (`changements_par_vl`, `changements_nodaux_par_vl`,
+`fusionner_nodaux` — Python pur).
 
 **Carte** — chaque poste (substation) est un **disque coloré par niveau de
 tension** (palette type RTE : 400 kV rouge, 225 kV vert…), sur un **fond
@@ -125,12 +139,15 @@ glisser** (manipulation du `viewBox`, fluide jusqu'à ~6 000 postes). Interactio
   (00 h / 12 h / 23 h) pour choisir la **topologie de départ** souhaitée, boutons
   **Retenir comme cible** (00 h / 12 h / 23 h) pour fixer la **cible** = topologie
   du poste à cette heure (**ensuite éditable** comme n'importe quelle cible), et un
-  sélecteur de **niveau de tension** si le poste en a plusieurs. L'**heure** (menu
-  de la colonne de gauche) et le **champ du poste ciblé** sont mis à jour. En vue
-  topologique, les **organes dont l'état diffère entre départ et cible** sont mis
-  en évidence sur les deux schémas — **vert** = fermé à la cible (était ouvert),
-  **orange** = ouvert à la cible — pour visualiser la différence d'un coup d'œil
-  (recalculé à chaque bascule d'organe / changement d'heure / rétention de cible).
+  sélecteur de **niveau de tension** si le poste en a plusieurs. À l'ouverture, la
+  cible vaut le départ : le **bouton heure cible** est donc **surligné en bleu**
+  immédiatement (comme l'heure de départ). L'**heure** (menu de la colonne de
+  gauche) et le **champ du poste ciblé** sont mis à jour. En vue topologique, les
+  **organes dont l'état diffère entre départ et cible** sont mis en évidence
+  **uniquement sur le schéma cible**, en **couleurs vives** — **vert flashy** =
+  fermé à la cible (était ouvert), **orange flashy** = ouvert à la cible — pour
+  visualiser la différence d'un coup d'œil (recalculé à chaque bascule d'organe /
+  changement d'heure / rétention de cible).
 
 La **légende des tensions** est **filtrante** : cliquer une bande affiche/masque
 les disques de ce niveau ; les boutons **« tout »** / **« aucun »** (dé)sélectionnent
