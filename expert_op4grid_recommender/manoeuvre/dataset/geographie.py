@@ -39,10 +39,12 @@ import urllib.request
 from pathlib import Path
 from typing import Iterable, Optional
 
-#: dataset ODRE des postes électriques RTE (avec coordonnées + tension).
+#: dataset ODRE des postes électriques RTE. **Export geojson** : le flat export
+#: (json/csv) ne porte **que** les attributs (code_poste, nom_poste, tension…) et
+#: **pas** la géométrie ; seul l'export geojson fournit les coordonnées.
 ODRE_DATASET = "postes-electriques-rte"
 ODRE_EXPORT = ("https://odre.opendatasoft.com/api/explore/v2.1/catalog/"
-               "datasets/{dataset}/exports/json")
+               "datasets/{dataset}/exports/geojson")
 
 #: emplacement par défaut de l'instantané committé (résolution sans réseau).
 SNAPSHOT_DEFAUT = "data/postes_rte_geo.json"
@@ -149,6 +151,36 @@ def _http_get(url: str, timeout: int = 120, essais: int = 4,
     raise AssertionError("unreachable")
 
 
+def _centroid(geom) -> Optional[tuple[float, float]]:
+    """``(lon, lat)`` d'une géométrie GeoJSON. ``Point`` → ses coordonnées ;
+    ``Polygon``/``Multi*``/``LineString`` → **centroïde** (moyenne des sommets).
+    ``None`` si la géométrie est absente/illisible. (GeoJSON : ``[lon, lat]``.)"""
+    if not isinstance(geom, dict):
+        return None
+    coords = geom.get("coordinates")
+    if coords is None:
+        return None
+    if geom.get("type") == "Point":
+        try:
+            return float(coords[0]), float(coords[1])
+        except (TypeError, ValueError, IndexError):
+            return None
+    pts: list[tuple[float, float]] = []
+
+    def _walk(x):
+        if (isinstance(x, (list, tuple)) and len(x) == 2
+                and all(isinstance(v, (int, float)) for v in x)):
+            pts.append((float(x[0]), float(x[1])))
+        elif isinstance(x, (list, tuple)):
+            for y in x:
+                _walk(y)
+    _walk(coords)
+    if not pts:
+        return None
+    return (sum(p[0] for p in pts) / len(pts),
+            sum(p[1] for p in pts) / len(pts))
+
+
 def fetch_odre_records(
     cache_dir: str | Path | None = None,
     token: Optional[str] = None,
@@ -156,15 +188,19 @@ def fetch_odre_records(
     essais: int = 4,
     timeout: int = 120,
 ) -> list[dict]:
-    """Tous les enregistrements du dataset ODRE des postes (API *exports/json*).
+    """Enregistrements ODRE des postes (export **geojson**), aplatis en
+    ``[{<attributs>, 'geo_point_2d': [lat, lon]}, …]`` : la géométrie de chaque
+    *feature* est ramenée à un point (centroïde) et injectée comme ``geo_point_2d``
+    (convention ``[lat, lon]`` du reste du module), à côté des ``properties``
+    (``code_poste``, ``nom_poste``, ``tension``…).
 
-    Mis en cache sous ``cache_dir/odre_postes.json`` (repris tel quel si présent
-    et ``force=False``). Lève si ODRE est injoignable et qu'aucun cache n'existe.
+    Mis en cache sous ``cache_dir/odre_postes_geo.json`` (repris si présent et
+    ``force=False`` — nom distinct de l'ancien cache *sans géométrie*). Lève si
+    ODRE est injoignable et qu'aucun cache n'existe.
 
     ``essais``/``timeout`` : la résolution **runtime** les abaisse (échec rapide
-    si la sortie vers ODRE est bloquée → repli sur le classement en liste) ; le
-    script de fetch hors-ligne garde les valeurs par défaut (plus robustes)."""
-    cache = Path(cache_dir) / "odre_postes.json" if cache_dir else None
+    si la sortie vers ODRE est bloquée) ; le script de fetch garde les défauts."""
+    cache = Path(cache_dir) / "odre_postes_geo.json" if cache_dir else None
     if cache and cache.exists() and not force:
         try:
             return json.loads(cache.read_text(encoding="utf-8"))
@@ -172,9 +208,22 @@ def fetch_odre_records(
             pass
     url = ODRE_EXPORT.format(dataset=ODRE_DATASET)
     raw = _http_get(url, token=token, essais=essais, timeout=timeout)
-    records = json.loads(raw.decode("utf-8", "replace"))
-    if not isinstance(records, list):
-        records = records.get("results", []) if isinstance(records, dict) else []
+    data = json.loads(raw.decode("utf-8", "replace"))
+    if isinstance(data, dict):
+        feats = data.get("features", [])
+    elif isinstance(data, list):
+        feats = data
+    else:
+        feats = []
+    records: list[dict] = []
+    for ft in feats:
+        if not isinstance(ft, dict):
+            continue
+        rec = dict(ft.get("properties") or {})
+        c = _centroid(ft.get("geometry"))
+        if c is not None:
+            rec.setdefault("geo_point_2d", [c[1], c[0]])   # [lat, lon]
+        records.append(rec)
     if cache:
         cache.parent.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps(records, ensure_ascii=False),
@@ -246,10 +295,12 @@ def normaliser_mnemonique(s: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
 
 
-def _index_par(records: list[dict], cles: Iterable[str]) -> dict[str, dict]:
-    """Index ``{mnémonique normalisé: {lat, lon, nom, tension}}`` à partir du
-    **premier champ renseigné** de ``cles`` (code OU nom), pour les enregistrements
-    géolocalisés. La 1ʳᵉ occurrence d'une clé gagne."""
+def _index_par(records: list[dict], cles: Iterable[str],
+               normaliser: bool = True) -> dict[str, dict]:
+    """Index ``{clé: {lat, lon, nom, tension}}`` à partir du **premier champ
+    renseigné** de ``cles`` (code OU nom), pour les enregistrements géolocalisés.
+    Clé = mnémonique **normalisé** (``normaliser=True``) ou **brut** (verbatim,
+    ``normaliser=False``). La 1ʳᵉ occurrence d'une clé gagne."""
     idx: dict[str, dict] = {}
     for rec in records:
         geo = _extraire_geo(rec)
@@ -258,11 +309,11 @@ def _index_par(records: list[dict], cles: Iterable[str]) -> dict[str, dict]:
         val = _premier(rec, cles)
         if not val:
             continue
-        norm = normaliser_mnemonique(val)
-        if norm and norm not in idx:
-            idx[norm] = {"lat": geo[0], "lon": geo[1],
-                         "nom": _premier(rec, _CLES_NOM) or val,
-                         "tension": _premier(rec, _CLES_TENSION)}
+        key = normaliser_mnemonique(val) if normaliser else val
+        if key and key not in idx:
+            idx[key] = {"lat": geo[0], "lon": geo[1],
+                        "nom": _premier(rec, _CLES_NOM) or val,
+                        "tension": _premier(rec, _CLES_TENSION)}
     return idx
 
 
@@ -291,20 +342,22 @@ def apparier_odre(
     ``sample_fields``, ``sample_codes``, ``sample_noms``, ``sample_subs``,
     ``sample_non_apparies``).
 
-    Stratégie : on indexe ODRE **par code** (``_CLES_CODE``) **et par nom**
-    (``_CLES_NOM``), mnémoniques normalisés ; pour chaque ``substation_id`` : match
-    **exact** (code puis nom), puis repli optionnel par **préfixe** (un côté
-    préfixe de l'autre, ≥ 4 car.). Couvre le cas où ODRE n'expose qu'un **nom**
-    (``CONCARNEAU``) là où le réseau porte un **mnémonique** (``CONCA``). Pure."""
-    code_index = _index_par(records, _CLES_CODE)
-    name_index = _index_par(records, _CLES_NOM)
+    Stratégie : on indexe ODRE **par code brut** (``code_poste`` verbatim — qui
+    recoupe ~98 % des ``substation_id`` RTE), puis **par code normalisé** et **par
+    nom normalisé** ; pour chaque ``substation_id`` : match **code brut**, puis code
+    normalisé, puis nom, puis repli **préfixe** (≥ 4 car.). Couvre le cas où ODRE
+    n'expose qu'un **nom** (``CONCARNEAU`` vs mnémonique ``CONCA``). Pure."""
+    raw_index = _index_par(records, _CLES_CODE, normaliser=False)  # code verbatim
+    code_index = _index_par(records, _CLES_CODE)                   # code normalisé
+    name_index = _index_par(records, _CLES_NOM)                    # nom normalisé
     sub_ids = list(dict.fromkeys(map(str, substation_ids)))
     positions: dict[str, dict] = {}
     n_exact = n_prefixe = 0
     non_apparies: list[str] = []
     for sid in sub_ids:
         norm = normaliser_mnemonique(sid)
-        rec = code_index.get(norm) or name_index.get(norm)
+        rec = (raw_index.get(sid) or code_index.get(norm)
+               or name_index.get(norm))
         if rec is not None:
             n_exact += 1
         elif prefix_fallback and len(norm) >= 4:

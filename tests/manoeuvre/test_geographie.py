@@ -106,6 +106,41 @@ def test_resoudre_chaine_snapshot_puis_aucune(tmp_path):
     assert src2 == "aucune" and pos2 == {}
 
 
+def test_fetch_odre_geojson(monkeypatch, tmp_path):
+    # ODRE n'expose la géométrie que via l'export geojson : on aplatit chaque
+    # feature en record + geo_point_2d (centroïde) à côté des properties.
+    fc = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [2.35, 48.85]},
+         "properties": {"code_poste": "PARIS", "nom_poste": "PARIS"}},
+        {"type": "Feature",
+         "geometry": {"type": "Polygon",
+                      "coordinates": [[[4.8, 45.7], [4.9, 45.7], [4.9, 45.8], [4.8, 45.8], [4.8, 45.7]]]},
+         "properties": {"code_poste": "LYON", "nom_poste": "LYON"}},
+        {"type": "Feature", "geometry": None, "properties": {"code_poste": "NOGEO"}}]}
+    monkeypatch.setattr(g, "_http_get", lambda *a, **k: json.dumps(fc).encode("utf-8"))
+    recs = g.fetch_odre_records(cache_dir=tmp_path)
+    assert recs[0]["geo_point_2d"] == [48.85, 2.35]          # Point → [lat, lon]
+    assert abs(recs[1]["geo_point_2d"][0] - 45.75) < 0.05    # Polygon → centroïde
+    assert "geo_point_2d" not in recs[2]                     # géométrie nulle
+    assert (tmp_path / "odre_postes_geo.json").exists()      # nom de cache distinct
+
+
+def test_apparier_code_brut_avec_point():
+    # code RTE à point (B.MAN) : match **verbatim** (la normalisation donnerait
+    # BMAN et pourrait collisionner).
+    recs = [{"code_poste": "B.MAN", "nom_poste": "BEAUMANOIR", "geo_point_2d": [48.1, -2.0]}]
+    pos, stats = g.apparier_odre(recs, ["B.MAN", "B.MAU"])
+    assert pos["B.MAN"]["lat"] == 48.1 and stats["n_exact"] == 1
+    assert "B.MAU" not in pos
+
+
+def test_centroid():
+    assert g._centroid({"type": "Point", "coordinates": [2.0, 48.0]}) == (2.0, 48.0)
+    c = g._centroid({"type": "Polygon", "coordinates": [[[0, 0], [2, 0], [2, 2], [0, 2]]]})
+    assert c == (1.0, 1.0)
+    assert g._centroid(None) is None and g._centroid({"type": "Point"}) is None
+
+
 def test_ecrire_snapshot_roundtrip(tmp_path):
     p = tmp_path / "geo.json"
     g.ecrire_snapshot(p, {"S1": {"lat": 48.0, "lon": 2.0, "nom": "X",
