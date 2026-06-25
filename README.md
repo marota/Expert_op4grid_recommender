@@ -12,38 +12,63 @@ system shipped as the default. See
 
 ---
 
-## Documentation
+## Table of Contents
 
-New here? Start with the **[architecture & overall-understanding overview](docs/architecture/overview.md)**.
-The full documentation index is in [`docs/README.md`](docs/README.md) —
-architecture & simulation pipeline, the recommender's action designs, the maneuver
-module & web IHM, the RTE-7000 dataset, release notes, and the archive.
-
----
-
-## Features
-
-* **Contingency Simulation**: Simulates N-1 contingencies in a Grid2Op environment.
-* **Overflow Graph Generation**: Builds and visualizes overflow graphs using `alphaDeesp` and `networkx`.
-* **Expert Rule Engine**: Filters potential grid actions (line switching, topology changes) based on predefined rules derived from operator expertise.
-* **Action Prioritization**: Identifies and scores relevant corrective actions (line reconnections, disconnections, node splitting/merging).
-* **Pluggable Recommendation Models**: the rule-based expert system is one
-  implementation of the `RecommenderModel` contract; external models
-  (random baselines, ML policies, …) plug in through the same DTO with
-  no changes to the analysis pipeline. See
-  [Pluggable Recommendation Models](#pluggable-recommendation-models).
-* **Modular Structure**: Organized code for better maintainability and testing.
+- [Quick Overview](#quick-overview)
+- [Documentation](#documentation)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage Example](#usage-example)
+- [Pypowsybl Backend](#pypowsybl-backend)
+- [Pluggable Recommendation Models](#pluggable-recommendation-models)
+- [Action Discovery and Scoring](#action-discovery-and-scoring)
+- [Configuration](#configuration)
+- [Interactive Maneuver Interface (IHM)](#interactive-maneuver-interface-ihm)
+- [Dependencies](#dependencies)
+- [Testing](#testing)
+- [License](#license)
 
 ---
 
-## Interactive Maneuver Interface (IHM)
+## Quick Overview
 
-A lightweight web IHM (`scripts/manoeuvre_ihm.py`) drives the `manoeuvre`
-module interactively: pick a substation, edit a **target detailed topology**,
-compute and **animate the switching sequence**, and save scenarios/sequences.
-It also backs the hosted **TopologyManoeuver4Grid** HuggingFace Space (network
-situations sourced on demand from the RTE-7000 dataset by date/hour). Full
-guide: [`docs/manoeuvre/ihm.md`](docs/manoeuvre/ihm.md).
+ExpertOp4Grid Recommender has two complementary halves, used end to end by the
+companion operator UI **[Co-Study4Grid](https://github.com/marota/Co-Study4Grid)**:
+
+1. **The recommender** — given an N-1 contingency and the overloads it causes, it
+   builds an overflow graph, filters candidate actions with expert rules, and
+   returns a **ranked list of corrective actions** (line switching, node
+   splitting/merging, PST, load shedding, renewable curtailment, redispatch),
+   each re-simulated to report its effect on line loading.
+2. **The maneuver module** — turns a chosen **nodal** action into a safe,
+   **animated switching sequence** at the detailed (node-breaker) level, driven
+   from a lightweight web IHM.
+
+### 1 · The recommender — ranked corrective actions
+
+<p align="center">
+  <img src="docs/img/co_study4grid_recommender_feed.png" width="330"
+       alt="Annotated Co-Study4Grid 'Suggested Actions' feed: ranked action cards with per-action max-loading, target chips, and green/amber/red severity badges">
+</p>
+
+> **Fig. — The recommender's output, rendered in [Co-Study4Grid](https://github.com/marota/Co-Study4Grid).**
+> A feed of **ranked action cards** for contingency `P.SAOL31RONCI` (overload
+> `BEON L31CPVAN` at 98.7%), produced by the *Expert system* model in 0.67 s.
+> Each card shows the action id and **family** — `disco_…` (line disconnection),
+> `node_merging_…`, `load_shedding_…`, `reco_…` (reconnection) — the **max line
+> loading after the action**, the binding line, and a **target chip** (blue =
+> line, green = substation). The left border + badge encode severity:
+> **green ✓** solves the overload, **amber !** leaves a low margin, **red ✗**
+> still overloaded — so the operator scans the best fixes top-down. The header
+> action-type icons and the `150 %` field filter and threshold the feed.
+> *(Screenshot from the companion Co-Study4Grid operator UI.)*
+
+### 2 · The maneuver module — from a nodal action to a switching sequence
+
+Once a **nodal** action is chosen, the `manoeuvre` module plans the detailed
+(node-breaker) target topology and the safe, ordered switching sequence to reach
+it — explored interactively through the web IHM (see the
+[dedicated section](#interactive-maneuver-interface-ihm) below).
 
 ![Annotated overview of the maneuver IHM on a node-split scenario at CARRIP3](docs/manoeuvre/manoeuvre_ihm_overview.svg)
 
@@ -75,6 +100,30 @@ guide: [`docs/manoeuvre/ihm.md`](docs/manoeuvre/ihm.md).
 > to replay a saved scenario.
 > Bus colors are the native `topological_coloring`; the three right-hand busbars
 > are the target nodes.
+
+---
+
+## Documentation
+
+New here? Start with the **[architecture & overall-understanding overview](docs/architecture/overview.md)**.
+The full documentation index is in [`docs/README.md`](docs/README.md) —
+architecture & simulation pipeline, the recommender's action designs, the maneuver
+module & web IHM, the RTE-7000 dataset, release notes, and the archive.
+
+---
+
+## Features
+
+* **Contingency Simulation**: Simulates N-1 contingencies in a Grid2Op environment.
+* **Overflow Graph Generation**: Builds and visualizes overflow graphs using `alphaDeesp` and `networkx`.
+* **Expert Rule Engine**: Filters potential grid actions (line switching, topology changes) based on predefined rules derived from operator expertise.
+* **Action Prioritization**: Identifies and scores relevant corrective actions (line reconnections, disconnections, node splitting/merging).
+* **Pluggable Recommendation Models**: the rule-based expert system is one
+  implementation of the `RecommenderModel` contract; external models
+  (random baselines, ML policies, …) plug in through the same DTO with
+  no changes to the analysis pipeline. See
+  [Pluggable Recommendation Models](#pluggable-recommendation-models).
+* **Modular Structure**: Organized code for better maintainability and testing.
 
 ---
 
@@ -127,7 +176,7 @@ The script will:
 4.  Apply expert rules to filter actions loaded from the action space file.
 5.  Identify and print a list of prioritized corrective actions.
 
------
+---
 
 ## Pypowsybl Backend
 
@@ -143,8 +192,6 @@ The `pypowsybl` backend provides a high-performance alternative to Grid2Op for n
 
 > [!TIP]
 > For a complete description of the simulation pipeline — load-flow modes (AC/DC, fast/slow), voltage initialisation strategies, the `DC_VALUES` fallback on non-converged status, variant lifecycle, thermal-limit hypotheses, and the four available retry branches — see [`docs/architecture/simulation-pipeline.md`](docs/architecture/simulation-pipeline.md).
-
------
 
 An option that can be activated for specific use is to rebuild an action space from one segmentation of a grid to another or the full grid:
 
@@ -279,18 +326,6 @@ new-model example, and the test layout.
 
 ---
 
-## Configuration
-
-Key parameters can be adjusted in `expert_op4grid_recommender/config.py`:
-
-  * `DATE`, `TIMESTEP`, `LINES_DEFAUT`: Define the specific case to analyze.
-  * `ENV_FOLDER`, `ENV_NAME`: Specify the Grid2Op environment location.
-  * `ACTION_FILE_PATH`: Path to the JSON file containing the action space.
-  * `USE_DC_LOAD_FLOW`: Set to `True` to use DC power flow if AC flow fails.
-  * `PARAM_OPTIONS_EXPERT_OP`: Thresholds and parameters for the overflow graph analysis.
-
------
-
 ## Action Discovery and Scoring
 
 After building the overflow graph and filtering candidate actions with expert rules, the `ActionDiscoverer` evaluates and scores each candidate action by type. Each type has its own filtering criteria to narrow down candidates before scoring. The resulting scores are returned in an `action_scores` dictionary with four keys. Each type contains `"scores"` (action scores sorted by descending value) and `"params"` (underlying hypotheses and parameters used for scoring):
@@ -408,7 +443,33 @@ score = theta2 - theta1
 
 where theta1 is the voltage angle of the bus connected to the red loop (identified as the bus carrying more negative/overload-relieving dispatch flow on the overflow graph), and theta2 is the voltage angle of the other bus. A positive score means flows would naturally go from the higher-phase bus towards the red loop bus, which is the desired direction to relieve overloads.
 
------
+---
+
+## Configuration
+
+Key parameters can be adjusted in `expert_op4grid_recommender/config.py`:
+
+  * `DATE`, `TIMESTEP`, `LINES_DEFAUT`: Define the specific case to analyze.
+  * `ENV_FOLDER`, `ENV_NAME`: Specify the Grid2Op environment location.
+  * `ACTION_FILE_PATH`: Path to the JSON file containing the action space.
+  * `USE_DC_LOAD_FLOW`: Set to `True` to use DC power flow if AC flow fails.
+  * `PARAM_OPTIONS_EXPERT_OP`: Thresholds and parameters for the overflow graph analysis.
+
+---
+
+## Interactive Maneuver Interface (IHM)
+
+A lightweight web IHM (`scripts/manoeuvre_ihm.py`) drives the `manoeuvre`
+module interactively: pick a substation, edit a **target detailed topology**,
+compute and **animate the switching sequence**, and save scenarios/sequences.
+It also backs the hosted **TopologyManoeuver4Grid** HuggingFace Space (network
+situations sourced on demand from the RTE-7000 dataset by date/hour).
+
+See the **annotated walkthrough** in the [Quick Overview](#quick-overview) above
+for the numbered tour of the interface. Full guide:
+[`docs/manoeuvre/ihm.md`](docs/manoeuvre/ihm.md).
+
+---
 
 ## Dependencies
 
@@ -424,7 +485,7 @@ This project relies on several external libraries, including:
 
 See `pyproject.toml` for the full list.
 
------
+---
 
 ## Testing
 
@@ -436,7 +497,7 @@ pytest
 
 *Note: Some integration tests (`@pytest.mark.slow`) require the Grid2Op environment data to be present and may take longer to run.*
 
------
+---
 
 ## License
 
