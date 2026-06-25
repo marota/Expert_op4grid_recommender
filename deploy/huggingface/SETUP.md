@@ -38,30 +38,29 @@ gros fichier dans l'historique à gérer.
 | `DGITT_DEFAULT_DATE` | `2021-01-03` | Date proposée par défaut dans l'IHM. |
 | `DGITT_CACHE_DIR` | `/home/user/app/.cache/dgitt` | Cache local des instantanés (éphémère sur un Space). |
 | `HF_TOKEN` | *(absent)* | **Optionnel** : jeton de lecture HF pour desserrer le rate-limit anonyme du CDN. Le mettre en **secret** du Space. |
-| `MANOEUVRE_ENABLE_ODRE` | `1` | « Explorer la journée » : interroger **ODRE** pour les coordonnées des postes (carte). `0` pour désactiver (l'IHM bascule alors sur le **classement en liste**). |
-| `ODRE_TOKEN` | *(absent)* | **Optionnel** : clé API ODRE (rate-limit). Secret du Space ; l'accès anonyme suffit pour le dataset public. |
-| `MANOEUVRE_GEO_SNAPSHOT` | `$DGITT_CACHE_DIR/postes_rte_geo.json` | Chemin de l'instantané de coordonnées résolu/persisté. **Par défaut dans le cache** → il suffit de pointer `DGITT_CACHE_DIR` sur le stockage persistant pour le faire survivre (pas besoin de définir cette variable). |
+| `MANOEUVRE_ENABLE_OSM` | `1` | « Explorer la journée » : **repli OSM/Overpass** pour les coordonnées absentes du plan de masse committé. `0` le désactive (la carte reste alimentée par le plan de masse). |
+| `MANOEUVRE_GEO_SNAPSHOT` | `$DGITT_CACHE_DIR/postes_rte_geo.json` | Chemin de l'instantané de coordonnées **OSM** résolu/persisté. **Par défaut dans le cache** → pointer `DGITT_CACHE_DIR` sur le stockage persistant suffit à le faire survivre. |
 | `PORT` | `7860` | Port d'écoute (HF expose `:7860`). |
 
-### « Explorer la journée » — carte des postes / ODRE
+### « Explorer la journée » — carte des postes
 
-**Rien à configurer pour que ça marche** : la sortie internet des Spaces est
-ouverte, donc dès la 1ʳᵉ exploration les coordonnées sont **téléchargées
-automatiquement depuis ODRE** (`postes-electriques-rte`) et appariées aux postes
-(le **taux d'appariement** s'affiche dans l'en-tête de la carte). Notes :
+**Rien à configurer, aucun accès réseau requis** : les coordonnées viennent du
+**plan de masse RTE committé** (`manoeuvre/dataset/grid_layout_rte.json`, ~98 % des
+postes, embarqué dans l'image). La carte s'affiche dès la 1ʳᵉ exploration ;
+l'en-tête indique la source et la couverture (`coord. : layout (4723/4811, 98%)`).
+Notes :
 
-- **Persistance** : le FS du Space est éphémère → ODRE est ré-interrogé **une fois
-  par démarrage à froid** (quelques secondes). Pour l'éviter, soit **télécharger**
-  l'instantané résolu (bouton **⬇ coordonnées**) et le re-servir, soit attacher le
-  **stockage persistant HF** (Settings → *Persistent storage*, monté sur `/data`)
-  et pointer `DGITT_CACHE_DIR=/data/dgitt` — le cache des coordonnées **et** des
-  instantanés XIIDM survit alors aux redémarrages.
+- **Repli OSM** : pour les ~2 % de postes absents du plan (ou si le plan est
+  retiré), l'IHM interroge **OpenStreetMap / Overpass** (`overpass-api.de`,
+  `ref:FR:RTE` = `substation_id`), persiste le résultat et l'offre au
+  téléchargement (bouton **⬇ coordonnées**). Adosser `DGITT_CACHE_DIR=/data/dgitt`
+  au **stockage persistant HF** fait survivre ce cache (et les instantanés XIIDM)
+  aux redémarrages.
 - **Mémoire** : l'exploration charge **3 réseaux France** (minuit/midi/23 h)
-  séquentiellement ; le pic mémoire reste sous ~2 Go → le tier **CPU basic (16 Go)**
-  suffit.
-- **Si la carte reste vide** (taux d'appariement nul) : les codes ODRE ne recoupent
-  pas les mnémoniques RTE — voir `docs/manoeuvre_ihm.md` (§ 1ter) pour ajuster
-  l'appariement. L'IHM reste utilisable via le **classement en liste**.
+  séquentiellement ; le pic reste sous ~2 Go → le tier **CPU basic (16 Go)** suffit.
+- **Diagnostic** : si la carte reste vide (cas rare : plan absent **et** OSM
+  bloqué), le bandeau indique la cause ; l'IHM reste utilisable via le **classement
+  en liste**.
 
 ## Étapes de déploiement
 

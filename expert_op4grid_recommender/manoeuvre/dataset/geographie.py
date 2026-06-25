@@ -39,15 +39,42 @@ import urllib.request
 from pathlib import Path
 from typing import Iterable, Optional
 
-#: dataset ODRE des postes électriques RTE. **Export geojson** : le flat export
-#: (json/csv) ne porte **que** les attributs (code_poste, nom_poste, tension…) et
-#: **pas** la géométrie ; seul l'export geojson fournit les coordonnées.
+#: dataset ODRE des postes électriques RTE — **purement tabulaire** (code_poste,
+#: nom_poste, fonction, etat, tension, departement). **Aucune géométrie** (vérifié
+#: via l'API records) : inutilisable pour la carte. Conservé pour mémoire.
 ODRE_DATASET = "postes-electriques-rte"
 ODRE_EXPORT = ("https://odre.opendatasoft.com/api/explore/v2.1/catalog/"
                "datasets/{dataset}/exports/geojson")
 
+#: **OpenStreetMap / Overpass** : source des **coordonnées** des postes RTE. Les
+#: postes RTE y sont taggués ``power=substation`` + ``ref:FR:RTE`` = le **code
+#: mnémonique RTE** (= ``substation_id`` du réseau, vérifié : recoupement quasi
+#: total). ``ref:FR:RTE_nom`` = le nom long. ``out center`` donne lat/lon (nœud)
+#: ou le centre (way/relation). Même approche que Co-Study4Grid.
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_QUERY = (
+    '[out:json][timeout:180];'
+    'area["ISO3166-1"="FR"][admin_level=2]->.fr;'
+    'nwr["power"="substation"]["ref:FR:RTE"](area.fr);'
+    'out center tags;')
+
 #: emplacement par défaut de l'instantané committé (résolution sans réseau).
 SNAPSHOT_DEFAUT = "data/postes_rte_geo.json"
+
+#: **plan de masse RTE committé** (``{nom_VL: [x, y]}``, projection planaire RTE)
+#: — source **primaire, hors-ligne** des coordonnées (≈ 98 % des postes,
+#: indépendant du réseau). Livré dans le package (copié dans l'image du Space).
+LAYOUT_DEFAUT = str(Path(__file__).resolve().parent / "grid_layout_rte.json")
+
+#: rayon terrestre (Web Mercator) — projection des sources lon/lat (OSM).
+_EARTH_R = 6378137.0
+
+
+def merc(lon: float, lat: float) -> tuple[float, float]:
+    """Projection Web Mercator ``(lon, lat)`` → ``(x, y)`` mètres."""
+    import math
+    return (math.radians(lon) * _EARTH_R,
+            math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)) * _EARTH_R)
 
 # Codes HTTP **transitoires** d'ODRE (on retente). ``403`` en est **exclu** :
 # côté ODRE c'est un refus (auth / politique de sortie bloquée), pas un aléa —
@@ -79,6 +106,58 @@ def positions_xiidm(net) -> dict[str, dict]:
             except (TypeError, ValueError):
                 continue
     return out
+
+
+# ===========================================================================
+# 1bis. Plan de masse RTE committé (par voltage level) — source primaire offline
+# ===========================================================================
+
+def charger_layout(path: str | Path = LAYOUT_DEFAUT) -> dict[str, list]:
+    """Charge le plan de masse committé ``{nom_VL: [x, y]}`` (projection planaire
+    RTE). ``{}`` si absent/illisible. Best-effort."""
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def positions_from_layout(
+    layout: dict[str, list],
+    vl_meta: dict[str, dict],
+) -> tuple[dict[str, dict], dict]:
+    """Coordonnées **par poste (substation)** depuis le plan de masse par VL.
+
+    ``vl_meta`` : ``{vl: {'substation', 'nominal_v', …}}``. Pour chaque poste, on
+    retient le VL **de plus haute tension** présent dans le plan (coordonnée la
+    plus représentative ; l'écart entre VL d'un même poste est négligeable).
+
+    Retourne ``(positions, stats)`` : ``positions = {substation: {'x', 'y',
+    'source': 'layout'}}`` (projection planaire, telle quelle) ; ``stats`` pour
+    l'affichage. Fonction pure."""
+    best: dict[str, tuple[float, str]] = {}   # sub -> (nominal_v, vl)
+    for vl, meta in vl_meta.items():
+        if vl not in layout:
+            continue
+        sub = meta.get("substation") or vl
+        nv = meta.get("nominal_v", 0.0) or 0.0
+        if sub not in best or nv > best[sub][0]:
+            best[sub] = (nv, vl)
+    positions: dict[str, dict] = {}
+    for sub, (_nv, vl) in best.items():
+        xy = layout[vl]
+        try:
+            positions[sub] = {"x": float(xy[0]), "y": float(xy[1]),
+                              "source": "layout"}
+        except (TypeError, ValueError, IndexError):
+            continue
+    n = len({m.get("substation") or vl for vl, m in vl_meta.items()})
+    stats = {"n_substations": n, "n_apparies": len(positions), "n_layout": len(layout),
+             "taux": round(len(positions) / n, 3) if n else 0.0}
+    return positions, stats
 
 
 # ===========================================================================
@@ -231,6 +310,72 @@ def fetch_odre_records(
     return records
 
 
+def fetch_osm_substations(
+    cache_dir: str | Path | None = None,
+    token: Optional[str] = None,   # accepté pour symétrie ; inutilisé (Overpass anonyme)
+    force: bool = False,
+    essais: int = 3,
+    timeout: int = 180,
+) -> list[dict]:
+    """Postes RTE localisés depuis **OpenStreetMap / Overpass**, en records
+    ``[{'code_poste': ref:FR:RTE, 'nom_poste': …, 'tension': …,
+    'geo_point_2d': [lat, lon]}, …]`` — même forme que ``fetch_odre_records``
+    (consommable tel quel par ``apparier_odre``).
+
+    ``ref:FR:RTE`` = mnémonique RTE = ``substation_id`` du réseau (vérifié). Pour
+    un *way*/*relation*, on prend le **centre** (``out center``). Requête POST
+    (la query est longue), retries sur codes transitoires. Mis en cache sous
+    ``cache_dir/osm_postes.json``. Lève si Overpass est injoignable sans cache."""
+    cache = Path(cache_dir) / "osm_postes.json" if cache_dir else None
+    if cache and cache.exists() and not force:
+        try:
+            return json.loads(cache.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    body = urllib.parse.urlencode({"data": OVERPASS_QUERY}).encode("utf-8")
+    headers = {"User-Agent": "expert-op4grid-geo/1.0",
+               "Content-Type": "application/x-www-form-urlencoded"}
+    payload = None
+    for essai in range(essais):
+        try:
+            req = urllib.request.Request(OVERPASS_URL, data=body, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                payload = json.loads(resp.read().decode("utf-8", "replace"))
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code not in _RETRIABLE or essai == essais - 1:
+                raise
+            time.sleep(2 ** essai + random.uniform(0, 1))
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            if essai == essais - 1:
+                raise
+            time.sleep(2 ** essai + random.uniform(0, 1))
+    records: list[dict] = []
+    for el in (payload or {}).get("elements", []):
+        tags = el.get("tags") or {}
+        code = tags.get("ref:FR:RTE")
+        if not code:
+            continue
+        if el.get("type") == "node":
+            lat, lon = el.get("lat"), el.get("lon")
+        else:
+            c = el.get("center") or {}
+            lat, lon = c.get("lat"), c.get("lon")
+        if lat is None or lon is None:
+            continue
+        records.append({
+            "code_poste": code,
+            "nom_poste": tags.get("ref:FR:RTE_nom") or tags.get("name") or code,
+            "tension": tags.get("voltage"),
+            "geo_point_2d": [float(lat), float(lon)],
+        })
+    if cache:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(records, ensure_ascii=False),
+                         encoding="utf-8")
+    return records
+
+
 # --- détection tolérante des champs ODRE -----------------------------------
 
 _CLES_GEO = ("geo_point_2d", "geo_point", "geopoint", "coordonnees",
@@ -367,15 +512,15 @@ def apparier_odre(
         if rec is not None:
             positions[sid] = {"lat": rec["lat"], "lon": rec["lon"],
                               "nom": rec["nom"], "tension": rec.get("tension"),
-                              "source": "odre"}
+                              "source": "osm"}
         else:
             non_apparies.append(sid)
     n = len(sub_ids)
-    # Échantillons de diagnostic (pourquoi 0 apparié ? quel champ ODRE ?).
+    # Échantillons de diagnostic (pourquoi 0 apparié ? quel champ ?).
     sample_fields = sorted(records[0].keys())[:40] if records else []
     sample_codes = [_premier(r, _CLES_CODE) for r in records[:6]]
     sample_noms = [_premier(r, _CLES_NOM) for r in records[:6]]
-    stats = {"n_substations": n, "n_odre": len(records),
+    stats = {"n_substations": n, "n_records": len(records),
              "n_index_code": len(code_index), "n_index_nom": len(name_index),
              "n_apparies": len(positions), "n_exact": n_exact,
              "n_prefixe": n_prefixe,
@@ -411,25 +556,26 @@ def resoudre(
     net=None,
     snapshot_path: str | Path = SNAPSHOT_DEFAUT,
     cache_dir: str | Path | None = None,
-    autoriser_odre: bool = True,
+    autoriser_osm: bool = True,
     token: Optional[str] = None,
     essais: int = 2,
-    timeout: int = 30,
+    timeout: int = 60,
     persist_path: str | Path | None = None,
     stats_out: Optional[dict] = None,
 ) -> tuple[dict[str, dict], str]:
     """Résout les coordonnées des ``substation_ids`` par chaîne de sources.
 
     Retourne ``(positions, source)`` où ``source`` ∈ {``'xiidm'``,
-    ``'snapshot'``, ``'odre'``, ``'aucune'``}. Best-effort : un échec ODRE
-    (réseau bloqué) n'interrompt pas — on renvoie ce qui a pu être résolu (au
-    pire ``{}`` + ``'aucune'``, l'IHM bascule alors sur le classement en liste).
+    ``'snapshot'``, ``'osm'``, ``'aucune'``}. Les coordonnées viennent
+    d'**OpenStreetMap / Overpass** (``ref:FR:RTE`` = ``substation_id``) ; ODRE est
+    purement tabulaire (pas de géométrie) et n'est donc pas utilisé pour la carte.
+    Best-effort : un échec OSM (réseau bloqué / Overpass indisponible) n'interrompt
+    pas — au pire ``{}`` + ``'aucune'`` et l'IHM bascule sur le classement en liste.
 
-    ``persist_path`` : après un appariement ODRE réussi, **écrit l'instantané**
-    (indexé par ``substation_id``) à ce chemin → les explorations suivantes
-    repassent par la source ``snapshot`` (instantanée, sans re-fetch) et le
-    fichier est committable. ``stats_out`` (dict muté) reçoit les statistiques
-    d'appariement ODRE (``n_apparies``, ``taux``…) pour affichage."""
+    ``persist_path`` : après un appariement OSM réussi, **écrit l'instantané**
+    (indexé par ``substation_id``) → les explorations suivantes repassent par la
+    source ``snapshot`` (instantanée, sans re-fetch) et le fichier est committable.
+    ``stats_out`` (dict muté) reçoit les stats d'appariement pour affichage."""
     ids = list(dict.fromkeys(map(str, substation_ids)))
 
     if net is not None:
@@ -443,20 +589,20 @@ def resoudre(
     if snap:
         return snap, "snapshot"
 
-    if autoriser_odre:
+    if autoriser_osm:
         try:
-            records = fetch_odre_records(cache_dir, token=token, essais=essais,
-                                         timeout=timeout)
+            records = fetch_osm_substations(cache_dir, token=token, essais=essais,
+                                            timeout=timeout)
             positions, stats = apparier_odre(records, ids)
             if stats_out is not None:
                 stats_out.update(stats)
             if positions:
                 if persist_path:
                     ecrire_snapshot(persist_path, positions)
-                return positions, "odre"
+                return positions, "osm"
         except Exception as exc:
-            # Diagnostic : distinguer « ODRE injoignable » de « 0 apparié ».
+            # Diagnostic : distinguer « Overpass injoignable » de « 0 apparié ».
             if stats_out is not None:
-                stats_out.update({"odre_error": f"{type(exc).__name__}: {exc}"})
+                stats_out.update({"geo_error": f"{type(exc).__name__}: {exc}"})
 
     return {}, "aucune"

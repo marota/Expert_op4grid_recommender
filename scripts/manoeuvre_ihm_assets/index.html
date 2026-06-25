@@ -276,7 +276,7 @@
       <span class="sub" id="mapHeadInfo"></span>
       <span style="flex:1"></span>
       <button id="mapDlCoords" onclick="downloadCoordsFile()" style="display:none;background:#0e7490;color:#fff;border-color:#0e7490"
-              title="Télécharger l'instantané des coordonnées résolu depuis ODRE — à committer dans data/postes_rte_geo.json pour éviter de ré-interroger ODRE à chaque démarrage du Space">⬇ coordonnées</button>
+              title="Télécharger l'instantané des coordonnées résolu depuis OSM/Overpass — à committer/persister pour éviter de ré-interroger Overpass à chaque démarrage du Space">⬇ coordonnées</button>
       <button onclick="mapZoom(0.8)" title="Zoom +">＋</button>
       <button onclick="mapZoom(1.25)" title="Zoom −">－</button>
       <button onclick="mapReset()" title="Recentrer">⤢ Recentrer</button>
@@ -1088,24 +1088,22 @@ async function exploreDay(){
   renderExplore(r);
 }
 
-// Diagnostic d'appariement ODRE (affiché quand la carte est vide) : distingue
-// « ODRE injoignable » de « joignable mais 0 apparié » (et montre les
-// échantillons de champs/codes/noms ODRE vs substation_id pour ajuster).
+// Diagnostic d'appariement OSM (affiché quand la carte est vide) : distingue
+// « Overpass injoignable » de « joignable mais 0 apparié » (échantillons de
+// codes/noms OSM vs substation_id pour ajuster).
 function coordDiag(st){
   const j=a=>(a||[]).map(x=>x==null?'∅':x).join(', ');
-  if(st.odre_error)
-    return '<br>↳ <b>ODRE injoignable</b> : <code>'+xesc(st.odre_error)+'</code>. '
+  if(st.geo_error)
+    return '<br>↳ <b>OSM/Overpass injoignable</b> : <code>'+xesc(st.geo_error)+'</code>. '
       +'Vérifiez la sortie internet du Space (ou committez/persistez '
       +'<code>postes_rte_geo.json</code>).';
-  if(st.n_odre!=null)
-    return '<br>↳ <b>ODRE joignable</b> ('+st.n_odre+' enreg.) mais '
-      +(st.n_apparies||0)+' apparié(s). Champs : <code>'+xesc(j((st.sample_fields||[]).slice(0,14)))
-      +'</code>. Codes ODRE : <code>'+xesc(j(st.sample_codes))+'</code>. Noms ODRE : <code>'
-      +xesc(j(st.sample_noms))+'</code>. Postes réseau : <code>'+xesc(j(st.sample_subs))
-      +'</code>. → les identifiants ne se recoupent pas ; ajuster '
-      +'<code>geographie._CLES_CODE/_CLES_NOM</code>.';
-  return ' Pour activer la carte : générez <code>postes_rte_geo.json</code> via '
-    +'<code>scripts/fetch_postes_geo.py</code>, ou autorisez <code>odre.opendatasoft.com</code>.';
+  if(st.n_records!=null)
+    return '<br>↳ <b>OSM joignable</b> ('+st.n_records+' postes) mais '
+      +(st.n_apparies||0)+' apparié(s). Codes OSM (ref:FR:RTE) : <code>'+xesc(j(st.sample_codes))
+      +'</code>. Noms : <code>'+xesc(j(st.sample_noms))+'</code>. Postes réseau : <code>'
+      +xesc(j(st.sample_subs))+'</code>. → identifiants non recoupés ; ajuster l’appariement.';
+  return ' Pour activer la carte : autorisez <code>overpass-api.de</code> sur le Space, '
+    +'ou committez/persistez <code>postes_rte_geo.json</code> (script <code>scripts/fetch_postes_geo.py</code>).';
 }
 function downloadCoordsFile(){const a=document.createElement('a');
   a.href='/api/explore_coords_file';a.download='postes_rte_geo.json';
@@ -1114,8 +1112,8 @@ function renderExplore(d){
   MAP.data=d;MAP.heures=d.heures||[];MAP.bySub={};
   const hrs=(d.heures||[]).map(h=>h.ts).join(' · ');
   const st=d.coord_stats||{};
-  const coord=d.coord_source+(d.coord_source==='odre'&&st.taux!=null
-    ? ' ('+(st.n_apparies||0)+' appariés, '+Math.round(st.taux*100)+'%)':'');
+  const coord=d.coord_source+((d.coord_source==='osm'||d.coord_source==='layout')&&st.taux!=null
+    ? ' ('+(st.n_apparies||0)+'/'+(st.n_substations||0)+', '+Math.round(st.taux*100)+'%)':'');
   document.getElementById('mapHeadInfo').textContent=
     d.date+' ('+hrs+') · '+d.n_postes+' postes · '+d.n_actifs+' actifs · '
     +d.n_geolocalises+' géolocalisés · coord. : '+coord;
@@ -1135,8 +1133,9 @@ function renderExplore(d){
 }
 
 function buildMap(postes){
-  const pts=postes.map(p=>{const m=merc(p.lon,p.lat);MAP.bySub[p.sub]=p;
-    return {p,x:m[0],y:-m[1]};});   // y inversé (SVG vers le bas)
+  // coordonnées planaires prêtes pour l'écran (projetées côté serveur : plan de
+  // masse RTE, ou Mercator des sources lon/lat).
+  const pts=postes.map(p=>{MAP.bySub[p.sub]=p;return {p,x:p.x,y:p.y};});
   let xmin=1/0,xmax=-1/0,ymin=1/0,ymax=-1/0;
   pts.forEach(q=>{xmin=Math.min(xmin,q.x);xmax=Math.max(xmax,q.x);
     ymin=Math.min(ymin,q.y);ymax=Math.max(ymax,q.y);});
@@ -1182,8 +1181,8 @@ function initMap(){
 function mapZoom(f){const w=document.getElementById('mapSvgWrap').getBoundingClientRect();
   if(MAP._zoomAt)MAP._zoomAt({clientX:w.left+w.width/2,clientY:w.top+w.height/2},f);}
 function mapReset(){if(MAP.box){MAP.vb=Object.assign({},MAP.box);applyVB();}}
-function flyTo(sub){const p=MAP.bySub[sub];if(!p||!MAP.box)return;const m=merc(p.lon,p.lat);
-  const w=MAP.box.w*0.16,h=MAP.box.h*0.16;MAP.vb={x:m[0]-w/2,y:-m[1]-h/2,w,h};applyVB();}
+function flyTo(sub){const p=MAP.bySub[sub];if(!p||!MAP.box)return;
+  const w=MAP.box.w*0.16,h=MAP.box.h*0.16;MAP.vb={x:p.x-w/2,y:p.y-h/2,w,h};applyVB();}
 
 function showBubble(sub,e){const p=MAP.bySub[sub];if(!p)return;
   const b=document.getElementById('mapBubble'),col=voltColor(p.nv);

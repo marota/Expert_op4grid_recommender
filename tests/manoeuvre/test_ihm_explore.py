@@ -62,7 +62,7 @@ def _build_day(mod):
     de.top = exploration.classer_postes(de.postes, 10)
     de.classement = exploration.classer_postes(de.postes, 40)
     de.positions, de.coord_source = geographie.resoudre(
-        list(de.postes), net=net, autoriser_odre=False)
+        list(de.postes), net=net, autoriser_osm=False)
     return net, de, vl0
 
 

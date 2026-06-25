@@ -72,9 +72,13 @@ from .exploration import (
 )
 from .geographie import (
     apparier_odre,
+    charger_layout,
     charger_snapshot,
     fetch_odre_records,
+    fetch_osm_substations,
+    merc,
     normaliser_mnemonique,
+    positions_from_layout,
     positions_xiidm,
     resoudre as resoudre_positions,
 )
@@ -93,6 +97,7 @@ __all__ = [
     "HEURES_DEFAUT", "TYPES_OC", "agreger_par_poste", "changements_par_vl",
     "classer_postes", "extraire_etats_kinds", "structure_reseau",
     "vl_le_plus_actif",
-    "apparier_odre", "charger_snapshot", "fetch_odre_records",
-    "normaliser_mnemonique", "positions_xiidm", "resoudre_positions",
+    "apparier_odre", "charger_layout", "charger_snapshot", "fetch_odre_records",
+    "fetch_osm_substations", "merc", "normaliser_mnemonique",
+    "positions_from_layout", "positions_xiidm", "resoudre_positions",
 ]

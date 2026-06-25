@@ -87,9 +87,9 @@ python scripts/manoeuvre_ihm.py --dataset                   # http://localhost:8
 # « Explorer la journee » (IHM, onglet RTE7000) : carte des postes localises +
 # bilan des changements d'OC sur 3 situations (minuit/midi/23h). Cœur de calcul
 # dans manoeuvre/dataset/exploration.py (changements par poste, par type d'OC) ;
-# coordonnees resolues par manoeuvre/dataset/geographie.py (substationPosition
-# embarquee -> snapshot data/postes_rte_geo.json -> ODRE en direct). Le snapshot
-# se genere hors-ligne : python scripts/fetch_postes_geo.py --date 2021-01-03.
+# coordonnees resolues par manoeuvre/dataset/geographie.py : plan de masse RTE
+# committe (grid_layout_rte.json, par VL, ~98%, hors-ligne, PRIMAIRE) -> snapshot
+# -> OSM/Overpass (ref:FR:RTE = substation_id). ODRE est tabulaire (sans geometrie).
 # Doc : docs/manoeuvre_ihm.md (S 1ter).
 ```
 
@@ -102,7 +102,8 @@ python scripts/manoeuvre_ihm.py --dataset                   # http://localhost:8
 | `timeline.py`      | Chronologie de topologies, blocs de transition             |
 | `tagging.py`       | Tags d'intervention (consignation, scission, fusion…)      |
 | `exploration.py`   | **Intérêt d'une journée** : OC changés par poste, par type, top-10 |
-| `geographie.py`    | **Coordonnées des postes** (chaîne : XIIDM → snapshot → ODRE) |
+| `geographie.py`    | **Coordonnées des postes** (plan de masse committé → snapshot → OSM) |
+| `grid_layout_rte.json` | Plan de masse RTE committé (`{nom_VL: [x, y]}`, ~98 % des postes) |
 
 ## Conventions critiques
 

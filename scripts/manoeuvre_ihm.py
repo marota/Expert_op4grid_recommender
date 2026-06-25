@@ -147,12 +147,18 @@ SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
 # ce cache vers le **stockage persistant HF** (``DGITT_CACHE_DIR=/data/dgitt``)
 # fait survivre **et** les instantanés XIIDM **et** les coordonnées aux
 # redémarrages — une seule variable. ``MANOEUVRE_GEO_SNAPSHOT`` force un autre
-# chemin. Fetch ODRE actif sauf ``MANOEUVRE_ENABLE_ODRE=0``.
+# chemin. Coordonnées via OpenStreetMap/Overpass, actif sauf
+# ``MANOEUVRE_ENABLE_OSM=0`` (alias historique ``MANOEUVRE_ENABLE_ODRE``).
 GEO_SNAPSHOT = pathlib.Path(os.environ.get(
     "MANOEUVRE_GEO_SNAPSHOT",
     str(pathlib.Path(os.environ.get("DGITT_CACHE_DIR", ".cache/dgitt"))
         / "postes_rte_geo.json")))
-ODRE_ENABLED = os.environ.get("MANOEUVRE_ENABLE_ODRE", "1").lower() not in (
+# Plan de masse RTE committé (par VL) : source **primaire** des coordonnées de la
+# carte (hors-ligne, ~98 % des postes). ``MANOEUVRE_GEO_LAYOUT`` force un autre chemin.
+GEO_LAYOUT = pathlib.Path(os.environ.get("MANOEUVRE_GEO_LAYOUT",
+                                         geographie.LAYOUT_DEFAUT))
+OSM_ENABLED = (os.environ.get("MANOEUVRE_ENABLE_OSM")
+               or os.environ.get("MANOEUVRE_ENABLE_ODRE", "1")).lower() not in (
     "0", "false", "no", "off")
 
 
@@ -1095,25 +1101,38 @@ def construire_exploration(date: str,
     de.postes = exploration.agreger_par_poste(changes, de.vl_meta, de.sub_name)
     de.top = exploration.classer_postes(de.postes, 10)
     de.classement = exploration.classer_postes(de.postes, 40)
-    # Résolution des coordonnées (chaîne : XIIDM → snapshot committé → ODRE en
-    # direct). Sur le Space HuggingFace (sortie internet autorisée), l'appariement
-    # ODRE se fait **à la volée** dès la 1ʳᵉ exploration et l'instantané résolu est
-    # **persisté** dans ``data/postes_rte_geo.json`` : les explorations suivantes
-    # repartent du snapshot (instantané) et le fichier est téléchargeable/committable
-    # (bouton « ⬇ coordonnées »). ``MANOEUVRE_ENABLE_ODRE=0`` désactive le fetch ODRE.
-    stats: dict = {}
-    de.positions, de.coord_source = geographie.resoudre(
-        list(de.postes), net=ref_net, snapshot_path=GEO_SNAPSHOT,
-        cache_dir=cache, autoriser_odre=ODRE_ENABLED,
-        token=os.environ.get("ODRE_TOKEN"),
-        persist_path=GEO_SNAPSHOT, stats_out=stats)
-    de.coord_stats = stats
-    # Journalisé (visible dans les logs du Space) pour diagnostiquer la carte :
-    # source, taux d'appariement, échantillons de champs/codes/noms ODRE et de
-    # substation_id — pour voir *pourquoi* 0 apparié (injoignable vs champ ODRE).
+    # Coordonnées : **plan de masse RTE committé** (par VL, ~98 % des postes,
+    # hors-ligne) en **primaire** ; repli **OSM/Overpass** (ref:FR:RTE =
+    # substation_id) si le plan ne couvre rien, avec persistance du snapshot
+    # (bouton « ⬇ coordonnées »). ``MANOEUVRE_ENABLE_OSM=0`` désactive le fetch.
+    pos_layout, stats_layout = geographie.positions_from_layout(
+        geographie.charger_layout(GEO_LAYOUT), de.vl_meta)
+    pos_layout = {s: pos_layout[s] for s in de.postes if s in pos_layout}
+    if pos_layout:
+        de.positions, de.coord_source, de.coord_stats = (
+            pos_layout, "layout", stats_layout)
+    else:
+        stats: dict = {}
+        de.positions, de.coord_source = geographie.resoudre(
+            list(de.postes), net=ref_net, snapshot_path=GEO_SNAPSHOT,
+            cache_dir=cache, autoriser_osm=OSM_ENABLED,
+            persist_path=GEO_SNAPSHOT, stats_out=stats)
+        de.coord_stats = stats
+    # Journalisé (logs du Space) pour diagnostiquer la carte : source + taux +
+    # (si OSM) échantillons de codes/noms vs substation_id (pourquoi 0 apparié).
     print(f"[explore_day] coord_source={de.coord_source} "
-          f"stats={json.dumps(stats, ensure_ascii=False)}", flush=True)
+          f"stats={json.dumps(de.coord_stats, ensure_ascii=False)}", flush=True)
     return de, ref_net
+
+
+def _xy(pos: dict) -> tuple[float, float]:
+    """Coordonnées **planaires prêtes pour l'écran** (y vers le bas, nord en
+    haut) depuis une position résolue : plan de masse (``x``/``y``) tel quel
+    (y inversé), ou lon/lat (OSM/embarqué) projeté en Web Mercator."""
+    if "x" in pos:
+        return float(pos["x"]), -float(pos["y"])
+    mx, my = geographie.merc(float(pos["lon"]), float(pos["lat"]))
+    return mx, -my
 
 
 def _explore_payload(de: DayExploration) -> dict:
@@ -1128,9 +1147,10 @@ def _explore_payload(de: DayExploration) -> dict:
         pos = de.positions.get(sub)
         if not pos:
             continue
+        x, y = _xy(pos)
         postes_map.append({
             "sub": sub, "name": p["name"], "nv": p["nominal_v_max"],
-            "lon": pos["lon"], "lat": pos["lat"], "total": p["total"],
+            "x": round(x, 1), "y": round(y, 1), "total": p["total"],
             **_kinds(p), "rank": rang.get(sub),
             "top_vl": exploration.vl_le_plus_actif(p),
             "vls": [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"]}

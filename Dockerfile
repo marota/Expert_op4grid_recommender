@@ -47,14 +47,13 @@ COPY --chown=user scripts/ ./scripts/
 # (éphémère sur un Space). HF_TOKEN (optionnel, secret du Space) desserre le
 # rate-limit anonyme du CDN HuggingFace.
 #
-# « Explorer la journée » (carte des postes) : les coordonnées sont résolues à la
-# volée depuis ODRE (postes-electriques-rte) — la sortie internet des Spaces étant
-# ouverte, **rien à configurer**. L'instantané résolu est persisté **dans le cache**
-# (donc sous DGITT_CACHE_DIR, à côté des XIIDM). Pour tout faire survivre aux
-# redémarrages : monter le **stockage persistant HF** sur /data et définir la
-# variable du Space DGITT_CACHE_DIR=/data/dgitt (une seule variable couvre les
-# instantanés XIIDM **et** les coordonnées). MANOEUVRE_ENABLE_ODRE=0 désactive le
-# fetch ; ODRE_TOKEN (secret) est optionnel (rate-limit).
+# « Explorer la journée » (carte des postes) : coordonnées du **plan de masse RTE
+# committé** (manoeuvre/dataset/grid_layout_rte.json, ~98 %, hors-ligne) → **rien à
+# configurer, aucun accès réseau**. Repli **OSM/Overpass** (ref:FR:RTE) pour les
+# postes manquants, persisté **dans le cache** (DGITT_CACHE_DIR). Pour faire
+# survivre le cache aux redémarrages : monter le **stockage persistant HF** sur
+# /data et définir DGITT_CACHE_DIR=/data/dgitt (couvre les instantanés XIIDM **et**
+# les coordonnées). MANOEUVRE_ENABLE_OSM=0 désactive le repli OSM.
 ENV DGITT_REPO=OpenSynth/D-GITT-RTE7000-2021 \
     DGITT_CACHE_DIR=/home/user/app/.cache/dgitt \
     DGITT_DEFAULT_DATE=2021-01-03 \

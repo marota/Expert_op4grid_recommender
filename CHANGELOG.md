@@ -22,20 +22,22 @@ vue topologique d'un poste **à l'heure souhaitée**.
   (`BREAKER` / `DISCONNECTOR` / `LOAD_BREAK_SWITCH`). Cœur d'agrégation **Python
   pur** (`changements_par_vl`, `agreger_par_poste`, `classer_postes`) ; les
   **10 postes** les plus actifs sont mis en évidence.
-- **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) : chaîne
-  de résolution **extension `substationPosition` embarquée → instantané committé
-  `data/postes_rte_geo.json` → ODRE en direct** (échec rapide si bloqué). Le
-  dataset RTE 7000 ne portant **pas** de coordonnées : sur le **Space HuggingFace**,
-  l'appariement ODRE (`postes-electriques-rte` ↔ `substation_id`) se fait **à la
-  volée dès la 1ʳᵉ exploration**, le **taux d'appariement** est affiché, et
-  l'instantané résolu est **persisté** (`data/postes_rte_geo.json`) puis
-  **téléchargeable** (`GET /api/explore_coords_file`, bouton « ⬇ coordonnées ») pour
-  le committer une fois (plus de re-fetch). Toggle `MANOEUVRE_ENABLE_ODRE`.
-  Génération hors-ligne possible : `scripts/fetch_postes_geo.py`. Sans aucune
-  coordonnée, l'IHM reste utile : **classement en liste** des postes actifs.
+- **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) — le
+  dataset RTE 7000 ne portant **pas** de coordonnées, chaîne de résolution :
+  (1) **plan de masse RTE committé** (`manoeuvre/dataset/grid_layout_rte.json`,
+  `{nom_VL: [x, y]}`) — **primaire, hors-ligne, ~98 %** des postes, **rien à
+  configurer** ; (2) instantané committé `data/postes_rte_geo.json` ;
+  (3) **OpenStreetMap / Overpass** — repli runtime, postes RTE taggués
+  `power=substation` + **`ref:FR:RTE` = `substation_id`** + lat/lon (Web Mercator
+  côté serveur). Résultat OSM **persisté** + **téléchargeable**
+  (`GET /api/explore_coords_file`, bouton « ⬇ coordonnées »). Toggle
+  `MANOEUVRE_ENABLE_OSM`. ODRE (`postes-electriques-rte`) est **tabulaire sans
+  géométrie** → inutilisable pour la carte. Sans aucune coordonnée, l'IHM reste
+  utile : **classement en liste** + **diagnostic** d'appariement.
 - **Carte** (frontend) : SVG **autonome** (sans tuiles ni librairie externe),
-  disques **colorés par niveau de tension**, projection **Web Mercator**,
-  **zoom/déplacement** par `viewBox` (fluide jusqu'à ~6 000 postes). **Clic** →
+  disques **colorés par niveau de tension**, coordonnées planaires **projetées
+  côté serveur**, **zoom/déplacement** par `viewBox` (fluide jusqu'à ~6 000 postes).
+  **Clic** →
   bulle d'information ; **double-clic** → vue topologique du poste, avec une barre
   d'exploration (**Départ** 00 h/12 h/23 h, **Retenir comme cible** 00 h/12 h/23 h,
   sélecteur de niveau de tension) ; l'**heure** et le **champ du poste** sont

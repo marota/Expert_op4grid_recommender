@@ -2,37 +2,30 @@
 """
 scripts/fetch_postes_geo.py
 ---------------------------
-Génère l'instantané committé des **coordonnées des postes** RTE
-(``data/postes_rte_geo.json``) consommé par l'IHM « explorer la journée »
-(carte des postes localisés).
+Génère un instantané des **coordonnées des postes** RTE
+(``data/postes_rte_geo.json``) depuis **OpenStreetMap / Overpass**, consommé en
+**repli** par l'IHM « explorer la journée » (la source primaire est le plan de
+masse committé ``manoeuvre/dataset/grid_layout_rte.json``, hors-ligne).
 
-À lancer **là où ODRE est joignable** (poste de dev, Space HuggingFace…) ;
-l'environnement de build de l'assistant peut avoir ``odre.opendatasoft.com``
-bloqué par la politique de sortie — dans ce cas, lancez ce script ailleurs et
-committez le JSON produit.
+À lancer **là où Overpass est joignable** (poste de dev, Space HuggingFace…) ;
+l'environnement de build de l'assistant peut avoir ``overpass-api.de`` bloqué par
+la politique de sortie — dans ce cas, lancez ce script ailleurs et committez le
+JSON produit (utile pour les ~2 % de postes absents du plan de masse).
 
 Ce que fait le script :
 
-1. télécharge le dataset ODRE ``postes-electriques-rte`` (coordonnées + tension) ;
+1. interroge **Overpass** (postes RTE : ``power=substation`` + ``ref:FR:RTE``,
+   avec lat/lon) ;
 2. charge un **instantané XIIDM** du dataset RTE 7000 pour relever les
    ``substation_id`` réels ;
-3. **apparie** ODRE ↔ ``substation_id`` (mnémoniques normalisés) et **mesure**
-   le taux d'appariement ;
-4. écrit ``data/postes_rte_geo.json`` **indexé par ``substation_id``** — la
-   résolution runtime devient un simple lookup (cf.
-   ``manoeuvre/dataset/geographie.charger_snapshot``).
+3. **apparie** ``ref:FR:RTE`` ↔ ``substation_id`` et **mesure** le taux ;
+4. écrit ``data/postes_rte_geo.json`` **indexé par ``substation_id``** — résolution
+   runtime = simple lookup (cf. ``geographie.charger_snapshot``).
 
 Usage
 -----
-    # à partir d'un instantané local (.xiidm[.bz2]) :
     python scripts/fetch_postes_geo.py --xiidm chemin/vers/instantane.xiidm.bz2
-
-    # ou en téléchargeant un instantané du dataset par date :
-    python scripts/fetch_postes_geo.py --date 2021-01-03
-
-    # sortie / cache / clé API ODRE (optionnelle) personnalisables :
-    python scripts/fetch_postes_geo.py --xiidm grid.xiidm \
-        --out data/postes_rte_geo.json --odre-token $ODRE_TOKEN
+    python scripts/fetch_postes_geo.py --date 2021-01-03 --out data/postes_rte_geo.json
 """
 from __future__ import annotations
 
@@ -73,18 +66,16 @@ def main() -> None:
     ap.add_argument("--out", default=geographie.SNAPSHOT_DEFAUT,
                     help="Fichier de sortie (défaut : %(default)s).")
     ap.add_argument("--cache-dir", default=".cache/dgitt", help="Cache des instantanés.")
-    ap.add_argument("--odre-cache-dir", default=".cache/odre",
-                    help="Cache du dump ODRE brut.")
-    ap.add_argument("--odre-token", default=None, help="Clé API ODRE (optionnelle).")
-    ap.add_argument("--force", action="store_true", help="Forcer le re-téléchargement ODRE.")
+    ap.add_argument("--osm-cache-dir", default=".cache/osm",
+                    help="Cache du dump Overpass brut.")
+    ap.add_argument("--force", action="store_true", help="Forcer le re-téléchargement OSM.")
     ap.add_argument("--no-prefix", action="store_true",
                     help="Désactiver le repli d'appariement par préfixe.")
     args = ap.parse_args()
 
-    print("→ Téléchargement ODRE (postes-electriques-rte)…")
-    records = geographie.fetch_odre_records(
-        args.odre_cache_dir, token=args.odre_token, force=args.force)
-    print(f"  {len(records)} enregistrements ODRE.")
+    print("→ Requête Overpass (postes RTE : power=substation + ref:FR:RTE)…")
+    records = geographie.fetch_osm_substations(args.osm_cache_dir, force=args.force)
+    print(f"  {len(records)} postes OSM localisés.")
 
     print("→ Lecture des substation_id de l'instantané…")
     sub_ids = _substation_ids(args.xiidm, args.date, args.cache_dir)
@@ -97,9 +88,8 @@ def main() -> None:
           f"(taux {stats['taux']:.1%} ; exacts {stats['n_exact']}, "
           f"préfixe {stats['n_prefixe']}).")
     if stats["taux"] < 0.5:
-        print("  ⚠ Taux faible : les codes ODRE ne recoupent peut-être pas les "
-              "mnémoniques du dataset. Inspecter un enregistrement ODRE "
-              "(clés de code) et ajuster geographie._CLES_CODE / l'appariement.")
+        print("  ⚠ Taux faible : ref:FR:RTE ne recoupe pas les mnémoniques ? "
+              "Inspecter stats['sample_codes'] / ['sample_subs'].")
 
     out = pathlib.Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
