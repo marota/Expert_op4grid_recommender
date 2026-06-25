@@ -1136,11 +1136,30 @@ def _xy(pos: dict) -> tuple[float, float]:
 
 
 def _explore_payload(de: DayExploration) -> dict:
-    """Charge utile carte + classement pour le front."""
-    rang = {s: i + 1 for i, s in enumerate(de.top)}
+    """Charge utile carte + classement pour le front. Le **classement et la mise
+    en évidence sont au niveau voltage level** (plus fin que par poste) ; la carte
+    place un disque par **poste**, mis en évidence s'il porte un VL du top-10."""
 
-    def _kinds(p):
-        return {t: p.get(t, 0) for t in exploration.TYPES_OC}
+    def _kinds(d):
+        return {t: d.get(t, 0) for t in exploration.TYPES_OC}
+
+    # Classement **par voltage level** (chaque VL actif est une entrée).
+    all_vls = []
+    for sub, p in de.postes.items():
+        for v in p["vls"]:
+            if v["total"] > 0:
+                all_vls.append({"vl": v["vl"], "sub": sub,
+                                "name": v.get("name") or v["vl"],
+                                "nv": v["nominal_v"], "total": v["total"],
+                                **_kinds(v)})
+    all_vls.sort(key=lambda d: (-d["total"], -d["nv"], d["vl"]))
+    for i, v in enumerate(all_vls):
+        v["rank"] = i + 1
+    # Rang d'un poste sur la carte = meilleur rang d'un de ses VL dans le top-10.
+    rang: dict[str, int] = {}
+    for v in all_vls[:10]:
+        rang.setdefault(v["sub"], v["rank"])
+    classement = [{**v, "geo": v["sub"] in de.positions} for v in all_vls[:40]]
 
     postes_map = []
     for sub, p in de.postes.items():
@@ -1156,24 +1175,12 @@ def _explore_payload(de: DayExploration) -> dict:
             "vls": [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"]}
                     for v in p["vls"]],
         })
-    classement = []
-    for sub in de.classement:
-        p = de.postes[sub]
-        classement.append({
-            "sub": sub, "name": p["name"], "nv": p["nominal_v_max"],
-            "total": p["total"], **_kinds(p),
-            "rank": rang.get(sub), "geo": sub in de.positions,
-            "top_vl": exploration.vl_le_plus_actif(p),
-            "vls": [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"],
-                     **{t: v.get(t, 0) for t in exploration.TYPES_OC}}
-                    for v in p["vls"]],
-        })
-    n_actifs = sum(1 for p in de.postes.values() if p["total"] > 0)
+    n_actifs = sum(1 for v in all_vls)
     return {
         "ok": True, "date": de.date, "heures": de.heures,
         "coord_source": de.coord_source, "coord_stats": de.coord_stats,
-        # un instantané committable a-t-il été persisté (fetch ODRE réussi) ?
-        "coord_file": de.coord_source == "odre" and GEO_SNAPSHOT.exists(),
+        # un instantané committable a-t-il été persisté (fetch OSM réussi) ?
+        "coord_file": de.coord_source == "osm" and GEO_SNAPSHOT.exists(),
         "n_postes": len(de.postes), "n_actifs": n_actifs,
         "n_geolocalises": len(postes_map),
         "types_oc": list(exploration.TYPES_OC),

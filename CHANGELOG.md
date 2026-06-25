@@ -20,8 +20,8 @@ vue topologique d'un poste **à l'heure souhaitée**.
   charge **3 situations** (minuit / midi / 23 h) et compte, **par poste**, le
   **nombre d'OC dont l'état change** sur la journée, **ventilé par type d'OC**
   (`BREAKER` / `DISCONNECTOR` / `LOAD_BREAK_SWITCH`). Cœur d'agrégation **Python
-  pur** (`changements_par_vl`, `agreger_par_poste`, `classer_postes`) ; les
-  **10 postes** les plus actifs sont mis en évidence.
+  pur** (`changements_par_vl`). **Classement et mise en évidence au niveau voltage
+  level** (granularité fine) ; les **10 premiers VL** sont haloés sur la carte.
 - **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) — le
   dataset RTE 7000 ne portant **pas** de coordonnées, chaîne de résolution :
   (1) **plan de masse RTE committé** (`manoeuvre/dataset/grid_layout_rte.json`,
@@ -35,8 +35,9 @@ vue topologique d'un poste **à l'heure souhaitée**.
   géométrie** → inutilisable pour la carte. Sans aucune coordonnée, l'IHM reste
   utile : **classement en liste** + **diagnostic** d'appariement.
 - **Carte** (frontend) : SVG **autonome** (sans tuiles ni librairie externe),
-  disques **colorés par niveau de tension**, coordonnées planaires **projetées
-  côté serveur**, **zoom/déplacement** par `viewBox` (fluide jusqu'à ~6 000 postes).
+  disques **colorés par niveau de tension** sur un **fond détourant la France**
+  (enveloppe convexe), coordonnées planaires **projetées côté serveur**,
+  **zoom/déplacement** par `viewBox`, **sélecteur d'heure** d'ouverture en en-tête.
   **Clic** →
   bulle d'information ; **double-clic** → vue topologique du poste, avec une barre
   d'exploration (**Départ** 00 h/12 h/23 h, **Retenir comme cible** 00 h/12 h/23 h,

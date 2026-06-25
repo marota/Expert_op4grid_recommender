@@ -100,14 +100,18 @@ postes **intéressants** d'une journée.
 chaque poste, on compte le **nombre d'organes de coupure (OC) dont l'état change**
 sur la journée (un OC dont l'état n'est pas constant sur les trois instantanés),
 **ventilé par type d'OC** : `BREAKER` (disjoncteur), `DISCONNECTOR` (sectionneur),
-`LOAD_BREAK_SWITCH` (interrupteur). Les **10 postes les plus actifs** sont mis en
-évidence (halo doré + numéro de rang) ; le panneau latéral droit liste le
-classement (cliquable). Cœur de calcul : `manoeuvre/dataset/exploration.py`
-(`changements_par_vl`, `agreger_par_poste`, `classer_postes` — Python pur).
+`LOAD_BREAK_SWITCH` (interrupteur). Le **classement et la mise en évidence sont au
+niveau voltage level** (granularité fine, pas par site) : le panneau latéral droit
+liste les **VL les plus actifs** (cliquable) et les **10 premiers VL** sont mis en
+évidence sur la carte (halo doré + rang sur le poste correspondant). Cœur de
+calcul : `manoeuvre/dataset/exploration.py` (`changements_par_vl` — Python pur).
 
 **Carte** — chaque poste (substation) est un **disque coloré par niveau de
-tension** (palette type RTE : 400 kV rouge, 225 kV vert…), placé par projection
-**Web Mercator** (mêmes conventions que Co-Study4Grid). Carte **autonome** (SVG,
+tension** (palette type RTE : 400 kV rouge, 225 kV vert…), sur un **fond** qui
+détoure la France (enveloppe convexe du réseau, « Hexagone »). Coordonnées du
+**plan de masse RTE** (planaire) ; sources lon/lat projetées **Web Mercator** côté
+serveur. Un **sélecteur d'heure** (en-tête de la carte : 00 h / 12 h / 23 h) choisit
+l'heure de la topologie ouverte au double-clic. Carte **autonome** (SVG,
 sans tuiles ni librairie externe) avec **zoom molette** et **déplacement au
 glisser** (manipulation du `viewBox`, fluide jusqu'à ~6 000 postes). Interactions :
 

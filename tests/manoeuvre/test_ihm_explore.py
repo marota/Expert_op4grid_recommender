@@ -140,5 +140,6 @@ def test_asset_contient_la_carte():
     txt = _ASSET.read_text(encoding="utf-8")
     for token in ("exploreDay", "renderExplore", "buildMap", "mapToTopo",
                   "id=\"mapPane\"", "id=\"exploreBar\"", "id=\"btnExplore\"",
-                  "Explorer la journée", "function merc("):
+                  "Explorer la journée", "convexHull", "frhull",
+                  "id=\"mapHours\"", "renderMapHours"):
         assert token in txt, f"jeton front-end manquant : {token}"

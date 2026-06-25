@@ -137,13 +137,17 @@
    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
  #mapHead .sub{font-weight:normal;color:#475569}
  #mapBody{flex:1;display:flex;min-height:0}
- #mapSvgWrap{flex:1;position:relative;overflow:hidden;background:#f1f5f9;cursor:grab}
+ #mapSvgWrap{flex:1;position:relative;overflow:hidden;background:#dfeaf5;cursor:grab}
  #mapSvgWrap.grabbing{cursor:grabbing}
  #mapSvgWrap svg{display:block;width:100%;height:100%;touch-action:none}
- .pdisk{cursor:pointer}
- .pdisk:hover{stroke:#1e293b;stroke-width:1.2}
+ .frhull{fill:#f3f1e9;stroke:#c7cdb8;stroke-width:2;stroke-linejoin:round;pointer-events:none}
+ .pdisk{cursor:pointer;stroke:#ffffff;stroke-width:0.5}
+ .pdisk:hover{stroke:#1e293b;stroke-width:2}
  .ptop{stroke:#111;stroke-width:1.5}
- .phalo{fill:none;stroke:#facc15;stroke-width:3;pointer-events:none}
+ .phalo{fill:none;stroke:#facc15;stroke-width:3.5;pointer-events:none}
+ #mapHours{display:inline-flex;gap:2px;align-items:center}
+ #mapHours button{padding:2px 8px;font-size:12px;margin:0}
+ #mapHours button.hcur{background:#0891b2;color:#fff;border-color:#0891b2}
  #mapSide{width:230px;border-left:1px solid #cbd5e1;background:#fff;overflow:auto;display:flex;flex-direction:column}
  #mapSide .sh{font-size:11px;font-weight:bold;color:#1e3a8a;padding:6px 8px;background:#eef2ff;
    position:sticky;top:0;border-bottom:1px solid #e2e8f0}
@@ -274,6 +278,9 @@
     <div id="mapHead">
       <span>🗺 Carte du réseau</span>
       <span class="sub" id="mapHeadInfo"></span>
+      <span class="grp" style="display:flex;align-items:center;gap:4px">
+        <span style="color:#475569" title="Heure de la topologie ouverte au double-clic sur un poste">Heure&nbsp;:</span>
+        <span id="mapHours"></span></span>
       <span style="flex:1"></span>
       <button id="mapDlCoords" onclick="downloadCoordsFile()" style="display:none;background:#0e7490;color:#fff;border-color:#0e7490"
               title="Télécharger l'instantané des coordonnées résolu depuis OSM/Overpass — à committer/persister pour éviter de ré-interroger Overpass à chaque démarrage du Space">⬇ coordonnées</button>
@@ -1043,7 +1050,7 @@ async function nodCompute(){
 // viewBox courant (pan/zoom) ; ``box`` = viewBox de référence (recentrage) ;
 // ``bySub`` = index poste géolocalisé ; ``topo*`` = poste/heure en vue topo.
 let MAP={data:null,vb:null,box:null,bySub:{},heures:[],clickTimer:null,
-  topoSub:null,topoVl:null,topoHour:null};
+  openHour:null,topoSub:null,topoVl:null,topoHour:null};
 const EARTH_R=6378137;   // Web Mercator (même projection que Co-Study4Grid)
 function merc(lon,lat){return [EARTH_R*lon*Math.PI/180,
   EARTH_R*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))];}
@@ -1109,7 +1116,7 @@ function downloadCoordsFile(){const a=document.createElement('a');
   a.href='/api/explore_coords_file';a.download='postes_rte_geo.json';
   document.body.appendChild(a);a.click();a.remove();}
 function renderExplore(d){
-  MAP.data=d;MAP.heures=d.heures||[];MAP.bySub={};
+  MAP.data=d;MAP.heures=d.heures||[];MAP.bySub={};MAP.openHour=null;renderMapHours();
   const hrs=(d.heures||[]).map(h=>h.ts).join(' · ');
   const st=d.coord_stats||{};
   const coord=d.coord_source+((d.coord_source==='osm'||d.coord_source==='layout')&&st.taux!=null
@@ -1132,6 +1139,17 @@ function renderExplore(d){
   buildMap(d.postes);
 }
 
+// Enveloppe convexe (Andrew monotone chain) — silhouette « Hexagone » du nuage
+// de postes (même repère que les disques), dessinée en fond pour situer la France.
+function convexHull(pts){
+  const p=pts.map(q=>[q.x,q.y]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  if(p.length<3)return p;
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[];for(const q of p){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q);}
+  const up=[];for(let i=p.length-1;i>=0;i--){const q=p[i];
+    while(up.length>=2&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q);}
+  lo.pop();up.pop();return lo.concat(up);
+}
 function buildMap(postes){
   // coordonnées planaires prêtes pour l'écran (projetées côté serveur : plan de
   // masse RTE, ou Mercator des sources lon/lat).
@@ -1141,13 +1159,18 @@ function buildMap(postes){
     ymin=Math.min(ymin,q.y);ymax=Math.max(ymax,q.y);});
   const sx=xmax-xmin||1,sy=ymax-ymin||1,span=Math.max(sx,sy),pad=span*0.04;
   MAP.box={x:xmin-pad,y:ymin-pad,w:sx+2*pad,h:sy+2*pad};MAP.vb=Object.assign({},MAP.box);
-  const r=span/1400,rtop=span/430;
+  // Disques nettement plus grands (lisibilité) ; top-10 encore plus gros + halo.
+  const r=span/520,rtop=span/200;
+  // Fond : silhouette (enveloppe convexe) du réseau.
+  const hull=convexHull(pts);
   let s='';
+  if(hull.length>=3)
+    s+='<polygon class="frhull" points="'+hull.map(h=>h[0].toFixed(0)+','+h[1].toFixed(0)).join(' ')+'"/>';
   pts.forEach(q=>{const top=!!q.p.rank,rr=top?rtop:r,col=voltColor(q.p.nv);
-    if(top)s+='<circle class="phalo" cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(rr*1.7).toFixed(1)+'"/>';
+    if(top)s+='<circle class="phalo" cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(rr*1.55).toFixed(1)+'"/>';
     s+='<circle class="pdisk'+(top?' ptop':'')+'" data-sub="'+xesc(q.p.sub)+'" cx="'+q.x.toFixed(1)
       +'" cy="'+q.y.toFixed(1)+'" r="'+rr.toFixed(1)+'" fill="'+col+'" fill-opacity="'
-      +(q.p.total>0?0.95:0.5)+'"/>';});
+      +(q.p.total>0?0.95:0.62)+'"/>';});
   const wrap=document.getElementById('mapSvgWrap');
   wrap.insertAdjacentHTML('afterbegin','<svg id="mapSvg" viewBox="'+vbStr(MAP.vb)
     +'" preserveAspectRatio="xMidYMid meet">'+s+'</svg>');
@@ -1219,6 +1242,8 @@ function renderLegend(){const lg=document.getElementById('mapLegend');
   h+='<div class="hint">⭐ halo = top 10 · clic = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
   lg.innerHTML=h;}
 
+// Classement **par voltage level** (plus fin que par poste) : chaque ligne = un
+// VL actif. Clic → recentre + bulle du poste (géo), ou ouvre la topologie du VL.
 function renderClassement(d){const root=document.getElementById('mapList');root.innerHTML='';
   (d.classement||[]).forEach(c=>{const row=document.createElement('div');
     row.className='clrow'+(c.rank&&c.rank<=10?' top':'');
@@ -1226,17 +1251,29 @@ function renderClassement(d){const root=document.getElementById('mapList');root.
     row.innerHTML='<span class="rk">'+(c.rank||'')+'</span>'
       +'<span class="nm" style="border-left:3px solid '+voltColor(c.nv)+';padding-left:4px">'+xesc(c.name)+'</span>'
       +'<span class="tot">'+c.total+'</span>'+(c.geo?'':'<span class="nogeo">⌖?</span>');
-    row.title=c.name+' — '+c.total+' OC changés (DJ '+(c.BREAKER||0)+', SA '+(c.DISCONNECTOR||0)+extra+')'
-      +(c.geo?'':' — non géolocalisé');
+    row.title=xesc(c.name)+' ('+fmtKv(c.nv)+') — '+c.total+' OC changés (DJ '+(c.BREAKER||0)
+      +', SA '+(c.DISCONNECTOR||0)+extra+') · poste '+xesc(c.sub)
+      +(c.geo?' — clic : localiser ; double-clic : topologie':' — non géolocalisé, clic : topologie');
     row.onclick=()=>{if(c.geo&&MAP.bySub[c.sub]){flyTo(c.sub);
         const wr=document.getElementById('mapSvgWrap').getBoundingClientRect();
         showBubble(c.sub,{clientX:wr.left+wr.width/2,clientY:wr.top+wr.height/2});}
-      else mapToTopo(c.sub,c.top_vl,defaultHour());};
+      else mapToTopo(c.sub,c.vl,defaultHour());};
+    row.ondblclick=()=>mapToTopo(c.sub,c.vl,defaultHour());
     root.appendChild(row);});}
 
-function defaultHour(){const hs=MAP.heures||[];
+function defaultHour(){if(MAP.openHour)return MAP.openHour;const hs=MAP.heures||[];
   const m=hs.find(h=>h.requested==='12:00')||hs[Math.floor(hs.length/2)]||hs[0];
   return m?m.requested:'12:00';}
+// Sélecteur d'heure de la carte : choisit l'heure de la topologie ouverte au
+// double-clic / clic sur un poste actif (« select a target hour here »).
+function renderMapHours(){
+  const host=document.getElementById('mapHours');if(!host)return;host.innerHTML='';
+  const hrs=MAP.heures||[];
+  if(!MAP.openHour)MAP.openHour=defaultHour();
+  hrs.forEach(h=>{const b=document.createElement('button');b.textContent=h.ts;
+    if(h.requested===MAP.openHour)b.classList.add('hcur');
+    b.title='Ouvrir la topologie des postes à '+h.ts;
+    b.onclick=()=>{MAP.openHour=h.requested;renderMapHours();};host.appendChild(b);});}
 function mapOpenPoste(sub){const p=MAP.bySub[sub]
     ||((MAP.data&&MAP.data.classement)||[]).find(c=>c.sub===sub);
   mapToTopo(sub,p&&p.top_vl,defaultHour());}
