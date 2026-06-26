@@ -528,6 +528,9 @@ async function init(){const r=await (await fetch('/api/postes')).json();
   // postes) ; Entrée charge le poste si la saisie correspond exactement.
   const search=document.getElementById('posteSearch');
   search.addEventListener('input',()=>renderPosteList(search.value));
+  // édition manuelle du nom de scénario → ne plus écraser par le nom auto.
+  const sn=document.getElementById('scenName');
+  if(sn)sn.addEventListener('input',()=>{S.scenNameDirty=true;});
   search.addEventListener('keydown',e=>{if(e.key==='Enter'){
     const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);}});
   initNodalResize(); initNodalDnD(); initMap(); await refreshScenarios(); await initDataset();
@@ -599,10 +602,37 @@ async function loadGrid(){
   populatePostes(r);await refreshAlgos();   // nouvelle session => sélection d'algos réinitialisée
   msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
   awaitPosteChoice();}   // pas d'auto-chargement : l'utilisateur choisit un poste
-async function load(vl){stopAnim();S.currentVL=vl;const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
-  document.getElementById('exploreBar').classList.remove('on');  // chargement « normal » (hors carte)
+async function load(vl){stopAnim();exitMapMode();S.currentVL=vl;
+  // Chargement « normal » (hors carte / hors exploration) : pas d'heures
+  // départ/cible, cible = départ (non modifiée), nom par défaut recalculé.
+  MAP.topoHour=null;MAP.cibleHour=null;S.cibleModifiee=false;S.scenNameDirty=false;
+  const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
+  document.getElementById('exploreBar').classList.remove('on');
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');  // surligne le poste courant
-  document.getElementById('scenName').value=vl+'_cible';}
+  setDefaultScenName();}
+
+// --- Nom de scénario par défaut formaté -----------------------------------
+// RTE7000 : poste_date_hDepart_topoDepartNNoeud_hCible_topoCibleNNoeud_(observee|modifiee)
+// Local   : poste_topoDepartNNoeud_topoCibleNNoeud_nomFichier
+// (re)calculé aux changements de contexte, sauf si l'utilisateur a édité le champ.
+function _baseFile(p){let b=(p||'').split(/[\\/]/).pop()||'';
+  for(let i=0;i<3;i++)b=b.replace(/\.(xiidm|xml|json|bz2|gz|zip)$/i,'');return b;}
+function _nbTxt(id){const t=(document.getElementById(id).textContent||'').trim();
+  return /^\d+$/.test(t)?t:'';}
+function defaultScenName(){
+  const vl=S.currentVL||MAP.topoVl||'';
+  const dep='topoDepart'+_nbTxt('nbA')+'Noeud',cib='topoCible'+_nbTxt('nbB')+'Noeud';
+  if(S.tab==='rte'){
+    const date=(((MAP.data&&MAP.data.date)||document.getElementById('dsDate').value||'')).replace(/-/g,'');
+    const hd=(MAP.topoHour||document.getElementById('dsTime').value||'').replace(':','');
+    const hc=(MAP.cibleHour||MAP.topoHour||document.getElementById('dsTime').value||'').replace(':','');
+    const etat=S.cibleModifiee?'modifiee':'observee';
+    return [vl,date,hd,dep,hc,cib,etat].filter(Boolean).join('_');
+  }
+  return [vl,dep,cib,_baseFile(document.getElementById('gridPath').value)].filter(Boolean).join('_');
+}
+function setDefaultScenName(){if(S.scenNameDirty)return;
+  const el=document.getElementById('scenName');if(el)el.value=defaultScenName();}
 // Promouvoir la cible courante (éditée) en nouvel état de DÉPART — met à jour le
 // schéma du haut (départ) et repart d'une cible = nouveau départ ; permet de
 // chaîner sans passer par un scénario sauvegardé.
@@ -610,12 +640,14 @@ async function promoteCible(){stopAnim();
   const d=await api('/api/promote_cible',{});
   if(d&&d.vl)S.currentVL=d.vl;
   show(d);initNodale(d);hideSeq();setValidated(false);
-  document.getElementById('scenName').value=(S.currentVL||'')+'_cible';
+  S.cibleModifiee=false;S.scenNameDirty=false;setDefaultScenName();   // nouveau départ, cible = départ
   document.getElementById('savemsg').textContent='Cible promue en nouvel état de départ — éditez puis validez une nouvelle cible.';}
 async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
-  syncNodalCible(d.nodale);hideSeq();setValidated(false);}
+  syncNodalCible(d.nodale);hideSeq();setValidated(false);
+  S.cibleModifiee=false;setDefaultScenName();}   // cible réinitialisée au départ
 async function toggle(id){stopAnim();const d=await api('/api/toggle',{id});show(d);
   syncNodalCible(d.nodale);setValidated(false);
+  S.cibleModifiee=true;setDefaultScenName();   // organe basculé → cible modifiée
   // Si une séquence existe déjà, l'éditer de la cible la rend obsolète (au lieu
   // de masquer la séquence) : on la conserve affichée mais signalée.
   if(S.n>0){markSeqStale();}else{hideSeq();}}
@@ -691,6 +723,7 @@ async function loadScen(mode){const name=document.getElementById('scenSel').valu
   if(d&&d.vl)S.currentVL=d.vl;
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');
   show(d);initNodale(d);hideSeq();
+  S.scenNameDirty=true;   // nom explicite du scénario rechargé : ne pas l'écraser
   if(mode==='as_depart'){
     document.getElementById('scenName').value=name+'_suite';
     document.getElementById('savemsg').textContent='« '+name+' » chargé comme état de départ — éditez puis validez une nouvelle cible.';
@@ -1059,6 +1092,7 @@ async function nodCompute(){
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
   bind(d.switches);hideSeq();setValidated(false);
+  S.cibleModifiee=true;setDefaultScenName();   // cible issue d'une édition nodale
   // Resynchroniser la cible nodale sur la topologie détaillée RÉALISÉE
   // (partition + couleurs + isolés des nœuds obtenus).
   syncNodalCible(d.nodale);
@@ -1350,10 +1384,10 @@ async function mapToTopo(sub,vl,hour,cibleHour){hideBubble();stopAnim();
   // Cible = départ à l'ouverture (même heure) → on met en évidence l'heure cible
   // dès maintenant (bouton bleu), comme l'heure de départ.
   S.currentVL=r.vl;MAP.topoSub=r.sub;MAP.topoVl=r.vl;MAP.topoHour=r.hour;
-  MAP.cibleHour=cibleHour||r.hour;
+  MAP.cibleHour=cibleHour||r.hour;S.cibleModifiee=false;S.scenNameDirty=false;
   if(r.heures)MAP.heures=r.heures;
   show(r);initNodale(r);hideSeq();setValidated(false);
-  document.getElementById('scenName').value=r.vl+'_cible';
+  setDefaultScenName();
   renderExploreBar(r);syncHourPoste(r.hour,r.vl);
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');
   // Niveau de tension changé en conservant une cible à une autre heure :
@@ -1386,7 +1420,8 @@ function renderExploreBar(r){
 async function exploreHour(hour){stopAnim();
   const r=await api('/api/explore_poste',{sub:MAP.topoSub,vl:MAP.topoVl,hour});
   if(!r||!r.ok)return;MAP.topoHour=r.hour;MAP.cibleHour=r.hour;  // départ change → cible repart du départ (même heure)
-  show(r);initNodale(r);hideSeq();setValidated(false);
+  S.cibleModifiee=false;
+  show(r);initNodale(r);hideSeq();setValidated(false);setDefaultScenName();
   renderExploreBar(r);syncHourPoste(r.hour,r.vl);}
 
 async function retainTarget(hour){
@@ -1398,6 +1433,7 @@ async function retainTarget(hour){
   document.getElementById('diagBottom').innerHTML=r.svg;
   document.getElementById('nbB').textContent=r.nb_noeuds;
   bind(r.switches);highlightChanges(r.changes);syncNodalCible(r.nodale);setValidated(false);
+  S.cibleModifiee=false;setDefaultScenName();   // cible = topologie observée à cette heure
   if(S.n>0)markSeqStale();else hideSeq();
   const ts=((MAP.heures||[]).find(h=>h.requested===hour)||{}).ts||hour;
   document.getElementById('savemsg').textContent='Cible = topologie de '+ts

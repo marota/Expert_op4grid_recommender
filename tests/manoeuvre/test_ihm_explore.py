@@ -201,5 +201,7 @@ def test_asset_contient_la_carte():
                   # mise en évidence des écarts départ/cible
                   "highlightChanges", "octog-closed", "octog-opened",
                   # décompte des re-groupements de nœuds (scission/fusion)
-                  "re-groupé", "nodbadge"):
+                  "re-groupé", "nodbadge",
+                  # nom de scénario formaté + sélection poste hors carte
+                  "defaultScenName", "topoDepart", "topoCible", "observee"):
         assert token in txt, f"jeton front-end manquant : {token}"

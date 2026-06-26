@@ -322,7 +322,12 @@ des variables CSS).
    **💾 Sauvegarder** (champ nom à gauche, bouton à droite) persiste le scénario
    (départ + cible) ; **sur une IHM déportée (Space)** le JSON est aussi
    **téléchargé en local** (le FS du Space est éphémère). Sauvegarder valide
-   aussi la cible.
+   aussi la cible. Le **nom est pré-rempli** selon le contexte (modifiable) :
+   en **RTE7000**,
+   `poste_AAAAMMJJ_hDepart_topoDepart{n}Noeud_hCible_topoCible{n}Noeud_(observee|modifiee)`
+   (`observee` = cible = topologie observée à l'heure cible ; `modifiee` = éditée par
+   l'utilisateur) ; en **local**,
+   `poste_topoDepart{n}Noeud_topoCible{n}Noeud_nomFichier`.
 4. **Calculer la séquence** (étape 2, débloqué après validation) : choisir le
    **mode** (Smooth, défaut, ou Agressif) puis lancer le calcul départ → cible ;
    statut **VÉRIFIÉE / NON VÉRIFIÉE** (+ badge `mode`).

@@ -94,6 +94,20 @@ vue topologique d'un poste **à l'heure souhaitée**.
   VL d'un même poste (boutons « Niveau ») **préserve** l'heure de départ **et**
   l'heure cible retenue (la cible est ré-appliquée sur le nouveau VL) au lieu de
   réinitialiser la cible au départ (`mapToTopo(sub, vl, hour, cibleHour)`).
+- **Sélection d'un poste depuis la recherche en mode carte** (régression corrigée) :
+  choisir un poste via le champ de recherche (ou la liste) **quitte la carte** et
+  affiche sa topologie (`load` appelle désormais `exitMapMode`) — auparavant la
+  topologie restait masquée derrière la carte.
+- **Nom de scénario par défaut formaté** : le champ « nom du scénario » est
+  pré-rempli selon le contexte (recalculé tant que l'utilisateur ne l'a pas édité).
+  - **RTE7000** :
+    `poste_AAAAMMJJ_hDepart_topoDepart{n}Noeud_hCible_topoCible{n}Noeud_(observee|modifiee)`
+    — `observee` si la cible est la topologie **observée** à l'heure cible,
+    `modifiee` si l'utilisateur l'a éditée. Ex. :
+    `CONCAP3_20210103_1200_topoDepart1Noeud_2300_topoCible1Noeud_observee`.
+  - **Local** : `poste_topoDepart{n}Noeud_topoCible{n}Noeud_nomFichier` (la cible
+    est forcément modifiée vs le départ). Ex. :
+    `CARRIP6_topoDepart1Noeud_topoCible3Noeud_pf_20240828T0100Z_20240828T0100Z`.
 - **Fond de carte plus lisible** : pays voisins assombris (`.nbr`) pour les
   distinguer nettement des zones maritimes.
 - **Endpoints** : `POST /api/explore_day`, `POST /api/explore_poste`,
