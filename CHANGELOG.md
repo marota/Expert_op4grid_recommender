@@ -97,6 +97,9 @@ vue topologique d'un poste **à l'heure souhaitée**.
     (`Session._date_tags`). Filtres dédiés **année / saison / jour** dans la
     recherche. Au **rechargement** d'un scénario RTE7000, les sélecteurs **Date** et
     **Heure** sont **re-synchronisés** sur son contexte (`syncDepartFromScenario`).
+  - **Téléchargement de toute la base** : bouton **« ⬇ Tout (zip) »** dans la modale
+    de rechargement → archive ZIP de tous les scénarios (`GET /api/scenarios_archive`),
+    pour exporter/versionner la base partagée en un clic.
 - **Légende des tensions — double-clic d'isolement** : un **double-clic** sur une
   bande **isole** ce niveau (masque tous les autres) ; un nouveau double-clic
   lorsqu'il est déjà seul affiché **réaffiche tout** (`voltClick`/`voltDouble`,

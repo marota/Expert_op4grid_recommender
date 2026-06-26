@@ -497,11 +497,25 @@ atteinte ». L'indicateur est recalculé **à chaque étape** côté serveur
 (`step_view` renvoie `reached = meme_topologie(état affiché, cible)`), de sorte
 qu'il s'allume exactement lorsque la cible est atteinte et s'éteint sinon.
 
-### Réutiliser des scénarios
+### Réutiliser des scénarios — base partagée + recherche
+- **Sauvegarde anti-doublon + nom unique** : à l'enregistrement, un scénario
+  **identique** (même départ **et** même cible — y compris sous un nom déjà indexé
+  `name_0`, `name_1`…) **n'est pas réécrit** (l'utilisateur est informé) ; sinon le
+  nom est rendu **unique** par un index `_0`, `_1`… (`Session.save_scenario`).
+- **Base partagée** : tous les scénarios sont écrits dans un **dossier mutualisé**
+  (`MANOEUVRE_SCENARIOS_DIR` ; sur le Space, sous le cache → **persistable** via un
+  stockage `/data`), relisible par tous les utilisateurs.
+- **Métadonnées de recherche** (calculées à la sauvegarde, `Session.scenario_meta`) :
+  tension, nb de jeux de barres, nœuds départ→cible, **OC changés DJ / SA / INT**,
+  **ouvrages déplacés** en changement de nœud, et **date/heure de départ** (RTE7000 :
+  date/heure choisies ; local : `net.case_date`) → **année / saison / jour**.
 - **⟳ Recharger** (bouton à droite du titre *🗺 Scénario Topologique*) : ouvre une
-  **petite modale** (sélecteur de scénario + **Valider** / **Annuler**) qui
-  **rejoue** le scénario choisi (départ **et** cible sauvegardés). Remplace
-  l'ancienne section « Scénarios sauvegardés ».
+  modale de **recherche filtrante** — texte (poste / nom) + **tension** + **seuils
+  min** (barres / DJ / SA / INT / nœud) + **année / saison / jour** ; chaque résultat
+  affiche ses métadonnées. **Clic** = sélectionner, **double-clic** = recharger ;
+  **Valider** **rejoue** le scénario (départ **et** cible). Au rechargement d'un
+  scénario RTE7000, les sélecteurs **Date** / **Heure** se **re-synchronisent** sur
+  son contexte. Le bouton **« ⬇ Tout (zip) »** télécharge **toute la base** en archive.
 - **⇧ Nouvelle Topologie Départ** (en-tête du schéma cible) : la **cible courante
   (éditée)** devient le **nouvel état de départ** (`/api/promote_cible`, **sans**
   passer par un scénario sauvegardé) — le schéma de départ ci-dessus est mis à
@@ -542,14 +556,16 @@ navigateur).
 | `POST /api/seq_delete` | `{index}` | idem `seq_insert` | Supprime la manœuvre n°`index` (1-based) |
 | `POST /api/seq_delete_many` | `{indices:[…]}` | idem `seq_insert` | Supprime en une fois plusieurs manœuvres (sélection / bloc) |
 | `POST /api/manual_start` | — | `{cible_svg, cible_nb, goto, manoeuvres[], n_steps, labels[], …}` | Démarre une séquence **manuelle vierge** (départ → cible affichée en référence) |
-| `GET /api/scenarios` | — | `{scenarios:[…]}` | Liste des scénarios sauvegardés |
-| `POST /api/save` | `{name, overwrite?}` | `{path, name, content, scenarios[]}` ou `{exists:true, name, path}` | Sauvegarde le scénario cible ; `content` = JSON écrit (téléchargement local côté front si IHM déportée) |
-| `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, nodale_depart, nodale_cible}` | Recharge (`mode="both"` ou `"as_depart"`) ; `nodale_cible` = vue nodale de la cible chargée |
-| `POST /api/save_sequence` | `{name, overwrite?}` | `{path, name, content}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** (éditée telle quelle) ; `content` = JSON écrit (téléchargement local côté front si IHM déportée) |
+| `GET /api/scenarios` | — | `{scenarios:[{name, vl, sub, nominal_v, nb_barres, nb_depart, nb_cible, n_dj, n_sa, n_int, n_nodal, dt, year, season, weekday, source}]}` | Liste des scénarios **avec métadonnées de recherche** |
+| `GET /api/scenarios_archive` | — | `application/zip` | **Archive ZIP** de toute la base de scénarios (`scenarios.zip`) |
+| `POST /api/save` | `{name, depart_dt?, source?}` | `{path, name, content, scenarios[]}` ou `{already_exists:true, name, path, scenarios[]}` | Sauvegarde **anti-doublon** (identique → non réécrit) avec **nom unique indexé** ; `meta` calculée + `dt/source` loggés ; `content` = JSON pour téléchargement local |
+| `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, meta, nodale_depart, nodale_cible}` | Recharge (`mode="both"` ou `"as_depart"`) ; `meta` (date/heure, source) → re-synchro Date/Heure côté IHM |
+| `POST /api/save_sequence` | `{name, overwrite?}` | `{path, name, content}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** ; `content` = JSON écrit |
 
-> **Avertissement d'écrasement** : sans `overwrite:true`, si le fichier existe
-> déjà, `/api/save` et `/api/save_sequence` renvoient `{exists:true}` (sans
-> écrire) ; l'IHM demande alors confirmation d'écrasement ou un nouveau nom.
+> **Anti-doublon des scénarios** : `/api/save` n'écrase **jamais** — un scénario
+> **identique** (même départ + cible) renvoie `{already_exists:true}` sans écrire,
+> sinon le nom est rendu **unique** par un index (`name_0`, `name_1`…).
+> *(La sauvegarde de **séquence** garde l'ancien mécanisme `overwrite`/`exists`.)*
 
 `switches` : liste d'objets `{id, name, svgId, kind, open}` (DJ/SA), où `svgId`
 est l'identifiant de l'élément dans le SVG (clic et surlignage).
@@ -568,9 +584,19 @@ Topologie cible validée, réutilisable comme cible (rejeu) ou comme départ.
   "depart": {"<switch_id>": false, "...": true},
   "cible":  {"<switch_id>": true,  "...": false},
   "depart_nodale": [["DEP1", "DEP2"], ["..."]],
-  "cible_nodale":  [["..."], ["..."]]
+  "cible_nodale":  [["..."], ["..."]],
+  "meta": {
+    "vl": "CARRIP3", "sub": "CARRI", "nominal_v": 63.0,
+    "nb_barres": 2, "nb_depart": 1, "nb_cible": 2,
+    "n_dj": 3, "n_sa": 0, "n_int": 0, "n_nodal": 1,
+    "dt": "2021-01-03T12:00", "year": 2021, "season": "hiver",
+    "weekday": 6, "source": "rte"
+  }
 }
 ```
+Le bloc `meta` (ajouté v0.2.x) alimente la **recherche** dans la base partagée
+(tension, barres, OC par type, ouvrages déplacés, date/heure de départ →
+année/saison/jour). Absent des fichiers antérieurs (champs `null`).
 
 ### Séquence (`--sequences-dir/<nom>.json`)
 Séquence **courante** (telle qu'éventuellement éditée par l'expert) + topologies

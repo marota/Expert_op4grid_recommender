@@ -1802,6 +1802,26 @@ def api_scenarios():
     return jsonify(scenarios=SESSION.list_scenarios())
 
 
+@app.get("/api/scenarios_archive")
+def api_scenarios_archive():
+    """**Archive ZIP** de tous les scénarios sauvegardés (la base partagée) — pour
+    télécharger/versionner l'ensemble en un clic. Vide si aucun scénario."""
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        if SCEN_DIR.exists():
+            for p in sorted(SCEN_DIR.glob("*.json")):
+                try:
+                    z.write(p, arcname=p.name)
+                except OSError:
+                    continue
+    buf.seek(0)
+    return Response(buf.read(), mimetype="application/zip",
+                    headers={"Content-Disposition":
+                             "attachment; filename=scenarios.zip"})
+
+
 def _safe_name(name, default):
     return re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or default
 

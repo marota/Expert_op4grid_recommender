@@ -216,5 +216,7 @@ def test_asset_contient_la_carte():
                   # recherche de scénarios + double-clic d'isolement de tension
                   "renderScenList", "scfNodal", "voltClick", "voltDouble",
                   # tags date/heure de départ : filtres + re-synchro au rechargement
-                  "scfYear", "scfSeason", "scfDay", "syncDepartFromScenario"):
+                  "scfYear", "scfSeason", "scfDay", "syncDepartFromScenario",
+                  # téléchargement de toute la base de scénarios (zip)
+                  "downloadAllScenarios", "scenarios_archive"):
         assert token in txt, f"jeton front-end manquant : {token}"

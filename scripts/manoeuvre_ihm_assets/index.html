@@ -423,7 +423,9 @@
     </div>
     <div id="scenList"></div>
     <div style="font-size:10px;color:#888;margin-top:6px">Base **partagée** (toutes les sauvegardes). Clic = sélectionner · double-clic = recharger. « Valider » rejoue le scénario (départ + cible).</div>
-    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
+    <div style="display:flex;gap:6px;align-items:center;margin-top:10px">
+      <button onclick="downloadAllScenarios()" title="Télécharger tous les scénarios (archive ZIP)">⬇ Tout (zip)</button>
+      <span style="flex:1"></span>
       <button onclick="closeReload()">Annuler</button>
       <button class="primary" onclick="validateReload()">Valider</button>
     </div>
@@ -777,6 +779,10 @@ function renderScenList(){const root=document.getElementById('scenList');if(!roo
 // scénario (départ + cible), « Annuler » referme sans rien recharger.
 async function openReload(){await refreshScenarios();
   document.getElementById('reloadModal').style.display='flex';}
+// Télécharge toute la base de scénarios en une archive ZIP.
+function downloadAllScenarios(){const a=document.createElement('a');
+  a.href='/api/scenarios_archive';a.download='scenarios.zip';
+  document.body.appendChild(a);a.click();a.remove();}
 function closeReload(){document.getElementById('reloadModal').style.display='none';}
 async function validateReload(){const name=document.getElementById('scenSel').value;
   if(name)await loadScen('both');closeReload();}

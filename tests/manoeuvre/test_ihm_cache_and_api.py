@@ -268,6 +268,43 @@ def test_api_scenarios_metadata(session, monkeypatch, tmp_path):
         assert k in meta
 
 
+def test_scenario_meta_date_tags(session):
+    m = session.scenario_meta("2021-01-03T12:00")          # RTE7000 : date/heure fournies
+    assert m["dt"] == "2021-01-03T12:00" and m["year"] == 2021
+    assert m["season"] == "hiver" and m["weekday"] == 6    # 2021-01-03 = dimanche
+    m2 = session.scenario_meta()                            # local : case_date du réseau
+    assert "dt" in m2 and "season" in m2
+
+
+def test_api_load_scenario_returns_meta_for_resync(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    c = ihm.app.test_client()
+    c.post("/api/save", json={"name": "z", "depart_dt": "2023-02-08T00:00", "source": "rte"})
+    d = c.post("/api/load_scenario", json={"name": "z", "mode": "both"}).get_json()
+    assert d["meta"]["dt"] == "2023-02-08T00:00" and d["meta"]["source"] == "rte"
+    assert d["meta"]["season"] == "hiver"
+
+
+def test_api_scenarios_archive_zip(session, monkeypatch, tmp_path):
+    import io
+    import json as _json
+    import zipfile
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    c = ihm.app.test_client()
+    c.post("/api/save", json={"name": "a", "depart_dt": "2021-01-03T12:00", "source": "rte"})
+    sid = next(iter(session.current))
+    session.current[sid] = not session.current[sid]
+    c.post("/api/save", json={"name": "b"})
+    r = c.get("/api/scenarios_archive")
+    assert r.status_code == 200 and r.mimetype == "application/zip"
+    z = zipfile.ZipFile(io.BytesIO(r.data))
+    assert {"a.json", "b.json"} <= set(z.namelist())
+    meta = _json.loads(z.read("a.json"))["meta"]
+    assert meta["dt"] == "2021-01-03T12:00" and meta["source"] == "rte"
+
+
 def test_api_save_sequence_returns_content_for_download(session, monkeypatch, tmp_path):
     monkeypatch.setattr(ihm, "SESSION", session)
     monkeypatch.setattr(ihm, "SEQ_DIR", tmp_path)
