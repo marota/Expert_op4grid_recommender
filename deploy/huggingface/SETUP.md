@@ -101,12 +101,20 @@ Notes :
 4. **Utiliser** — ouvrir le Space, choisir une date/heure → **Charger la
    situation** → sélectionner un poste → éditer/séquencer.
 
-## Redéploiement automatique sur merge `main` (GitHub Action)
+## Redéploiement automatique (GitHub Action)
 
 `.github/workflows/deploy-huggingface.yml` rejoue le push orphelin
-automatiquement à chaque merge sur `main` (et sur `workflow_dispatch`). Il est
-**inerte** tant que les éléments suivants ne sont pas définis dans **Settings →
-Secrets and variables → Actions** du dépôt GitHub :
+automatiquement à chaque push — sur `main` **ou** sur une branche de dev
+`claude/**` — qui **touche l'interface** : le script/les assets de l'IHM
+(`scripts/manoeuvre_ihm.py`, `scripts/manoeuvre_ihm_assets/**`), le module
+`expert_op4grid_recommender/manoeuvre/**` sur lequel tourne l'IHM, le `Dockerfile`
+ou la config de déploiement (`deploy/huggingface/**`). Les push qui ne modifient
+que la doc/les tests **ne redéploient pas**. Un push sur une branche de dev donne
+une **preview live avant merge** (le Space reflète la **dernière** branche poussée ;
+re-pousser `main` le ramène à la prod). `workflow_dispatch` permet aussi un
+redéploiement manuel de n'importe quelle ref. Il est **inerte** tant que les
+éléments suivants ne sont pas définis dans **Settings → Secrets and variables →
+Actions** du dépôt GitHub :
 
 | Type | Nom | Valeur |
 |---|---|---|
