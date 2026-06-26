@@ -54,14 +54,14 @@ COPY --chown=user scripts/ ./scripts/
 # survivre le cache aux redémarrages : monter le **stockage persistant HF** sur
 # /data et définir DGITT_CACHE_DIR=/data/dgitt (couvre les instantanés XIIDM **et**
 # les coordonnées). MANOEUVRE_ENABLE_OSM=0 désactive le repli OSM.
-# Les scénarios sauvegardés alimentent une **base partagée** (tous les visiteurs
-# du Space écrivent/relisent le même dossier). Sous le cache pour **persister**
-# si un stockage HF est monté (DGITT_CACHE_DIR=/data/dgitt).
+# Tout ce qui doit **survivre aux redémarrages** (instantanés XIIDM, coordonnées
+# OSM, **base partagée des scénarios/séquences**) vit **sous DGITT_CACHE_DIR**.
+# → une **seule** variable à régler pour la persistance : pointer ce cache sur le
+# stockage HF (Settings → Variable `DGITT_CACHE_DIR=/data/dgitt` + Persistent
+# storage monté sur /data). Tout cascade automatiquement.
 ENV DGITT_REPO=OpenSynth/D-GITT-RTE7000-2021 \
     DGITT_CACHE_DIR=/home/user/app/.cache/dgitt \
     DGITT_DEFAULT_DATE=2021-01-03 \
-    MANOEUVRE_SCENARIOS_DIR=/home/user/app/.cache/dgitt/scenarios \
-    MANOEUVRE_SEQUENCES_DIR=/home/user/app/.cache/dgitt/sequences \
     MANOEUVRE_IHM_HOSTED=1 \
     PORT=7860
 

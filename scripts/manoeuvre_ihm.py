@@ -164,6 +164,17 @@ GEO_LAYOUT = pathlib.Path(os.environ.get("MANOEUVRE_GEO_LAYOUT",
 # Fond de carte (frontières) déjà projeté dans le repère du plan de masse.
 GEO_BASEMAP = pathlib.Path(os.environ.get("MANOEUVRE_GEO_BASEMAP",
                                           geographie.BASEMAP_DEFAUT))
+
+
+def _cache_subdir(env_key: str, sub: str, fallback: str) -> str:
+    """Dossier persistable : variable d'env explicite si fournie, sinon **sous le
+    cache** (``DGITT_CACHE_DIR``) pour **cascader** avec lui sur le stockage `/data`
+    (une seule variable à régler), sinon défaut local (dev/tests)."""
+    explicit = os.environ.get(env_key)
+    if explicit:
+        return explicit
+    cache = os.environ.get("DGITT_CACHE_DIR")
+    return str(pathlib.Path(cache) / sub) if cache else fallback
 OSM_ENABLED = (os.environ.get("MANOEUVRE_ENABLE_OSM")
                or os.environ.get("MANOEUVRE_ENABLE_ODRE", "1")).lower() not in (
     "0", "false", "no", "off")
@@ -1932,16 +1943,16 @@ def main():
                     help="Interface d'écoute (0.0.0.0 pour un conteneur / Space).")
     ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     ap.add_argument("--scenarios-dir",
-                    default=os.environ.get("MANOEUVRE_SCENARIOS_DIR",
-                                           "tests/manoeuvre/scenarios"),
+                    default=_cache_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                                          "tests/manoeuvre/scenarios"),
                     help="Dossier de sauvegarde des scénarios cible (env "
-                         "MANOEUVRE_SCENARIOS_DIR ; **base partagée** sur le Space "
-                         "— pointer un stockage persistant /data pour mutualiser).")
+                         "MANOEUVRE_SCENARIOS_DIR ; sinon sous DGITT_CACHE_DIR — "
+                         "**base partagée**, persistante si le cache pointe /data).")
     ap.add_argument("--sequences-dir",
-                    default=os.environ.get("MANOEUVRE_SEQUENCES_DIR",
-                                           "tests/manoeuvre/sequences"),
-                    help="Dossier de sauvegarde des séquences générées "
-                         "(env MANOEUVRE_SEQUENCES_DIR).")
+                    default=_cache_subdir("MANOEUVRE_SEQUENCES_DIR", "sequences",
+                                          "tests/manoeuvre/sequences"),
+                    help="Dossier de sauvegarde des séquences générées (env "
+                         "MANOEUVRE_SEQUENCES_DIR ; sinon sous DGITT_CACHE_DIR).")
     # Mode dataset (source par date depuis HuggingFace).
     ap.add_argument("--dataset", action="store_true",
                     help="Activer la source dataset RTE 7000 (défaut si --grid absent).")
