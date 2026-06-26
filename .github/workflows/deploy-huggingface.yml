@@ -65,6 +65,9 @@ jobs:
           # snapshot so the push is binary-free and lean.
           rm -rf docs data tests
           git add -A
+          # Filet : retirer du snapshot indexé d'éventuels binaires résiduels (venv,
+          # profils, pptx) que le Hub HF rejette hors Xet/LFS (no-op si absents).
+          git rm -r --cached --ignore-unmatch 'venv*' '*.prof' '*.pptx'
           git commit -q -m "Deploy ${GITHUB_SHA::7}"
           test "$(git rev-list --count HEAD)" -eq 1   # sanity: exactly one commit
 

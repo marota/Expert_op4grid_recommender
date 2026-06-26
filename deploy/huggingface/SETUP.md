@@ -79,6 +79,9 @@ Notes :
    # Xet/LFS) ; on les retire du snapshot (avec tests/) → push binaire-free et léger.
    rm -rf docs data tests
    git add -A
+   # Filet : retirer du snapshot indexé d'éventuels binaires résiduels (venv,
+   # profils, pptx) que le Hub HF rejette hors Xet/LFS (no-op si absents).
+   git rm -r --cached --ignore-unmatch 'venv*' '*.prof' '*.pptx'
    git commit -m "Deploy Expert Op4Grid — IHM Manœuvre"
    git log --oneline hf-deploy                  # DOIT être un commit unique
    git -c protocol.version=0 push -f space hf-deploy:main
