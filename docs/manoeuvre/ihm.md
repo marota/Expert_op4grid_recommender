@@ -99,21 +99,25 @@ Explorer la journée** ouvre une **carte du réseau France** dans l'espace de
 visualisation (à la place des schémas de poste), pour repérer d'un coup d'œil les
 postes **intéressants** d'une journée.
 
-![Vue « Explorer la journée » annotée : carte France de l'activité des postes sur une journée RTE-7000](manoeuvre_ihm_explore_map.svg)
+![Vue « Explorer la journée » annotée : carte France de l'activité des postes sur une journée RTE-7000](manoeuvre_ihm_explore_map.png)
 
-> **Fig. — « Explorer la journée »** (date 2021-01-03 ; 3 instantanés 00 h / 12 h /
-> 23 h). **(1)** bouton **🗺 Explorer la journée** (onglet *RTE7000*) ; **(2)** fond
-> de carte réel (départements + voisins, `GET /api/explore_basemap`) ; **(3)** un
-> disque par poste **coloré par tension**, les **10 VL les plus actifs** avec halo
-> doré + rang (activité = OC changés + ⚇ re-groupements) ; **(4)** **connexions
-> inter-postes** colorées par tension, en fondu (bascule **Lignes**) ; **(5)**
-> **sélecteur d'heure** 00 h / 12 h / 23 h (heure ouverte au double-clic) ; **(6)**
-> **bulle d'info** au clic (nom, tension, OC changés DJ/SA/INT, ⚇, rang) ; **(7)**
-> **légende filtrante** (*tout* / *aucun*, clic = filtrer, double-clic = isoler) ;
-> **(8)** **classement** des VL les plus actifs (cliquable) ; **(9)** au double-clic,
-> **barre d'exploration** (Départ / Retenir comme cible 00 h / 12 h / 23 h + niveau
-> de tension) qui bascule en vue topologique (§2) avec mise en évidence des organes
-> dont l'état diffère départ→cible (vert = fermé, orange = ouvert).
+> **Fig. — « Explorer la journée »** (2021-01-03 ; 3 instantanés 00:00 / 12:00 /
+> 23:00). **(1)** bouton **🗺 Explorer la journée** (onglet *RTE7000*) — ouvre la
+> carte France (coordonnées du plan de masse RTE, ~98 %, sur fond de départements) ;
+> **(2)** un disque par poste **coloré par tension**, les **10 VL les plus actifs**
+> du jour **agrandis + classés** (activité = OC changés DJ/SA/INT + **⚇**
+> re-groupements de nœuds) ; **(3)** **connexions inter-postes** colorées par tension,
+> en fondu (bascule **Lignes**, *Local* et *RTE7000*) ; **(4)** **sélecteur d'heure**
+> 00:00 / 12:00 / 23:00 (heure ouverte au double-clic) ; **(5)** **légende filtrante**
+> (*tout* / *aucun*, clic = filtrer, **double-clic = isoler**, bascule **Lignes** ;
+> ligne d'aide : halo = top 10 · clic = infos · double-clic = topologie · molette =
+> zoom · glisser = déplacer) ; **(6)** **★ Postes les plus actifs** — classement
+> cliquable ; **(7)** champ **1 · Poste** utilisable sur la carte ; **(8)** contrôles
+> **+ / −**, **↗ Recentrer**, **✕ Fermer** ; l'en-tête indique **4811 postes · 1774
+> actifs · 4723 géolocalisés · coord. : layout (4723/4811, 98 %)**. Un **double-clic**
+> sur un disque ouvre le poste en vue topologique (§2), départ/cible amorcés depuis
+> les heures choisies (organes différant départ→cible mis en évidence : vert = fermé,
+> orange = ouvert).
 
 **Estimation de l'intérêt** — trois situations sont chargées : **minuit (00:00)**,
 **midi (12:00)** et **23 h** (l'instantané le plus proche de chaque heure). Pour
@@ -226,50 +230,41 @@ le bandeau indique la cause (OSM injoignable, ou joignable mais 0 apparié avec 
 
 ## 2. Disposition de l'interface
 
-![Vue d'ensemble annotée de l'IHM de manœuvre sur un scénario de scission de nœud à CARRIP3](manoeuvre_ihm_overview.svg)
+![Vue annotée de l'IHM de manœuvre sur le poste CONCAP3, ouvert depuis la carte d'exploration](manoeuvre_ihm_overview.png)
 
-> **Fig. — L'environnement interactif de manœuvre sur un scénario de scission de
-> nœud à CARRIP3** (départ : un nœud électrique ; cible : trois nœuds — barre 1
-> conservée, barre 2 scindée en sections 2.1 et 2.2). Repères :
-> **(1)** la source **Situation réseau**, en **deux onglets** — *📁 Local*
-> (chemin `.xiidm` côté serveur + **sélecteur de fichier natif**) et *📅 RTE7000*
-> (date/heure du dataset RTE-7000, avec **puces « cas d'intérêt »** et bulles
-> d'information) — chargée par un **unique bouton Charger** (RTE7000 mis en avant
-> par défaut sur le Space hébergé) ;
-> **(2)** le champ **Poste unifié** — une **seule recherche** sur tous les postes
-> NODE_BREAKER (postes épinglés ★ repérés dans les résultats) et, en dessous,
-> l'**exploration curée par typologie** ;
-> **(3)** le schéma unifilaire **de départ** (lecture seule, état de référence),
-> dont l'en-tête porte **↺ État d'origine** (réinitialise la cible à l'état
-> d'origine) ;
-> **(4)** le schéma **cible éditable** — clic sur un disjoncteur/sectionneur pour
-> le basculer — dont l'en-tête porte **⇧ Nouvelle Topologie Départ** (promeut la
-> **cible courante (éditée)** en nouveau départ, pour chaîner les scénarios) ;
-> **(5)** la « **vue bus** » nodale — glisser un départ sur une barre =
-> ré-aiguillage, glisser une barre sur une autre = fusion, *+ Nœud* = créer un
-> nœud — en partition de départ (un nœud, lecture seule) et cible (trois nœuds,
-> éditable) ;
-> **(6)** *2 · Topologie cible* : **✓ Valider** la cible (active « Calculer », sans
-> écrire de fichier) puis, sur la ligne en dessous, le **nom** + **💾 Sauvegarder**
-> (sur le Space, le fichier est aussi **téléchargé en local**) ;
-> **(7)** *3 · Séquence de manœuvres* : choisir un mode de dé-énergisation
-> (smooth/agressif) et un algorithme, puis **⚙ Calculer** ou construire à la main
-> (**✋ Séquence manuelle**) la séquence ;
-> **(8)** **⚙ Calculer la topologie détaillée d'intérêt** réalise la cible nodale
-> éditée en cible détaillée (le **pont nodal → détaillé**) ;
-> **(9)** la séquence, **animée pas à pas** avec l'étape courante surlignée et les
-> opérations auditées — un sectionneur manœuvré **sous charge** est signalé en
-> **rouge** avec la règle enfreinte (ici **R18**, invariant hors-charge) — plus
-> l'export **💾 Sauvegarder la séquence** ;
-> **(10)** **⟳ Recharger** (à droite du titre *🗺 Scénario Topologique*) ouvre une
-> petite **modale** (sélecteur de scénario + Valider/Annuler) pour **rejouer** un
-> scénario sauvegardé.
+> **Fig. — L'IHM de manœuvre sur le poste CONCAP3**, ouvert en **double-cliquant** le
+> poste sur la carte d'exploration. Repères :
+> **(1)** la **barre d'exploration** — **← Carte** (retour à la carte), sélecteurs
+> d'heure **Départ** et **Retenir comme cible** (00:00 / 12:00 / 23:00) et **Niveau** :
+> cette vue a été atteinte depuis la carte, qui a amorcé les topologies départ et
+> cible ;
+> **(2)** le champ **1 · Poste** — recherche unifiée, ici **CONCAP3** (tout poste
+> NODE_BREAKER est accessible par son nom) ;
+> **(3)** le schéma **Topologie de départ** (lecture seule) + **↺ État d'origine**
+> (réinitialise la cible) ;
+> **(4)** le schéma **Topologie cible éditable** — clic sur un organe pour le basculer
+> — + **⇧ Nouvelle Topologie Départ** (promeut la cible éditée en nouveau départ) ;
+> **(5)** la **Topologie nodale** (vue bus) — glisser un départ sur une barre =
+> ré-aiguillage, glisser une barre sur une autre = fusion, **+ Nœud** ;
+> **(6)** **⚠ Ouvrages isolés (2) — déconnectés** — les organes déconnectés sans jeu
+> de barres sont signalés et **exclus du compte de nœuds électriques** (CONCAP3 affiche
+> **1 nœud**, non gonflé par les deux ouvrages isolés) ;
+> **(7)** *2 · Topologie cible* : **✓ Valider** puis **💾 Sauvegarder** sous un **nom
+> pré-formaté** (`CONCAP3_20210103_1200_topoDepart1Noeud_…`) dans la **base partagée**
+> (ici `/data/dgitt/scenarios`, aussi **téléchargé en local**) ;
+> **(8)** **⚙ Calculer la topologie détaillée d'intérêt** — le **pont nodal →
+> détaillé** ;
+> **(9)** *3 · Séquence de manœuvres* — la séquence **animée pas à pas**, *détaillée
+> vérifiée* (ici 1/3 : `CLOSE … ré-aiguillage`, puis `OPEN … ouverture couplage de
+> barres`), avec l'export **💾 Sauvegarder la séquence** (un sectionneur manœuvré
+> **sous charge** y serait signalé en rouge avec la règle enfreinte) ;
+> **(10)** **⟳ Recharger** (à droite du titre *🗺 Scénario Topologique*) rejoue un
+> scénario de la base partagée (cherchable ; export zip).
 > Les couleurs des barres sont le `topological_coloring` natif des schémas
-> NODE_BREAKER ; à droite, les barres **violette**, **bordeaux** et **bleu clair**
-> sont les trois nœuds cibles (barre 1, et barre 2 scindée en 2.1 et 2.2).
+> NODE_BREAKER.
 
-> La figure ci-dessus est un **schéma annoté** (SVG versionné) de la disposition ;
-> structure équivalente en ASCII :
+> La figure ci-dessus est une **capture annotée** de la disposition ; structure
+> équivalente en ASCII :
 
 ```
 ┌──────────────────────┬─────────────────────────────────┬────────────────────┐

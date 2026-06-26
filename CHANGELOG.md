@@ -195,7 +195,7 @@ situations réseau directement dans le dataset RTE 7000** par date/heure, et se
 
 Refonte ergonomique de l'IHM de manœuvre (`scripts/manoeuvre_ihm_assets/index.html`
 + `scripts/manoeuvre_ihm.py`). Doc : `docs/manoeuvre/ihm.md` ; figure annotée :
-`docs/manoeuvre/manoeuvre_ihm_overview.svg`.
+`docs/manoeuvre/manoeuvre_ihm_overview.png`.
 
 - **Situation réseau en deux onglets** *📁 Local* (chemin `.xiidm` + **sélecteur de
   fichier natif**, `GET /api/pick_grid_file`) et *📅 RTE7000* (date/heure), avec un
