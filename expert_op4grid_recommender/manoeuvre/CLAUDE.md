@@ -83,7 +83,27 @@ python scripts/manoeuvre_ihm.py --grid path/to/grid.xiidm   # http://localhost:8
 # Couche dans manoeuvre/dataset/source.py ; deploiement HF Space dans
 # Dockerfile + deploy/huggingface/. Doc : docs/manoeuvre/ihm.md (S 1bis).
 python scripts/manoeuvre_ihm.py --dataset                   # http://localhost:8000
+
+# « Explorer la journee » (IHM, onglet RTE7000) : carte des postes localises +
+# bilan des changements d'OC sur 3 situations (minuit/midi/23h). Cœur de calcul
+# dans manoeuvre/dataset/exploration.py (changements par poste, par type d'OC) ;
+# coordonnees resolues par manoeuvre/dataset/geographie.py : plan de masse RTE
+# committe (grid_layout_rte.json, par VL, ~98%, hors-ligne, PRIMAIRE) -> snapshot
+# -> OSM/Overpass (ref:FR:RTE = substation_id). ODRE est tabulaire (sans geometrie).
+# Doc : docs/manoeuvre/ihm.md (S 1ter).
 ```
+
+### Sous-package `dataset/` (historique + exploration)
+
+| Fichier            | Role                                                       |
+|--------------------|------------------------------------------------------------|
+| `source.py`        | Source par date/heure du dataset HF (download a la demande)|
+| `dgitt.py`         | Lecture XIIDM -> etats d'organes par VL ; chronologies     |
+| `timeline.py`      | Chronologie de topologies, blocs de transition             |
+| `tagging.py`       | Tags d'intervention (consignation, scission, fusion…)      |
+| `exploration.py`   | **Intérêt d'une journée** : OC changés par poste/type + **re-groupements de nœuds** (scissions/fusions : ouvrages déplacés), top-10 |
+| `geographie.py`    | **Coordonnées des postes** (plan de masse committé → snapshot → OSM) |
+| `grid_layout_rte.json` | Plan de masse RTE committé (`{nom_VL: [x, y]}`, ~98 % des postes) |
 
 ## Conventions critiques
 

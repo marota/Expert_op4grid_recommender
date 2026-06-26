@@ -234,6 +234,77 @@ def test_api_save_returns_content_for_download(session, monkeypatch, tmp_path):
     assert (tmp_path / "t.json").exists()
 
 
+def test_api_save_dedup_and_autoindex(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    c = ihm.app.test_client()
+    r1 = c.post("/api/save", json={"name": "s"}).get_json()
+    assert r1["name"] == "s" and (tmp_path / "s.json").exists()
+    # ré-enregistrer un scénario identique (départ + cible) → non écrasé.
+    r2 = c.post("/api/save", json={"name": "s"}).get_json()
+    assert r2.get("already_exists") and r2["name"] == "s"
+    assert not (tmp_path / "s_0.json").exists()
+    # modifier la cible → nom unique indexé _0.
+    sid = next(iter(session.current))
+    session.current[sid] = not session.current[sid]
+    r3 = c.post("/api/save", json={"name": "s"}).get_json()
+    assert r3["name"] == "s_0" and (tmp_path / "s_0.json").exists()
+    # ré-enregistrer ce même état modifié → déjà existant (s_0), pas de _1.
+    r4 = c.post("/api/save", json={"name": "s"}).get_json()
+    assert r4.get("already_exists") and r4["name"] == "s_0"
+    assert not (tmp_path / "s_1.json").exists()
+
+
+def test_api_scenarios_metadata(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    c = ihm.app.test_client()
+    c.post("/api/save", json={"name": "m"})
+    scens = c.get("/api/scenarios").get_json()["scenarios"]
+    assert scens and isinstance(scens[0], dict)
+    meta = next(x for x in scens if x["name"] == "m")
+    for k in ("vl", "nominal_v", "nb_barres", "n_dj", "n_sa", "n_int",
+              "n_nodal", "nb_depart", "nb_cible"):
+        assert k in meta
+
+
+def test_scenario_meta_date_tags(session):
+    m = session.scenario_meta("2021-01-03T12:00")          # RTE7000 : date/heure fournies
+    assert m["dt"] == "2021-01-03T12:00" and m["year"] == 2021
+    assert m["season"] == "hiver" and m["weekday"] == 6    # 2021-01-03 = dimanche
+    m2 = session.scenario_meta()                            # local : case_date du réseau
+    assert "dt" in m2 and "season" in m2
+
+
+def test_api_load_scenario_returns_meta_for_resync(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    c = ihm.app.test_client()
+    c.post("/api/save", json={"name": "z", "depart_dt": "2023-02-08T00:00", "source": "rte"})
+    d = c.post("/api/load_scenario", json={"name": "z", "mode": "both"}).get_json()
+    assert d["meta"]["dt"] == "2023-02-08T00:00" and d["meta"]["source"] == "rte"
+    assert d["meta"]["season"] == "hiver"
+
+
+def test_api_scenarios_archive_zip(session, monkeypatch, tmp_path):
+    import io
+    import json as _json
+    import zipfile
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    c = ihm.app.test_client()
+    c.post("/api/save", json={"name": "a", "depart_dt": "2021-01-03T12:00", "source": "rte"})
+    sid = next(iter(session.current))
+    session.current[sid] = not session.current[sid]
+    c.post("/api/save", json={"name": "b"})
+    r = c.get("/api/scenarios_archive")
+    assert r.status_code == 200 and r.mimetype == "application/zip"
+    z = zipfile.ZipFile(io.BytesIO(r.data))
+    assert {"a.json", "b.json"} <= set(z.namelist())
+    meta = _json.loads(z.read("a.json"))["meta"]
+    assert meta["dt"] == "2021-01-03T12:00" and meta["source"] == "rte"
+
+
 def test_api_save_sequence_returns_content_for_download(session, monkeypatch, tmp_path):
     monkeypatch.setattr(ihm, "SESSION", session)
     monkeypatch.setattr(ihm, "SEQ_DIR", tmp_path)
@@ -249,3 +320,49 @@ def test_normalize_groups_ignores_empty_nodes():
     out = ihm._normalize_groups(["a", "b", "c"], [["a"], [], ["b"]])
     assert [] not in out
     assert ["a"] in out and ["b"] in out and ["c"] in out
+
+
+# --------------------------------------------------------------------------
+# Persistance : données à conserver (MANOEUVRE_DATA_DIR) **découplées** du cache
+# d'instantanés téléchargés (DGITT_CACHE_DIR), qui doit rester éphémère.
+# --------------------------------------------------------------------------
+
+def _clear_persist_env(monkeypatch):
+    for k in ("MANOEUVRE_DATA_DIR", "DGITT_CACHE_DIR", "MANOEUVRE_SCENARIOS_DIR",
+              "MANOEUVRE_GEO_SNAPSHOT"):
+        monkeypatch.delenv(k, raising=False)
+
+
+def test_persist_data_dir_decoupled_from_download_cache(monkeypatch):
+    # Config recommandée : données persistantes sur /data, cache de
+    # téléchargements ailleurs (éphémère). Les scénarios/coordonnées tombent
+    # sous MANOEUVRE_DATA_DIR, **jamais** sous DGITT_CACHE_DIR.
+    _clear_persist_env(monkeypatch)
+    monkeypatch.setenv("MANOEUVRE_DATA_DIR", "/data")
+    monkeypatch.setenv("DGITT_CACHE_DIR", "/tmp/dl-cache")
+    assert ihm._persist_root() == "/data"
+    assert ihm._persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios", "fb") == "/data/scenarios"
+    assert ihm._persist_subdir("MANOEUVRE_GEO_SNAPSHOT", "postes_rte_geo.json",
+                               "fb") == "/data/postes_rte_geo.json"
+
+
+def test_persist_root_falls_back_to_cache_for_compat(monkeypatch):
+    # Rétro-compatibilité : sans MANOEUVRE_DATA_DIR, l'ancienne config qui
+    # mutualisait tout dans DGITT_CACHE_DIR continue de fonctionner.
+    _clear_persist_env(monkeypatch)
+    monkeypatch.setenv("DGITT_CACHE_DIR", "/data/dgitt")
+    assert ihm._persist_root() == "/data/dgitt"
+    assert ihm._persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                               "fb") == "/data/dgitt/scenarios"
+
+
+def test_persist_subdir_explicit_env_wins_and_local_fallback(monkeypatch):
+    # Variable explicite prioritaire ; sans aucune racine → défaut local (tests).
+    _clear_persist_env(monkeypatch)
+    monkeypatch.setenv("MANOEUVRE_SCENARIOS_DIR", "/elsewhere/scen")
+    assert ihm._persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                               "tests/manoeuvre/scenarios") == "/elsewhere/scen"
+    monkeypatch.delenv("MANOEUVRE_SCENARIOS_DIR", raising=False)
+    assert ihm._persist_root() is None
+    assert ihm._persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                               "tests/manoeuvre/scenarios") == "tests/manoeuvre/scenarios"

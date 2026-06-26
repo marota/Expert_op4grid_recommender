@@ -22,6 +22,7 @@ system shipped as the default. See
 - [Pypowsybl Backend](#pypowsybl-backend)
 - [Pluggable Recommendation Models](#pluggable-recommendation-models)
 - [Action Discovery and Scoring](#action-discovery-and-scoring)
+- [Combining actions: the Generalized Superposition Theorem (GST)](#combining-actions-the-generalized-superposition-theorem-gst)
 - [Configuration](#configuration)
 - [Interactive Maneuver Interface (IHM)](#interactive-maneuver-interface-ihm)
 - [Dependencies](#dependencies)
@@ -79,38 +80,78 @@ ranked feed of corrective actions** from it *(right)*.
 Once a **nodal** action is chosen, the `manoeuvre` module plans the detailed
 (node-breaker) target topology and the safe, ordered switching sequence to reach
 it — explored interactively through the web IHM (see the
-[dedicated section](#interactive-maneuver-interface-ihm) below).
+[dedicated section](#interactive-maneuver-interface-ihm) below). The IHM has **two
+complementary views**: **edit & sequence** a substation's target topology *(first
+view)*, or — on the RTE-7000 dataset — **explore a whole day on a France map** to
+spot the substations that actually moved and dive into one *(second view)*.
 
-![Annotated overview of the maneuver IHM on a node-split scenario at CARRIP3](docs/manoeuvre/manoeuvre_ihm_overview.svg)
+#### First view — editing & sequencing
 
-> **Fig. — Interactive maneuver environment on a node-split scenario at CARRIP3**
-> (departure: one electrical node; target: three nodes — busbar 1 kept, busbar 2
-> split into 2.1 and 2.2). Numbered affordances:
-> **(1)** the **Situation réseau** source in two tabs — *Local* (server-side
-> `.xiidm` path + native file picker) and *RTE7000* (dataset date/hour, with quick
-> "case-of-interest" chips) — loaded by a single **Charger** button (RTE7000
-> foregrounded on the Space);
-> **(2)** the unified **Poste** field — one search over all NODE_BREAKER
-> substations (pinned ★ marked in results) + a browsable by-typology list;
-> **(3)** the read-only **departure** single-line diagram, header **↺ État
-> d'origine** (reset target to pristine);
-> **(4)** the **editable target** diagram (click a breaker/disconnector to
-> toggle), header **⇧ Nouvelle Topologie Départ** (promote the *current edited*
-> target to a new departure — the departure pane above updates);
-> **(5)** the nodal **bus view** (drag a feeder to re-route, drag one busbar onto
-> another to merge, *+ Nœud* to create a node);
-> **(6)** **2 · Topologie cible** — validate & save (locks "Calculer" until
-> validated);
-> **(7)** **3 · Séquence de manœuvres** — de-energization mode + compute /
-> **✋ manual**;
-> **(8)** **⚙ Calculer la topologie détaillée d'intérêt** (the nodal→detailed
-> bridge);
-> **(9)** the **step-by-step animated** sequence with a disconnector-operated-
-> under-load flagged in red (here **R18**) + **💾 save**;
-> **(10)** **⟳ Recharger** (next to the *Scénario Topologique* title) opens a modal
-> to replay a saved scenario.
-> Bus colors are the native `topological_coloring`; the three right-hand busbars
-> are the target nodes.
+![Annotated maneuver IHM on substation CONCAP3, reached from the day-exploration map](docs/manoeuvre/manoeuvre_ihm_overview.png)
+
+> **Fig. — Maneuver IHM on substation CONCAP3**, opened by double-clicking it on the
+> day-exploration map. Numbered affordances:
+> **(1)** the **exploration bar** — **← Carte** (back to the map), **Départ** and
+> **Retenir comme cible** hour pickers (00:00 / 12:00 / 23:00) and a **Niveau**
+> selector: this view was reached from the map, which seeded the departure and target
+> topologies;
+> **(2)** **1 · Poste** — the unified search, here **CONCAP3** (any NODE_BREAKER
+> substation is reachable by name);
+> **(3)** the read-only **Topologie de départ** + **↺ État d'origine** (reset the
+> target to pristine);
+> **(4)** the **editable Topologie cible** (click a breaker/disconnector to toggle) +
+> **⇧ Nouvelle Topologie Départ** (promote the edited target to a new departure);
+> **(5)** the **Topologie nodale** bus view (drag a feeder to re-route, drag a busbar
+> onto another to merge, **+ Nœud**);
+> **(6)** **⚠ Ouvrages isolés (2) — déconnectés** — disconnected devices that carry no
+> busbar are flagged and **excluded from the electrical-node count** (CONCAP3 reads
+> **1 node**, not inflated by the two isolated ouvrages);
+> **(7)** **2 · Topologie cible** — **✓ Valider** then **💾 Sauvegarder** under a
+> **pre-formatted name** (`CONCAP3_20210103_1200_topoDepart1Noeud_…`) into the
+> **shared scenario base** (here `/data/dgitt/scenarios`, also downloaded locally);
+> **(8)** **⚙ Calculer la topologie détaillée d'intérêt** — the nodal→detailed bridge;
+> **(9)** **3 · Séquence de manœuvres** — the **step-by-step animated**, *détaillée
+> vérifiée* sequence (here 1/3: `CLOSE … ré-aiguillage`, then `OPEN … ouverture
+> couplage de barres`) with **💾 save**;
+> **(10)** **⟳ Recharger** replays a saved scenario from the shared base (searchable
+> by voltage, busbar count, substation, OC counts and date; zip export).
+> Bus colours are the native `topological_coloring`.
+
+#### Second view — exploring a day on the France map
+
+![Annotated "Explorer la journée" view: France map of substation activity for an RTE-7000 day](docs/manoeuvre/manoeuvre_ihm_explore_map.png)
+
+> **Fig. — "Explorer la journée": the France map of substation activity**
+> (RTE-7000, 2021-01-03; three snapshots 00:00 / 12:00 / 23:00). Numbered
+> affordances:
+> **(1)** **🗺 Explorer la journée** — from the *RTE7000* tab, after picking a date,
+> opens the France map (**no setup, no network**: coordinates from the committed RTE
+> grid layout, ~98 % of substations, over a real *départements* basemap);
+> **(2)** one **disk per substation, coloured by voltage** (RTE palette); the **10
+> most active voltage levels** of the day are **enlarged + ranked** — activity =
+> switching-device (OC) state changes broken down **DJ / SA / INT**, **plus ⚇ node
+> re-groupings** (splits/merges);
+> **(3)** optional **inter-substation connections** — electrical lines coloured by
+> voltage, drawn faint (constant width at any zoom), toggled by **Lignes** in the
+> legend (available for *Local* **and** *RTE7000*);
+> **(4)** the **hour selector** 00:00 / 12:00 / 23:00 — picks which snapshot's
+> topology is opened on double-click;
+> **(5)** the **filtering voltage legend** — *tout* / *aucun*, single-click a band to
+> show/hide it, **double-click to isolate** it, plus a **Lignes** toggle; the help
+> line spells out *halo = top 10 · clic = infos · double-clic = topologie · molette =
+> zoom · glisser = déplacer*;
+> **(6)** **★ Postes les plus actifs** — the clickable ranking with per-VL change
+> counts;
+> **(7)** **1 · Poste** search — usable while the map is open (jump straight to a
+> substation);
+> **(8)** map controls — **+ / −** zoom, **↗ Recentrer**, **✕ Fermer**; the header
+> reports **4811 postes · 1774 actifs · 4723 géolocalisés · coord. : layout
+> (4723/4811, 98 %)**.
+> **Double-click a disk** → it opens in the **first view** above, its departure/target
+> seeded from the chosen hours (devices differing départ→cible are highlighted on the
+> target diagram: **green** = closed, **orange** = opened). An OSM/Overpass fallback
+> fills coordinates absent from the layout and is offered for download
+> (**⬇ coordonnées**).
 
 ---
 
@@ -453,6 +494,52 @@ score = theta2 - theta1
 ```
 
 where theta1 is the voltage angle of the bus connected to the red loop (identified as the bus carrying more negative/overload-relieving dispatch flow on the overflow graph), and theta2 is the voltage angle of the other bus. A positive score means flows would naturally go from the higher-phase bus towards the red loop bus, which is the desired direction to relieve overloads.
+
+---
+
+## Combining actions: the Generalized Superposition Theorem (GST)
+
+The scores above rank actions **one at a time**, but operators often relieve an
+overload with a **pair** of actions (e.g. a node split *plus* some load shedding).
+Re-simulating every combination is expensive; instead the **superposition theorem**
+reconstructs a combined flow from the per-action observations the analysis has
+**already** computed — so a pair's impact is estimated with *no extra load flow*.
+The core lives in `utils/superposition.py`; full derivation in
+[`docs/recommender/superposition_module.md`](docs/recommender/superposition_module.md).
+
+* **EST (Extended Superposition Theorem)** combines two **topology** actions (line
+  open/close, node split/merge, PST). Each action gets a coefficient `beta` solving
+  a small linear system built from `p_or` and `delta_theta`, and the combined flow is
+
+  ```
+  p_combined = (1 − Σβ)·p_start + β₁·p_act1 + β₂·p_act2
+  ```
+
+* **GST (Generalized Superposition Theorem)** extends this to pairs where **at least
+  one action is an injection change** — load shedding (`set_load_p`), renewable
+  curtailment / redispatch (`set_gen_p`) — which move nodal injections rather than the
+  topology. `is_injection_action(...)` flags them (by id prefix or classifier type);
+  `compute_combined_pair_superposition` then routes the pair to
+  `compute_combined_pair_gst`, and `compute_all_pairs_superposition` now **keeps**
+  injection actions (previously skipped), pairing them with topology actions and with
+  each other.
+
+An injection action enters in **pure superposition** (its response
+`obs_inj − obs_start` is added in full); a topology partner keeps a `beta_T` that the
+injection shifts only through the right-hand side of the unchanged EST system. The
+trick: GST reports each injection action with **`beta = 1.0`**, so the **same EST
+reconstruction formula above reproduces the exact GST flows** — the rho estimators and
+Co-Study4Grid's `compute_combined_rho` need **no GST-specific code path**.
+
+| Pair shape | betas | reconstruction |
+|---|---|---|
+| topology + injection | `[beta_T, 1.0]` | `−beta_T·start + beta_T·topo + inj` |
+| injection + injection | `[1.0, 1.0]` | `inj1 + inj2 − start` (DC-exact) |
+
+The estimator is **AC-anchored** (every term comes from AC load-flow observations,
+not a recomputed DC model). Combined-pair estimates (virtual flows + combined rho)
+flow back into the analysis results, letting the UI rank **action combinations**
+alongside single actions.
 
 ---
 

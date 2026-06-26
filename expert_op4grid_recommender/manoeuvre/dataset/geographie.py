@@ -1,0 +1,623 @@
+"""
+manoeuvre/dataset/geographie.py — Localisation géographique des postes.
+
+Le dataset RTE 7000 (instantanés XIIDM) **ne porte pas** de coordonnées
+géographiques (vérifié : pas d'extension ``substationPosition``, pas de
+lat/lon). L'IHM « explorer la journée » a besoin de placer chaque poste sur une
+carte ; on résout les coordonnées par une **chaîne de sources**, du plus fiable
+au plus dépendant du réseau :
+
+1. **embarquées** dans l'instantané (extension pypowsybl ``substationPosition``)
+   — *absent du dataset RTE 7000 actuel*, mais gratuit et exact si un jour
+   présent ;
+2. **instantané committé** ``data/postes_rte_geo.json`` — **indexé par
+   ``substation_id``** (clé pypowsybl), donc résolution runtime = simple lookup.
+   Produit hors-ligne par ``scripts/fetch_postes_geo.py`` (qui réalise
+   l'appariement ODRE ↔ postes **une fois**, là où ODRE est joignable, et le
+   valide) ;
+3. **ODRE en direct** (``odre.opendatasoft.com``, dataset
+   ``postes-electriques-rte``) — repli runtime si le Space autorise l'accès
+   sortant ; mis en cache localement.
+
+L'appariement ODRE → ``substation_id`` est **best-effort** (normalisation des
+mnémoniques RTE — points/espaces de tête, casse) : il est calculé et **mesuré**
+par le script de fetch, pas à chaud. Si aucune coordonnée n'est résolue, l'IHM
+reste utile : elle présente le **classement** des postes les plus actifs en
+liste (la carte n'est qu'une présentation géographique de ce classement).
+
+Stdlib pur (urllib) côté HTTP, comme ``dataset/source.py``.
+"""
+from __future__ import annotations
+
+import json
+import random
+import re
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+from typing import Iterable, Optional
+
+#: dataset ODRE des postes électriques RTE — **purement tabulaire** (code_poste,
+#: nom_poste, fonction, etat, tension, departement). **Aucune géométrie** (vérifié
+#: via l'API records) : inutilisable pour la carte. Conservé pour mémoire.
+ODRE_DATASET = "postes-electriques-rte"
+ODRE_EXPORT = ("https://odre.opendatasoft.com/api/explore/v2.1/catalog/"
+               "datasets/{dataset}/exports/geojson")
+
+#: **OpenStreetMap / Overpass** : source des **coordonnées** des postes RTE. Les
+#: postes RTE y sont taggués ``power=substation`` + ``ref:FR:RTE`` = le **code
+#: mnémonique RTE** (= ``substation_id`` du réseau, vérifié : recoupement quasi
+#: total). ``ref:FR:RTE_nom`` = le nom long. ``out center`` donne lat/lon (nœud)
+#: ou le centre (way/relation). Même approche que Co-Study4Grid.
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_QUERY = (
+    '[out:json][timeout:180];'
+    'area["ISO3166-1"="FR"][admin_level=2]->.fr;'
+    'nwr["power"="substation"]["ref:FR:RTE"](area.fr);'
+    'out center tags;')
+
+#: emplacement par défaut de l'instantané committé (résolution sans réseau).
+SNAPSHOT_DEFAUT = "data/postes_rte_geo.json"
+
+#: **plan de masse RTE committé** (``{nom_VL: [x, y]}``, projection planaire RTE)
+#: — source **primaire, hors-ligne** des coordonnées (≈ 98 % des postes,
+#: indépendant du réseau). Livré dans le package (copié dans l'image du Space).
+LAYOUT_DEFAUT = str(Path(__file__).resolve().parent / "grid_layout_rte.json")
+
+#: **fond de carte** committé : frontières (départements France + pays voisins)
+#: **déjà projetées dans le repère du plan de masse RTE** (calibré sur les
+#: centroïdes de départements ODRE) → s'aligne sur les disques sans repro runtime.
+BASEMAP_DEFAUT = str(Path(__file__).resolve().parent / "france_basemap.json")
+
+
+def charger_basemap(path: str | Path = BASEMAP_DEFAUT) -> dict:
+    """Fond de carte committé ``{'depts': [[[x, y], …], …], 'neighbors': […]}``
+    (repère du plan de masse). ``{}`` si absent/illisible. Best-effort."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+#: rayon terrestre (Web Mercator) — projection des sources lon/lat (OSM).
+_EARTH_R = 6378137.0
+
+
+def merc(lon: float, lat: float) -> tuple[float, float]:
+    """Projection Web Mercator ``(lon, lat)`` → ``(x, y)`` mètres."""
+    import math
+    return (math.radians(lon) * _EARTH_R,
+            math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)) * _EARTH_R)
+
+# Codes HTTP **transitoires** d'ODRE (on retente). ``403`` en est **exclu** :
+# côté ODRE c'est un refus (auth / politique de sortie bloquée), pas un aléa —
+# on échoue alors immédiatement et on bascule sur le classement en liste, sans
+# bloquer « Explorer la journée » sur des retries inutiles.
+_RETRIABLE = {429, 500, 502, 503, 504}
+
+
+# ===========================================================================
+# 1. Coordonnées embarquées dans le réseau (extension pypowsybl)
+# ===========================================================================
+
+def positions_xiidm(net) -> dict[str, dict]:
+    """``{substation_id: {'lat', 'lon', 'source': 'xiidm'}}`` depuis l'extension
+    ``substationPosition`` du réseau, si présente. ``{}`` sinon (cas du dataset
+    RTE 7000 actuel). Best-effort — ne lève jamais."""
+    try:
+        ext = net.get_extensions("substationPosition")
+    except Exception:
+        return {}
+    if ext is None or len(ext) == 0:
+        return {}
+    out: dict[str, dict] = {}
+    if "latitude" in ext.columns and "longitude" in ext.columns:
+        for sid, lat, lon in zip(ext.index, ext["latitude"], ext["longitude"]):
+            try:
+                out[str(sid)] = {"lat": float(lat), "lon": float(lon),
+                                 "source": "xiidm"}
+            except (TypeError, ValueError):
+                continue
+    return out
+
+
+# ===========================================================================
+# 1bis. Plan de masse RTE committé (par voltage level) — source primaire offline
+# ===========================================================================
+
+def charger_layout(path: str | Path = LAYOUT_DEFAUT) -> dict[str, list]:
+    """Charge le plan de masse committé ``{nom_VL: [x, y]}`` (projection planaire
+    RTE). ``{}`` si absent/illisible. Best-effort."""
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def positions_from_layout(
+    layout: dict[str, list],
+    vl_meta: dict[str, dict],
+) -> tuple[dict[str, dict], dict]:
+    """Coordonnées **par poste (substation)** depuis le plan de masse par VL.
+
+    ``vl_meta`` : ``{vl: {'substation', 'nominal_v', …}}``. Pour chaque poste, on
+    retient le VL **de plus haute tension** présent dans le plan (coordonnée la
+    plus représentative ; l'écart entre VL d'un même poste est négligeable).
+
+    Retourne ``(positions, stats)`` : ``positions = {substation: {'x', 'y',
+    'source': 'layout'}}`` (projection planaire, telle quelle) ; ``stats`` pour
+    l'affichage. Fonction pure."""
+    best: dict[str, tuple[float, str]] = {}   # sub -> (nominal_v, vl)
+    for vl, meta in vl_meta.items():
+        if vl not in layout:
+            continue
+        sub = meta.get("substation") or vl
+        nv = meta.get("nominal_v", 0.0) or 0.0
+        if sub not in best or nv > best[sub][0]:
+            best[sub] = (nv, vl)
+    positions: dict[str, dict] = {}
+    for sub, (_nv, vl) in best.items():
+        xy = layout[vl]
+        try:
+            positions[sub] = {"x": float(xy[0]), "y": float(xy[1]),
+                              "source": "layout"}
+        except (TypeError, ValueError, IndexError):
+            continue
+    n = len({m.get("substation") or vl for vl, m in vl_meta.items()})
+    stats = {"n_substations": n, "n_apparies": len(positions), "n_layout": len(layout),
+             "taux": round(len(positions) / n, 3) if n else 0.0}
+    return positions, stats
+
+
+# ===========================================================================
+# 2. Instantané committé (indexé par substation_id)
+# ===========================================================================
+
+def charger_snapshot(path: str | Path = SNAPSHOT_DEFAUT) -> dict[str, dict]:
+    """Charge l'instantané committé ``{substation_id: {lat, lon, nom?,
+    tension?}}``. ``{}`` si le fichier est absent ou illisible.
+
+    Tolère deux formes : un dict déjà indexé par ``substation_id`` ; ou une
+    liste d'enregistrements portant une clé ``substation_id``/``code``."""
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    out: dict[str, dict] = {}
+    items = (data.items() if isinstance(data, dict)
+             else ((r.get("substation_id") or r.get("code"), r)
+                   for r in data if isinstance(r, dict)))
+    for sid, rec in items:
+        if not sid or not isinstance(rec, dict):
+            continue
+        geo = _coord(rec)
+        if geo is None:
+            continue
+        out[str(sid)] = {"lat": geo[0], "lon": geo[1], "source": "snapshot",
+                         **{k: rec[k] for k in ("nom", "tension")
+                            if k in rec}}
+    return out
+
+
+def _coord(rec: dict) -> Optional[tuple[float, float]]:
+    """``(lat, lon)`` d'un enregistrement, tolérant : champs ``lat``/``lon``
+    directs, ``geo_point_2d`` (dict / liste / chaîne ``'lat,lon'``)."""
+    if rec.get("lat") is not None and rec.get("lon") is not None:
+        try:
+            return float(rec["lat"]), float(rec["lon"])
+        except (TypeError, ValueError):
+            pass
+    return _extraire_geo(rec)
+
+
+# ===========================================================================
+# 3. ODRE en direct (fetch + cache) — repli runtime
+# ===========================================================================
+
+def _http_get(url: str, timeout: int = 120, essais: int = 4,
+              token: Optional[str] = None) -> bytes:
+    """GET avec retries exponentiels sur les codes transitoires (cf. source.py)."""
+    headers = {"User-Agent": "expert-op4grid-geo/1.0"}
+    if token:
+        headers["Authorization"] = f"Apikey {token}"
+    req = urllib.request.Request(url, headers=headers)
+    for essai in range(essais):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as exc:
+            if exc.code not in _RETRIABLE or essai == essais - 1:
+                raise
+            time.sleep(2 ** essai + random.uniform(0, 1))
+        except (urllib.error.URLError, TimeoutError):
+            if essai == essais - 1:
+                raise
+            time.sleep(2 ** essai + random.uniform(0, 1))
+    raise AssertionError("unreachable")
+
+
+def _centroid(geom) -> Optional[tuple[float, float]]:
+    """``(lon, lat)`` d'une géométrie GeoJSON. ``Point`` → ses coordonnées ;
+    ``Polygon``/``Multi*``/``LineString`` → **centroïde** (moyenne des sommets).
+    ``None`` si la géométrie est absente/illisible. (GeoJSON : ``[lon, lat]``.)"""
+    if not isinstance(geom, dict):
+        return None
+    coords = geom.get("coordinates")
+    if coords is None:
+        return None
+    if geom.get("type") == "Point":
+        try:
+            return float(coords[0]), float(coords[1])
+        except (TypeError, ValueError, IndexError):
+            return None
+    pts: list[tuple[float, float]] = []
+
+    def _walk(x):
+        if (isinstance(x, (list, tuple)) and len(x) == 2
+                and all(isinstance(v, (int, float)) for v in x)):
+            pts.append((float(x[0]), float(x[1])))
+        elif isinstance(x, (list, tuple)):
+            for y in x:
+                _walk(y)
+    _walk(coords)
+    if not pts:
+        return None
+    return (sum(p[0] for p in pts) / len(pts),
+            sum(p[1] for p in pts) / len(pts))
+
+
+def fetch_odre_records(
+    cache_dir: str | Path | None = None,
+    token: Optional[str] = None,
+    force: bool = False,
+    essais: int = 4,
+    timeout: int = 120,
+) -> list[dict]:
+    """Enregistrements ODRE des postes (export **geojson**), aplatis en
+    ``[{<attributs>, 'geo_point_2d': [lat, lon]}, …]`` : la géométrie de chaque
+    *feature* est ramenée à un point (centroïde) et injectée comme ``geo_point_2d``
+    (convention ``[lat, lon]`` du reste du module), à côté des ``properties``
+    (``code_poste``, ``nom_poste``, ``tension``…).
+
+    Mis en cache sous ``cache_dir/odre_postes_geo.json`` (repris si présent et
+    ``force=False`` — nom distinct de l'ancien cache *sans géométrie*). Lève si
+    ODRE est injoignable et qu'aucun cache n'existe.
+
+    ``essais``/``timeout`` : la résolution **runtime** les abaisse (échec rapide
+    si la sortie vers ODRE est bloquée) ; le script de fetch garde les défauts."""
+    cache = Path(cache_dir) / "odre_postes_geo.json" if cache_dir else None
+    if cache and cache.exists() and not force:
+        try:
+            return json.loads(cache.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    url = ODRE_EXPORT.format(dataset=ODRE_DATASET)
+    raw = _http_get(url, token=token, essais=essais, timeout=timeout)
+    data = json.loads(raw.decode("utf-8", "replace"))
+    if isinstance(data, dict):
+        feats = data.get("features", [])
+    elif isinstance(data, list):
+        feats = data
+    else:
+        feats = []
+    records: list[dict] = []
+    for ft in feats:
+        if not isinstance(ft, dict):
+            continue
+        rec = dict(ft.get("properties") or {})
+        c = _centroid(ft.get("geometry"))
+        if c is not None:
+            rec.setdefault("geo_point_2d", [c[1], c[0]])   # [lat, lon]
+        records.append(rec)
+    if cache:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(records, ensure_ascii=False),
+                         encoding="utf-8")
+    return records
+
+
+def fetch_osm_substations(
+    cache_dir: str | Path | None = None,
+    token: Optional[str] = None,   # accepté pour symétrie ; inutilisé (Overpass anonyme)
+    force: bool = False,
+    essais: int = 3,
+    timeout: int = 180,
+) -> list[dict]:
+    """Postes RTE localisés depuis **OpenStreetMap / Overpass**, en records
+    ``[{'code_poste': ref:FR:RTE, 'nom_poste': …, 'tension': …,
+    'geo_point_2d': [lat, lon]}, …]`` — même forme que ``fetch_odre_records``
+    (consommable tel quel par ``apparier_odre``).
+
+    ``ref:FR:RTE`` = mnémonique RTE = ``substation_id`` du réseau (vérifié). Pour
+    un *way*/*relation*, on prend le **centre** (``out center``). Requête POST
+    (la query est longue), retries sur codes transitoires. Mis en cache sous
+    ``cache_dir/osm_postes.json``. Lève si Overpass est injoignable sans cache."""
+    cache = Path(cache_dir) / "osm_postes.json" if cache_dir else None
+    if cache and cache.exists() and not force:
+        try:
+            return json.loads(cache.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    body = urllib.parse.urlencode({"data": OVERPASS_QUERY}).encode("utf-8")
+    headers = {"User-Agent": "expert-op4grid-geo/1.0",
+               "Content-Type": "application/x-www-form-urlencoded"}
+    payload = None
+    for essai in range(essais):
+        try:
+            req = urllib.request.Request(OVERPASS_URL, data=body, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                payload = json.loads(resp.read().decode("utf-8", "replace"))
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code not in _RETRIABLE or essai == essais - 1:
+                raise
+            time.sleep(2 ** essai + random.uniform(0, 1))
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            if essai == essais - 1:
+                raise
+            time.sleep(2 ** essai + random.uniform(0, 1))
+    records: list[dict] = []
+    for el in (payload or {}).get("elements", []):
+        tags = el.get("tags") or {}
+        code = tags.get("ref:FR:RTE")
+        if not code:
+            continue
+        if el.get("type") == "node":
+            lat, lon = el.get("lat"), el.get("lon")
+        else:
+            c = el.get("center") or {}
+            lat, lon = c.get("lat"), c.get("lon")
+        if lat is None or lon is None:
+            continue
+        records.append({
+            "code_poste": code,
+            "nom_poste": tags.get("ref:FR:RTE_nom") or tags.get("name") or code,
+            "tension": tags.get("voltage"),
+            "geo_point_2d": [float(lat), float(lon)],
+        })
+    if cache:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(records, ensure_ascii=False),
+                         encoding="utf-8")
+    return records
+
+
+# --- détection tolérante des champs ODRE -----------------------------------
+
+_CLES_GEO = ("geo_point_2d", "geo_point", "geopoint", "coordonnees",
+             "geo_shape", "point", "geom")
+_CLES_CODE = ("code_poste", "codeposte", "code", "code_gdo", "code_site",
+              "poste", "code_poste_source")
+_CLES_NOM = ("nom_poste", "libelle_poste", "nom", "libelle", "nom_site",
+             "intitule")
+_CLES_TENSION = ("tension", "niveau_tension", "tension_kv")
+
+
+def _extraire_geo(rec: dict) -> Optional[tuple[float, float]]:
+    """``(lat, lon)`` depuis un enregistrement ODRE (formes multiples)."""
+    for k in _CLES_GEO:
+        v = rec.get(k)
+        if v is None:
+            continue
+        if isinstance(v, dict):
+            lat = v.get("lat") if v.get("lat") is not None else v.get("latitude")
+            lon = v.get("lon") if v.get("lon") is not None else v.get("longitude")
+            if lat is None and "coordinates" in v:  # GeoJSON [lon, lat]
+                try:
+                    lon, lat = v["coordinates"][0], v["coordinates"][1]
+                except (IndexError, TypeError):
+                    lat = lon = None
+            if lat is not None and lon is not None:
+                try:
+                    return float(lat), float(lon)
+                except (TypeError, ValueError):
+                    continue
+        elif isinstance(v, (list, tuple)) and len(v) == 2:
+            # ODRE geo_point_2d est [lat, lon] ; GeoJSON serait [lon, lat].
+            try:
+                return float(v[0]), float(v[1])
+            except (TypeError, ValueError):
+                continue
+        elif isinstance(v, str) and "," in v:
+            try:
+                a, b = v.split(",")[:2]
+                return float(a), float(b)
+            except ValueError:
+                continue
+    return None
+
+
+def _premier(rec: dict, cles: Iterable[str]) -> Optional[str]:
+    for k in cles:
+        v = rec.get(k)
+        if v not in (None, ""):
+            return str(v)
+    return None
+
+
+# ===========================================================================
+# Appariement ODRE ↔ substation_id (best-effort, mesuré hors-ligne)
+# ===========================================================================
+
+def normaliser_mnemonique(s: str) -> str:
+    """Normalise un mnémonique de poste pour l'appariement : majuscules, retrait
+    des points/espaces/tirets de tête et de tout caractère non alphanumérique
+    (``'.G.RO'`` → ``'GRO'``, ``'.CTLH'`` → ``'CTLH'``)."""
+    return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
+
+
+def _index_par(records: list[dict], cles: Iterable[str],
+               normaliser: bool = True) -> dict[str, dict]:
+    """Index ``{clé: {lat, lon, nom, tension}}`` à partir du **premier champ
+    renseigné** de ``cles`` (code OU nom), pour les enregistrements géolocalisés.
+    Clé = mnémonique **normalisé** (``normaliser=True``) ou **brut** (verbatim,
+    ``normaliser=False``). La 1ʳᵉ occurrence d'une clé gagne."""
+    idx: dict[str, dict] = {}
+    for rec in records:
+        geo = _extraire_geo(rec)
+        if geo is None:
+            continue
+        val = _premier(rec, cles)
+        if not val:
+            continue
+        key = normaliser_mnemonique(val) if normaliser else val
+        if key and key not in idx:
+            idx[key] = {"lat": geo[0], "lon": geo[1],
+                        "nom": _premier(rec, _CLES_NOM) or val,
+                        "tension": _premier(rec, _CLES_TENSION)}
+    return idx
+
+
+def _match_prefixe(norm: str, index: dict[str, dict]) -> Optional[dict]:
+    """Unique entrée d'``index`` dont la clé est préfixe de ``norm`` ou inversement
+    (≥ 4 caractères communs). ``None`` si zéro ou plusieurs candidats (ambigu)."""
+    trouve = None
+    for k, v in index.items():
+        if (k.startswith(norm) or norm.startswith(k)) and min(len(k), len(norm)) >= 4:
+            if trouve is not None:
+                return None        # ambigu
+            trouve = v
+    return trouve
+
+
+def apparier_odre(
+    records: list[dict],
+    substation_ids: Iterable[str],
+    prefix_fallback: bool = True,
+) -> tuple[dict[str, dict], dict]:
+    """Apparie les enregistrements ODRE aux ``substation_ids`` du réseau.
+
+    Retourne ``(positions, stats)``. ``positions`` : ``{substation_id: {'lat',
+    'lon', 'nom', 'tension', 'source': 'odre'}}``. ``stats`` mesure la qualité
+    **et** aide au diagnostic (``n_odre``, ``n_apparies``, ``taux``,
+    ``sample_fields``, ``sample_codes``, ``sample_noms``, ``sample_subs``,
+    ``sample_non_apparies``).
+
+    Stratégie : on indexe ODRE **par code brut** (``code_poste`` verbatim — qui
+    recoupe ~98 % des ``substation_id`` RTE), puis **par code normalisé** et **par
+    nom normalisé** ; pour chaque ``substation_id`` : match **code brut**, puis code
+    normalisé, puis nom, puis repli **préfixe** (≥ 4 car.). Couvre le cas où ODRE
+    n'expose qu'un **nom** (``CONCARNEAU`` vs mnémonique ``CONCA``). Pure."""
+    raw_index = _index_par(records, _CLES_CODE, normaliser=False)  # code verbatim
+    code_index = _index_par(records, _CLES_CODE)                   # code normalisé
+    name_index = _index_par(records, _CLES_NOM)                    # nom normalisé
+    sub_ids = list(dict.fromkeys(map(str, substation_ids)))
+    positions: dict[str, dict] = {}
+    n_exact = n_prefixe = 0
+    non_apparies: list[str] = []
+    for sid in sub_ids:
+        norm = normaliser_mnemonique(sid)
+        rec = (raw_index.get(sid) or code_index.get(norm)
+               or name_index.get(norm))
+        if rec is not None:
+            n_exact += 1
+        elif prefix_fallback and len(norm) >= 4:
+            rec = _match_prefixe(norm, code_index) or _match_prefixe(norm, name_index)
+            if rec is not None:
+                n_prefixe += 1
+        if rec is not None:
+            positions[sid] = {"lat": rec["lat"], "lon": rec["lon"],
+                              "nom": rec["nom"], "tension": rec.get("tension"),
+                              "source": "osm"}
+        else:
+            non_apparies.append(sid)
+    n = len(sub_ids)
+    # Échantillons de diagnostic (pourquoi 0 apparié ? quel champ ?).
+    sample_fields = sorted(records[0].keys())[:40] if records else []
+    sample_codes = [_premier(r, _CLES_CODE) for r in records[:6]]
+    sample_noms = [_premier(r, _CLES_NOM) for r in records[:6]]
+    stats = {"n_substations": n, "n_records": len(records),
+             "n_index_code": len(code_index), "n_index_nom": len(name_index),
+             "n_apparies": len(positions), "n_exact": n_exact,
+             "n_prefixe": n_prefixe,
+             "taux": round(len(positions) / n, 3) if n else 0.0,
+             "sample_fields": sample_fields, "sample_codes": sample_codes,
+             "sample_noms": sample_noms, "sample_subs": sub_ids[:6],
+             "sample_non_apparies": non_apparies[:6]}
+    return positions, stats
+
+
+# ===========================================================================
+# Résolution en chaîne (runtime)
+# ===========================================================================
+
+def ecrire_snapshot(path: str | Path, positions: dict[str, dict]) -> None:
+    """Écrit un instantané committable ``{substation_id: {lat, lon, nom?,
+    tension?}}`` (best-effort — ne lève pas si l'écriture échoue, p. ex. FS en
+    lecture seule)."""
+    try:
+        out = {sid: {k: v for k, v in (("lat", r.get("lat")), ("lon", r.get("lon")),
+                                       ("nom", r.get("nom")), ("tension", r.get("tension")))
+                     if v is not None}
+               for sid, r in positions.items()}
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def resoudre(
+    substation_ids: Iterable[str],
+    net=None,
+    snapshot_path: str | Path = SNAPSHOT_DEFAUT,
+    cache_dir: str | Path | None = None,
+    autoriser_osm: bool = True,
+    token: Optional[str] = None,
+    essais: int = 2,
+    timeout: int = 60,
+    persist_path: str | Path | None = None,
+    stats_out: Optional[dict] = None,
+) -> tuple[dict[str, dict], str]:
+    """Résout les coordonnées des ``substation_ids`` par chaîne de sources.
+
+    Retourne ``(positions, source)`` où ``source`` ∈ {``'xiidm'``,
+    ``'snapshot'``, ``'osm'``, ``'aucune'``}. Les coordonnées viennent
+    d'**OpenStreetMap / Overpass** (``ref:FR:RTE`` = ``substation_id``) ; ODRE est
+    purement tabulaire (pas de géométrie) et n'est donc pas utilisé pour la carte.
+    Best-effort : un échec OSM (réseau bloqué / Overpass indisponible) n'interrompt
+    pas — au pire ``{}`` + ``'aucune'`` et l'IHM bascule sur le classement en liste.
+
+    ``persist_path`` : après un appariement OSM réussi, **écrit l'instantané**
+    (indexé par ``substation_id``) → les explorations suivantes repassent par la
+    source ``snapshot`` (instantanée, sans re-fetch) et le fichier est committable.
+    ``stats_out`` (dict muté) reçoit les stats d'appariement pour affichage."""
+    ids = list(dict.fromkeys(map(str, substation_ids)))
+
+    if net is not None:
+        emb = positions_xiidm(net)
+        emb = {s: emb[s] for s in ids if s in emb}
+        if emb:
+            return emb, "xiidm"
+
+    snap = charger_snapshot(snapshot_path)
+    snap = {s: snap[s] for s in ids if s in snap}
+    if snap:
+        return snap, "snapshot"
+
+    if autoriser_osm:
+        try:
+            records = fetch_osm_substations(cache_dir, token=token, essais=essais,
+                                            timeout=timeout)
+            positions, stats = apparier_odre(records, ids)
+            if stats_out is not None:
+                stats_out.update(stats)
+            if positions:
+                if persist_path:
+                    ecrire_snapshot(persist_path, positions)
+                return positions, "osm"
+        except Exception as exc:
+            # Diagnostic : distinguer « Overpass injoignable » de « 0 apparié ».
+            if stats_out is not None:
+                stats_out.update({"geo_error": f"{type(exc).__name__}: {exc}"})
+
+    return {}, "aucune"

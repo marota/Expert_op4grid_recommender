@@ -9,6 +9,157 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### IHM de manœuvre : « Explorer la journée » — carte des postes + intérêt
+
+Sous l'onglet **RTE7000**, après le choix d'une date, le bouton **🗺 Explorer la
+journée** ouvre une **carte du réseau France** (postes localisés) qui met en
+évidence les postes **les plus actifs** de la journée, et permet de basculer en
+vue topologique d'un poste **à l'heure souhaitée**.
+
+- **Estimation de l'intérêt** (`manoeuvre/dataset/exploration.py`, nouveau) :
+  charge **3 situations** (minuit / midi / 23 h) et compte, **par poste**, le
+  **nombre d'OC dont l'état change** sur la journée, **ventilé par type d'OC**
+  (`BREAKER` / `DISCONNECTOR` / `LOAD_BREAK_SWITCH`). Cœur d'agrégation **Python
+  pur** (`changements_par_vl`). **Classement et mise en évidence au niveau voltage
+  level** (granularité fine) ; les **10 premiers VL** sont haloés sur la carte.
+- **Re-groupements de nœuds (scissions / fusions) comptabilisés** : au-delà des
+  OC, le décompte intègre le **nombre minimal d'ouvrages** séparés dans un nouveau
+  nœud ou ayant rejoint un nœud au cours de la journée — des configurations tout
+  aussi intéressantes à inspecter. La structure topologique invariante (arêtes +
+  ouvrages par nœud) est extraite une fois (`extraire_structure_topo`) ; le cœur
+  pur calcule la **partition nodale** par situation (`partition_ouvrages`) et la
+  **distance de transfert** entre situations consécutives (appariement de blocs
+  maximisant les ouvrages conservés → `noeuds_deplaces`), en retenant le **max**
+  sur les transitions (`changements_nodaux_par_vl`, stable face à une scission
+  suivie d'une fusion). Intégré au `total` (`fusionner_nodaux`) et affiché (badge
+  ⚇ dans le classement, ligne dédiée dans la bulle).
+  - **Ouvrages isolés ignorés** : un ouvrage **déconnecté** (composante sans jeu de
+    barres) n'est **pas** un nœud électrique → exclu de la partition
+    (`partition_ouvrages(..., barres)`, jeux de barres relevés par
+    `extraire_structure_topo`) ; (dé)connecter un ouvrage isolé ne compte pas comme
+    re-groupement (seules les vraies scissions/fusions de jeux de barres comptent).
+    Corrige une inflation du décompte (ex. un poste affichant ⊝7 dû à des ouvrages
+    déconnectés).
+- **Vue topologie : décompte de nœuds à l'affichage (ouvrages isolés exclus)** —
+  le badge « X nœud(s) » (départ / cible / étape) et la ligne « obtenu / visé » ne
+  comptent plus que les **nœuds réels** (composantes avec jeu de barres ;
+  `_nb_noeuds_reels`), cohérent avec l'éditeur nodal qui présente les ouvrages
+  isolés à part. **Affichage uniquement** : le moteur de séquencement conserve
+  `TopologieNodale.nb_noeuds` (isolés inclus, requis p. ex. en mise en service) et
+  le verdict de réalisabilité est inchangé.
+- **Coordonnées des postes** (`manoeuvre/dataset/geographie.py`, nouveau) — le
+  dataset RTE 7000 ne portant **pas** de coordonnées, chaîne de résolution :
+  (1) **plan de masse RTE committé** (`manoeuvre/dataset/grid_layout_rte.json`,
+  `{nom_VL: [x, y]}`) — **primaire, hors-ligne, ~98 %** des postes, **rien à
+  configurer** ; (2) instantané committé `data/postes_rte_geo.json` ;
+  (3) **OpenStreetMap / Overpass** — repli runtime, postes RTE taggués
+  `power=substation` + **`ref:FR:RTE` = `substation_id`** + lat/lon (Web Mercator
+  côté serveur). Résultat OSM **persisté** + **téléchargeable**
+  (`GET /api/explore_coords_file`, bouton « ⬇ coordonnées »). Toggle
+  `MANOEUVRE_ENABLE_OSM`. ODRE (`postes-electriques-rte`) est **tabulaire sans
+  géométrie** → inutilisable pour la carte. Sans aucune coordonnée, l'IHM reste
+  utile : **classement en liste** + **diagnostic** d'appariement. Approche
+  détaillée (plan de masse → projection écran → fond calibré) :
+  **`docs/manoeuvre/carte_geographique.md`**.
+- **Carte** (frontend) : SVG **autonome** (sans tuiles ni librairie externe),
+  disques **colorés par niveau de tension** sur un **fond géographique réel**
+  (frontières départements + pays voisins, calibrées dans le repère du plan de
+  masse — `scripts/build_france_basemap.py`, `france_basemap.json`,
+  `GET /api/explore_basemap`), **zoom/déplacement** par `viewBox`, **sélecteur
+  d'heure** d'ouverture en en-tête. **Clic** →
+  bulle d'information ; **double-clic** → vue topologique du poste, avec une barre
+  d'exploration (**Départ** 00 h/12 h/23 h, **Retenir comme cible** 00 h/12 h/23 h,
+  sélecteur de niveau de tension) ; l'**heure** et le **champ du poste** sont
+  synchronisés.
+- **Légende des tensions filtrante** : clic sur une bande de tension de la
+  légende **affiche/masque** les disques correspondants ; boutons **« tout »** /
+  **« aucun »** pour (dé)sélectionner toutes les bandes (`voltToggle`, `voltAll`,
+  `voltBand`, `MAP.voltOff`). Permet d'isoler un niveau (p. ex. 400 kV) sur la
+  carte.
+- **Sauvegarde de scénario : anti-doublon + nom unique indexé** — à l'enregistrement,
+  si un scénario **identique** (même départ **et** même cible) existe déjà (parmi
+  `name`, `name_0`, `name_1`…), il **n'est pas réécrit** et l'utilisateur est informé ;
+  sinon le scénario est écrit sous `name` (s'il est libre) ou sous le **premier
+  index libre** `name_0`, `name_1`… (`Session.save_scenario` → `{status}` ; plus de
+  invite « écraser/renommer »).
+- **Base de scénarios partagée + recherche par métadonnées** — les scénarios
+  enregistrés sont **mutualisés** (dossier configurable `MANOEUVRE_SCENARIOS_DIR` ;
+  sur le Space, sous le cache → persistable via un stockage `/data`) : toutes les
+  sauvegardes alimentent la **même base**, relisible par tous. Chaque scénario porte
+  des **métadonnées de recherche** (`Session.scenario_meta` : tension, nb de jeux de
+  barres, nœuds départ→cible, OC changés **DJ / SA / INT**, **ouvrages déplacés**
+  en changement de nœud). La modale « Recharger » devient une **recherche
+  filtrante** (texte poste/nom + tension + seuils min barres/DJ/SA/INT/nœud), chaque
+  résultat affichant ses métadonnées (`/api/scenarios` renvoie les objets).
+  - **Tag date/heure de départ** : chaque scénario logge sa **date + heure de
+    départ** — en **RTE7000** la date/heure choisies, en **local** l'horodatage du
+    fichier (`net.case_date`) — d'où **année / saison / jour de semaine**
+    (`Session._date_tags`). Filtres dédiés **année / saison / jour** dans la
+    recherche. Au **rechargement** d'un scénario RTE7000, les sélecteurs **Date** et
+    **Heure** sont **re-synchronisés** sur son contexte (`syncDepartFromScenario`).
+  - **Téléchargement de toute la base** : bouton **« ⬇ Tout (zip) »** dans la modale
+    de rechargement → archive ZIP de tous les scénarios (`GET /api/scenarios_archive`),
+    pour exporter/versionner la base partagée en un clic.
+- **Légende des tensions — double-clic d'isolement** : un **double-clic** sur une
+  bande **isole** ce niveau (masque tous les autres) ; un nouveau double-clic
+  lorsqu'il est déjà seul affiché **réaffiche tout** (`voltClick`/`voltDouble`,
+  débounce simple/double clic).
+- **Connexions inter-postes (lignes)** : la carte trace les **lignes électriques
+  entre postes**, **colorées par niveau de tension** et **en fondu** (trait fin
+  d'épaisseur constante au zoom, faible opacité) sous les disques — pour visualiser
+  la structure du réseau sans gêner la lecture. Extraction générique
+  (`exploration.extraire_connexions`, lignes/liaisons reliant deux **postes
+  distincts**, dédupliquées par couple + tension) → fonctionne pour une situation
+  **locale** comme **RTE7000**. **Bascule dédiée dans la légende** (« Lignes »,
+  `linesToggle`, `MAP.showLines`) ; les lignes respectent aussi le filtre par
+  tension. Restreintes aux extrémités **géolocalisées** (`connexions` du payload).
+- **Orientation nord en haut** : le plan de masse RTE ayant déjà le nord en haut
+  dans son repère (y croissant vers le sud), disques **et** fond de carte sont
+  servis **sans inversion d'axe** (les sources lon/lat OSM restent projetées
+  Web Mercator avec inversion). Corrige un rendu précédemment « à l'envers ».
+- **Mise en évidence des écarts départ/cible** : en vue topologique, les organes
+  dont l'état **diffère entre la topologie de départ et la cible** sont colorés
+  **uniquement sur le schéma cible**, en **couleurs vives** — **vert flashy** =
+  fermé à la cible (était ouvert), **orange flashy** = ouvert à la cible. Diff
+  calculé côté serveur (`Session.diff_states`, champ `changes` des réponses) et
+  appliqué par `highlightChanges` (classes `.octog-closed` / `.octog-opened`). Se
+  met à jour à chaque bascule d'organe, changement d'heure ou rétention de cible.
+- **Heure cible mise en évidence dès l'ouverture** : à l'ouverture d'un poste (ou
+  changement de l'heure de départ), la cible vaut le départ → le **bouton heure
+  cible est surligné en bleu** immédiatement (`MAP.cibleHour = heure`).
+- **Changement de niveau de tension : heure cible conservée** — basculer entre les
+  VL d'un même poste (boutons « Niveau ») **préserve** l'heure de départ **et**
+  l'heure cible retenue (la cible est ré-appliquée sur le nouveau VL) au lieu de
+  réinitialiser la cible au départ (`mapToTopo(sub, vl, hour, cibleHour)`).
+- **Sélection d'un poste depuis la recherche en mode carte** (régression corrigée) :
+  choisir un poste via le champ de recherche (ou la liste) **quitte la carte** et
+  affiche sa topologie (`load` appelle désormais `exitMapMode`) — auparavant la
+  topologie restait masquée derrière la carte.
+- **Recherche de poste utilisable pendant l'exploration** : après « Explorer la
+  journée », la liste de postes (recherche + présélection à gauche) est **peuplée**
+  depuis le réseau de référence de l'exploration (`populatePostes` après
+  `/api/postes`) — auparavant le champ restait vide (« Aucun poste »), seule la
+  liste des plus actifs à droite était sélectionnable. Sélectionner un poste en
+  exploration l'**ouvre à l'heure courante de la carte** (comme un double-clic),
+  via `selectPoste` (route vers `mapToTopo` si une journée est explorée, sinon
+  `load`).
+- **Nom de scénario par défaut formaté** : le champ « nom du scénario » est
+  pré-rempli selon le contexte (recalculé tant que l'utilisateur ne l'a pas édité).
+  - **RTE7000** :
+    `poste_AAAAMMJJ_hDepart_topoDepart{n}Noeud_hCible_topoCible{n}Noeud_(observee|modifiee)`
+    — `observee` si la cible est la topologie **observée** à l'heure cible,
+    `modifiee` si l'utilisateur l'a éditée. Ex. :
+    `CONCAP3_20210103_1200_topoDepart1Noeud_2300_topoCible1Noeud_observee`.
+  - **Local** : `poste_topoDepart{n}Noeud_topoCible{n}Noeud_nomFichier` (la cible
+    est forcément modifiée vs le départ). Ex. :
+    `CARRIP6_topoDepart1Noeud_topoCible3Noeud_pf_20240828T0100Z_20240828T0100Z`.
+- **Fond de carte plus lisible** : pays voisins assombris (`.nbr`) pour les
+  distinguer nettement des zones maritimes.
+- **Endpoints** : `POST /api/explore_day`, `POST /api/explore_poste`,
+  `POST /api/explore_retain_target`. **Tests** :
+  `tests/manoeuvre/test_exploration.py`, `tests/manoeuvre/test_geographie.py`,
+  `tests/manoeuvre/test_ihm_explore.py`. Doc : `docs/manoeuvre/ihm.md` (§ 1ter).
+
 ### IHM de manœuvre : source dataset RTE 7000 + déploiement HuggingFace Space
 
 L'IHM de manœuvre (`scripts/manoeuvre_ihm.py`) peut désormais **sourcer ses
@@ -44,7 +195,7 @@ situations réseau directement dans le dataset RTE 7000** par date/heure, et se
 
 Refonte ergonomique de l'IHM de manœuvre (`scripts/manoeuvre_ihm_assets/index.html`
 + `scripts/manoeuvre_ihm.py`). Doc : `docs/manoeuvre/ihm.md` ; figure annotée :
-`docs/manoeuvre/manoeuvre_ihm_overview.svg`.
+`docs/manoeuvre/manoeuvre_ihm_overview.png`.
 
 - **Situation réseau en deux onglets** *📁 Local* (chemin `.xiidm` + **sélecteur de
   fichier natif**, `GET /api/pick_grid_file`) et *📅 RTE7000* (date/heure), avec un

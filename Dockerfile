@@ -46,6 +46,21 @@ COPY --chown=user scripts/ ./scripts/
 # Source des données = dataset RTE 7000, téléchargé à la demande dans ce cache
 # (éphémère sur un Space). HF_TOKEN (optionnel, secret du Space) desserre le
 # rate-limit anonyme du CDN HuggingFace.
+#
+# « Explorer la journée » (carte des postes) : coordonnées du **plan de masse RTE
+# committé** (manoeuvre/dataset/grid_layout_rte.json, ~98 %, hors-ligne) → **rien à
+# configurer, aucun accès réseau**. Repli **OSM/Overpass** (ref:FR:RTE) pour les
+# postes manquants, persisté **dans le cache** (DGITT_CACHE_DIR). Pour faire
+# survivre le cache aux redémarrages : monter le **stockage persistant HF** sur
+# /data et définir DGITT_CACHE_DIR=/data/dgitt (couvre les instantanés XIIDM **et**
+# les coordonnées). MANOEUVRE_ENABLE_OSM=0 désactive le repli OSM.
+# Deux espaces distincts :
+#  - DGITT_CACHE_DIR : cache des **instantanés XIIDM téléchargés** (volumineux,
+#    régénérables) → **éphémère** par défaut (ne PAS le mettre sur /data).
+#  - MANOEUVRE_DATA_DIR : **données à conserver** (base partagée de scénarios /
+#    séquences + coordonnées résolues) → à pointer sur le **stockage persistant**
+#    (Settings → Variable `MANOEUVRE_DATA_DIR=/data` + Persistent storage sur /data).
+#    Non défini ici : la persistance est **opt-in** (cf. deploy/huggingface/SETUP.md).
 ENV DGITT_REPO=OpenSynth/D-GITT-RTE7000-2021 \
     DGITT_CACHE_DIR=/home/user/app/.cache/dgitt \
     DGITT_DEFAULT_DATE=2021-01-03 \

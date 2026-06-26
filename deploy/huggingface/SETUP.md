@@ -38,7 +38,64 @@ gros fichier dans l'historique à gérer.
 | `DGITT_DEFAULT_DATE` | `2021-01-03` | Date proposée par défaut dans l'IHM. |
 | `DGITT_CACHE_DIR` | `/home/user/app/.cache/dgitt` | Cache local des instantanés (éphémère sur un Space). |
 | `HF_TOKEN` | *(absent)* | **Optionnel** : jeton de lecture HF pour desserrer le rate-limit anonyme du CDN. Le mettre en **secret** du Space. |
+| `MANOEUVRE_ENABLE_OSM` | `1` | « Explorer la journée » : **repli OSM/Overpass** pour les coordonnées absentes du plan de masse committé. `0` le désactive (la carte reste alimentée par le plan de masse). |
+| `MANOEUVRE_GEO_SNAPSHOT` | `$DGITT_CACHE_DIR/postes_rte_geo.json` | Chemin de l'instantané de coordonnées **OSM** résolu/persisté. **Par défaut dans le cache** → pointer `DGITT_CACHE_DIR` sur le stockage persistant suffit à le faire survivre. |
+| `MANOEUVRE_SCENARIOS_DIR` | `$DGITT_CACHE_DIR/scenarios` | **Base partagée** des scénarios sauvegardés (tous les visiteurs écrivent/relisent le même dossier). **Sous le cache par défaut** → régler le seul `DGITT_CACHE_DIR` suffit (cf. § Persistance). |
+| `MANOEUVRE_SEQUENCES_DIR` | `$DGITT_CACHE_DIR/sequences` | Idem pour les séquences de manœuvres sauvegardées. |
 | `PORT` | `7860` | Port d'écoute (HF expose `:7860`). |
+
+### Persistance `/data` — base de scénarios partagée qui survit aux redémarrages
+
+Deux espaces **distincts** (pour ne **pas** gaspiller le disque persistant payant) :
+
+| Espace | Variable | Contenu | Sur `/data` ? |
+|---|---|---|---|
+| **Données à conserver** | `MANOEUVRE_DATA_DIR` | base partagée **scénarios** + séquences + **coordonnées** résolues | **oui** |
+| **Cache de téléchargements** | `DGITT_CACHE_DIR` | **instantanés XIIDM** des journées (volumineux, re-téléchargeables) | **non** (éphémère) |
+
+Mise en place :
+
+1. **Activer le stockage persistant** : Space → **Settings → Persistent storage** →
+   choisir un volume (offre payante HF). Il est monté sur **`/data`**.
+2. **Pointer les données dessus** : Space → **Settings → Variables and secrets** →
+   *New variable* **`MANOEUVRE_DATA_DIR` = `/data`** (scénarios → `/data/scenarios`,
+   séquences → `/data/sequences`, coordonnées → `/data/postes_rte_geo.json`).
+3. **Laisser `DGITT_CACHE_DIR` éphémère** (valeur par défaut `…/.cache/dgitt`) : les
+   **journées téléchargées n'encombrent pas** le stockage persistant — elles sont
+   re-téléchargées à la demande.
+4. **Redémarrer** le Space.
+
+> **Vous aviez mis `DGITT_CACHE_DIR=/data/dgitt` ?** Ça marchait (tout persistait,
+> instantanés compris). Pour ne **plus** conserver les journées : **ajoutez**
+> `MANOEUVRE_DATA_DIR=/data/dgitt` (les scénarios restent dans
+> `/data/dgitt/scenarios`) et **remettez `DGITT_CACHE_DIR`** à un chemin éphémère
+> (p. ex. supprimez la variable → défaut `/home/user/app/.cache/dgitt`). Vous pouvez
+> alors supprimer les dossiers `/data/dgitt/{2021,2022,2023}` devenus inutiles.
+
+Sans stockage persistant, la base reste **partagée le temps d'une session** du Space
+(tous les visiteurs voient les mêmes scénarios) mais repart à zéro au redémarrage ;
+le bouton **« ⬇ Tout (zip) »** (modale Recharger) permet d'**exporter** la base
+avant un rebuild.
+
+### « Explorer la journée » — carte des postes
+
+**Rien à configurer, aucun accès réseau requis** : les coordonnées viennent du
+**plan de masse RTE committé** (`manoeuvre/dataset/grid_layout_rte.json`, ~98 % des
+postes, embarqué dans l'image). La carte s'affiche dès la 1ʳᵉ exploration ;
+l'en-tête indique la source et la couverture (`coord. : layout (4723/4811, 98%)`).
+Notes :
+
+- **Repli OSM** : pour les ~2 % de postes absents du plan (ou si le plan est
+  retiré), l'IHM interroge **OpenStreetMap / Overpass** (`overpass-api.de`,
+  `ref:FR:RTE` = `substation_id`), persiste le résultat et l'offre au
+  téléchargement (bouton **⬇ coordonnées**). Adosser `DGITT_CACHE_DIR=/data/dgitt`
+  au **stockage persistant HF** fait survivre ce cache (et les instantanés XIIDM)
+  aux redémarrages.
+- **Mémoire** : l'exploration charge **3 réseaux France** (minuit/midi/23 h)
+  séquentiellement ; le pic reste sous ~2 Go → le tier **CPU basic (16 Go)** suffit.
+- **Diagnostic** : si la carte reste vide (cas rare : plan absent **et** OSM
+  bloqué), le bandeau indique la cause ; l'IHM reste utilisable via le **classement
+  en liste**.
 
 ## Étapes de déploiement
 
@@ -52,10 +109,14 @@ gros fichier dans l'historique à gérer.
 
    git checkout --orphan hf-deploy
    cp deploy/huggingface/README.md README.md   # HF attend le frontmatter à la racine
-   # Le endpoint git HF rejette les binaires non-LFS (>10 MiB ou .pptx/.prof…) :
-   # on les retire du commit de déploiement (restent sur le disque / dans le dépôt).
-   git rm -r --cached --ignore-unmatch 'venv*' '*.prof' '*.pptx'
+   # L'image ne COPIE que expert_op4grid_recommender/ + scripts/. docs/ et data/
+   # portent des binaires (PNG) inutiles au Space et rejetés par le Hub HF (hors
+   # Xet/LFS) ; on les retire du snapshot (avec tests/) → push binaire-free et léger.
+   rm -rf docs data tests
    git add -A
+   # Filet : retirer du snapshot indexé d'éventuels binaires résiduels (venv,
+   # profils, pptx) que le Hub HF rejette hors Xet/LFS (no-op si absents).
+   git rm -r --cached --ignore-unmatch 'venv*' '*.prof' '*.pptx'
    git commit -m "Deploy Expert Op4Grid — IHM Manœuvre"
    git log --oneline hf-deploy                  # DOIT être un commit unique
    git -c protocol.version=0 push -f space hf-deploy:main
@@ -75,12 +136,20 @@ gros fichier dans l'historique à gérer.
 4. **Utiliser** — ouvrir le Space, choisir une date/heure → **Charger la
    situation** → sélectionner un poste → éditer/séquencer.
 
-## Redéploiement automatique sur merge `main` (GitHub Action)
+## Redéploiement automatique (GitHub Action)
 
 `.github/workflows/deploy-huggingface.yml` rejoue le push orphelin
-automatiquement à chaque merge sur `main` (et sur `workflow_dispatch`). Il est
-**inerte** tant que les éléments suivants ne sont pas définis dans **Settings →
-Secrets and variables → Actions** du dépôt GitHub :
+automatiquement à chaque push — sur `main` **ou** sur une branche de dev
+`claude/**` — qui **touche l'interface** : le script/les assets de l'IHM
+(`scripts/manoeuvre_ihm.py`, `scripts/manoeuvre_ihm_assets/**`), le module
+`expert_op4grid_recommender/manoeuvre/**` sur lequel tourne l'IHM, le `Dockerfile`
+ou la config de déploiement (`deploy/huggingface/**`). Les push qui ne modifient
+que la doc/les tests **ne redéploient pas**. Un push sur une branche de dev donne
+une **preview live avant merge** (le Space reflète la **dernière** branche poussée ;
+re-pousser `main` le ramène à la prod). `workflow_dispatch` permet aussi un
+redéploiement manuel de n'importe quelle ref. Il est **inerte** tant que les
+éléments suivants ne sont pas définis dans **Settings → Secrets and variables →
+Actions** du dépôt GitHub :
 
 | Type | Nom | Valeur |
 |---|---|---|

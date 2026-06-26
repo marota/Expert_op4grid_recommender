@@ -48,6 +48,13 @@
  .pane.reached{box-shadow:inset 0 0 0 5px #facc15;transition:box-shadow .2s}
  .pane.reached>.ttl{background:#fef9c3 !important}
  .pane.reached>.ttl::after{content:" — ✓ topologie cible atteinte";color:#a16207;font-weight:bold}
+ /* Organes dont l'état diffère entre départ et cible — mis en évidence
+    UNIQUEMENT sur la topologie cible (couleurs vives) :
+    vert flashy = fermé à la cible (était ouvert), orange flashy = ouvert. */
+ .diag .octog-closed,.diag .octog-closed *{stroke:#00c814 !important;stroke-width:3.5px !important}
+ .diag .octog-opened,.diag .octog-opened *{stroke:#ff7a00 !important;stroke-width:3.5px !important}
+ .diag .octog-closed circle,.diag .octog-closed rect{fill:#7dff8a !important}
+ .diag .octog-opened circle,.diag .octog-opened rect{fill:#ffc480 !important}
  /* Séparateur déplaçable entre le schéma détaillé (col. 2) et le volet nodal */
  #ndresize{flex:0 0 auto;width:6px;cursor:col-resize;background:#d1d5db}
  #ndresize:hover,#ndresize.drag{background:#6366f1}
@@ -115,6 +122,16 @@
  .modalbox{background:#fff;border-radius:8px;padding:16px 18px;min-width:300px;
    max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.25)}
  .modalbox h3{margin:0 0 10px;font-size:14px}
+ /* Liste de scénarios (recherche dans la base partagée) */
+ #scenList{max-height:46vh;overflow:auto;border:1px solid #cbd5e1;border-radius:5px;margin-top:6px}
+ .scrow{padding:5px 8px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+ .scrow:hover{background:#eef2ff}
+ .scrow.cur{background:#dbeafe}
+ .scrow .scnm{font-weight:bold;font-size:12px;color:#0f172a;word-break:break-all}
+ .scrow .scmeta{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;align-items:center}
+ .scchip{color:#fff;font-size:10px;font-weight:bold;border-radius:8px;padding:0 6px}
+ .scc{font-size:10px;color:#475569;background:#f1f5f9;border-radius:8px;padding:0 6px}
+ .scempty{padding:8px;color:#888;font-size:11px}
  /* Liste de postes unifiée (recherche + exploration curée par typologie) */
  #posteList{max-height:240px;overflow:auto;border:1px solid #cbd5e1;border-radius:5px;
    background:#fff;margin-top:4px}
@@ -127,6 +144,79 @@
  #posteList .it.off{color:#9ca3af;cursor:not-allowed}
  #posteList .it .pin{color:#d97706}
  #posteList .empty{padding:6px 10px;font-size:11px;color:#888}
+ /* ── Explorer la journée : carte des postes + bilan des changements ── */
+ #main{position:relative}
+ #mapPane{position:absolute;inset:0;display:none;flex-direction:column;background:#f8fafc;z-index:5}
+ #mapPane.on{display:flex}
+ /* En mode carte, le volet nodal auxiliaire cède la place (carte pleine largeur). */
+ body.mapmode #nodal,body.mapmode #ndresize{display:none}
+ #mapHead{font-size:12px;font-weight:bold;padding:6px 10px;background:#eef2ff;border-bottom:1px solid #c7d2fe;
+   display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+ #mapHead .sub{font-weight:normal;color:#475569}
+ #mapBody{flex:1;display:flex;min-height:0}
+ /* Mer franchement bleue → littoral net face à la France en blanc. */
+ #mapSvgWrap{flex:1;position:relative;overflow:hidden;background:#a3c9ec;cursor:grab}
+ #mapSvgWrap.grabbing{cursor:grabbing}
+ #mapSvgWrap svg{display:block;width:100%;height:100%;touch-action:none}
+ .frhull{fill:#fcfcfa;stroke:#c7cdb8;stroke-width:2;stroke-linejoin:round;pointer-events:none}
+ .nbr{fill:#c3c9d0;stroke:#8f9cb1;stroke-width:1;stroke-linejoin:round;pointer-events:none}
+ /* Connexions inter-postes (lignes) : trait fin « fondu » sous les disques,
+    coloré par tension ; non-scaling = épaisseur constante quel que soit le zoom. */
+ .conn{stroke-width:0.9;vector-effect:non-scaling-stroke;stroke-opacity:.32;
+   stroke-linecap:round;pointer-events:none}
+ .dept{fill:#fcfcfa;stroke:#d9d2c0;stroke-width:0.8;stroke-linejoin:round;pointer-events:none}
+ .pdisk{cursor:pointer;stroke:#ffffff;stroke-width:0.5}
+ .pdisk:hover{stroke:#1e293b;stroke-width:2}
+ .ptop{stroke:#111;stroke-width:1.5}
+ .phalo{fill:none;stroke:#facc15;stroke-width:3.5;pointer-events:none}
+ #mapHours{display:inline-flex;gap:2px;align-items:center}
+ #mapHours button{padding:2px 8px;font-size:12px;margin:0}
+ #mapHours button.hcur{background:#0891b2;color:#fff;border-color:#0891b2}
+ #mapSide{width:230px;border-left:1px solid #cbd5e1;background:#fff;overflow:auto;display:flex;flex-direction:column}
+ #mapSide .sh{font-size:11px;font-weight:bold;color:#1e3a8a;padding:6px 8px;background:#eef2ff;
+   position:sticky;top:0;border-bottom:1px solid #e2e8f0}
+ .clrow{padding:4px 8px;font-size:11px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;
+   align-items:center;gap:6px}
+ .clrow:hover{background:#eef2ff}
+ .clrow .rk{flex:0 0 18px;height:18px;border-radius:9px;color:#fff;font-weight:bold;font-size:10px;
+   display:flex;align-items:center;justify-content:center;background:#64748b}
+ .clrow.top .rk{background:#d97706}
+ .clrow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:bold;color:#0f172a}
+ .clrow .tot{font-family:monospace;color:#b91c1c;font-weight:bold}
+ .clrow .nodbadge{color:#7c3aed;font-size:10px;margin-left:2px;cursor:help}
+ .clrow .nogeo{color:#94a3b8;font-size:9px}
+ #mapLegend{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.92);border:1px solid #cbd5e1;
+   border-radius:6px;padding:6px 8px;font-size:10px;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+ #mapLegend .lg{display:flex;align-items:center;gap:5px;margin:1px 0;cursor:pointer;border-radius:3px;padding:0 3px}
+ #mapLegend .lg:hover{background:#eef2ff}
+ #mapLegend .lg.off{opacity:.35;text-decoration:line-through}
+ #mapLegend .dot{width:11px;height:11px;border-radius:50%;display:inline-block;border:1px solid #0003}
+ #mapLegend .lgln{margin-top:3px;border-top:1px solid #e2e8f0;padding-top:3px}
+ #mapLegend .lndot{width:13px;height:0;border-top:2px solid #64748b;display:inline-block;opacity:.6}
+ #mapLegend .lghd{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;gap:6px}
+ #mapLegend .lgbtn{font-size:9px;padding:1px 5px;margin:0 0 0 2px;border:1px solid #b6c0cf;border-radius:3px;background:#fff;cursor:pointer}
+ #mapLegend .hint{color:#64748b;margin-top:3px;max-width:170px}
+ #mapBubble{position:absolute;display:none;min-width:180px;max-width:260px;background:#fff;border:1px solid #94a3b8;
+   border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,.22);padding:8px 10px;font-size:12px;z-index:20}
+ #mapBubble h4{margin:0 0 4px;font-size:13px;display:flex;align-items:center;gap:6px}
+ #mapBubble .vchip{font-size:9px;padding:1px 5px;border-radius:8px;color:#fff}
+ #mapBubble .kindrow{font-family:monospace;font-size:11px;color:#334155;margin:2px 0}
+ #mapBubble .vls{max-height:90px;overflow:auto;margin:3px 0;border-top:1px dashed #e2e8f0;padding-top:3px}
+ #mapBubble .vlrow{font-size:11px;display:flex;justify-content:space-between;gap:8px;cursor:pointer;padding:1px 2px}
+ #mapBubble .vlrow:hover{background:#eef2ff}
+ #mapBubble .x{margin-left:auto;cursor:pointer;color:#94a3b8;font-weight:bold}
+ #mapBubble .go{margin-top:5px;width:100%}
+ #mapMsg{font-size:11px;color:#92400e;background:#fffbeb;padding:6px 10px;border-top:1px solid #fde68a}
+ #mapSpin{padding:20px;font-size:13px;color:#334155}
+ /* Barre d'exploration (vue topologique atteinte depuis la carte) */
+ #exploreBar{display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;background:#ecfeff;
+   border-bottom:1px solid #a5f3fc;font-size:12px}
+ #exploreBar.on{display:flex}
+ #exploreBar .grp{display:flex;align-items:center;gap:3px}
+ #exploreBar .lbl{color:#155e75;font-weight:bold}
+ #exploreBar button{padding:3px 8px;font-size:12px;margin:0}
+ #exploreBar button.hcur{background:#0891b2;color:#fff;border-color:#0891b2}
+ #btnExplore{width:100%;margin-top:4px;background:#0e7490;color:#fff;border-color:#0e7490}
 </style></head><body>
 <div id="side">
   <h2 style="margin-top:0">Situation réseau</h2>
@@ -160,6 +250,9 @@
       <select id="dsTime" style="width:100%;padding:5px" title="Horodatage de l'instantané (midi par défaut)"></select>
     </label>
     <div id="dsMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
+    <button id="btnExplore" onclick="exploreDay()"
+            title="Charge 3 situations (minuit / midi / 23 h), cartographie les postes et met en évidence ceux qui changent le plus dans la journée.">🗺 Explorer la journée</button>
+    <div id="exploreMsg" style="font-size:11px;color:#666;margin-top:3px"></div>
   </div>
 
   <button id="btnCharger" class="primary" style="width:100%;margin-top:6px"
@@ -205,6 +298,41 @@
 
 </div>
 <div id="main">
+  <div id="exploreBar">
+    <button onclick="backToMap()" title="Revenir à la carte des postes">🗺 ← Carte</button>
+    <span class="sub" id="exploreSub" style="font-weight:bold;color:#0f172a"></span>
+    <div class="grp"><span class="lbl">Départ&nbsp;:</span><span id="exploreHours"></span></div>
+    <div class="grp"><span class="lbl">Retenir comme cible&nbsp;:</span><span id="exploreTargets"></span></div>
+    <span id="exploreVls" class="grp"></span>
+  </div>
+  <div id="mapPane">
+    <div id="mapHead">
+      <span>🗺 Carte du réseau</span>
+      <span class="sub" id="mapHeadInfo"></span>
+      <span class="grp" style="display:flex;align-items:center;gap:4px">
+        <span style="color:#475569" title="Heure de la topologie ouverte au double-clic sur un poste">Heure&nbsp;:</span>
+        <span id="mapHours"></span></span>
+      <span style="flex:1"></span>
+      <button id="mapDlCoords" onclick="downloadCoordsFile()" style="display:none;background:#0e7490;color:#fff;border-color:#0e7490"
+              title="Télécharger l'instantané des coordonnées résolu depuis OSM/Overpass — à committer/persister pour éviter de ré-interroger Overpass à chaque démarrage du Space">⬇ coordonnées</button>
+      <button onclick="mapZoom(0.8)" title="Zoom +">＋</button>
+      <button onclick="mapZoom(1.25)" title="Zoom −">－</button>
+      <button onclick="mapReset()" title="Recentrer">⤢ Recentrer</button>
+      <button onclick="exitMapMode()" title="Fermer la carte (revenir à la vue topologique)">✕ Fermer</button>
+    </div>
+    <div id="mapBody">
+      <div id="mapSvgWrap">
+        <div id="mapSpin" style="display:none">Chargement de la journée…</div>
+        <div id="mapBubble"></div>
+        <div id="mapLegend"></div>
+      </div>
+      <div id="mapSide">
+        <div class="sh">⭐ Postes les plus actifs</div>
+        <div id="mapList"></div>
+      </div>
+    </div>
+    <div id="mapMsg" style="display:none"></div>
+  </div>
   <div class="pane" id="paneTop">
     <div class="ttl"><button class="cbtn" onclick="togglePane('paneTop')" title="Réduire / agrandir">▾</button>
       <button onclick="reset()" title="Réinitialiser la cible à l'état d'origine du poste"
@@ -278,11 +406,26 @@
   </div>
 </div>
 <div id="reloadModal" class="modal" style="display:none" onclick="if(event.target===this)closeReload()">
-  <div class="modalbox">
-    <h3>⟳ Recharger un scénario</h3>
-    <select id="scenSel" style="width:100%"><option value="">—</option></select>
-    <div style="font-size:10px;color:#888;margin-top:6px">« Valider » rejoue le scénario sauvegardé (départ + cible).</div>
-    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
+  <div class="modalbox" style="max-width:580px">
+    <h3>⟳ Recharger un scénario <span id="scenCount" style="font-weight:normal;color:#64748b;font-size:12px"></span></h3>
+    <input type="hidden" id="scenSel">
+    <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+      <input id="scfText" placeholder="🔎 poste / nom…" oninput="renderScenList()" style="flex:1;min-width:130px;padding:4px">
+      <select id="scfVolt" onchange="renderScenList()" style="padding:4px"><option value="">tension</option></select>
+      <input id="scfBarres" type="number" min="0" placeholder="barres ≥" oninput="renderScenList()" style="width:78px;padding:4px" title="nombre de jeux de barres minimum">
+      <input id="scfDj" type="number" min="0" placeholder="DJ ≥" oninput="renderScenList()" style="width:62px;padding:4px" title="disjoncteurs changés (min)">
+      <input id="scfSa" type="number" min="0" placeholder="SA ≥" oninput="renderScenList()" style="width:62px;padding:4px" title="sectionneurs changés (min)">
+      <input id="scfInt" type="number" min="0" placeholder="INT ≥" oninput="renderScenList()" style="width:66px;padding:4px" title="interrupteurs changés (min)">
+      <input id="scfNodal" type="number" min="0" placeholder="nœud ≥" oninput="renderScenList()" style="width:72px;padding:4px" title="ouvrages déplacés en changement de nœud (min)">
+      <select id="scfYear" onchange="renderScenList()" style="padding:4px" title="année de départ"><option value="">année</option></select>
+      <select id="scfSeason" onchange="renderScenList()" style="padding:4px" title="saison de départ"><option value="">saison</option><option>hiver</option><option>printemps</option><option>été</option><option>automne</option></select>
+      <select id="scfDay" onchange="renderScenList()" style="padding:4px" title="jour de semaine de départ"><option value="">jour</option><option value="0">lun</option><option value="1">mar</option><option value="2">mer</option><option value="3">jeu</option><option value="4">ven</option><option value="5">sam</option><option value="6">dim</option></select>
+    </div>
+    <div id="scenList"></div>
+    <div style="font-size:10px;color:#888;margin-top:6px">Base **partagée** (toutes les sauvegardes). Clic = sélectionner · double-clic = recharger. « Valider » rejoue le scénario (départ + cible).</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:10px">
+      <button onclick="downloadAllScenarios()" title="Télécharger tous les scénarios (archive ZIP)">⬇ Tout (zip)</button>
+      <span style="flex:1"></span>
       <button onclick="closeReload()">Annuler</button>
       <button class="primary" onclick="validateReload()">Valider</button>
     </div>
@@ -367,9 +510,15 @@ function _posteItem(vl,pinned,available){
   d.className='it'+(available?'':' off')+(vl===S.currentVL?' cur':'');
   d.innerHTML=(pinned?'<span class="pin">★ </span>':'')+xesc(vl)
     +(available?'':' <span style="font-size:9px">⚠ absent</span>');
-  if(available)d.onclick=()=>load(vl);
+  if(available)d.onclick=()=>selectPoste(vl);
   else d.title='absent de la situation chargée — charger la grille France';
   return d;}
+// Sélection d'un poste (recherche / présélection). En **exploration de journée**,
+// ouvre le poste à l'heure courante de la carte (comme un double-clic sur la
+// carte) ; sinon chargement normal de la situation courante.
+function selectPoste(vl){
+  if(MAP.data){mapToTopo(undefined,vl,MAP.topoHour||defaultHour());}
+  else{load(vl);}}
 function renderPosteList(query){
   const root=document.getElementById('posteList');if(!root)return;root.innerHTML='';
   const q=(query||'').trim().toLowerCase();
@@ -416,9 +565,12 @@ async function init(){const r=await (await fetch('/api/postes')).json();
   // postes) ; Entrée charge le poste si la saisie correspond exactement.
   const search=document.getElementById('posteSearch');
   search.addEventListener('input',()=>renderPosteList(search.value));
+  // édition manuelle du nom de scénario → ne plus écraser par le nom auto.
+  const sn=document.getElementById('scenName');
+  if(sn)sn.addEventListener('input',()=>{S.scenNameDirty=true;});
   search.addEventListener('keydown',e=>{if(e.key==='Enter'){
-    const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);}});
-  initNodalResize(); initNodalDnD(); await refreshScenarios(); await initDataset();
+    const v=search.value.trim();if(v&&ALL_POSTES.includes(v))selectPoste(v);}});
+  initNodalResize(); initNodalDnD(); initMap(); await refreshScenarios(); await initDataset();
   // Pas d'auto-chargement de poste : on attend que l'utilisateur en choisisse un
   // (le schéma reste sur « Choisissez un poste… » tant qu'aucun n'est sélectionné).
   if(r.postes&&r.postes.length){const t=document.getElementById('diagTop');
@@ -487,9 +639,37 @@ async function loadGrid(){
   populatePostes(r);await refreshAlgos();   // nouvelle session => sélection d'algos réinitialisée
   msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
   awaitPosteChoice();}   // pas d'auto-chargement : l'utilisateur choisit un poste
-async function load(vl){stopAnim();S.currentVL=vl;const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
+async function load(vl){stopAnim();exitMapMode();S.currentVL=vl;
+  // Chargement « normal » (hors carte / hors exploration) : pas d'heures
+  // départ/cible, cible = départ (non modifiée), nom par défaut recalculé.
+  MAP.topoHour=null;MAP.cibleHour=null;S.cibleModifiee=false;S.scenNameDirty=false;
+  const d=await api('/api/load',{vl});show(d);initNodale(d);hideSeq();setValidated(false);
+  document.getElementById('exploreBar').classList.remove('on');
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');  // surligne le poste courant
-  document.getElementById('scenName').value=vl+'_cible';}
+  setDefaultScenName();}
+
+// --- Nom de scénario par défaut formaté -----------------------------------
+// RTE7000 : poste_date_hDepart_topoDepartNNoeud_hCible_topoCibleNNoeud_(observee|modifiee)
+// Local   : poste_topoDepartNNoeud_topoCibleNNoeud_nomFichier
+// (re)calculé aux changements de contexte, sauf si l'utilisateur a édité le champ.
+function _baseFile(p){let b=(p||'').split(/[\\/]/).pop()||'';
+  for(let i=0;i<3;i++)b=b.replace(/\.(xiidm|xml|json|bz2|gz|zip)$/i,'');return b;}
+function _nbTxt(id){const t=(document.getElementById(id).textContent||'').trim();
+  return /^\d+$/.test(t)?t:'';}
+function defaultScenName(){
+  const vl=S.currentVL||MAP.topoVl||'';
+  const dep='topoDepart'+_nbTxt('nbA')+'Noeud',cib='topoCible'+_nbTxt('nbB')+'Noeud';
+  if(S.tab==='rte'){
+    const date=(((MAP.data&&MAP.data.date)||document.getElementById('dsDate').value||'')).replace(/-/g,'');
+    const hd=(MAP.topoHour||document.getElementById('dsTime').value||'').replace(':','');
+    const hc=(MAP.cibleHour||MAP.topoHour||document.getElementById('dsTime').value||'').replace(':','');
+    const etat=S.cibleModifiee?'modifiee':'observee';
+    return [vl,date,hd,dep,hc,cib,etat].filter(Boolean).join('_');
+  }
+  return [vl,dep,cib,_baseFile(document.getElementById('gridPath').value)].filter(Boolean).join('_');
+}
+function setDefaultScenName(){if(S.scenNameDirty)return;
+  const el=document.getElementById('scenName');if(el)el.value=defaultScenName();}
 // Promouvoir la cible courante (éditée) en nouvel état de DÉPART — met à jour le
 // schéma du haut (départ) et repart d'une cible = nouveau départ ; permet de
 // chaîner sans passer par un scénario sauvegardé.
@@ -497,12 +677,14 @@ async function promoteCible(){stopAnim();
   const d=await api('/api/promote_cible',{});
   if(d&&d.vl)S.currentVL=d.vl;
   show(d);initNodale(d);hideSeq();setValidated(false);
-  document.getElementById('scenName').value=(S.currentVL||'')+'_cible';
+  S.cibleModifiee=false;S.scenNameDirty=false;setDefaultScenName();   // nouveau départ, cible = départ
   document.getElementById('savemsg').textContent='Cible promue en nouvel état de départ — éditez puis validez une nouvelle cible.';}
 async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
-  syncNodalCible(d.nodale);hideSeq();setValidated(false);}
+  syncNodalCible(d.nodale);hideSeq();setValidated(false);
+  S.cibleModifiee=false;setDefaultScenName();}   // cible réinitialisée au départ
 async function toggle(id){stopAnim();const d=await api('/api/toggle',{id});show(d);
   syncNodalCible(d.nodale);setValidated(false);
+  S.cibleModifiee=true;setDefaultScenName();   // organe basculé → cible modifiée
   // Si une séquence existe déjà, l'éditer de la cible la rend obsolète (au lieu
   // de masquer la séquence) : on la conserve affichée mais signalée.
   if(S.n>0){markSeqStale();}else{hideSeq();}}
@@ -515,7 +697,7 @@ async function toggleEditTarget(){
     const d=await api('/api/cible',{});
     document.getElementById('diagBottom').innerHTML=d.svg;
     document.getElementById('nbB').textContent=d.nb_noeuds;
-    bind(d.switches);syncNodalCible(d.nodale);
+    bind(d.switches);highlightChanges(d.changes);syncNodalCible(d.nodale);
     document.getElementById('paneBot').classList.remove('reached');
     b.textContent='▶ Revenir à la séquence';b.classList.add('primary');
     ['bprev','bplay','bnext'].forEach(id=>document.getElementById(id).disabled=true);
@@ -542,14 +724,65 @@ function syncNodalCible(n){if(!n)return;
   NOD.groups=dropIso(n.groups||[],NOD.isolated);
   NOD.colorsCible=Object.assign({},NOD.colors,n.colors||{});
   NOD.selBranches=new Set();renderNodaleCible();}
+let SCENARIOS=[];
 async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).json();
-  const sel=document.getElementById('scenSel');sel.innerHTML='<option value="">—</option>';
-  r.scenarios.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;sel.add(o);});}
+  // tolère l'ancien format (liste de noms) et le nouveau (objets + métadonnées).
+  SCENARIOS=(r.scenarios||[]).map(s=>typeof s==='string'?{name:s}:s);
+  const sel=document.getElementById('scfVolt');
+  if(sel){const cur=sel.value;sel.innerHTML='<option value="">tension</option>';
+    [...new Set(SCENARIOS.map(s=>s.nominal_v).filter(v=>v!=null))].sort((a,b)=>b-a)
+      .forEach(v=>{const o=document.createElement('option');o.value=v;o.text=Math.round(v)+' kV';sel.add(o);});
+    sel.value=cur;}
+  const ysel=document.getElementById('scfYear');
+  if(ysel){const cur=ysel.value;ysel.innerHTML='<option value="">année</option>';
+    [...new Set(SCENARIOS.map(s=>s.year).filter(v=>v!=null))].sort((a,b)=>b-a)
+      .forEach(y=>{const o=document.createElement('option');o.value=y;o.text=y;ysel.add(o);});
+    ysel.value=cur;}
+  renderScenList();}
+const JOURS=['lun','mar','mer','jeu','ven','sam','dim'];
+// Recherche dans la base partagée de scénarios : texte (poste/nom) + tension +
+// seuils min sur barres / DJ / SA / INT / ouvrages déplacés (nœud).
+function renderScenList(){const root=document.getElementById('scenList');if(!root)return;
+  const g=id=>document.getElementById(id),
+    q=(g('scfText').value||'').trim().toLowerCase(),fv=g('scfVolt').value,
+    fb=parseInt(g('scfBarres').value),fd=parseInt(g('scfDj').value),
+    fsa=parseInt(g('scfSa').value),fi=parseInt(g('scfInt').value),fn=parseInt(g('scfNodal').value),
+    fy=g('scfYear').value,fse=g('scfSeason').value,fday=g('scfDay').value;
+  const ge=(v,m)=>isNaN(m)||((v||0)>=m);
+  const hits=SCENARIOS.filter(s=>{
+    if(q&&!((s.name+' '+(s.vl||'')+' '+(s.sub||'')).toLowerCase().includes(q)))return false;
+    if(fv&&Math.round(s.nominal_v||0)!==Math.round(+fv))return false;
+    if(fy&&String(s.year)!==fy)return false;
+    if(fse&&s.season!==fse)return false;
+    if(fday!==''&&String(s.weekday)!==fday)return false;
+    return ge(s.nb_barres,fb)&&ge(s.n_dj,fd)&&ge(s.n_sa,fsa)&&ge(s.n_int,fi)&&ge(s.n_nodal,fn);});
+  g('scenCount').textContent='— '+hits.length+'/'+SCENARIOS.length;
+  const sel=g('scenSel').value;root.innerHTML='';
+  if(!hits.length){root.innerHTML='<div class="scempty">Aucun scénario ne correspond.</div>';return;}
+  hits.forEach(s=>{const d=document.createElement('div');
+    d.className='scrow'+(s.name===sel?' cur':'');
+    const kv=s.nominal_v!=null?Math.round(s.nominal_v)+' kV':'?';
+    let chips='<span class="scchip" style="background:'+voltColor(s.nominal_v||0)+'">'+kv+'</span>';
+    if(s.dt){const jour=(s.weekday!=null?JOURS[s.weekday]:''),sai=s.season||'';
+      chips+='<span class="scc scdt">📅 '+xesc(s.dt.replace('T',' '))
+        +(jour?' · '+jour:'')+(sai?' · '+sai:'')+'</span>';}
+    if(s.nb_barres!=null)chips+='<span class="scc">'+s.nb_barres+' barre'+(s.nb_barres>1?'s':'')+'</span>';
+    if(s.nb_depart!=null&&s.nb_cible!=null)chips+='<span class="scc">'+s.nb_depart+'→'+s.nb_cible+' nœud</span>';
+    if(s.n_dj!=null)chips+='<span class="scc">DJ '+(s.n_dj||0)+' · SA '+(s.n_sa||0)+' · INT '+(s.n_int||0)+'</span>';
+    if(s.n_nodal)chips+='<span class="scc">⚇ '+s.n_nodal+'</span>';
+    d.innerHTML='<div class="scnm">'+xesc(s.name)+'</div><div class="scmeta">'+chips+'</div>';
+    d.onclick=()=>{g('scenSel').value=s.name;renderScenList();};
+    d.ondblclick=()=>{g('scenSel').value=s.name;validateReload();};
+    root.appendChild(d);});}
 // Modale « Recharger un scénario » (remplace l'ancienne section « Scénarios
 // sauvegardés ») : rafraîchit la liste puis ouvre ; « Valider » rejoue le
 // scénario (départ + cible), « Annuler » referme sans rien recharger.
 async function openReload(){await refreshScenarios();
   document.getElementById('reloadModal').style.display='flex';}
+// Télécharge toute la base de scénarios en une archive ZIP.
+function downloadAllScenarios(){const a=document.createElement('a');
+  a.href='/api/scenarios_archive';a.download='scenarios.zip';
+  document.body.appendChild(a);a.click();a.remove();}
 function closeReload(){document.getElementById('reloadModal').style.display='none';}
 async function validateReload(){const name=document.getElementById('scenSel').value;
   if(name)await loadScen('both');closeReload();}
@@ -567,17 +800,45 @@ async function saveWithConfirm(url,name,msgEl){
   return r;
 }
 async function save(){const name=document.getElementById('scenName').value;
-  const r=await saveWithConfirm('/api/save',name,document.getElementById('savemsg'));
-  if(!r)return;
+  const msg=document.getElementById('savemsg');
+  // Date/heure de DÉPART à logger : en RTE7000, la date du dataset + l'heure de
+  // départ choisie ; en local, le backend lit l'horodatage du fichier (case_date).
+  let depart_dt=null;
+  if(S.tab==='rte'){
+    const date=(MAP.data&&MAP.data.date)||document.getElementById('dsDate').value;
+    const hour=MAP.topoHour||document.getElementById('dsTime').value;
+    if(date&&hour)depart_dt=date+'T'+hour;}
+  const r=await api('/api/save',{name,depart_dt,source:S.tab});
+  if(r&&r.already_exists){   // départ + cible identiques à un scénario existant
+    setValidated(true);await refreshScenarios();
+    msg.textContent='⚠ Scénario déjà existant (« '+r.name+' », départ + cible identiques) — non écrasé.';
+    return;}
+  if(!r||!r.path){msg.textContent='Échec de la sauvegarde.';return;}
   setValidated(true);await refreshScenarios();
   const dl=maybeDownload(r);   // copie locale si IHM déportée (Space)
-  document.getElementById('savemsg').textContent='✓ Sauvegardé : '+r.path
+  msg.textContent='✓ Sauvegardé : '+r.path
+    +(r.name&&r.name!==name?' (nom unique : « '+r.name+' »)':'')
     +(dl?' · téléchargé en local':'');}
+// Re-synchronise les sélecteurs Date/Heure (onglet RTE7000) sur la date/heure de
+// DÉPART loggée du scénario rechargé (ignoré pour un scénario local).
+function syncDepartFromScenario(meta){
+  if(!meta||!meta.dt||meta.source==='local')return;
+  const parts=meta.dt.split('T'),date=parts[0],hour=parts[1];
+  if(!date)return;
+  selectTab('rte');
+  const di=document.getElementById('dsDate');if(di)di.value=date;
+  const ts=document.getElementById('dsTime');
+  if(ts&&hour){if(![...ts.options].some(o=>o.value===hour)){
+      const o=document.createElement('option');o.value=hour;o.text=hour;ts.add(o);}
+    ts.value=hour;}}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
   stopAnim();const d=await api('/api/load_scenario',{name,mode});
   if(d&&d.vl)S.currentVL=d.vl;
+  // Re-synchroniser Date/Heure de DÉPART (RTE7000) sur le scénario rechargé.
+  syncDepartFromScenario(d&&d.meta);
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');
   show(d);initNodale(d);hideSeq();
+  S.scenNameDirty=true;   // nom explicite du scénario rechargé : ne pas l'écraser
   if(mode==='as_depart'){
     document.getElementById('scenName').value=name+'_suite';
     document.getElementById('savemsg').textContent='« '+name+' » chargé comme état de départ — éditez puis validez une nouvelle cible.';
@@ -597,11 +858,22 @@ function show(d){
     document.getElementById('ttlA').textContent='Topologie de départ';S.manual=false;}
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
-  bind(d.switches);}
+  bind(d.switches);highlightChanges(d.changes);}
 function bind(switches){const root=document.getElementById('diagBottom');
   switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
     if(el){el.style.cursor='pointer';el.onclick=()=>toggle(s.id);
       el.querySelectorAll('*').forEach(c=>c.style.cursor='pointer');}});}
+// Met en évidence les organes dont l'état **diffère entre départ et cible**,
+// **uniquement sur la topologie cible** (schéma du bas) : vert flashy = fermé à
+// la cible (était ouvert), orange flashy = ouvert. On purge d'abord les marques
+// précédentes puis on réapplique selon `changes`.
+function highlightChanges(changes){
+  const root=document.getElementById('diagBottom');if(!root)return;
+  root.querySelectorAll('.octog-closed,.octog-opened').forEach(el=>
+    el.classList.remove('octog-closed','octog-opened'));
+  (changes||[]).forEach(ch=>{
+    const el=root.querySelector('[id="'+ch.svgId+'"]');
+    if(el)el.classList.add(ch.direction==='closed'?'octog-closed':'octog-opened');});}
 async function sequence(){stopAnim();S.manual=false;resetEditTarget();clearSeqStale();
   const d=await api('/api/sequence',{mode:document.getElementById('seqMode').value});
   document.getElementById('seqwrap').style.display='block';
@@ -935,6 +1207,7 @@ async function nodCompute(){
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
   bind(d.switches);hideSeq();setValidated(false);
+  S.cibleModifiee=true;setDefaultScenName();   // cible issue d'une édition nodale
   // Resynchroniser la cible nodale sur la topologie détaillée RÉALISÉE
   // (partition + couleurs + isolés des nœuds obtenus).
   syncNodalCible(d.nodale);
@@ -944,6 +1217,384 @@ async function nodCompute(){
     if(d.noeuds_non_realisables&&d.noeuds_non_realisables.length)msg+=' Nœuds non réalisables : '+d.noeuds_non_realisables.map(g=>g.join(',')).join(' | ')+'.';}
   if(d.ecarts&&d.ecarts.length)msg+=' Écarts : '+d.ecarts.join(' ; ')+'.';
   st.textContent=msg;}
+
+// ============================================================================
+//  Explorer la journée — carte des postes localisés + bilan des changements
+// ============================================================================
+// État de la carte/exploration. ``data`` = dernier /api/explore_day ; ``vb`` =
+// viewBox courant (pan/zoom) ; ``box`` = viewBox de référence (recentrage) ;
+// ``bySub`` = index poste géolocalisé ; ``topo*`` = poste/heure en vue topo.
+let MAP={data:null,vb:null,box:null,bySub:{},heures:[],clickTimer:null,
+  openHour:null,topoSub:null,topoVl:null,topoHour:null,cibleHour:null,voltOff:new Set(),
+  showLines:true};
+const EARTH_R=6378137;   // Web Mercator (même projection que Co-Study4Grid)
+function merc(lon,lat){return [EARTH_R*lon*Math.PI/180,
+  EARTH_R*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))];}
+// Code couleur par niveau de tension (palette type RTE).
+const VOLT_BANDS=[
+  {min:380,color:'#e1140a',label:'400 kV'},
+  {min:300,color:'#df7000',label:'≥ 300 kV'},
+  {min:200,color:'#1f9d3c',label:'225 kV'},
+  {min:130,color:'#1aa0a0',label:'150 kV'},
+  {min:80, color:'#d4691e',label:'90 kV'},
+  {min:55, color:'#7c3aed',label:'63 kV'},
+  {min:30, color:'#c2569b',label:'45 kV'},
+  {min:0,  color:'#64748b',label:'< 45 kV'}];
+function voltColor(nv){for(const b of VOLT_BANDS)if(nv>=b.min)return b.color;return '#64748b';}
+// Indice de la bande de tension (pour le filtrage par légende).
+function voltBand(nv){for(let i=0;i<VOLT_BANDS.length;i++)if(nv>=VOLT_BANDS[i].min)return i;return VOLT_BANDS.length-1;}
+function fmtKv(nv){return Math.round(nv||0)+' kV';}
+function kindShort(t){return {BREAKER:'DJ',DISCONNECTOR:'SA',LOAD_BREAK_SWITCH:'INT'}[t]||t;}
+function vbStr(v){return v.x.toFixed(1)+' '+v.y.toFixed(1)+' '+v.w.toFixed(1)+' '+v.h.toFixed(1);}
+function applyVB(){const s=document.getElementById('mapSvg');if(s&&MAP.vb)s.setAttribute('viewBox',vbStr(MAP.vb));}
+
+function enterMapMode(){document.getElementById('mapPane').classList.add('on');
+  document.body.classList.add('mapmode');
+  document.getElementById('exploreBar').classList.remove('on');hideBubble();}
+function exitMapMode(){document.getElementById('mapPane').classList.remove('on');
+  document.body.classList.remove('mapmode');}
+function backToMap(){if(MAP.data)enterMapMode();}
+
+async function exploreDay(){
+  const date=document.getElementById('dsDate').value;
+  const msg=document.getElementById('exploreMsg');
+  if(!date){msg.textContent='Choisir une date d’abord.';return;}
+  enterMapMode();stopAnim();
+  const spin=document.getElementById('mapSpin');spin.style.display='block';
+  spin.textContent='Chargement des 3 situations (minuit · midi · 23 h) de '+date
+    +' … téléchargement + calcul des changements d’OC (≈ 1 min).';
+  document.getElementById('mapHeadInfo').textContent=date+' — exploration en cours…';
+  msg.textContent='Exploration de '+date+' …';
+  let r;try{r=await api('/api/explore_day',{date});}
+  catch(e){spin.textContent='Erreur réseau.';msg.textContent='erreur réseau';return;}
+  if(!r||!r.ok){spin.style.display='block';spin.textContent=(r&&r.error)||'Échec de l’exploration.';
+    msg.textContent=(r&&r.error)||'échec';return;}
+  spin.style.display='none';msg.textContent='✓ '+date+' exploré.';
+  // Peupler la liste de postes (recherche + présélection à gauche) depuis le
+  // réseau de référence de l'exploration → le champ de recherche devient
+  // utilisable pendant l'exploration (pas seulement la liste des plus actifs).
+  try{populatePostes(await (await fetch('/api/postes')).json());}catch(e){}
+  // Fond de carte (frontières, repère du plan de masse) — récupéré une fois.
+  if(MAP.basemap===undefined){try{MAP.basemap=await (await fetch('/api/explore_basemap')).json();}
+    catch(e){MAP.basemap=null;}}
+  renderExplore(r);
+}
+
+// Diagnostic d'appariement OSM (affiché quand la carte est vide) : distingue
+// « Overpass injoignable » de « joignable mais 0 apparié » (échantillons de
+// codes/noms OSM vs substation_id pour ajuster).
+function coordDiag(st){
+  const j=a=>(a||[]).map(x=>x==null?'∅':x).join(', ');
+  if(st.geo_error)
+    return '<br>↳ <b>OSM/Overpass injoignable</b> : <code>'+xesc(st.geo_error)+'</code>. '
+      +'Vérifiez la sortie internet du Space (ou committez/persistez '
+      +'<code>postes_rte_geo.json</code>).';
+  if(st.n_records!=null)
+    return '<br>↳ <b>OSM joignable</b> ('+st.n_records+' postes) mais '
+      +(st.n_apparies||0)+' apparié(s). Codes OSM (ref:FR:RTE) : <code>'+xesc(j(st.sample_codes))
+      +'</code>. Noms : <code>'+xesc(j(st.sample_noms))+'</code>. Postes réseau : <code>'
+      +xesc(j(st.sample_subs))+'</code>. → identifiants non recoupés ; ajuster l’appariement.';
+  return ' Pour activer la carte : autorisez <code>overpass-api.de</code> sur le Space, '
+    +'ou committez/persistez <code>postes_rte_geo.json</code> (script <code>scripts/fetch_postes_geo.py</code>).';
+}
+function downloadCoordsFile(){const a=document.createElement('a');
+  a.href='/api/explore_coords_file';a.download='postes_rte_geo.json';
+  document.body.appendChild(a);a.click();a.remove();}
+function renderExplore(d){
+  MAP.data=d;MAP.heures=d.heures||[];MAP.bySub={};MAP.openHour=null;MAP.voltOff=new Set();renderMapHours();
+  const hrs=(d.heures||[]).map(h=>h.ts).join(' · ');
+  const st=d.coord_stats||{};
+  const coord=d.coord_source+((d.coord_source==='osm'||d.coord_source==='layout')&&st.taux!=null
+    ? ' ('+(st.n_apparies||0)+'/'+(st.n_substations||0)+', '+Math.round(st.taux*100)+'%)':'');
+  document.getElementById('mapHeadInfo').textContent=
+    d.date+' ('+hrs+') · '+d.n_postes+' postes · '+d.n_actifs+' actifs · '
+    +d.n_geolocalises+' géolocalisés · coord. : '+coord;
+  const dl=document.getElementById('mapDlCoords');
+  if(dl)dl.style.display=d.coord_file?'inline-block':'none';
+  renderClassement(d);renderLegend();
+  const mm=document.getElementById('mapMsg');
+  const old=document.getElementById('mapSvg');if(old)old.remove();
+  if(!d.postes||!d.postes.length){
+    mm.style.display='block';
+    mm.innerHTML='⚠ Aucune coordonnée de poste résolue (source : <b>'+xesc(d.coord_source)
+      +'</b>). La carte est indisponible ; utilisez le <b>classement</b> à droite '
+      +'(cliquez un poste pour ouvrir sa topologie).'+coordDiag(d.coord_stats||{});
+    return;}
+  mm.style.display='none';
+  buildMap(d.postes);
+}
+
+// Enveloppe convexe (Andrew monotone chain) — silhouette « Hexagone » du nuage
+// de postes (même repère que les disques), dessinée en fond pour situer la France.
+function convexHull(pts){
+  const p=pts.map(q=>[q.x,q.y]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  if(p.length<3)return p;
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[];for(const q of p){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q);}
+  const up=[];for(let i=p.length-1;i>=0;i--){const q=p[i];
+    while(up.length>=2&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q);}
+  lo.pop();up.pop();return lo.concat(up);
+}
+function buildMap(postes){
+  // coordonnées planaires prêtes pour l'écran (projetées côté serveur : plan de
+  // masse RTE, ou Mercator des sources lon/lat).
+  const pts=postes.map(p=>{MAP.bySub[p.sub]=p;return {p,x:p.x,y:p.y};});
+  const bm=MAP.basemap||{},depts=bm.depts||[],nbrs=bm.neighbors||[];
+  // Fond géographique réel uniquement avec le plan de masse (repère calibré) ;
+  // sinon (OSM/Mercator) repli silhouette (enveloppe convexe du réseau).
+  const useBasemap=depts.length&&MAP.data&&MAP.data.coord_source==='layout';
+  // bbox = postes + frontières France (si fond utilisé) ; voisins peuvent
+  // déborder (contexte, écrêtés par overflow:hidden).
+  let xmin=1/0,xmax=-1/0,ymin=1/0,ymax=-1/0;
+  const ext=(x,y)=>{xmin=Math.min(xmin,x);xmax=Math.max(xmax,x);ymin=Math.min(ymin,y);ymax=Math.max(ymax,y);};
+  pts.forEach(q=>ext(q.x,q.y));
+  if(useBasemap)depts.forEach(ring=>ring.forEach(p=>ext(p[0],p[1])));
+  const sx=xmax-xmin||1,sy=ymax-ymin||1,span=Math.max(sx,sy),pad=span*0.03;
+  MAP.box={x:xmin-pad,y:ymin-pad,w:sx+2*pad,h:sy+2*pad};MAP.vb=Object.assign({},MAP.box);
+  // Disques nettement plus grands (lisibilité) ; top-10 encore plus gros + halo.
+  const r=span/520,rtop=span/200;
+  const poly=(cls,ring)=>'<polygon class="'+cls+'" points="'
+    +ring.map(p=>p[0].toFixed(0)+','+p[1].toFixed(0)).join(' ')+'"/>';
+  let s='';
+  if(useBasemap){
+    nbrs.forEach(ring=>{if(ring.length>=3)s+=poly('nbr',ring);});
+    depts.forEach(ring=>{if(ring.length>=3)s+=poly('dept',ring);});
+  }else{
+    const hull=convexHull(pts);if(hull.length>=3)s+=poly('frhull',hull);
+  }
+  // Connexions inter-postes (lignes), en fondu SOUS les disques, colorées par
+  // tension — les deux extrémités doivent être géolocalisées (dans bySub).
+  const conns=(MAP.data&&MAP.data.connexions)||[];
+  conns.forEach(c=>{const a=MAP.bySub[c.s1],b2=MAP.bySub[c.s2];if(!a||!b2)return;
+    s+='<line class="conn" data-vb="'+voltBand(c.nv)+'" stroke="'+voltColor(c.nv)
+      +'" x1="'+a.x.toFixed(1)+'" y1="'+a.y.toFixed(1)
+      +'" x2="'+b2.x.toFixed(1)+'" y2="'+b2.y.toFixed(1)+'"/>';});
+  pts.forEach(q=>{const top=!!q.p.rank,rr=top?rtop:r,col=voltColor(q.p.nv),vb=voltBand(q.p.nv);
+    if(top)s+='<circle class="phalo" data-vb="'+vb+'" cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(rr*1.55).toFixed(1)+'"/>';
+    s+='<circle class="pdisk'+(top?' ptop':'')+'" data-vb="'+vb+'" data-sub="'+xesc(q.p.sub)+'" cx="'+q.x.toFixed(1)
+      +'" cy="'+q.y.toFixed(1)+'" r="'+rr.toFixed(1)+'" fill="'+col+'" fill-opacity="'
+      +(q.p.total>0?0.95:0.62)+'"/>';});
+  const wrap=document.getElementById('mapSvgWrap');
+  wrap.insertAdjacentHTML('afterbegin','<svg id="mapSvg" viewBox="'+vbStr(MAP.vb)
+    +'" preserveAspectRatio="xMidYMid meet">'+s+'</svg>');
+  applyVoltFilter();
+}
+// Filtrage par tension (légende cliquable) : masque les disques+halos des bandes
+// désélectionnées (MAP.voltOff = indices de VOLT_BANDS masqués).
+function applyVoltFilter(){const svg=document.getElementById('mapSvg');if(!svg)return;
+  svg.querySelectorAll('.pdisk,.phalo').forEach(el=>{
+    el.style.display=MAP.voltOff.has(+el.getAttribute('data-vb'))?'none':'';});
+  // Lignes : masquées si la couche est désactivée OU si leur tension est filtrée.
+  svg.querySelectorAll('.conn').forEach(el=>{
+    el.style.display=(!MAP.showLines||MAP.voltOff.has(+el.getAttribute('data-vb')))?'none':'';});}
+function voltToggle(i){if(MAP.voltOff.has(i))MAP.voltOff.delete(i);else MAP.voltOff.add(i);
+  applyVoltFilter();renderLegend();}
+// Clic simple = (dé)sélectionner cette tension ; double-clic = **isoler** ce
+// niveau (masquer tous les autres) ou, s'il est déjà seul affiché, **tout
+// réafficher**. Débounce pour distinguer simple/double clic.
+let _voltClickTimer=null;
+function voltClick(i){if(_voltClickTimer){clearTimeout(_voltClickTimer);_voltClickTimer=null;voltDouble(i);return;}
+  _voltClickTimer=setTimeout(()=>{_voltClickTimer=null;voltToggle(i);},230);}
+function voltDouble(i){
+  const seul=!MAP.voltOff.has(i)&&VOLT_BANDS.every((_,k)=>k===i||MAP.voltOff.has(k));
+  MAP.voltOff=seul?new Set():new Set(VOLT_BANDS.map((_,k)=>k).filter(k=>k!==i));
+  applyVoltFilter();renderLegend();}
+function linesToggle(){MAP.showLines=!MAP.showLines;applyVoltFilter();renderLegend();}
+function voltAll(on){MAP.voltOff=on?new Set():new Set(VOLT_BANDS.map((_,i)=>i));
+  applyVoltFilter();renderLegend();}
+
+// Pan/zoom par manipulation du viewBox + délégation d'événements (≈6000 disques,
+// fluide : aucun re-rendu au pan/zoom, un seul écouteur par type).
+function initMap(){
+  const wrap=document.getElementById('mapSvgWrap');let pan=null;
+  function svgPt(e){const r=wrap.getBoundingClientRect();
+    return {px:(e.clientX-r.left)/r.width,py:(e.clientY-r.top)/r.height,r};}
+  function zoomAt(e,f){if(!MAP.vb)return;const {px,py}=svgPt(e);
+    const cx=MAP.vb.x+px*MAP.vb.w,cy=MAP.vb.y+py*MAP.vb.h,nw=MAP.vb.w*f,nh=MAP.vb.h*f;
+    MAP.vb={x:cx-px*nw,y:cy-py*nh,w:nw,h:nh};applyVB();}
+  MAP._zoomAt=zoomAt;
+  wrap.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e,e.deltaY<0?0.85:1/0.85);},{passive:false});
+  wrap.addEventListener('mousedown',e=>{if(!MAP.vb||e.target.closest('.pdisk'))return;
+    pan={x:e.clientX,y:e.clientY,vb:Object.assign({},MAP.vb)};wrap.classList.add('grabbing');});
+  window.addEventListener('mousemove',e=>{if(!pan||!MAP.vb)return;const r=wrap.getBoundingClientRect();
+    MAP.vb={x:pan.vb.x-(e.clientX-pan.x)/r.width*pan.vb.w,
+      y:pan.vb.y-(e.clientY-pan.y)/r.height*pan.vb.h,w:pan.vb.w,h:pan.vb.h};applyVB();});
+  window.addEventListener('mouseup',()=>{if(pan){pan=null;wrap.classList.remove('grabbing');}});
+  wrap.addEventListener('click',e=>{const el=e.target.closest('.pdisk');if(!el)return;
+    if(MAP.clickTimer){clearTimeout(MAP.clickTimer);MAP.clickTimer=null;return;}  // 2e clic
+    const sub=el.getAttribute('data-sub'),ev={clientX:e.clientX,clientY:e.clientY};
+    MAP.clickTimer=setTimeout(()=>{MAP.clickTimer=null;showBubble(sub,ev);},230);});
+  wrap.addEventListener('dblclick',e=>{const el=e.target.closest('.pdisk');if(!el)return;
+    if(MAP.clickTimer){clearTimeout(MAP.clickTimer);MAP.clickTimer=null;}
+    hideBubble();mapOpenPoste(el.getAttribute('data-sub'));});
+}
+function mapZoom(f){const w=document.getElementById('mapSvgWrap').getBoundingClientRect();
+  if(MAP._zoomAt)MAP._zoomAt({clientX:w.left+w.width/2,clientY:w.top+w.height/2},f);}
+function mapReset(){if(MAP.box){MAP.vb=Object.assign({},MAP.box);applyVB();}}
+function flyTo(sub){const p=MAP.bySub[sub];if(!p||!MAP.box)return;
+  const w=MAP.box.w*0.16,h=MAP.box.h*0.16;MAP.vb={x:p.x-w/2,y:p.y-h/2,w,h};applyVB();}
+
+function showBubble(sub,e){const p=MAP.bySub[sub];if(!p)return;
+  const b=document.getElementById('mapBubble'),col=voltColor(p.nv);
+  const types=(MAP.data&&MAP.data.types_oc)||['BREAKER','DISCONNECTOR'];
+  const kinds=types.map(t=>kindShort(t)+' '+(p[t]||0)).join(' · ');
+  b.innerHTML='';
+  const h=document.createElement('h4');
+  h.innerHTML='<span class="vchip" style="background:'+col+'">'+fmtKv(p.nv)+'</span>'+xesc(p.name)
+    +(p.rank?' <span class="vchip" style="background:#d97706">#'+p.rank+'</span>':'')
+    +'<span class="x">✕</span>';
+  h.querySelector('.x').onclick=hideBubble;b.appendChild(h);
+  const kr=document.createElement('div');kr.className='kindrow';
+  kr.textContent='Σ '+p.total+' changements — '+kinds
+    +(p.nodal?' · ⚇ '+p.nodal+' ouvrage(s) re-groupé(s)':'');b.appendChild(kr);
+  const vls=document.createElement('div');vls.className='vls';
+  (p.vls||[]).forEach(v=>{const row=document.createElement('div');row.className='vlrow';
+    row.innerHTML='<span>'+xesc(v.vl)+' <b style="color:'+voltColor(v.nv)+'">'+fmtKv(v.nv)
+      +'</b></span><span class="tot">'+v.total+' chg'+(v.nodal?' · ⚇'+v.nodal:'')+'</span>';
+    row.onclick=()=>mapOpenVl(sub,v.vl);vls.appendChild(row);});
+  if(!(p.vls||[]).length)vls.innerHTML='<i>—</i>';
+  b.appendChild(vls);
+  const go=document.createElement('button');go.className='go primary';
+  go.textContent='▶ Topologie de ce poste';go.onclick=()=>mapOpenPoste(sub);b.appendChild(go);
+  const wr=document.getElementById('mapSvgWrap').getBoundingClientRect();
+  b.style.display='block';
+  let x=e.clientX-wr.left+12,y=e.clientY-wr.top+12;
+  if(x+b.offsetWidth>wr.width)x=wr.width-b.offsetWidth-6;
+  if(y+b.offsetHeight>wr.height)y=wr.height-b.offsetHeight-6;
+  b.style.left=Math.max(4,x)+'px';b.style.top=Math.max(4,y)+'px';}
+function hideBubble(){const b=document.getElementById('mapBubble');if(b)b.style.display='none';}
+
+function renderLegend(){const lg=document.getElementById('mapLegend');
+  let h='<div class="lghd"><span style="font-weight:bold">Tension</span><span>'
+    +'<button class="lgbtn" onclick="voltAll(true)">tout</button>'
+    +'<button class="lgbtn" onclick="voltAll(false)">aucun</button></span></div>';
+  VOLT_BANDS.forEach((b,i)=>{const off=MAP.voltOff.has(i);
+    h+='<div class="lg'+(off?' off':'')+'" onclick="voltClick('+i+')" '
+      +'title="Clic : afficher/masquer · double-clic : isoler ce niveau (ou tout réafficher)">'
+      +'<span class="dot" style="background:'+b.color+'"></span>'+b.label+'</div>';});
+  // Bascule de la couche « connexions » (lignes entre postes).
+  const nc=(MAP.data&&MAP.data.n_connexions)||0;
+  h+='<div class="lg lgln'+(MAP.showLines?'':' off')+'" onclick="linesToggle()" '
+    +'title="Afficher/masquer les lignes entre postes"><span class="lndot"></span>'
+    +'Lignes'+(nc?' ('+nc+')':'')+'</div>';
+  h+='<div class="hint">⭐ halo = top 10 · clic tension/lignes = afficher/masquer · double-clic tension = isoler · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
+  lg.innerHTML=h;}
+
+// Classement **par voltage level** (plus fin que par poste) : chaque ligne = un
+// VL actif. Clic → recentre + bulle du poste (géo), ou ouvre la topologie du VL.
+function renderClassement(d){const root=document.getElementById('mapList');root.innerHTML='';
+  (d.classement||[]).forEach(c=>{const row=document.createElement('div');
+    row.className='clrow'+(c.rank&&c.rank<=10?' top':'');
+    const extra=(c.LOAD_BREAK_SWITCH?', INT '+c.LOAD_BREAK_SWITCH:'')
+      +(c.nodal?', ⚇ '+c.nodal+' ouvr. re-groupés':'');
+    row.innerHTML='<span class="rk">'+(c.rank||'')+'</span>'
+      +'<span class="nm" style="border-left:3px solid '+voltColor(c.nv)+';padding-left:4px">'+xesc(c.name)+'</span>'
+      +'<span class="tot">'+c.total+(c.nodal?'<span class="nodbadge" title="dont '+c.nodal+' ouvrage(s) re-groupé(s) — scission/fusion de nœud">⚇</span>':'')+'</span>'
+      +(c.geo?'':'<span class="nogeo">⌖?</span>');
+    row.title=xesc(c.name)+' ('+fmtKv(c.nv)+') — '+c.total+' changements (DJ '+(c.BREAKER||0)
+      +', SA '+(c.DISCONNECTOR||0)+extra+') · poste '+xesc(c.sub)
+      +(c.geo?' — clic : localiser ; double-clic : topologie':' — non géolocalisé, clic : topologie');
+    row.onclick=()=>{if(c.geo&&MAP.bySub[c.sub]){flyTo(c.sub);
+        const wr=document.getElementById('mapSvgWrap').getBoundingClientRect();
+        showBubble(c.sub,{clientX:wr.left+wr.width/2,clientY:wr.top+wr.height/2});}
+      else mapToTopo(c.sub,c.vl,defaultHour());};
+    row.ondblclick=()=>mapToTopo(c.sub,c.vl,defaultHour());
+    root.appendChild(row);});}
+
+function defaultHour(){if(MAP.openHour)return MAP.openHour;const hs=MAP.heures||[];
+  const m=hs.find(h=>h.requested==='12:00')||hs[Math.floor(hs.length/2)]||hs[0];
+  return m?m.requested:'12:00';}
+// Sélecteur d'heure de la carte : choisit l'heure de la topologie ouverte au
+// double-clic / clic sur un poste actif (« select a target hour here »).
+function renderMapHours(){
+  const host=document.getElementById('mapHours');if(!host)return;host.innerHTML='';
+  const hrs=MAP.heures||[];
+  if(!MAP.openHour)MAP.openHour=defaultHour();
+  hrs.forEach(h=>{const b=document.createElement('button');b.textContent=h.ts;
+    if(h.requested===MAP.openHour)b.classList.add('hcur');
+    b.title='Ouvrir la topologie des postes à '+h.ts;
+    b.onclick=()=>{MAP.openHour=h.requested;renderMapHours();};host.appendChild(b);});}
+function mapOpenPoste(sub){const p=MAP.bySub[sub]
+    ||((MAP.data&&MAP.data.classement)||[]).find(c=>c.sub===sub);
+  mapToTopo(sub,p&&p.top_vl,defaultHour());}
+function mapOpenVl(sub,vl){mapToTopo(sub,vl,defaultHour());}
+
+// Double-clic / bouton bulle : passe en VUE TOPOLOGIQUE du poste à l'heure visée.
+// `cibleHour` (optionnel) : heure cible à conserver (p. ex. en changeant de
+// niveau de tension d'un même poste). À l'ouverture initiale, omis → cible =
+// départ (même heure).
+async function mapToTopo(sub,vl,hour,cibleHour){hideBubble();stopAnim();
+  const r=await api('/api/explore_poste',{sub,vl,hour});
+  if(!r||!r.ok){alert((r&&r.error)||'Ouverture du poste impossible.');return;}
+  exitMapMode();
+  // Cible = départ à l'ouverture (même heure) → on met en évidence l'heure cible
+  // dès maintenant (bouton bleu), comme l'heure de départ.
+  S.currentVL=r.vl;MAP.topoSub=r.sub;MAP.topoVl=r.vl;MAP.topoHour=r.hour;
+  MAP.cibleHour=cibleHour||r.hour;S.cibleModifiee=false;S.scenNameDirty=false;
+  if(r.heures)MAP.heures=r.heures;
+  show(r);initNodale(r);hideSeq();setValidated(false);
+  setDefaultScenName();
+  renderExploreBar(r);syncHourPoste(r.hour,r.vl);
+  renderPosteList((document.getElementById('posteSearch')||{}).value||'');
+  // Niveau de tension changé en conservant une cible à une autre heure :
+  // ré-appliquer cette cible sur le nouveau VL.
+  if(MAP.cibleHour&&MAP.cibleHour!==r.hour){await retainTarget(MAP.cibleHour);}}
+
+function renderExploreBar(r){
+  document.getElementById('exploreBar').classList.add('on');
+  const nm=(MAP.bySub[r.sub]&&MAP.bySub[r.sub].name)||r.sub;
+  document.getElementById('exploreSub').textContent='📍 '+nm+' — '+r.vl;
+  const hrs=r.heures||MAP.heures||[];
+  const mk=(host,onclick,activeReq,title)=>{host.innerHTML='';
+    hrs.forEach(h=>{const b=document.createElement('button');b.textContent=h.ts;
+      b.setAttribute('data-req',h.requested);
+      if(h.requested===activeReq)b.classList.add('hcur');b.title=title(h);
+      b.onclick=()=>onclick(h.requested);host.appendChild(b);});};
+  mk(document.getElementById('exploreHours'),exploreHour,MAP.topoHour,
+     h=>'Charger la topologie de DÉPART à '+h.ts);
+  mk(document.getElementById('exploreTargets'),retainTarget,MAP.cibleHour,
+     h=>'Définir la CIBLE = topologie du poste à '+h.ts+' (puis éditable)');
+  const vd=document.getElementById('exploreVls');vd.innerHTML='';
+  const vls=r.sub_vls||[];
+  if(vls.length>1){const l=document.createElement('span');l.className='lbl';
+    l.textContent='Niveau :';vd.appendChild(l);
+    vls.forEach(v=>{const b=document.createElement('button');b.textContent=fmtKv(v.nv);
+      if(v.vl===r.vl)b.classList.add('hcur');b.title=v.vl+' — '+v.total+' OC changés';
+      // changer de niveau de tension : conserver l'heure de départ ET l'heure cible.
+      b.onclick=()=>mapToTopo(r.sub,v.vl,MAP.topoHour,MAP.cibleHour);vd.appendChild(b);});}}
+
+async function exploreHour(hour){stopAnim();
+  const r=await api('/api/explore_poste',{sub:MAP.topoSub,vl:MAP.topoVl,hour});
+  if(!r||!r.ok)return;MAP.topoHour=r.hour;MAP.cibleHour=r.hour;  // départ change → cible repart du départ (même heure)
+  S.cibleModifiee=false;
+  show(r);initNodale(r);hideSeq();setValidated(false);setDefaultScenName();
+  renderExploreBar(r);syncHourPoste(r.hour,r.vl);}
+
+async function retainTarget(hour){
+  const r=await api('/api/explore_retain_target',{vl:MAP.topoVl,hour});
+  if(!r||!r.ok)return;
+  MAP.cibleHour=hour;   // mémorise + met en évidence le bouton cible choisi
+  document.querySelectorAll('#exploreTargets button').forEach(b=>
+    b.classList.toggle('hcur', b.getAttribute('data-req')===hour));
+  document.getElementById('diagBottom').innerHTML=r.svg;
+  document.getElementById('nbB').textContent=r.nb_noeuds;
+  bind(r.switches);highlightChanges(r.changes);syncNodalCible(r.nodale);setValidated(false);
+  S.cibleModifiee=false;setDefaultScenName();   // cible = topologie observée à cette heure
+  if(S.n>0)markSeqStale();else hideSeq();
+  const ts=((MAP.heures||[]).find(h=>h.requested===hour)||{}).ts||hour;
+  document.getElementById('savemsg').textContent='Cible = topologie de '+ts
+    +' (éditable). Validez puis calculez la séquence.';}
+
+// Reflète l'heure et le poste ciblé dans les sélecteurs de la colonne de gauche.
+function syncHourPoste(hourReq,vl){
+  const ts=((MAP.heures||[]).find(h=>h.requested===hourReq)||{}).ts||hourReq;
+  const sel=document.getElementById('dsTime');
+  if(sel){if(![...sel.options].some(o=>o.value===ts)){
+      const o=document.createElement('option');o.value=ts;o.text=ts;sel.add(o);}
+    sel.value=ts;}
+  const ps=document.getElementById('posteSearch');if(ps){ps.value=vl;
+    renderPosteList(vl);}}
+
 init();
 </script>
 </body></html>

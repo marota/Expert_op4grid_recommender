@@ -54,6 +54,11 @@ where = ["."]
 include = ["expert_op4grid_recommender*"]
 exclude = ["tests*", "venv*", "alphaDeesp*"]
 
+[tool.setuptools.package-data]
+# Plan de masse RTE + fond de carte (coordonnées des postes & frontières pour la
+# carte « Explorer la journée ») — embarqués avec le package.
+"expert_op4grid_recommender.manoeuvre.dataset" = ["grid_layout_rte.json", "france_basemap.json"]
+
 [project.urls]
 Homepage = "https://github.com/marota/Expert_op4grid_recommender"
 Repository = "https://github.com/marota/Expert_op4grid_recommender"

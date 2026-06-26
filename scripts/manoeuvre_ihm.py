@@ -91,6 +91,9 @@ from expert_op4grid_recommender.manoeuvre.plugins import (
     disponibles as algos_disponibles,
 )
 from expert_op4grid_recommender.manoeuvre.dataset import source as dataset_source
+from expert_op4grid_recommender.manoeuvre.dataset import geographie
+from expert_op4grid_recommender.manoeuvre.dataset import exploration
+from expert_op4grid_recommender.manoeuvre.dataset.dgitt import _charger_reseau
 
 # Postes de test retenus (intersectés avec les VL réellement présents)
 POSTES_TEST = [
@@ -137,7 +140,51 @@ POSTES_CATALOG: list[tuple[str, list[str]]] = [
 
 SLD_PAR = ppn.SldParameters(topological_coloring=True)
 SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")    # redéfini dans main()
+#: saison météorologique par mois (tag de recherche des scénarios).
+_SAISONS = {12: "hiver", 1: "hiver", 2: "hiver", 3: "printemps", 4: "printemps",
+            5: "printemps", 6: "été", 7: "été", 8: "été",
+            9: "automne", 10: "automne", 11: "automne"}
 SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
+
+def _persist_root():
+    """Racine des **données à conserver** (scénarios, séquences, coordonnées
+    résolues) — à mettre sur le **stockage persistant** ``/data``. Pilotée par
+    ``MANOEUVRE_DATA_DIR`` ; à défaut ``DGITT_CACHE_DIR`` (**rétro-compatibilité** :
+    l'ancienne config mutualisait tout dans le cache) ; ``None`` sinon.
+
+    **Distincte** du cache d'**instantanés téléchargés** (``DGITT_CACHE_DIR``, le
+    dossier ``<date>/…`` des XIIDM), volumineux et **régénérable** → laissé
+    **éphémère** par défaut pour ne **pas** encombrer le disque persistant."""
+    return os.environ.get("MANOEUVRE_DATA_DIR") or os.environ.get("DGITT_CACHE_DIR")
+
+
+def _persist_subdir(env_key: str, sub: str, fallback: str) -> str:
+    """Sous-dossier persistable : variable d'env explicite si fournie, sinon sous
+    ``_persist_root()`` (cascade ``/data``), sinon défaut local (dev/tests)."""
+    explicit = os.environ.get(env_key)
+    if explicit:
+        return explicit
+    root = _persist_root()
+    return str(pathlib.Path(root) / sub) if root else fallback
+
+
+# Instantané des coordonnées de postes (résolu/persisté par « Explorer la
+# journée »). Donnée **à conserver** → sous ``_persist_root()`` (avec les
+# scénarios), **pas** sous le cache de téléchargements. ``MANOEUVRE_GEO_SNAPSHOT``
+# force un autre chemin. Coordonnées via OpenStreetMap/Overpass, actif sauf
+# ``MANOEUVRE_ENABLE_OSM=0`` (alias historique ``MANOEUVRE_ENABLE_ODRE``).
+GEO_SNAPSHOT = pathlib.Path(_persist_subdir(
+    "MANOEUVRE_GEO_SNAPSHOT", "postes_rte_geo.json", ".cache/dgitt/postes_rte_geo.json"))
+# Plan de masse RTE committé (par VL) : source **primaire** des coordonnées de la
+# carte (hors-ligne, ~98 % des postes). ``MANOEUVRE_GEO_LAYOUT`` force un autre chemin.
+GEO_LAYOUT = pathlib.Path(os.environ.get("MANOEUVRE_GEO_LAYOUT",
+                                         geographie.LAYOUT_DEFAUT))
+# Fond de carte (frontières) déjà projeté dans le repère du plan de masse.
+GEO_BASEMAP = pathlib.Path(os.environ.get("MANOEUVRE_GEO_BASEMAP",
+                                          geographie.BASEMAP_DEFAUT))
+OSM_ENABLED = (os.environ.get("MANOEUVRE_ENABLE_OSM")
+               or os.environ.get("MANOEUVRE_ENABLE_ODRE", "1")).lower() not in (
+    "0", "false", "no", "off")
 
 
 def _replay_states(initial: dict[str, bool],
@@ -286,6 +333,21 @@ def _isolated_assets(G: nx.Graph) -> list[str]:
     return iso
 
 
+def _nb_noeuds_reels(G: nx.Graph) -> int:
+    """Nombre de **nœuds électriques réels** : composantes connexes (switches
+    fermés) contenant **au moins une barre**. Les ouvrages **isolés** (déconnectés)
+    ne sont **pas** comptés comme des nœuds — pour l'**affichage** (le moteur de
+    séquencement conserve ``TopologieNodale.nb_noeuds``, isolés inclus). Cohérent
+    avec l'éditeur nodal qui présente les isolés à part. Fonction pure."""
+    closed = nx.Graph()
+    closed.add_nodes_from(G.nodes())
+    for u, v, d in G.edges(data=True):
+        if not d.get("open", False):
+            closed.add_edge(u, v)
+    barres = set(busbar_nodes(G))
+    return sum(1 for comp in nx.connected_components(closed) if comp & barres)
+
+
 class Session:
     """État serveur (mono-utilisateur)."""
 
@@ -390,6 +452,37 @@ class Session:
         self.seq_manoeuvres = []
         self.seq_states, self.seq_highlights, self.seq_labels = [], [], []
         self.seq_edited = False
+        self.scenario_name = None
+
+    def load_states(self, vl, states: dict[str, bool]):
+        """Charge un poste avec un **état de départ explicite** (au lieu du
+        pristine du réseau de référence) : utilisé par l'exploration de journée
+        pour afficher la topologie d'un poste **à une heure donnée** (minuit /
+        midi / 23 h), sans recharger un réseau France entier — on applique les
+        états de l'heure visée pour ce VL sur le réseau de référence.
+
+        ``states`` couvre les organes du VL à l'heure visée ; les organes
+        absents retombent sur l'état courant du réseau (pristine)."""
+        self.vl = vl
+        self._graph_cache.clear()
+        self._topo_cache.clear()
+        self._flow_cache.clear()
+        df = self.switches_df(vl)
+        self.initial = {sid: bool(states.get(sid, self.pristine.get(sid, False)))
+                        for sid in df.index}
+        self.current = dict(self.initial)
+        self.apply(self.initial)   # le SLD du VL reflète l'heure visée
+        self.seq_manoeuvres = []
+        self.seq_states, self.seq_highlights, self.seq_labels = [], [], []
+        self.seq_edited = False
+        self.scenario_name = None
+
+    def set_target_states(self, states: dict[str, bool]):
+        """Définit la **cible courante** depuis un état d'organes (p. ex. la
+        topologie du poste à une autre heure de la journée : « retenir cette
+        topologie comme cible »). Les organes absents gardent l'état de départ."""
+        self.current = {sid: bool(states.get(sid, self.initial[sid]))
+                        for sid in self.initial}
         self.scenario_name = None
 
     def reset(self):
@@ -503,7 +596,9 @@ class Session:
         svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
         meta = json.loads(svg.metadata)
         switches = self._switches_meta(meta, state)
-        nb = self._topo(state).nb_noeuds
+        # **Affichage** : nœuds réels (avec barre) ; les ouvrages isolés ne sont
+        # pas comptés comme nœuds (le séquencement, lui, garde nb_noeuds).
+        nb = _nb_noeuds_reels(self._graph(state))
         return svg.svg, switches, nb
 
     def svgid_par_switch(self):
@@ -512,6 +607,23 @@ class Session:
         return {nd["equipmentId"]: nd["id"] for nd in meta.get("nodes", [])
                 if nd.get("componentType") in ("BREAKER", "DISCONNECTOR")
                 and nd.get("equipmentId")}
+
+    def diff_states(self):
+        """Organes dont l'état **diffère entre départ et cible** courants —
+        ``[{id, svgId, direction}]`` où ``direction`` vaut ``"closed"`` (organe
+        ouvert au départ et fermé à la cible → mis en évidence en vert) ou
+        ``"opened"`` (fermé au départ, ouvert à la cible → orange). Sert à
+        visualiser la différence départ/cible sur les deux schémas (les ids du
+        schéma de départ étant préfixés ``A_``). ``open=True`` ⇒ organe ouvert."""
+        svgmap = self.svgid_par_switch()
+        out = []
+        for eq, svgid in svgmap.items():
+            dep = bool(self.initial.get(eq, False))
+            cur = bool(self.current.get(eq, False))
+            if dep != cur:
+                out.append({"id": eq, "svgId": svgid,
+                            "direction": "closed" if (dep and not cur) else "opened"})
+        return out
 
     def step_view(self, i: int):
         """Vue **interactive** de l'étape i :
@@ -529,7 +641,7 @@ class Session:
             svg = self.net.get_single_line_diagram(self.vl, parameters=SLD_PAR)
             meta = json.loads(svg.metadata)
             switches = self._switches_meta(meta, state)
-            nb = self._topo(state).nb_noeuds
+            nb = _nb_noeuds_reels(self._graph(state))   # affichage : isolés exclus
         # ``applied`` a restauré le réseau sur ``self.current``.
         reached = self._topo(self.current).meme_topologie(self._topo(state))
         # Vue nodale de l'**état détaillé de l'étape** : permet à l'IHM de faire
@@ -569,7 +681,7 @@ class Session:
         if self.seq_states:
             with self.applied(self.seq_states[-1]):
                 topo_f = self._topo(self.seq_states[-1])
-                nb_final = topo_f.nb_noeuds
+                nb_final = _nb_noeuds_reels(self._graph(self.seq_states[-1]))
             # ``applied`` a restauré le réseau sur ``self.current``.
             matches = self._topo(self.current).meme_topologie(topo_f)
         return {
@@ -848,27 +960,169 @@ class Session:
             "nodale": self.nodale_state(self.current),
         }
 
-    def save_scenario(self, name: str) -> str:
+    def _vl_info(self) -> tuple[float, str]:
+        """``(nominal_v, substation_id)`` du VL courant. Best-effort."""
+        try:
+            row = self.net.get_voltage_levels(all_attributes=True).loc[self.vl]
+            nv = float(row.get("nominal_v", 0.0) or 0.0)
+            sub = str(row.get("substation_id", "") or "")
+            return nv, sub
+        except Exception:
+            return 0.0, ""
+
+    def _partition_en_service(self, G: nx.Graph) -> dict:
+        """``{equipment_id: composante}`` des ouvrages **en service** (composante
+        de switches fermés contenant une barre) — pour mesurer les déplacements de
+        nœud entre départ et cible (les isolés sont ignorés)."""
+        closed = nx.Graph()
+        closed.add_nodes_from(G.nodes())
+        for u, v, d in G.edges(data=True):
+            if not d.get("open", False):
+                closed.add_edge(u, v)
+        barres, eqn = set(busbar_nodes(G)), set(equipment_nodes(G))
+        out: dict = {}
+        for idx, comp in enumerate(nx.connected_components(closed)):
+            if not (comp & barres):
+                continue
+            for n in comp & eqn:
+                eq = G.nodes[n].get("equipment_id")
+                if eq:
+                    out[eq] = idx
+        return out
+
+    def _date_tags(self, depart_dt=None) -> dict:
+        """Tags **date/heure de départ** : ISO fournie par l'IHM (RTE7000 : date +
+        heure choisies) ou ``case_date`` du réseau (local : horodatage du fichier).
+        Dérive année, **saison** et **jour de semaine** pour le filtrage."""
+        from datetime import datetime
+        dt = None
+        if depart_dt:
+            try:
+                dt = datetime.fromisoformat(str(depart_dt).replace("Z", "+00:00"))
+            except (ValueError, TypeError):
+                dt = None
+        if dt is None:
+            cd = getattr(self.net, "case_date", None)
+            if isinstance(cd, datetime):
+                dt = cd
+        if dt is None:
+            return {"dt": None, "year": None, "season": None, "weekday": None}
+        return {"dt": dt.strftime("%Y-%m-%dT%H:%M"), "year": dt.year,
+                "season": _SAISONS.get(dt.month), "weekday": dt.weekday()}
+
+    def scenario_meta(self, depart_dt=None) -> dict:
+        """Métadonnées **de recherche** du scénario courant (départ → cible) :
+        tension, nb de barres, OC changés par type (DJ/SA/INT), nombre d'ouvrages
+        **déplacés** entre nœuds (changement de partition, isolés ignorés), et
+        **date/heure de départ** (année / saison / jour)."""
+        df = self.switches_df(self.vl)
+        kinds = ({str(s): str(k) for s, k in zip(df.index, df["kind"])}
+                 if "kind" in df.columns else {})
+        cnt = {"BREAKER": 0, "DISCONNECTOR": 0, "LOAD_BREAK_SWITCH": 0}
+        for sid in self.initial:
+            if bool(self.initial[sid]) != bool(self.current.get(sid, self.initial[sid])):
+                k = kinds.get(str(sid), "")
+                if k in cnt:
+                    cnt[k] += 1
+        nv, sub = self._vl_info()
+        with self.applied(self.initial):
+            Gi = self._graph(self.initial)
+            nb_barres = len(busbar_nodes(Gi))
+            nb_depart = _nb_noeuds_reels(Gi)
+            pa = self._partition_en_service(Gi)
+        with self.applied(self.current):
+            Gc = self._graph(self.current)
+            nb_cible = _nb_noeuds_reels(Gc)
+            pb = self._partition_en_service(Gc)
+        poids = {eq: 1 for eq in set(pa) | set(pb)}
+        nodal = len(exploration.noeuds_deplaces(pa, pb, poids)) if poids else 0
+        return {"vl": self.vl, "sub": sub, "nominal_v": round(nv, 1),
+                "nb_barres": nb_barres, "nb_depart": nb_depart, "nb_cible": nb_cible,
+                "n_dj": cnt["BREAKER"], "n_sa": cnt["DISCONNECTOR"],
+                "n_int": cnt["LOAD_BREAK_SWITCH"], "n_nodal": nodal,
+                **self._date_tags(depart_dt)}
+
+    def save_scenario(self, name: str, depart_dt=None, source=None) -> dict:
+        """Sauvegarde le scénario courant (départ + cible) en **évitant les
+        doublons** :
+
+        - si un scénario **identique** (même départ ET même cible) existe déjà
+          (parmi ``name``, ``name_0``, ``name_1``…), **rien n'est écrit** →
+          ``{'status': 'exists', 'name': <existant>}`` ;
+        - sinon, on écrit sous ``name`` s'il est libre, ou sous le **premier index
+          libre** ``name_0``, ``name_1``… → ``{'status': 'saved', 'name': <final>}``.
+        """
         name = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or self.vl
+        cur_dep = {k: bool(v) for k, v in self.initial.items()}
+        cur_cib = {k: bool(self.current.get(k, self.initial[k])) for k in self.initial}
+
+        def _states(stem):
+            try:
+                d = json.loads((SCEN_DIR / f"{stem}.json").read_text())
+                return d.get("depart"), d.get("cible")
+            except Exception:
+                return None, None
+
+        # noms candidats existants : name, name_0, name_1, …
+        existants = [name] if (SCEN_DIR / f"{name}.json").exists() else []
+        i = 0
+        while (SCEN_DIR / f"{name}_{i}.json").exists():
+            existants.append(f"{name}_{i}")
+            i += 1
+        for stem in existants:
+            dep, cib = _states(stem)
+            if dep == cur_dep and cib == cur_cib:   # scénario déjà sauvegardé
+                self.apply(self.current)
+                return {"status": "exists", "name": stem,
+                        "path": str(SCEN_DIR / f"{stem}.json")}
+        # pas d'identique → premier nom libre (name, puis name_0, name_1, …)
+        if not (SCEN_DIR / f"{name}.json").exists():
+            final = name
+        else:
+            j = 0
+            while (SCEN_DIR / f"{name}_{j}.json").exists():
+                j += 1
+            final = f"{name}_{j}"
+        meta = self.scenario_meta(depart_dt)
+        if source:
+            meta["source"] = source   # 'rte' | 'local' (pour re-synchroniser l'IHM)
         data = {
-            "voltage_level_id": self.vl,
-            "name": name,
-            "depart": self.initial,
-            "cible": self.current,
+            "voltage_level_id": self.vl, "name": final,
+            "depart": cur_dep, "cible": cur_cib,
             "depart_nodale": self.groups_of(self.initial),
             "cible_nodale": self.groups_of(self.current),
+            "meta": meta,
         }
         self.apply(self.current)  # restaurer l'affichage courant
         SCEN_DIR.mkdir(parents=True, exist_ok=True)
-        path = SCEN_DIR / f"{name}.json"
+        path = SCEN_DIR / f"{final}.json"
         path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
-        self.scenario_name = name
-        return str(path)
+        self.scenario_name = final
+        return {"status": "saved", "name": final, "path": str(path)}
 
     def list_scenarios(self):
+        """Scénarios sauvegardés **avec métadonnées de recherche** (tension, nb
+        barres, OC par type, ouvrages déplacés) ; ``meta`` absente pour les
+        anciens fichiers (champs ``None``)."""
         if not SCEN_DIR.exists():
             return []
-        return sorted(p.stem for p in SCEN_DIR.glob("*.json"))
+        out = []
+        for p in sorted(SCEN_DIR.glob("*.json")):
+            try:
+                d = json.loads(p.read_text())
+            except Exception:
+                continue
+            m = d.get("meta") or {}
+            out.append({"name": p.stem, "vl": d.get("voltage_level_id", ""),
+                        "sub": m.get("sub", ""),
+                        "nominal_v": m.get("nominal_v"), "nb_barres": m.get("nb_barres"),
+                        "nb_depart": m.get("nb_depart"), "nb_cible": m.get("nb_cible"),
+                        "n_dj": m.get("n_dj"), "n_sa": m.get("n_sa"),
+                        "n_int": m.get("n_int"), "n_nodal": m.get("n_nodal"),
+                        "dt": m.get("dt"), "year": m.get("year"),
+                        "season": m.get("season"), "weekday": m.get("weekday"),
+                        "source": m.get("source")})
+        return out
 
     def load_scenario(self, name: str, mode: str = "both") -> str:
         """
@@ -983,6 +1237,175 @@ class Session:
         return str(path)
 
 
+class DayExploration:
+    """Exploration de l'**intérêt d'une journée** : trois situations (par défaut
+    minuit / midi / 23 h) chargées pour une date, et le **bilan des changements
+    d'OC par poste** sur la journée (cf. ``manoeuvre.dataset.exploration``).
+
+    Mémoire : on ne garde **qu'un réseau de référence** (le 1ᵉʳ chargé), réutilisé
+    par la ``Session`` pour rendre les SLD ; pour chaque heure, seuls les **états
+    d'organes par VL** sont conservés (légers). Afficher la topologie d'un poste à
+    une heure = appliquer ces états sur le réseau de référence (pas de rechargement
+    d'un réseau France entier)."""
+
+    def __init__(self, date: str, repo: str):
+        self.date = date
+        self.repo = repo
+        self.heures: list[dict] = []                 # [{requested, ts, iso}]
+        self.etats: dict[str, dict[str, dict[str, bool]]] = {}  # heure -> {vl:{sw:open}}
+        self.kinds: dict[str, str] = {}
+        self.struct: dict[str, dict] = {}            # {vl:{edges,poids}} (invariant)
+        self.connexions: list[dict] = []             # lignes inter-postes [{s1,s2,nv}]
+        self.vl_meta: dict[str, dict] = {}
+        self.sub_name: dict[str, str] = {}
+        self.postes: dict[str, dict] = {}
+        self.top: list[str] = []                     # top-10 substations
+        self.classement: list[str] = []              # classement plus long (liste)
+        self.positions: dict[str, dict] = {}
+        self.coord_source: str = "aucune"
+        self.coord_stats: dict = {}
+
+    def etats_vl(self, heure: str, vl: str) -> dict[str, bool]:
+        return self.etats.get(heure, {}).get(vl, {})
+
+
+def construire_exploration(date: str,
+                           heures: tuple[str, ...] = exploration.HEURES_DEFAUT):
+    """Charge les 3 situations de ``date``, calcule le bilan par poste, résout
+    les coordonnées. Retourne ``(DayExploration, reseau_de_reference)``.
+
+    Lève ``FileNotFoundError`` si la journée est absente du dataset."""
+    repo = dataset_source.repo_pour_date(DATASET["repo"], date)
+    token = DATASET["token"]
+    cache = DATASET["cache_dir"]
+    insts = dataset_source.lister_instantanes(repo, date, token=token)
+    if not insts:
+        raise FileNotFoundError(f"Aucun instantané pour {date} dans {repo}.")
+
+    de = DayExploration(date, repo)
+    ref_net = None
+    for h in heures:
+        choisi = dataset_source.choisir_instantane(insts, h)
+        local = dataset_source.telecharger_instantane(
+            repo, choisi["path"], cache, token=token)
+        net = _charger_reseau(local)
+        etats, kinds = exploration.extraire_etats_kinds(net)
+        de.etats[h] = etats
+        if not de.kinds:
+            de.kinds = kinds
+        de.heures.append({"requested": h, "ts": choisi["ts"], "iso": choisi["iso"]})
+        if ref_net is None:
+            de.vl_meta, de.sub_name = exploration.structure_reseau(net)
+            # structure topologique invariante (arêtes + ouvrages par nœud) pour
+            # quantifier les re-groupements de nœuds (scissions / fusions).
+            de.struct = exploration.extraire_structure_topo(net)
+            # connexions inter-postes (lignes) pour le tracé carte (par tension).
+            de.connexions = exploration.extraire_connexions(net, de.vl_meta)
+            ref_net = net
+        # les réseaux des autres heures sont libérés (déréférencés) ici.
+
+    situations = [de.etats[h] for h in heures]
+    changes = exploration.changements_par_vl(situations, de.kinds)
+    nodaux = exploration.changements_nodaux_par_vl(situations, de.struct)
+    exploration.fusionner_nodaux(changes, nodaux)
+    de.postes = exploration.agreger_par_poste(changes, de.vl_meta, de.sub_name)
+    de.top = exploration.classer_postes(de.postes, 10)
+    de.classement = exploration.classer_postes(de.postes, 40)
+    # Coordonnées : **plan de masse RTE committé** (par VL, ~98 % des postes,
+    # hors-ligne) en **primaire** ; repli **OSM/Overpass** (ref:FR:RTE =
+    # substation_id) si le plan ne couvre rien, avec persistance du snapshot
+    # (bouton « ⬇ coordonnées »). ``MANOEUVRE_ENABLE_OSM=0`` désactive le fetch.
+    pos_layout, stats_layout = geographie.positions_from_layout(
+        geographie.charger_layout(GEO_LAYOUT), de.vl_meta)
+    pos_layout = {s: pos_layout[s] for s in de.postes if s in pos_layout}
+    if pos_layout:
+        de.positions, de.coord_source, de.coord_stats = (
+            pos_layout, "layout", stats_layout)
+    else:
+        stats: dict = {}
+        de.positions, de.coord_source = geographie.resoudre(
+            list(de.postes), net=ref_net, snapshot_path=GEO_SNAPSHOT,
+            cache_dir=cache, autoriser_osm=OSM_ENABLED,
+            persist_path=GEO_SNAPSHOT, stats_out=stats)
+        de.coord_stats = stats
+    # Journalisé (logs du Space) pour diagnostiquer la carte : source + taux +
+    # (si OSM) échantillons de codes/noms vs substation_id (pourquoi 0 apparié).
+    print(f"[explore_day] coord_source={de.coord_source} "
+          f"stats={json.dumps(de.coord_stats, ensure_ascii=False)}", flush=True)
+    return de, ref_net
+
+
+def _xy(pos: dict) -> tuple[float, float]:
+    """Coordonnées **planaires prêtes pour l'écran** (y vers le bas, nord en
+    haut) depuis une position résolue. Le **plan de masse RTE** a déjà le nord en
+    haut dans son repère (y croît vers le sud) → utilisé **tel quel** ; les sources
+    **lon/lat** (OSM/embarqué) sont projetées Web Mercator puis **y inversé** (le
+    Mercator a le nord en y croissant)."""
+    if "x" in pos:
+        return float(pos["x"]), float(pos["y"])
+    mx, my = geographie.merc(float(pos["lon"]), float(pos["lat"]))
+    return mx, -my
+
+
+def _explore_payload(de: DayExploration) -> dict:
+    """Charge utile carte + classement pour le front. Le **classement et la mise
+    en évidence sont au niveau voltage level** (plus fin que par poste) ; la carte
+    place un disque par **poste**, mis en évidence s'il porte un VL du top-10."""
+
+    def _kinds(d):
+        return {t: d.get(t, 0) for t in exploration.TYPES_OC}
+
+    # Classement **par voltage level** (chaque VL actif est une entrée).
+    all_vls = []
+    for sub, p in de.postes.items():
+        for v in p["vls"]:
+            if v["total"] > 0:
+                all_vls.append({"vl": v["vl"], "sub": sub,
+                                "name": v.get("name") or v["vl"],
+                                "nv": v["nominal_v"], "total": v["total"],
+                                "nodal": v.get("nodal", 0), **_kinds(v)})
+    all_vls.sort(key=lambda d: (-d["total"], -d["nv"], d["vl"]))
+    for i, v in enumerate(all_vls):
+        v["rank"] = i + 1
+    # Rang d'un poste sur la carte = meilleur rang d'un de ses VL dans le top-10.
+    rang: dict[str, int] = {}
+    for v in all_vls[:10]:
+        rang.setdefault(v["sub"], v["rank"])
+    classement = [{**v, "geo": v["sub"] in de.positions} for v in all_vls[:40]]
+
+    postes_map = []
+    for sub, p in de.postes.items():
+        pos = de.positions.get(sub)
+        if not pos:
+            continue
+        x, y = _xy(pos)
+        postes_map.append({
+            "sub": sub, "name": p["name"], "nv": p["nominal_v_max"],
+            "x": round(x, 1), "y": round(y, 1), "total": p["total"],
+            "nodal": p.get("nodal", 0), **_kinds(p), "rank": rang.get(sub),
+            "top_vl": exploration.vl_le_plus_actif(p),
+            "vls": [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"],
+                     "nodal": v.get("nodal", 0)} for v in p["vls"]],
+        })
+    n_actifs = sum(1 for v in all_vls)
+    # Connexions inter-postes (lignes) restreintes aux deux extrémités
+    # géolocalisées — tracées en fondu sur la carte, colorées par tension.
+    geo = de.positions
+    connexions = [{"s1": c["s1"], "s2": c["s2"], "nv": c["nv"]}
+                  for c in de.connexions if c["s1"] in geo and c["s2"] in geo]
+    return {
+        "ok": True, "date": de.date, "heures": de.heures,
+        "coord_source": de.coord_source, "coord_stats": de.coord_stats,
+        # un instantané committable a-t-il été persisté (fetch OSM réussi) ?
+        "coord_file": de.coord_source == "osm" and GEO_SNAPSHOT.exists(),
+        "n_postes": len(de.postes), "n_actifs": n_actifs,
+        "n_geolocalises": len(postes_map), "n_connexions": len(connexions),
+        "types_oc": list(exploration.TYPES_OC),
+        "postes": postes_map, "classement": classement,
+        "connexions": connexions,
+    }
+
+
 def _highlight(svg: str, svg_id: str | None) -> str:
     if not svg_id:
         return svg
@@ -1011,6 +1434,9 @@ def _prefix_svg_ids(svg: str, pfx: str) -> str:
 
 app = Flask(__name__)
 SESSION: Session = None  # type: ignore
+# Exploration de journée en cours (carte des postes + bilan des changements).
+# ``None`` tant qu'aucune journée n'a été explorée (« Explorer la journée »).
+DAY: DayExploration = None  # type: ignore
 
 # Configuration de la **source dataset par date** (mode déploiement Space
 # HuggingFace : on charge à la demande un instantané XIIDM du dataset RTE 7000).
@@ -1116,6 +1542,119 @@ def api_dataset_load():
                    catalog=SESSION.catalog())
 
 
+# ── Exploration de journée (carte des postes + bilan des changements d'OC) ──
+
+@app.post("/api/explore_day")
+def api_explore_day():
+    """Explore une **journée** : charge 3 situations (minuit / midi / 23 h),
+    calcule par poste le nombre d'OC dont l'état change sur la journée (ventilé
+    par type), résout les coordonnées et renvoie la carte + le classement.
+
+    Reconstruit aussi la ``Session`` sur le réseau de référence (1ʳᵉ heure) pour
+    que le reste de l'IHM (vue topologique d'un poste) fonctionne ensuite."""
+    global SESSION, DAY
+    body = request.json or {}
+    date = (body.get("date") or "").strip()
+    if not date:
+        return jsonify(ok=False, error="Choisir une date."), 400
+    try:
+        de, ref_net = construire_exploration(date)
+    except (ValueError, FileNotFoundError) as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    except Exception as exc:  # pragma: no cover - dépend du réseau HF / fichier
+        return jsonify(ok=False, error=f"Exploration impossible : {exc}"), 502
+    DAY = de
+    SESSION = Session(ref_net)
+    return jsonify(_explore_payload(de))
+
+
+def _sub_vls(sub: str) -> list[dict]:
+    """VL d'un poste (substation) avec leurs changements — pour basculer entre
+    les niveaux de tension d'un même poste dans la vue topologique."""
+    p = (DAY.postes.get(sub) if DAY else None) or {}
+    return [{"vl": v["vl"], "nv": v["nominal_v"], "total": v["total"],
+             "nodal": v.get("nodal", 0), "name": v.get("name") or v["vl"]}
+            for v in p.get("vls", [])]
+
+
+@app.post("/api/explore_poste")
+def api_explore_poste():
+    """Passe en **vue topologique** d'un poste à une **heure** de la journée
+    explorée (double-clic sur la carte). Applique les états d'organes de l'heure
+    visée sur le réseau de référence (pas de rechargement). ``vl`` explicite, ou
+    le VL le plus actif de la ``sub`` à défaut."""
+    if DAY is None or SESSION is None:
+        return jsonify(ok=False, error="Explorer une journée d'abord."), 400
+    body = request.json or {}
+    heure = body.get("hour") or (DAY.heures[0]["requested"] if DAY.heures else "12:00")
+    vl = body.get("vl")
+    sub = body.get("sub")
+    if not vl and sub:
+        p = DAY.postes.get(sub)
+        vl = exploration.vl_le_plus_actif(p) if p else None
+    if not vl:
+        return jsonify(ok=False, error="Poste/VL introuvable."), 400
+    if sub is None:
+        sub = (DAY.vl_meta.get(vl) or {}).get("substation") or vl
+    SESSION.load_states(vl, DAY.etats_vl(heure, vl))
+    svg_i, _, nb_i = SESSION.view(SESSION.initial)
+    svg_c, sw, nb_c = SESSION.view(SESSION.current)
+    return jsonify(ok=True, initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=vl, sub=sub,
+                   hour=heure, heures=DAY.heures, sub_vls=_sub_vls(sub),
+                   changes=SESSION.diff_states(),
+                   nodale_depart=SESSION.nodale_payload(SESSION.initial),
+                   nodale_cible=SESSION.nodale_state(SESSION.current))
+
+
+@app.post("/api/explore_retain_target")
+def api_explore_retain_target():
+    """Retient la topologie du poste **à une autre heure** comme **cible**
+    courante (« retenir cette topologie comme cible »), le départ restant l'heure
+    choisie. La cible reste ensuite éditable par l'utilisateur."""
+    if DAY is None or SESSION is None or SESSION.vl is None:
+        return jsonify(ok=False, error="Vue topologique d'un poste requise."), 400
+    body = request.json or {}
+    heure = body.get("hour")
+    vl = body.get("vl") or SESSION.vl
+    SESSION.set_target_states(DAY.etats_vl(heure, vl))
+    svg, sw, nb = SESSION.view(SESSION.current)
+    return jsonify(ok=True, svg=svg, switches=sw, nb_noeuds=nb, hour=heure,
+                   changes=SESSION.diff_states(),
+                   nodale=SESSION.nodale_state(SESSION.current))
+
+
+_BASEMAP_SCREEN = None  # cache du fond de carte projeté écran (y inversé)
+
+
+@app.get("/api/explore_basemap")
+def api_explore_basemap():
+    """Fond de carte (frontières départements + pays voisins) **dans le repère
+    écran** (mêmes coordonnées que les disques : y inversé). Statique → mis en
+    cache ; le front le récupère une fois."""
+    global _BASEMAP_SCREEN
+    if _BASEMAP_SCREEN is None:
+        # Le fond est déjà dans le repère du plan de masse (même que les disques,
+        # nord en haut) → servi tel quel, sans inversion.
+        bm = geographie.charger_basemap(GEO_BASEMAP)
+        _BASEMAP_SCREEN = {"depts": bm.get("depts", []),
+                           "neighbors": bm.get("neighbors", [])}
+    return jsonify(_BASEMAP_SCREEN)
+
+
+@app.get("/api/explore_coords_file")
+def api_explore_coords_file():
+    """Renvoie l'instantané de coordonnées **résolu et persisté** au runtime
+    (`data/postes_rte_geo.json`), en pièce jointe — pour le **committer** une fois
+    et éviter de re-interroger ODRE à chaque démarrage (FS du Space éphémère)."""
+    if not GEO_SNAPSHOT.exists():
+        return jsonify(ok=False, error="Aucun instantané de coordonnées."), 404
+    return Response(
+        GEO_SNAPSHOT.read_text(encoding="utf-8"),
+        mimetype="application/json",
+        headers={"Content-Disposition": "attachment; filename=postes_rte_geo.json"})
+
+
 @app.post("/api/load_grid")
 def api_load_grid():
     """Charge une **situation réseau** quelconque (chemin ``.xiidm`` côté serveur)
@@ -1194,6 +1733,7 @@ def api_load():
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
                    svg=svg_c, switches=sw, nb_noeuds=nb_c,
+                   changes=SESSION.diff_states(),
                    nodale_depart=SESSION.nodale_payload(SESSION.initial),
                    nodale_cible=SESSION.nodale_state(SESSION.current))
 
@@ -1203,6 +1743,7 @@ def api_toggle():
     SESSION.toggle(request.json["id"])
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   changes=SESSION.diff_states(),
                    nodale=SESSION.nodale_state(SESSION.current))
 
 
@@ -1211,6 +1752,7 @@ def api_reset():
     SESSION.reset()
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   changes=SESSION.diff_states(),
                    nodale=SESSION.nodale_state(SESSION.current))
 
 
@@ -1224,6 +1766,7 @@ def api_promote_cible():
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
                    svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl,
+                   changes=SESSION.diff_states(),
                    nodale_depart=SESSION.nodale_payload(SESSION.initial),
                    nodale_cible=SESSION.nodale_state(SESSION.current))
 
@@ -1234,6 +1777,7 @@ def api_cible():
     revenir en édition de la cible alors qu'une séquence est déjà calculée."""
     svg, sw, nb = SESSION.view(SESSION.current)
     return jsonify(svg=svg, switches=sw, nb_noeuds=nb,
+                   changes=SESSION.diff_states(),
                    nodale=SESSION.nodale_state(SESSION.current))
 
 
@@ -1276,6 +1820,26 @@ def api_scenarios():
     return jsonify(scenarios=SESSION.list_scenarios())
 
 
+@app.get("/api/scenarios_archive")
+def api_scenarios_archive():
+    """**Archive ZIP** de tous les scénarios sauvegardés (la base partagée) — pour
+    télécharger/versionner l'ensemble en un clic. Vide si aucun scénario."""
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        if SCEN_DIR.exists():
+            for p in sorted(SCEN_DIR.glob("*.json")):
+                try:
+                    z.write(p, arcname=p.name)
+                except OSError:
+                    continue
+    buf.seek(0)
+    return Response(buf.read(), mimetype="application/zip",
+                    headers={"Content-Disposition":
+                             "attachment; filename=scenarios.zip"})
+
+
 def _safe_name(name, default):
     return re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or default
 
@@ -1283,24 +1847,35 @@ def _safe_name(name, default):
 @app.post("/api/save")
 def api_save():
     name = _safe_name(request.json.get("name", ""), SESSION.vl)
-    if not request.json.get("overwrite") and (SCEN_DIR / f"{name}.json").exists():
-        return jsonify(exists=True, name=name, path=str(SCEN_DIR / f"{name}.json"))
-    path = SESSION.save_scenario(name)
+    res = SESSION.save_scenario(name, depart_dt=request.json.get("depart_dt"),
+                                source=request.json.get("source"))
+    if res["status"] == "exists":
+        # scénario déjà présent (départ + cible identiques) → non écrasé.
+        return jsonify(already_exists=True, name=res["name"], path=res["path"],
+                       scenarios=SESSION.list_scenarios())
     # ``content`` : JSON écrit, renvoyé pour le téléchargement local côté front
     # (IHM déportée — FS éphémère du Space).
-    content = pathlib.Path(path).read_text(encoding="utf-8")
-    return jsonify(path=path, name=name, content=content,
+    content = pathlib.Path(res["path"]).read_text(encoding="utf-8")
+    return jsonify(path=res["path"], name=res["name"], content=content,
                    scenarios=SESSION.list_scenarios())
 
 
 @app.post("/api/load_scenario")
 def api_load_scenario():
-    SESSION.load_scenario(request.json["name"],
-                          request.json.get("mode", "both"))
+    name = request.json["name"]
+    SESSION.load_scenario(name, request.json.get("mode", "both"))
+    # ``meta`` du scénario (date/heure de départ, source) → l'IHM peut re-synchroniser
+    # les sélecteurs Date/Heure RTE7000 sur le contexte du scénario rechargé.
+    meta = {}
+    try:
+        meta = (json.loads((SCEN_DIR / f"{name}.json").read_text()).get("meta") or {})
+    except Exception:
+        pass
     svg_i, _, nb_i = SESSION.view(SESSION.initial)
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
-                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl,
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl, meta=meta,
+                   changes=SESSION.diff_states(),
                    nodale_depart=SESSION.nodale_payload(SESSION.initial),
                    nodale_cible=SESSION.nodale_state(SESSION.current))
 
@@ -1374,10 +1949,18 @@ def main():
     ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
                     help="Interface d'écoute (0.0.0.0 pour un conteneur / Space).")
     ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
-    ap.add_argument("--scenarios-dir", default="tests/manoeuvre/scenarios",
-                    help="Dossier de sauvegarde des scénarios cible")
-    ap.add_argument("--sequences-dir", default="tests/manoeuvre/sequences",
-                    help="Dossier de sauvegarde des séquences générées")
+    ap.add_argument("--scenarios-dir",
+                    default=_persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                                            "tests/manoeuvre/scenarios"),
+                    help="Dossier de sauvegarde des scénarios cible (env "
+                         "MANOEUVRE_SCENARIOS_DIR ; sinon sous MANOEUVRE_DATA_DIR — "
+                         "**base partagée** à mettre sur /data, distincte du cache "
+                         "d'instantanés DGITT_CACHE_DIR).")
+    ap.add_argument("--sequences-dir",
+                    default=_persist_subdir("MANOEUVRE_SEQUENCES_DIR", "sequences",
+                                            "tests/manoeuvre/sequences"),
+                    help="Dossier de sauvegarde des séquences générées (env "
+                         "MANOEUVRE_SEQUENCES_DIR ; sinon sous MANOEUVRE_DATA_DIR).")
     # Mode dataset (source par date depuis HuggingFace).
     ap.add_argument("--dataset", action="store_true",
                     help="Activer la source dataset RTE 7000 (défaut si --grid absent).")

@@ -1,9 +1,16 @@
 name: Deploy IHM Manœuvre to HuggingFace Space
 
 # Redeploys the HuggingFace Docker Space (the maneuver IHM, sourced live from
-# the RTE 7000 dataset) on every merge to main. Mirrors the manual flow in
-# deploy/huggingface/SETUP.md: push ONE squashed, history-free commit of the
-# current tree to the Space's main branch.
+# the RTE 7000 dataset). Mirrors the manual flow in deploy/huggingface/SETUP.md:
+# push ONE squashed, history-free commit of the current tree to the Space's main
+# branch.
+#
+# Triggers: a push to `main` OR a `claude/**` dev branch that **touches the
+# interface** (the IHM script/assets, the `manoeuvre` module the IHM runs on, the
+# Dockerfile, or the deploy config). Pushes that change only docs/tests/etc. do
+# NOT redeploy. Dev-branch pushes give a **live preview before merge** — the Space
+# reflects the LAST branch pushed (re-push main to return it to production).
+# `workflow_dispatch` lets you redeploy any ref manually.
 #
 # Required repo configuration (Settings → Secrets and variables → Actions):
 #   - secret  HF_TOKEN     : a HuggingFace WRITE access token with access to the Space
@@ -16,10 +23,17 @@ name: Deploy IHM Manœuvre to HuggingFace Space
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'claude/**' ]
+    paths:
+      - 'scripts/manoeuvre_ihm.py'
+      - 'scripts/manoeuvre_ihm_assets/**'
+      - 'expert_op4grid_recommender/manoeuvre/**'
+      - 'Dockerfile'
+      - 'deploy/huggingface/**'
+      - '.github/workflows/deploy-huggingface.yml'
   workflow_dispatch: {}
 
-# Never run two deploys at once; the latest merge wins.
+# Never run two deploys at once; the latest push wins.
 concurrency:
   group: huggingface-space-deploy
   cancel-in-progress: true
@@ -59,7 +73,15 @@ jobs:
         run: |
           cp deploy/huggingface/README.md README.md   # HF needs the frontmatter at repo root
           git checkout --orphan hf-deploy
+          # The image only COPYs expert_op4grid_recommender/ + scripts/. docs/ and
+          # data/ carry binary assets (PNGs) the Space doesn't need and that the HF
+          # Hub rejects unless stored via Xet/LFS — drop them (and tests/) from the
+          # snapshot so the push is binary-free and lean.
+          rm -rf docs data tests
           git add -A
+          # Filet : retirer du snapshot indexé d'éventuels binaires résiduels (venv,
+          # profils, pptx) que le Hub HF rejette hors Xet/LFS (no-op si absents).
+          git rm -r --cached --ignore-unmatch 'venv*' '*.prof' '*.pptx'
           git commit -q -m "Deploy ${GITHUB_SHA::7}"
           test "$(git rev-list --count HEAD)" -eq 1   # sanity: exactly one commit
 
