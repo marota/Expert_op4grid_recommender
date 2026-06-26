@@ -98,6 +98,14 @@ vue topologique d'un poste **à l'heure souhaitée**.
   choisir un poste via le champ de recherche (ou la liste) **quitte la carte** et
   affiche sa topologie (`load` appelle désormais `exitMapMode`) — auparavant la
   topologie restait masquée derrière la carte.
+- **Recherche de poste utilisable pendant l'exploration** : après « Explorer la
+  journée », la liste de postes (recherche + présélection à gauche) est **peuplée**
+  depuis le réseau de référence de l'exploration (`populatePostes` après
+  `/api/postes`) — auparavant le champ restait vide (« Aucun poste »), seule la
+  liste des plus actifs à droite était sélectionnable. Sélectionner un poste en
+  exploration l'**ouvre à l'heure courante de la carte** (comme un double-clic),
+  via `selectPoste` (route vers `mapToTopo` si une journée est explorée, sinon
+  `load`).
 - **Nom de scénario par défaut formaté** : le champ « nom du scénario » est
   pré-rempli selon le contexte (recalculé tant que l'utilisateur ne l'a pas édité).
   - **RTE7000** :

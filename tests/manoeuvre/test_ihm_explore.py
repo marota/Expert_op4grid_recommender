@@ -203,5 +203,7 @@ def test_asset_contient_la_carte():
                   # décompte des re-groupements de nœuds (scission/fusion)
                   "re-groupé", "nodbadge",
                   # nom de scénario formaté + sélection poste hors carte
-                  "defaultScenName", "topoDepart", "topoCible", "observee"):
+                  "defaultScenName", "topoDepart", "topoCible", "observee",
+                  # recherche de poste utilisable pendant l'exploration
+                  "selectPoste"):
         assert token in txt, f"jeton front-end manquant : {token}"

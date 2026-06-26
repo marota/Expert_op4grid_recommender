@@ -479,9 +479,15 @@ function _posteItem(vl,pinned,available){
   d.className='it'+(available?'':' off')+(vl===S.currentVL?' cur':'');
   d.innerHTML=(pinned?'<span class="pin">★ </span>':'')+xesc(vl)
     +(available?'':' <span style="font-size:9px">⚠ absent</span>');
-  if(available)d.onclick=()=>load(vl);
+  if(available)d.onclick=()=>selectPoste(vl);
   else d.title='absent de la situation chargée — charger la grille France';
   return d;}
+// Sélection d'un poste (recherche / présélection). En **exploration de journée**,
+// ouvre le poste à l'heure courante de la carte (comme un double-clic sur la
+// carte) ; sinon chargement normal de la situation courante.
+function selectPoste(vl){
+  if(MAP.data){mapToTopo(undefined,vl,MAP.topoHour||defaultHour());}
+  else{load(vl);}}
 function renderPosteList(query){
   const root=document.getElementById('posteList');if(!root)return;root.innerHTML='';
   const q=(query||'').trim().toLowerCase();
@@ -532,7 +538,7 @@ async function init(){const r=await (await fetch('/api/postes')).json();
   const sn=document.getElementById('scenName');
   if(sn)sn.addEventListener('input',()=>{S.scenNameDirty=true;});
   search.addEventListener('keydown',e=>{if(e.key==='Enter'){
-    const v=search.value.trim();if(v&&ALL_POSTES.includes(v))load(v);}});
+    const v=search.value.trim();if(v&&ALL_POSTES.includes(v))selectPoste(v);}});
   initNodalResize(); initNodalDnD(); initMap(); await refreshScenarios(); await initDataset();
   // Pas d'auto-chargement de poste : on attend que l'utilisateur en choisisse un
   // (le schéma reste sur « Choisissez un poste… » tant qu'aucun n'est sélectionné).
@@ -1154,6 +1160,10 @@ async function exploreDay(){
   if(!r||!r.ok){spin.style.display='block';spin.textContent=(r&&r.error)||'Échec de l’exploration.';
     msg.textContent=(r&&r.error)||'échec';return;}
   spin.style.display='none';msg.textContent='✓ '+date+' exploré.';
+  // Peupler la liste de postes (recherche + présélection à gauche) depuis le
+  // réseau de référence de l'exploration → le champ de recherche devient
+  // utilisable pendant l'exploration (pas seulement la liste des plus actifs).
+  try{populatePostes(await (await fetch('/api/postes')).json());}catch(e){}
   // Fond de carte (frontières, repère du plan de masse) — récupéré une fois.
   if(MAP.basemap===undefined){try{MAP.basemap=await (await fetch('/api/explore_basemap')).json();}
     catch(e){MAP.basemap=null;}}
