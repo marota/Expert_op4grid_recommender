@@ -4,7 +4,7 @@
 > postes du réseau RTE 7000 sur une carte de France dans l'IHM de manœuvre
 > (« Explorer la journée »), **à partir du `grid_layout.json` fourni**.
 >
-> Vue d'ensemble de la fonctionnalité : `docs/manoeuvre_ihm.md` (§ 1ter).
+> Vue d'ensemble de la fonctionnalité : `docs/manoeuvre/ihm.md` (§ 1ter).
 > Code : `manoeuvre/dataset/geographie.py`, `scripts/build_france_basemap.py`,
 > `scripts/manoeuvre_ihm.py` (`construire_exploration`, `_xy`, endpoints), et le
 > front-end `scripts/manoeuvre_ihm_assets/index.html` (`buildMap`).

@@ -90,7 +90,7 @@ python scripts/manoeuvre_ihm.py --dataset                   # http://localhost:8
 # coordonnees resolues par manoeuvre/dataset/geographie.py : plan de masse RTE
 # committe (grid_layout_rte.json, par VL, ~98%, hors-ligne, PRIMAIRE) -> snapshot
 # -> OSM/Overpass (ref:FR:RTE = substation_id). ODRE est tabulaire (sans geometrie).
-# Doc : docs/manoeuvre_ihm.md (S 1ter).
+# Doc : docs/manoeuvre/ihm.md (S 1ter).
 ```
 
 ### Sous-package `dataset/` (historique + exploration)

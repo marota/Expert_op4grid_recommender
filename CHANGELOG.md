@@ -60,7 +60,7 @@ vue topologique d'un poste **à l'heure souhaitée**.
   géométrie** → inutilisable pour la carte. Sans aucune coordonnée, l'IHM reste
   utile : **classement en liste** + **diagnostic** d'appariement. Approche
   détaillée (plan de masse → projection écran → fond calibré) :
-  **`docs/manoeuvre_carte_geographique.md`**.
+  **`docs/manoeuvre/carte_geographique.md`**.
 - **Carte** (frontend) : SVG **autonome** (sans tuiles ni librairie externe),
   disques **colorés par niveau de tension** sur un **fond géographique réel**
   (frontières départements + pays voisins, calibrées dans le repère du plan de
@@ -113,7 +113,7 @@ vue topologique d'un poste **à l'heure souhaitée**.
 - **Endpoints** : `POST /api/explore_day`, `POST /api/explore_poste`,
   `POST /api/explore_retain_target`. **Tests** :
   `tests/manoeuvre/test_exploration.py`, `tests/manoeuvre/test_geographie.py`,
-  `tests/manoeuvre/test_ihm_explore.py`. Doc : `docs/manoeuvre_ihm.md` (§ 1ter).
+  `tests/manoeuvre/test_ihm_explore.py`. Doc : `docs/manoeuvre/ihm.md` (§ 1ter).
 
 ### IHM de manœuvre : source dataset RTE 7000 + déploiement HuggingFace Space
 

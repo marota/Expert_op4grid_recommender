@@ -30,7 +30,7 @@ au sens de la vue topologique historique).
 """
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from typing import Optional
 
 #: heures par défaut visées pour caractériser une journée (instantané le plus
 #: proche choisi dans le dataset, pas de 5 min).

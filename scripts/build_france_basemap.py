@@ -32,8 +32,6 @@ Usage
 from __future__ import annotations
 
 import argparse
-import csv
-import io
 import json
 import pathlib
 import sys
@@ -118,8 +116,11 @@ def main() -> None:
     for vl, sub in vl2sub.items():
         if vl in layout and sub not in seen and _norm(code2dept.get(sub, "")) in cent:
             seen.add(sub)
-            X.append(layout[vl][0]); Y.append(layout[vl][1])
-            lo, la = cent[_norm(code2dept[sub])]; LON.append(lo); LAT.append(la)
+            X.append(layout[vl][0])
+            Y.append(layout[vl][1])
+            lo, la = cent[_norm(code2dept[sub])]
+            LON.append(lo)
+            LAT.append(la)
     n = len(X)
     print(f"  {n} paires de calibration")
     M = np.column_stack([LON, LAT, np.ones(n)])

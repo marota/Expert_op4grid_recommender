@@ -92,7 +92,7 @@ merge `main`, inerte tant que `HF_TOKEN`/`HF_SPACE` ne sont pas définis). Voir
 
 > **Approche détaillée de la carte** (du `grid_layout.json` fourni au rendu
 > France : agrégation par poste, projection écran, fond de carte calibré) :
-> **`docs/manoeuvre_carte_geographique.md`**.
+> **`docs/manoeuvre/carte_geographique.md`**.
 
 Sous l'onglet **📅 RTE7000**, après le choix d'une **date**, le bouton **🗺
 Explorer la journée** ouvre une **carte du réseau France** dans l'espace de
