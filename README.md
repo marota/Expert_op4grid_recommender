@@ -79,7 +79,12 @@ ranked feed of corrective actions** from it *(right)*.
 Once a **nodal** action is chosen, the `manoeuvre` module plans the detailed
 (node-breaker) target topology and the safe, ordered switching sequence to reach
 it — explored interactively through the web IHM (see the
-[dedicated section](#interactive-maneuver-interface-ihm) below).
+[dedicated section](#interactive-maneuver-interface-ihm) below). The IHM has **two
+complementary views**: **edit & sequence** a substation's target topology *(first
+view)*, or — on the RTE-7000 dataset — **explore a whole day on a France map** to
+spot the substations that actually moved and dive into one *(second view)*.
+
+#### First view — editing & sequencing
 
 ![Annotated overview of the maneuver IHM on a node-split scenario at CARRIP3](docs/manoeuvre/manoeuvre_ihm_overview.svg)
 
@@ -100,7 +105,9 @@ it — explored interactively through the web IHM (see the
 > **(5)** the nodal **bus view** (drag a feeder to re-route, drag one busbar onto
 > another to merge, *+ Nœud* to create a node);
 > **(6)** **2 · Topologie cible** — validate & save (locks "Calculer" until
-> validated);
+> validated; the save name is **pre-formatted** from the case, and an identical
+> departure+target is **de-duplicated** rather than overwritten — otherwise
+> auto-indexed);
 > **(7)** **3 · Séquence de manœuvres** — de-energization mode + compute /
 > **✋ manual**;
 > **(8)** **⚙ Calculer la topologie détaillée d'intérêt** (the nodal→detailed
@@ -108,9 +115,52 @@ it — explored interactively through the web IHM (see the
 > **(9)** the **step-by-step animated** sequence with a disconnector-operated-
 > under-load flagged in red (here **R18**) + **💾 save**;
 > **(10)** **⟳ Recharger** (next to the *Scénario Topologique* title) opens a modal
-> to replay a saved scenario.
+> to replay a saved scenario from the **shared scenario base** — searchable by
+> voltage, busbar count, substation, OC counts (DJ/SA/INT) and node moves, plus
+> year/season/weekday from the departure date-time tag — and to **export the whole
+> base as a zip**.
 > Bus colors are the native `topological_coloring`; the three right-hand busbars
 > are the target nodes.
+
+#### Second view — exploring a day on the France map
+
+![Annotated "Explorer la journée" view: France map of substation activity for an RTE-7000 day](docs/manoeuvre/manoeuvre_ihm_explore_map.svg)
+
+> **Fig. — "Explorer la journée": the France map of substation activity**
+> (RTE-7000 dataset, date 2021-01-03; three snapshots **00 h / 12 h / 23 h**).
+> Numbered affordances:
+> **(1)** **🗺 Explorer la journée** — from the *RTE7000* tab, after picking a date,
+> opens the France map in the visualization area (**no extra setup, no network**:
+> coordinates come from the committed RTE grid layout, ~98 % of substations);
+> **(2)** the **real geographic basemap** — French *départements* + neighbouring
+> countries, pre-projected into the layout frame (`GET /api/explore_basemap`), with
+> a silhouette / convex-hull fallback;
+> **(3)** one **disk per substation, coloured by voltage** (RTE palette: 400 kV red,
+> 225 kV green, …), drawn uniformly; the **10 most active voltage levels** of the
+> day carry a **gold halo + rank** — activity = number of switching devices (OC)
+> whose state changes across the three snapshots, **plus** node re-groupings
+> (splits/merges, badge **⚇**);
+> **(4)** optional **inter-substation connections** — electrical lines coloured by
+> voltage, drawn faint under the disks (constant width at any zoom) from
+> `extraire_connexions`; available for both *Local* and *RTE7000*;
+> **(5)** the **hour selector** (00 h / 12 h / 23 h) — picks which snapshot's
+> topology is opened on double-click;
+> **(6)** **click a disk → info bubble** — name, voltage, total OC changed with its
+> **DJ / SA / INT** breakdown, the **⚇ node re-groupings**, and the rank;
+> **(7)** the **filtering voltage legend** — *tout* / *aucun*, single-click a band to
+> show/hide it, **double-click to isolate** it, plus a **Lignes** toggle for the
+> connections;
+> **(8)** the **ranking of the most active voltage levels** — clickable, mirrors the
+> map highlights;
+> **(9)** **double-click a disk** (or the bubble button) → a topological
+> **exploration bar** to choose the **departure** hour and **retain a target** hour
+> (00 h / 12 h / 23 h) for that substation (and its voltage level), then hands off to
+> the **first view** above — devices whose state differs between departure and target
+> are highlighted on the target diagram (**bright green** = closed, **bright orange**
+> = opened).
+> Coordinates show their source and coverage in the header
+> (`coord. : layout (4723/4811, 98 %)`); an OSM/Overpass fallback fills the rest and
+> is offered for download (**⬇ coordonnées**).
 
 ---
 

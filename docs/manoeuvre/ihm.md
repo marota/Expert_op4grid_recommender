@@ -99,6 +99,22 @@ Explorer la journée** ouvre une **carte du réseau France** dans l'espace de
 visualisation (à la place des schémas de poste), pour repérer d'un coup d'œil les
 postes **intéressants** d'une journée.
 
+![Vue « Explorer la journée » annotée : carte France de l'activité des postes sur une journée RTE-7000](manoeuvre_ihm_explore_map.svg)
+
+> **Fig. — « Explorer la journée »** (date 2021-01-03 ; 3 instantanés 00 h / 12 h /
+> 23 h). **(1)** bouton **🗺 Explorer la journée** (onglet *RTE7000*) ; **(2)** fond
+> de carte réel (départements + voisins, `GET /api/explore_basemap`) ; **(3)** un
+> disque par poste **coloré par tension**, les **10 VL les plus actifs** avec halo
+> doré + rang (activité = OC changés + ⚇ re-groupements) ; **(4)** **connexions
+> inter-postes** colorées par tension, en fondu (bascule **Lignes**) ; **(5)**
+> **sélecteur d'heure** 00 h / 12 h / 23 h (heure ouverte au double-clic) ; **(6)**
+> **bulle d'info** au clic (nom, tension, OC changés DJ/SA/INT, ⚇, rang) ; **(7)**
+> **légende filtrante** (*tout* / *aucun*, clic = filtrer, double-clic = isoler) ;
+> **(8)** **classement** des VL les plus actifs (cliquable) ; **(9)** au double-clic,
+> **barre d'exploration** (Départ / Retenir comme cible 00 h / 12 h / 23 h + niveau
+> de tension) qui bascule en vue topologique (§2) avec mise en évidence des organes
+> dont l'état diffère départ→cible (vert = fermé, orange = ouvert).
+
 **Estimation de l'intérêt** — trois situations sont chargées : **minuit (00:00)**,
 **midi (12:00)** et **23 h** (l'instantané le plus proche de chaque heure). Pour
 chaque poste, on compte le **nombre d'organes de coupure (OC) dont l'état change**
