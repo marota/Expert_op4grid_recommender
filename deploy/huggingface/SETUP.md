@@ -74,9 +74,10 @@ Notes :
 
    git checkout --orphan hf-deploy
    cp deploy/huggingface/README.md README.md   # HF attend le frontmatter à la racine
-   # Le endpoint git HF rejette les binaires non-LFS (>10 MiB ou .pptx/.prof…) :
-   # on les retire du commit de déploiement (restent sur le disque / dans le dépôt).
-   git rm -r --cached --ignore-unmatch 'venv*' '*.prof' '*.pptx'
+   # L'image ne COPIE que expert_op4grid_recommender/ + scripts/. docs/ et data/
+   # portent des binaires (PNG) inutiles au Space et rejetés par le Hub HF (hors
+   # Xet/LFS) ; on les retire du snapshot (avec tests/) → push binaire-free et léger.
+   rm -rf docs data tests
    git add -A
    git commit -m "Deploy Expert Op4Grid — IHM Manœuvre"
    git log --oneline hf-deploy                  # DOIT être un commit unique

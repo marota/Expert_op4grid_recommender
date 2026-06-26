@@ -59,6 +59,11 @@ jobs:
         run: |
           cp deploy/huggingface/README.md README.md   # HF needs the frontmatter at repo root
           git checkout --orphan hf-deploy
+          # The image only COPYs expert_op4grid_recommender/ + scripts/. docs/ and
+          # data/ carry binary assets (PNGs) the Space doesn't need and that the HF
+          # Hub rejects unless stored via Xet/LFS — drop them (and tests/) from the
+          # snapshot so the push is binary-free and lean.
+          rm -rf docs data tests
           git add -A
           git commit -q -m "Deploy ${GITHUB_SHA::7}"
           test "$(git rev-list --count HEAD)" -eq 1   # sanity: exactly one commit
