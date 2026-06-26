@@ -58,6 +58,7 @@ def _build_day(mod):
                  for h in ("00:00", "12:00", "23:00")]
     de.kinds, de.vl_meta, de.sub_name = kinds, vl_meta, sub_name
     de.struct = exploration.extraire_structure_topo(net)
+    de.connexions = exploration.extraire_connexions(net, vl_meta)
     ch = exploration.changements_par_vl([h0, h12, h23], kinds)
     nodaux = exploration.changements_nodaux_par_vl([h0, h12, h23], de.struct)
     exploration.fusionner_nodaux(ch, nodaux)
@@ -92,6 +93,10 @@ def test_explore_payload_shape():
     # le décompte des re-groupements de nœuds est exposé (carte + classement).
     assert "nodal" in payload["classement"][0]
     assert all("nodal" in p for p in payload["postes"])
+    # connexions inter-postes (lignes) exposées, aux deux extrémités géolocalisées.
+    assert "connexions" in payload and payload["n_connexions"] == len(payload["connexions"])
+    geo = {p["sub"] for p in payload["postes"]}
+    assert all(c["s1"] in geo and c["s2"] in geo for c in payload["connexions"])
     # champs de résolution des coordonnées présents (carte / téléchargement).
     assert "coord_stats" in payload and "coord_file" in payload
 
@@ -205,5 +210,7 @@ def test_asset_contient_la_carte():
                   # nom de scénario formaté + sélection poste hors carte
                   "defaultScenName", "topoDepart", "topoCible", "observee",
                   # recherche de poste utilisable pendant l'exploration
-                  "selectPoste"):
+                  "selectPoste",
+                  # couche connexions (lignes inter-postes) + bascule légende
+                  "class=\"conn\"", "linesToggle", "showLines"):
         assert token in txt, f"jeton front-end manquant : {token}"

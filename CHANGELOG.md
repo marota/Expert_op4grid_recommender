@@ -76,6 +76,15 @@ vue topologique d'un poste **à l'heure souhaitée**.
   **« aucun »** pour (dé)sélectionner toutes les bandes (`voltToggle`, `voltAll`,
   `voltBand`, `MAP.voltOff`). Permet d'isoler un niveau (p. ex. 400 kV) sur la
   carte.
+- **Connexions inter-postes (lignes)** : la carte trace les **lignes électriques
+  entre postes**, **colorées par niveau de tension** et **en fondu** (trait fin
+  d'épaisseur constante au zoom, faible opacité) sous les disques — pour visualiser
+  la structure du réseau sans gêner la lecture. Extraction générique
+  (`exploration.extraire_connexions`, lignes/liaisons reliant deux **postes
+  distincts**, dédupliquées par couple + tension) → fonctionne pour une situation
+  **locale** comme **RTE7000**. **Bascule dédiée dans la légende** (« Lignes »,
+  `linesToggle`, `MAP.showLines`) ; les lignes respectent aussi le filtre par
+  tension. Restreintes aux extrémités **géolocalisées** (`connexions` du payload).
 - **Orientation nord en haut** : le plan de masse RTE ayant déjà le nord en haut
   dans son repère (y croissant vers le sud), disques **et** fond de carte sont
   servis **sans inversion d'axe** (les sources lon/lat OSM restent projetées

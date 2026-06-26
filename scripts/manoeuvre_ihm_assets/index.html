@@ -150,6 +150,10 @@
  #mapSvgWrap svg{display:block;width:100%;height:100%;touch-action:none}
  .frhull{fill:#fcfcfa;stroke:#c7cdb8;stroke-width:2;stroke-linejoin:round;pointer-events:none}
  .nbr{fill:#c3c9d0;stroke:#8f9cb1;stroke-width:1;stroke-linejoin:round;pointer-events:none}
+ /* Connexions inter-postes (lignes) : trait fin « fondu » sous les disques,
+    coloré par tension ; non-scaling = épaisseur constante quel que soit le zoom. */
+ .conn{stroke-width:0.8;vector-effect:non-scaling-stroke;stroke-opacity:.17;
+   stroke-linecap:round;pointer-events:none}
  .dept{fill:#fcfcfa;stroke:#d9d2c0;stroke-width:0.8;stroke-linejoin:round;pointer-events:none}
  .pdisk{cursor:pointer;stroke:#ffffff;stroke-width:0.5}
  .pdisk:hover{stroke:#1e293b;stroke-width:2}
@@ -177,6 +181,8 @@
  #mapLegend .lg:hover{background:#eef2ff}
  #mapLegend .lg.off{opacity:.35;text-decoration:line-through}
  #mapLegend .dot{width:11px;height:11px;border-radius:50%;display:inline-block;border:1px solid #0003}
+ #mapLegend .lgln{margin-top:3px;border-top:1px solid #e2e8f0;padding-top:3px}
+ #mapLegend .lndot{width:13px;height:0;border-top:2px solid #64748b;display:inline-block;opacity:.6}
  #mapLegend .lghd{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;gap:6px}
  #mapLegend .lgbtn{font-size:9px;padding:1px 5px;margin:0 0 0 2px;border:1px solid #b6c0cf;border-radius:3px;background:#fff;cursor:pointer}
  #mapLegend .hint{color:#64748b;margin-top:3px;max-width:170px}
@@ -1116,7 +1122,8 @@ async function nodCompute(){
 // viewBox courant (pan/zoom) ; ``box`` = viewBox de référence (recentrage) ;
 // ``bySub`` = index poste géolocalisé ; ``topo*`` = poste/heure en vue topo.
 let MAP={data:null,vb:null,box:null,bySub:{},heures:[],clickTimer:null,
-  openHour:null,topoSub:null,topoVl:null,topoHour:null,cibleHour:null,voltOff:new Set()};
+  openHour:null,topoSub:null,topoVl:null,topoHour:null,cibleHour:null,voltOff:new Set(),
+  showLines:true};
 const EARTH_R=6378137;   // Web Mercator (même projection que Co-Study4Grid)
 function merc(lon,lat){return [EARTH_R*lon*Math.PI/180,
   EARTH_R*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))];}
@@ -1252,6 +1259,13 @@ function buildMap(postes){
   }else{
     const hull=convexHull(pts);if(hull.length>=3)s+=poly('frhull',hull);
   }
+  // Connexions inter-postes (lignes), en fondu SOUS les disques, colorées par
+  // tension — les deux extrémités doivent être géolocalisées (dans bySub).
+  const conns=(MAP.data&&MAP.data.connexions)||[];
+  conns.forEach(c=>{const a=MAP.bySub[c.s1],b2=MAP.bySub[c.s2];if(!a||!b2)return;
+    s+='<line class="conn" data-vb="'+voltBand(c.nv)+'" stroke="'+voltColor(c.nv)
+      +'" x1="'+a.x.toFixed(1)+'" y1="'+a.y.toFixed(1)
+      +'" x2="'+b2.x.toFixed(1)+'" y2="'+b2.y.toFixed(1)+'"/>';});
   pts.forEach(q=>{const top=!!q.p.rank,rr=top?rtop:r,col=voltColor(q.p.nv),vb=voltBand(q.p.nv);
     if(top)s+='<circle class="phalo" data-vb="'+vb+'" cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(rr*1.55).toFixed(1)+'"/>';
     s+='<circle class="pdisk'+(top?' ptop':'')+'" data-vb="'+vb+'" data-sub="'+xesc(q.p.sub)+'" cx="'+q.x.toFixed(1)
@@ -1266,9 +1280,13 @@ function buildMap(postes){
 // désélectionnées (MAP.voltOff = indices de VOLT_BANDS masqués).
 function applyVoltFilter(){const svg=document.getElementById('mapSvg');if(!svg)return;
   svg.querySelectorAll('.pdisk,.phalo').forEach(el=>{
-    el.style.display=MAP.voltOff.has(+el.getAttribute('data-vb'))?'none':'';});}
+    el.style.display=MAP.voltOff.has(+el.getAttribute('data-vb'))?'none':'';});
+  // Lignes : masquées si la couche est désactivée OU si leur tension est filtrée.
+  svg.querySelectorAll('.conn').forEach(el=>{
+    el.style.display=(!MAP.showLines||MAP.voltOff.has(+el.getAttribute('data-vb')))?'none':'';});}
 function voltToggle(i){if(MAP.voltOff.has(i))MAP.voltOff.delete(i);else MAP.voltOff.add(i);
   applyVoltFilter();renderLegend();}
+function linesToggle(){MAP.showLines=!MAP.showLines;applyVoltFilter();renderLegend();}
 function voltAll(on){MAP.voltOff=on?new Set():new Set(VOLT_BANDS.map((_,i)=>i));
   applyVoltFilter();renderLegend();}
 
@@ -1341,7 +1359,12 @@ function renderLegend(){const lg=document.getElementById('mapLegend');
     h+='<div class="lg'+(off?' off':'')+'" onclick="voltToggle('+i+')" title="Cliquer pour '
       +(off?'afficher':'masquer')+' cette tension"><span class="dot" style="background:'
       +b.color+'"></span>'+b.label+'</div>';});
-  h+='<div class="hint">⭐ halo = top 10 · clic tension = afficher/masquer · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
+  // Bascule de la couche « connexions » (lignes entre postes).
+  const nc=(MAP.data&&MAP.data.n_connexions)||0;
+  h+='<div class="lg lgln'+(MAP.showLines?'':' off')+'" onclick="linesToggle()" '
+    +'title="Afficher/masquer les lignes entre postes"><span class="lndot"></span>'
+    +'Lignes'+(nc?' ('+nc+')':'')+'</div>';
+  h+='<div class="hint">⭐ halo = top 10 · clic tension/lignes = afficher/masquer · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
   lg.innerHTML=h;}
 
 // Classement **par voltage level** (plus fin que par poste) : chaque ligne = un

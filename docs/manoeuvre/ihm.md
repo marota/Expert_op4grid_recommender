@@ -159,6 +159,15 @@ La **légende des tensions** est **filtrante** : cliquer une bande affiche/masqu
 les disques de ce niveau ; les boutons **« tout »** / **« aucun »** (dé)sélectionnent
 toutes les bandes — utile pour isoler un niveau (p. ex. n'afficher que le 400 kV).
 
+**Connexions inter-postes** — la carte trace en option les **lignes électriques
+entre postes**, colorées par niveau de tension et **en fondu** (trait fin, faible
+opacité, épaisseur constante au zoom) sous les disques, pour situer la structure
+du réseau sans gêner la lecture. Les connexions sont extraites du réseau
+(`exploration.extraire_connexions` — lignes reliant deux postes distincts,
+dédupliquées), donc disponibles aussi bien pour une situation **locale** que
+**RTE7000**. La légende porte une **bascule « Lignes »** (afficher/masquer) ; les
+lignes respectent aussi le filtre par tension.
+
 **Coordonnées des postes** — le dataset RTE 7000 ne porte **pas** de coordonnées
 géographiques (pas d'extension `substationPosition`). Elles sont résolues par une
 **chaîne de sources** (`manoeuvre/dataset/geographie`) :

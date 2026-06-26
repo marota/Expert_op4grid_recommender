@@ -176,6 +176,20 @@ def test_fusionner_nodaux_ajoute_au_total():
     assert postes["S"]["nodal"] == 3 and postes["S"]["total"] == 5
 
 
+def test_extraire_connexions_reseau_reference():
+    pp = pytest.importorskip("pypowsybl")
+    net = pp.network.create_four_substations_node_breaker_network()
+    vl_meta, _ = ex.structure_reseau(net)
+    cx = ex.extraire_connexions(net, vl_meta)
+    assert cx, "des lignes inter-postes attendues"
+    for c in cx:
+        assert c["s1"] != c["s2"]                 # lignes entre postes DISTINCTS
+        assert isinstance(c["nv"], float) and c["nv"] > 0
+    # déduplication par couple de postes + tension (pas de doublon).
+    keys = [(min(c["s1"], c["s2"]), max(c["s1"], c["s2"]), round(c["nv"])) for c in cx]
+    assert len(keys) == len(set(keys))
+
+
 def test_extraire_structure_topo_reseau_reference():
     pp = pytest.importorskip("pypowsybl")
     net = pp.network.create_four_substations_node_breaker_network()

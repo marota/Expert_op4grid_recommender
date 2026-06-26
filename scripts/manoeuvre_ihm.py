@@ -1091,6 +1091,7 @@ class DayExploration:
         self.etats: dict[str, dict[str, dict[str, bool]]] = {}  # heure -> {vl:{sw:open}}
         self.kinds: dict[str, str] = {}
         self.struct: dict[str, dict] = {}            # {vl:{edges,poids}} (invariant)
+        self.connexions: list[dict] = []             # lignes inter-postes [{s1,s2,nv}]
         self.vl_meta: dict[str, dict] = {}
         self.sub_name: dict[str, str] = {}
         self.postes: dict[str, dict] = {}
@@ -1134,6 +1135,8 @@ def construire_exploration(date: str,
             # structure topologique invariante (arêtes + ouvrages par nœud) pour
             # quantifier les re-groupements de nœuds (scissions / fusions).
             de.struct = exploration.extraire_structure_topo(net)
+            # connexions inter-postes (lignes) pour le tracé carte (par tension).
+            de.connexions = exploration.extraire_connexions(net, de.vl_meta)
             ref_net = net
         # les réseaux des autres heures sont libérés (déréférencés) ici.
 
@@ -1221,15 +1224,21 @@ def _explore_payload(de: DayExploration) -> dict:
                      "nodal": v.get("nodal", 0)} for v in p["vls"]],
         })
     n_actifs = sum(1 for v in all_vls)
+    # Connexions inter-postes (lignes) restreintes aux deux extrémités
+    # géolocalisées — tracées en fondu sur la carte, colorées par tension.
+    geo = de.positions
+    connexions = [{"s1": c["s1"], "s2": c["s2"], "nv": c["nv"]}
+                  for c in de.connexions if c["s1"] in geo and c["s2"] in geo]
     return {
         "ok": True, "date": de.date, "heures": de.heures,
         "coord_source": de.coord_source, "coord_stats": de.coord_stats,
         # un instantané committable a-t-il été persisté (fetch OSM réussi) ?
         "coord_file": de.coord_source == "osm" and GEO_SNAPSHOT.exists(),
         "n_postes": len(de.postes), "n_actifs": n_actifs,
-        "n_geolocalises": len(postes_map),
+        "n_geolocalises": len(postes_map), "n_connexions": len(connexions),
         "types_oc": list(exploration.TYPES_OC),
         "postes": postes_map, "classement": classement,
+        "connexions": connexions,
     }
 
 

@@ -186,6 +186,42 @@ def extraire_structure_topo(net) -> dict[str, dict]:
     return struct
 
 
+def extraire_connexions(net, vl_meta: dict[str, dict]) -> list[dict]:
+    """Connexions **inter-postes** (lignes électriques) pour les tracer sur la
+    carte : ``[{'s1', 's2', 'nv'}, …]`` (substations reliées + tension nominale du
+    palier), **dédupliquées** par couple de postes + tension. Les transformateurs
+    (intra-poste) sont ignorés ; on ne garde que les lignes reliant **deux postes
+    distincts**. ``vl_meta`` = sortie de ``structure_reseau`` (substation +
+    nominal_v par VL). pypowsybl ; best-effort (réseau quelconque : local ou
+    dataset)."""
+    out: dict[tuple, dict] = {}
+
+    def _ajouter(vl1, vl2) -> None:
+        m1, m2 = vl_meta.get(str(vl1)), vl_meta.get(str(vl2))
+        if not m1 or not m2:
+            return
+        s1, s2 = m1.get("substation"), m2.get("substation")
+        if not s1 or not s2 or s1 == s2:
+            return
+        nv = m1.get("nominal_v") or m2.get("nominal_v") or 0.0
+        key = (min(s1, s2), max(s1, s2), round(float(nv)))
+        out.setdefault(key, {"s1": s1, "s2": s2, "nv": float(nv)})
+
+    # Lignes AC (+ liaisons HVDC) : chaque extrémité porte un voltage_level_id.
+    for getter in ("get_lines", "get_tie_lines", "get_hvdc_lines"):
+        try:
+            df = getattr(net, getter)(all_attributes=True)
+        except Exception:
+            continue
+        cols = set(df.columns)
+        if not {"voltage_level1_id", "voltage_level2_id"} <= cols:
+            continue
+        for vl1, vl2 in zip(df["voltage_level1_id"].tolist(),
+                            df["voltage_level2_id"].tolist()):
+            _ajouter(vl1, vl2)
+    return list(out.values())
+
+
 # ===========================================================================
 # Cœur d'agrégation (Python pur — testable sans pypowsybl)
 # ===========================================================================
