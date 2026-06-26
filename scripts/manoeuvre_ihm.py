@@ -146,17 +146,35 @@ _SAISONS = {12: "hiver", 1: "hiver", 2: "hiver", 3: "printemps", 4: "printemps",
             9: "automne", 10: "automne", 11: "automne"}
 SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
 
+def _persist_root():
+    """Racine des **données à conserver** (scénarios, séquences, coordonnées
+    résolues) — à mettre sur le **stockage persistant** ``/data``. Pilotée par
+    ``MANOEUVRE_DATA_DIR`` ; à défaut ``DGITT_CACHE_DIR`` (**rétro-compatibilité** :
+    l'ancienne config mutualisait tout dans le cache) ; ``None`` sinon.
+
+    **Distincte** du cache d'**instantanés téléchargés** (``DGITT_CACHE_DIR``, le
+    dossier ``<date>/…`` des XIIDM), volumineux et **régénérable** → laissé
+    **éphémère** par défaut pour ne **pas** encombrer le disque persistant."""
+    return os.environ.get("MANOEUVRE_DATA_DIR") or os.environ.get("DGITT_CACHE_DIR")
+
+
+def _persist_subdir(env_key: str, sub: str, fallback: str) -> str:
+    """Sous-dossier persistable : variable d'env explicite si fournie, sinon sous
+    ``_persist_root()`` (cascade ``/data``), sinon défaut local (dev/tests)."""
+    explicit = os.environ.get(env_key)
+    if explicit:
+        return explicit
+    root = _persist_root()
+    return str(pathlib.Path(root) / sub) if root else fallback
+
+
 # Instantané des coordonnées de postes (résolu/persisté par « Explorer la
-# journée »). Par défaut **dans le cache** (``DGITT_CACHE_DIR``) : ainsi, pointer
-# ce cache vers le **stockage persistant HF** (``DGITT_CACHE_DIR=/data/dgitt``)
-# fait survivre **et** les instantanés XIIDM **et** les coordonnées aux
-# redémarrages — une seule variable. ``MANOEUVRE_GEO_SNAPSHOT`` force un autre
-# chemin. Coordonnées via OpenStreetMap/Overpass, actif sauf
+# journée »). Donnée **à conserver** → sous ``_persist_root()`` (avec les
+# scénarios), **pas** sous le cache de téléchargements. ``MANOEUVRE_GEO_SNAPSHOT``
+# force un autre chemin. Coordonnées via OpenStreetMap/Overpass, actif sauf
 # ``MANOEUVRE_ENABLE_OSM=0`` (alias historique ``MANOEUVRE_ENABLE_ODRE``).
-GEO_SNAPSHOT = pathlib.Path(os.environ.get(
-    "MANOEUVRE_GEO_SNAPSHOT",
-    str(pathlib.Path(os.environ.get("DGITT_CACHE_DIR", ".cache/dgitt"))
-        / "postes_rte_geo.json")))
+GEO_SNAPSHOT = pathlib.Path(_persist_subdir(
+    "MANOEUVRE_GEO_SNAPSHOT", "postes_rte_geo.json", ".cache/dgitt/postes_rte_geo.json"))
 # Plan de masse RTE committé (par VL) : source **primaire** des coordonnées de la
 # carte (hors-ligne, ~98 % des postes). ``MANOEUVRE_GEO_LAYOUT`` force un autre chemin.
 GEO_LAYOUT = pathlib.Path(os.environ.get("MANOEUVRE_GEO_LAYOUT",
@@ -164,17 +182,6 @@ GEO_LAYOUT = pathlib.Path(os.environ.get("MANOEUVRE_GEO_LAYOUT",
 # Fond de carte (frontières) déjà projeté dans le repère du plan de masse.
 GEO_BASEMAP = pathlib.Path(os.environ.get("MANOEUVRE_GEO_BASEMAP",
                                           geographie.BASEMAP_DEFAUT))
-
-
-def _cache_subdir(env_key: str, sub: str, fallback: str) -> str:
-    """Dossier persistable : variable d'env explicite si fournie, sinon **sous le
-    cache** (``DGITT_CACHE_DIR``) pour **cascader** avec lui sur le stockage `/data`
-    (une seule variable à régler), sinon défaut local (dev/tests)."""
-    explicit = os.environ.get(env_key)
-    if explicit:
-        return explicit
-    cache = os.environ.get("DGITT_CACHE_DIR")
-    return str(pathlib.Path(cache) / sub) if cache else fallback
 OSM_ENABLED = (os.environ.get("MANOEUVRE_ENABLE_OSM")
                or os.environ.get("MANOEUVRE_ENABLE_ODRE", "1")).lower() not in (
     "0", "false", "no", "off")
@@ -1943,16 +1950,17 @@ def main():
                     help="Interface d'écoute (0.0.0.0 pour un conteneur / Space).")
     ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     ap.add_argument("--scenarios-dir",
-                    default=_cache_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
-                                          "tests/manoeuvre/scenarios"),
+                    default=_persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                                            "tests/manoeuvre/scenarios"),
                     help="Dossier de sauvegarde des scénarios cible (env "
-                         "MANOEUVRE_SCENARIOS_DIR ; sinon sous DGITT_CACHE_DIR — "
-                         "**base partagée**, persistante si le cache pointe /data).")
+                         "MANOEUVRE_SCENARIOS_DIR ; sinon sous MANOEUVRE_DATA_DIR — "
+                         "**base partagée** à mettre sur /data, distincte du cache "
+                         "d'instantanés DGITT_CACHE_DIR).")
     ap.add_argument("--sequences-dir",
-                    default=_cache_subdir("MANOEUVRE_SEQUENCES_DIR", "sequences",
-                                          "tests/manoeuvre/sequences"),
+                    default=_persist_subdir("MANOEUVRE_SEQUENCES_DIR", "sequences",
+                                            "tests/manoeuvre/sequences"),
                     help="Dossier de sauvegarde des séquences générées (env "
-                         "MANOEUVRE_SEQUENCES_DIR ; sinon sous DGITT_CACHE_DIR).")
+                         "MANOEUVRE_SEQUENCES_DIR ; sinon sous MANOEUVRE_DATA_DIR).")
     # Mode dataset (source par date depuis HuggingFace).
     ap.add_argument("--dataset", action="store_true",
                     help="Activer la source dataset RTE 7000 (défaut si --grid absent).")

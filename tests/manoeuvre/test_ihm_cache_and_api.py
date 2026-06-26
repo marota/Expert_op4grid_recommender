@@ -320,3 +320,49 @@ def test_normalize_groups_ignores_empty_nodes():
     out = ihm._normalize_groups(["a", "b", "c"], [["a"], [], ["b"]])
     assert [] not in out
     assert ["a"] in out and ["b"] in out and ["c"] in out
+
+
+# --------------------------------------------------------------------------
+# Persistance : données à conserver (MANOEUVRE_DATA_DIR) **découplées** du cache
+# d'instantanés téléchargés (DGITT_CACHE_DIR), qui doit rester éphémère.
+# --------------------------------------------------------------------------
+
+def _clear_persist_env(monkeypatch):
+    for k in ("MANOEUVRE_DATA_DIR", "DGITT_CACHE_DIR", "MANOEUVRE_SCENARIOS_DIR",
+              "MANOEUVRE_GEO_SNAPSHOT"):
+        monkeypatch.delenv(k, raising=False)
+
+
+def test_persist_data_dir_decoupled_from_download_cache(monkeypatch):
+    # Config recommandée : données persistantes sur /data, cache de
+    # téléchargements ailleurs (éphémère). Les scénarios/coordonnées tombent
+    # sous MANOEUVRE_DATA_DIR, **jamais** sous DGITT_CACHE_DIR.
+    _clear_persist_env(monkeypatch)
+    monkeypatch.setenv("MANOEUVRE_DATA_DIR", "/data")
+    monkeypatch.setenv("DGITT_CACHE_DIR", "/tmp/dl-cache")
+    assert ihm._persist_root() == "/data"
+    assert ihm._persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios", "fb") == "/data/scenarios"
+    assert ihm._persist_subdir("MANOEUVRE_GEO_SNAPSHOT", "postes_rte_geo.json",
+                               "fb") == "/data/postes_rte_geo.json"
+
+
+def test_persist_root_falls_back_to_cache_for_compat(monkeypatch):
+    # Rétro-compatibilité : sans MANOEUVRE_DATA_DIR, l'ancienne config qui
+    # mutualisait tout dans DGITT_CACHE_DIR continue de fonctionner.
+    _clear_persist_env(monkeypatch)
+    monkeypatch.setenv("DGITT_CACHE_DIR", "/data/dgitt")
+    assert ihm._persist_root() == "/data/dgitt"
+    assert ihm._persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                               "fb") == "/data/dgitt/scenarios"
+
+
+def test_persist_subdir_explicit_env_wins_and_local_fallback(monkeypatch):
+    # Variable explicite prioritaire ; sans aucune racine → défaut local (tests).
+    _clear_persist_env(monkeypatch)
+    monkeypatch.setenv("MANOEUVRE_SCENARIOS_DIR", "/elsewhere/scen")
+    assert ihm._persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                               "tests/manoeuvre/scenarios") == "/elsewhere/scen"
+    monkeypatch.delenv("MANOEUVRE_SCENARIOS_DIR", raising=False)
+    assert ihm._persist_root() is None
+    assert ihm._persist_subdir("MANOEUVRE_SCENARIOS_DIR", "scenarios",
+                               "tests/manoeuvre/scenarios") == "tests/manoeuvre/scenarios"

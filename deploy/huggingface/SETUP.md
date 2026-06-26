@@ -46,23 +46,31 @@ gros fichier dans l'historique à gérer.
 
 ### Persistance `/data` — base de scénarios partagée qui survit aux redémarrages
 
-Par défaut, le système de fichiers du Space est **éphémère** : la base partagée de
-scénarios (et le cache des instantanés/coordonnées) est **perdue à chaque
-redémarrage/rebuild**. Pour la conserver, **une seule variable suffit** (tout vit
-sous `DGITT_CACHE_DIR`, qui cascade vers `scenarios/`, `sequences/`, coordonnées) :
+Deux espaces **distincts** (pour ne **pas** gaspiller le disque persistant payant) :
+
+| Espace | Variable | Contenu | Sur `/data` ? |
+|---|---|---|---|
+| **Données à conserver** | `MANOEUVRE_DATA_DIR` | base partagée **scénarios** + séquences + **coordonnées** résolues | **oui** |
+| **Cache de téléchargements** | `DGITT_CACHE_DIR` | **instantanés XIIDM** des journées (volumineux, re-téléchargeables) | **non** (éphémère) |
+
+Mise en place :
 
 1. **Activer le stockage persistant** : Space → **Settings → Persistent storage** →
    choisir un volume (offre payante HF). Il est monté sur **`/data`**.
-2. **Pointer le cache dessus** : Space → **Settings → Variables and secrets** →
-   *New variable* **`DGITT_CACHE_DIR` = `/data/dgitt`**.
-3. **Redémarrer** le Space (Restart / Factory rebuild).
+2. **Pointer les données dessus** : Space → **Settings → Variables and secrets** →
+   *New variable* **`MANOEUVRE_DATA_DIR` = `/data`** (scénarios → `/data/scenarios`,
+   séquences → `/data/sequences`, coordonnées → `/data/postes_rte_geo.json`).
+3. **Laisser `DGITT_CACHE_DIR` éphémère** (valeur par défaut `…/.cache/dgitt`) : les
+   **journées téléchargées n'encombrent pas** le stockage persistant — elles sont
+   re-téléchargées à la demande.
+4. **Redémarrer** le Space.
 
-Désormais `DGITT_CACHE_DIR=/data/dgitt` ⇒ scénarios dans `/data/dgitt/scenarios`,
-séquences dans `/data/dgitt/sequences`, coordonnées OSM dans
-`/data/dgitt/postes_rte_geo.json`, instantanés XIIDM dans `/data/dgitt/…` — tout
-**persiste** et reste **partagé** entre tous les visiteurs. *(Pour dissocier un
-dossier du cache, on peut surcharger `MANOEUVRE_SCENARIOS_DIR` /
-`MANOEUVRE_SEQUENCES_DIR` explicitement.)*
+> **Vous aviez mis `DGITT_CACHE_DIR=/data/dgitt` ?** Ça marchait (tout persistait,
+> instantanés compris). Pour ne **plus** conserver les journées : **ajoutez**
+> `MANOEUVRE_DATA_DIR=/data/dgitt` (les scénarios restent dans
+> `/data/dgitt/scenarios`) et **remettez `DGITT_CACHE_DIR`** à un chemin éphémère
+> (p. ex. supprimez la variable → défaut `/home/user/app/.cache/dgitt`). Vous pouvez
+> alors supprimer les dossiers `/data/dgitt/{2021,2022,2023}` devenus inutiles.
 
 Sans stockage persistant, la base reste **partagée le temps d'une session** du Space
 (tous les visiteurs voient les mêmes scénarios) mais repart à zéro au redémarrage ;
