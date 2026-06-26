@@ -91,6 +91,12 @@ vue topologique d'un poste **à l'heure souhaitée**.
   en changement de nœud). La modale « Recharger » devient une **recherche
   filtrante** (texte poste/nom + tension + seuils min barres/DJ/SA/INT/nœud), chaque
   résultat affichant ses métadonnées (`/api/scenarios` renvoie les objets).
+  - **Tag date/heure de départ** : chaque scénario logge sa **date + heure de
+    départ** — en **RTE7000** la date/heure choisies, en **local** l'horodatage du
+    fichier (`net.case_date`) — d'où **année / saison / jour de semaine**
+    (`Session._date_tags`). Filtres dédiés **année / saison / jour** dans la
+    recherche. Au **rechargement** d'un scénario RTE7000, les sélecteurs **Date** et
+    **Heure** sont **re-synchronisés** sur son contexte (`syncDepartFromScenario`).
 - **Légende des tensions — double-clic d'isolement** : un **double-clic** sur une
   bande **isole** ce niveau (masque tous les autres) ; un nouveau double-clic
   lorsqu'il est déjà seul affiché **réaffiche tout** (`voltClick`/`voltDouble`,

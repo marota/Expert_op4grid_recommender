@@ -140,6 +140,10 @@ POSTES_CATALOG: list[tuple[str, list[str]]] = [
 
 SLD_PAR = ppn.SldParameters(topological_coloring=True)
 SCEN_DIR = pathlib.Path("tests/manoeuvre/scenarios")    # redéfini dans main()
+#: saison météorologique par mois (tag de recherche des scénarios).
+_SAISONS = {12: "hiver", 1: "hiver", 2: "hiver", 3: "printemps", 4: "printemps",
+            5: "printemps", 6: "été", 7: "été", 8: "été",
+            9: "automne", 10: "automne", 11: "automne"}
 SEQ_DIR = pathlib.Path("tests/manoeuvre/sequences")     # redéfini dans main()
 
 # Instantané des coordonnées de postes (résolu/persisté par « Explorer la
@@ -968,10 +972,31 @@ class Session:
                     out[eq] = idx
         return out
 
-    def scenario_meta(self) -> dict:
+    def _date_tags(self, depart_dt=None) -> dict:
+        """Tags **date/heure de départ** : ISO fournie par l'IHM (RTE7000 : date +
+        heure choisies) ou ``case_date`` du réseau (local : horodatage du fichier).
+        Dérive année, **saison** et **jour de semaine** pour le filtrage."""
+        from datetime import datetime
+        dt = None
+        if depart_dt:
+            try:
+                dt = datetime.fromisoformat(str(depart_dt).replace("Z", "+00:00"))
+            except (ValueError, TypeError):
+                dt = None
+        if dt is None:
+            cd = getattr(self.net, "case_date", None)
+            if isinstance(cd, datetime):
+                dt = cd
+        if dt is None:
+            return {"dt": None, "year": None, "season": None, "weekday": None}
+        return {"dt": dt.strftime("%Y-%m-%dT%H:%M"), "year": dt.year,
+                "season": _SAISONS.get(dt.month), "weekday": dt.weekday()}
+
+    def scenario_meta(self, depart_dt=None) -> dict:
         """Métadonnées **de recherche** du scénario courant (départ → cible) :
-        tension, nb de barres, OC changés par type (DJ/SA/INT) et nombre d'ouvrages
-        **déplacés** entre nœuds (changement de partition, isolés ignorés)."""
+        tension, nb de barres, OC changés par type (DJ/SA/INT), nombre d'ouvrages
+        **déplacés** entre nœuds (changement de partition, isolés ignorés), et
+        **date/heure de départ** (année / saison / jour)."""
         df = self.switches_df(self.vl)
         kinds = ({str(s): str(k) for s, k in zip(df.index, df["kind"])}
                  if "kind" in df.columns else {})
@@ -996,9 +1021,10 @@ class Session:
         return {"vl": self.vl, "sub": sub, "nominal_v": round(nv, 1),
                 "nb_barres": nb_barres, "nb_depart": nb_depart, "nb_cible": nb_cible,
                 "n_dj": cnt["BREAKER"], "n_sa": cnt["DISCONNECTOR"],
-                "n_int": cnt["LOAD_BREAK_SWITCH"], "n_nodal": nodal}
+                "n_int": cnt["LOAD_BREAK_SWITCH"], "n_nodal": nodal,
+                **self._date_tags(depart_dt)}
 
-    def save_scenario(self, name: str) -> dict:
+    def save_scenario(self, name: str, depart_dt=None, source=None) -> dict:
         """Sauvegarde le scénario courant (départ + cible) en **évitant les
         doublons** :
 
@@ -1039,12 +1065,15 @@ class Session:
             while (SCEN_DIR / f"{name}_{j}.json").exists():
                 j += 1
             final = f"{name}_{j}"
+        meta = self.scenario_meta(depart_dt)
+        if source:
+            meta["source"] = source   # 'rte' | 'local' (pour re-synchroniser l'IHM)
         data = {
             "voltage_level_id": self.vl, "name": final,
             "depart": cur_dep, "cible": cur_cib,
             "depart_nodale": self.groups_of(self.initial),
             "cible_nodale": self.groups_of(self.current),
-            "meta": self.scenario_meta(),
+            "meta": meta,
         }
         self.apply(self.current)  # restaurer l'affichage courant
         SCEN_DIR.mkdir(parents=True, exist_ok=True)
@@ -1071,7 +1100,10 @@ class Session:
                         "nominal_v": m.get("nominal_v"), "nb_barres": m.get("nb_barres"),
                         "nb_depart": m.get("nb_depart"), "nb_cible": m.get("nb_cible"),
                         "n_dj": m.get("n_dj"), "n_sa": m.get("n_sa"),
-                        "n_int": m.get("n_int"), "n_nodal": m.get("n_nodal")})
+                        "n_int": m.get("n_int"), "n_nodal": m.get("n_nodal"),
+                        "dt": m.get("dt"), "year": m.get("year"),
+                        "season": m.get("season"), "weekday": m.get("weekday"),
+                        "source": m.get("source")})
         return out
 
     def load_scenario(self, name: str, mode: str = "both") -> str:
@@ -1777,7 +1809,8 @@ def _safe_name(name, default):
 @app.post("/api/save")
 def api_save():
     name = _safe_name(request.json.get("name", ""), SESSION.vl)
-    res = SESSION.save_scenario(name)
+    res = SESSION.save_scenario(name, depart_dt=request.json.get("depart_dt"),
+                                source=request.json.get("source"))
     if res["status"] == "exists":
         # scénario déjà présent (départ + cible identiques) → non écrasé.
         return jsonify(already_exists=True, name=res["name"], path=res["path"],
@@ -1791,12 +1824,19 @@ def api_save():
 
 @app.post("/api/load_scenario")
 def api_load_scenario():
-    SESSION.load_scenario(request.json["name"],
-                          request.json.get("mode", "both"))
+    name = request.json["name"]
+    SESSION.load_scenario(name, request.json.get("mode", "both"))
+    # ``meta`` du scénario (date/heure de départ, source) → l'IHM peut re-synchroniser
+    # les sélecteurs Date/Heure RTE7000 sur le contexte du scénario rechargé.
+    meta = {}
+    try:
+        meta = (json.loads((SCEN_DIR / f"{name}.json").read_text()).get("meta") or {})
+    except Exception:
+        pass
     svg_i, _, nb_i = SESSION.view(SESSION.initial)
     svg_c, sw, nb_c = SESSION.view(SESSION.current)
     return jsonify(initial_svg=_prefix_svg_ids(svg_i, "A_"), nb_initial=nb_i,
-                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl,
+                   svg=svg_c, switches=sw, nb_noeuds=nb_c, vl=SESSION.vl, meta=meta,
                    changes=SESSION.diff_states(),
                    nodale_depart=SESSION.nodale_payload(SESSION.initial),
                    nodale_cible=SESSION.nodale_state(SESSION.current))

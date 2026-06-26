@@ -417,6 +417,9 @@
       <input id="scfSa" type="number" min="0" placeholder="SA ≥" oninput="renderScenList()" style="width:62px;padding:4px" title="sectionneurs changés (min)">
       <input id="scfInt" type="number" min="0" placeholder="INT ≥" oninput="renderScenList()" style="width:66px;padding:4px" title="interrupteurs changés (min)">
       <input id="scfNodal" type="number" min="0" placeholder="nœud ≥" oninput="renderScenList()" style="width:72px;padding:4px" title="ouvrages déplacés en changement de nœud (min)">
+      <select id="scfYear" onchange="renderScenList()" style="padding:4px" title="année de départ"><option value="">année</option></select>
+      <select id="scfSeason" onchange="renderScenList()" style="padding:4px" title="saison de départ"><option value="">saison</option><option>hiver</option><option>printemps</option><option>été</option><option>automne</option></select>
+      <select id="scfDay" onchange="renderScenList()" style="padding:4px" title="jour de semaine de départ"><option value="">jour</option><option value="0">lun</option><option value="1">mar</option><option value="2">mer</option><option value="3">jeu</option><option value="4">ven</option><option value="5">sam</option><option value="6">dim</option></select>
     </div>
     <div id="scenList"></div>
     <div style="font-size:10px;color:#888;margin-top:6px">Base **partagée** (toutes les sauvegardes). Clic = sélectionner · double-clic = recharger. « Valider » rejoue le scénario (départ + cible).</div>
@@ -728,18 +731,28 @@ async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).
     [...new Set(SCENARIOS.map(s=>s.nominal_v).filter(v=>v!=null))].sort((a,b)=>b-a)
       .forEach(v=>{const o=document.createElement('option');o.value=v;o.text=Math.round(v)+' kV';sel.add(o);});
     sel.value=cur;}
+  const ysel=document.getElementById('scfYear');
+  if(ysel){const cur=ysel.value;ysel.innerHTML='<option value="">année</option>';
+    [...new Set(SCENARIOS.map(s=>s.year).filter(v=>v!=null))].sort((a,b)=>b-a)
+      .forEach(y=>{const o=document.createElement('option');o.value=y;o.text=y;ysel.add(o);});
+    ysel.value=cur;}
   renderScenList();}
+const JOURS=['lun','mar','mer','jeu','ven','sam','dim'];
 // Recherche dans la base partagée de scénarios : texte (poste/nom) + tension +
 // seuils min sur barres / DJ / SA / INT / ouvrages déplacés (nœud).
 function renderScenList(){const root=document.getElementById('scenList');if(!root)return;
   const g=id=>document.getElementById(id),
     q=(g('scfText').value||'').trim().toLowerCase(),fv=g('scfVolt').value,
     fb=parseInt(g('scfBarres').value),fd=parseInt(g('scfDj').value),
-    fsa=parseInt(g('scfSa').value),fi=parseInt(g('scfInt').value),fn=parseInt(g('scfNodal').value);
+    fsa=parseInt(g('scfSa').value),fi=parseInt(g('scfInt').value),fn=parseInt(g('scfNodal').value),
+    fy=g('scfYear').value,fse=g('scfSeason').value,fday=g('scfDay').value;
   const ge=(v,m)=>isNaN(m)||((v||0)>=m);
   const hits=SCENARIOS.filter(s=>{
     if(q&&!((s.name+' '+(s.vl||'')+' '+(s.sub||'')).toLowerCase().includes(q)))return false;
     if(fv&&Math.round(s.nominal_v||0)!==Math.round(+fv))return false;
+    if(fy&&String(s.year)!==fy)return false;
+    if(fse&&s.season!==fse)return false;
+    if(fday!==''&&String(s.weekday)!==fday)return false;
     return ge(s.nb_barres,fb)&&ge(s.n_dj,fd)&&ge(s.n_sa,fsa)&&ge(s.n_int,fi)&&ge(s.n_nodal,fn);});
   g('scenCount').textContent='— '+hits.length+'/'+SCENARIOS.length;
   const sel=g('scenSel').value;root.innerHTML='';
@@ -748,6 +761,9 @@ function renderScenList(){const root=document.getElementById('scenList');if(!roo
     d.className='scrow'+(s.name===sel?' cur':'');
     const kv=s.nominal_v!=null?Math.round(s.nominal_v)+' kV':'?';
     let chips='<span class="scchip" style="background:'+voltColor(s.nominal_v||0)+'">'+kv+'</span>';
+    if(s.dt){const jour=(s.weekday!=null?JOURS[s.weekday]:''),sai=s.season||'';
+      chips+='<span class="scc scdt">📅 '+xesc(s.dt.replace('T',' '))
+        +(jour?' · '+jour:'')+(sai?' · '+sai:'')+'</span>';}
     if(s.nb_barres!=null)chips+='<span class="scc">'+s.nb_barres+' barre'+(s.nb_barres>1?'s':'')+'</span>';
     if(s.nb_depart!=null&&s.nb_cible!=null)chips+='<span class="scc">'+s.nb_depart+'→'+s.nb_cible+' nœud</span>';
     if(s.n_dj!=null)chips+='<span class="scc">DJ '+(s.n_dj||0)+' · SA '+(s.n_sa||0)+' · INT '+(s.n_int||0)+'</span>';
@@ -779,7 +795,14 @@ async function saveWithConfirm(url,name,msgEl){
 }
 async function save(){const name=document.getElementById('scenName').value;
   const msg=document.getElementById('savemsg');
-  const r=await api('/api/save',{name});
+  // Date/heure de DÉPART à logger : en RTE7000, la date du dataset + l'heure de
+  // départ choisie ; en local, le backend lit l'horodatage du fichier (case_date).
+  let depart_dt=null;
+  if(S.tab==='rte'){
+    const date=(MAP.data&&MAP.data.date)||document.getElementById('dsDate').value;
+    const hour=MAP.topoHour||document.getElementById('dsTime').value;
+    if(date&&hour)depart_dt=date+'T'+hour;}
+  const r=await api('/api/save',{name,depart_dt,source:S.tab});
   if(r&&r.already_exists){   // départ + cible identiques à un scénario existant
     setValidated(true);await refreshScenarios();
     msg.textContent='⚠ Scénario déjà existant (« '+r.name+' », départ + cible identiques) — non écrasé.';
@@ -790,9 +813,23 @@ async function save(){const name=document.getElementById('scenName').value;
   msg.textContent='✓ Sauvegardé : '+r.path
     +(r.name&&r.name!==name?' (nom unique : « '+r.name+' »)':'')
     +(dl?' · téléchargé en local':'');}
+// Re-synchronise les sélecteurs Date/Heure (onglet RTE7000) sur la date/heure de
+// DÉPART loggée du scénario rechargé (ignoré pour un scénario local).
+function syncDepartFromScenario(meta){
+  if(!meta||!meta.dt||meta.source==='local')return;
+  const parts=meta.dt.split('T'),date=parts[0],hour=parts[1];
+  if(!date)return;
+  selectTab('rte');
+  const di=document.getElementById('dsDate');if(di)di.value=date;
+  const ts=document.getElementById('dsTime');
+  if(ts&&hour){if(![...ts.options].some(o=>o.value===hour)){
+      const o=document.createElement('option');o.value=hour;o.text=hour;ts.add(o);}
+    ts.value=hour;}}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
   stopAnim();const d=await api('/api/load_scenario',{name,mode});
   if(d&&d.vl)S.currentVL=d.vl;
+  // Re-synchroniser Date/Heure de DÉPART (RTE7000) sur le scénario rechargé.
+  syncDepartFromScenario(d&&d.meta);
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');
   show(d);initNodale(d);hideSeq();
   S.scenNameDirty=true;   // nom explicite du scénario rechargé : ne pas l'écraser

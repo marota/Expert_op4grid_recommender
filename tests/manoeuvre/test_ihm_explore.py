@@ -214,5 +214,7 @@ def test_asset_contient_la_carte():
                   # couche connexions (lignes inter-postes) + bascule légende
                   "class=\"conn\"", "linesToggle", "showLines",
                   # recherche de scénarios + double-clic d'isolement de tension
-                  "renderScenList", "scfNodal", "voltClick", "voltDouble"):
+                  "renderScenList", "scfNodal", "voltClick", "voltDouble",
+                  # tags date/heure de départ : filtres + re-synchro au rechargement
+                  "scfYear", "scfSeason", "scfDay", "syncDepartFromScenario"):
         assert token in txt, f"jeton front-end manquant : {token}"
