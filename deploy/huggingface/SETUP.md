@@ -40,6 +40,8 @@ gros fichier dans l'historique à gérer.
 | `HF_TOKEN` | *(absent)* | **Optionnel** : jeton de lecture HF pour desserrer le rate-limit anonyme du CDN. Le mettre en **secret** du Space. |
 | `MANOEUVRE_ENABLE_OSM` | `1` | « Explorer la journée » : **repli OSM/Overpass** pour les coordonnées absentes du plan de masse committé. `0` le désactive (la carte reste alimentée par le plan de masse). |
 | `MANOEUVRE_GEO_SNAPSHOT` | `$DGITT_CACHE_DIR/postes_rte_geo.json` | Chemin de l'instantané de coordonnées **OSM** résolu/persisté. **Par défaut dans le cache** → pointer `DGITT_CACHE_DIR` sur le stockage persistant suffit à le faire survivre. |
+| `MANOEUVRE_SCENARIOS_DIR` | `$DGITT_CACHE_DIR/scenarios` | **Base partagée** des scénarios sauvegardés (tous les visiteurs écrivent/relisent le même dossier). **Sous le cache** → monter `DGITT_CACHE_DIR=/data/dgitt` sur le **stockage persistant HF** la fait survivre aux redémarrages. |
+| `MANOEUVRE_SEQUENCES_DIR` | `$DGITT_CACHE_DIR/sequences` | Idem pour les séquences de manœuvres sauvegardées. |
 | `PORT` | `7860` | Port d'écoute (HF expose `:7860`). |
 
 ### « Explorer la journée » — carte des postes

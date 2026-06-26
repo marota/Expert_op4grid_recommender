@@ -122,6 +122,16 @@
  .modalbox{background:#fff;border-radius:8px;padding:16px 18px;min-width:300px;
    max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.25)}
  .modalbox h3{margin:0 0 10px;font-size:14px}
+ /* Liste de scénarios (recherche dans la base partagée) */
+ #scenList{max-height:46vh;overflow:auto;border:1px solid #cbd5e1;border-radius:5px;margin-top:6px}
+ .scrow{padding:5px 8px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+ .scrow:hover{background:#eef2ff}
+ .scrow.cur{background:#dbeafe}
+ .scrow .scnm{font-weight:bold;font-size:12px;color:#0f172a;word-break:break-all}
+ .scrow .scmeta{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;align-items:center}
+ .scchip{color:#fff;font-size:10px;font-weight:bold;border-radius:8px;padding:0 6px}
+ .scc{font-size:10px;color:#475569;background:#f1f5f9;border-radius:8px;padding:0 6px}
+ .scempty{padding:8px;color:#888;font-size:11px}
  /* Liste de postes unifiée (recherche + exploration curée par typologie) */
  #posteList{max-height:240px;overflow:auto;border:1px solid #cbd5e1;border-radius:5px;
    background:#fff;margin-top:4px}
@@ -396,10 +406,20 @@
   </div>
 </div>
 <div id="reloadModal" class="modal" style="display:none" onclick="if(event.target===this)closeReload()">
-  <div class="modalbox">
-    <h3>⟳ Recharger un scénario</h3>
-    <select id="scenSel" style="width:100%"><option value="">—</option></select>
-    <div style="font-size:10px;color:#888;margin-top:6px">« Valider » rejoue le scénario sauvegardé (départ + cible).</div>
+  <div class="modalbox" style="max-width:580px">
+    <h3>⟳ Recharger un scénario <span id="scenCount" style="font-weight:normal;color:#64748b;font-size:12px"></span></h3>
+    <input type="hidden" id="scenSel">
+    <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+      <input id="scfText" placeholder="🔎 poste / nom…" oninput="renderScenList()" style="flex:1;min-width:130px;padding:4px">
+      <select id="scfVolt" onchange="renderScenList()" style="padding:4px"><option value="">tension</option></select>
+      <input id="scfBarres" type="number" min="0" placeholder="barres ≥" oninput="renderScenList()" style="width:78px;padding:4px" title="nombre de jeux de barres minimum">
+      <input id="scfDj" type="number" min="0" placeholder="DJ ≥" oninput="renderScenList()" style="width:62px;padding:4px" title="disjoncteurs changés (min)">
+      <input id="scfSa" type="number" min="0" placeholder="SA ≥" oninput="renderScenList()" style="width:62px;padding:4px" title="sectionneurs changés (min)">
+      <input id="scfInt" type="number" min="0" placeholder="INT ≥" oninput="renderScenList()" style="width:66px;padding:4px" title="interrupteurs changés (min)">
+      <input id="scfNodal" type="number" min="0" placeholder="nœud ≥" oninput="renderScenList()" style="width:72px;padding:4px" title="ouvrages déplacés en changement de nœud (min)">
+    </div>
+    <div id="scenList"></div>
+    <div style="font-size:10px;color:#888;margin-top:6px">Base **partagée** (toutes les sauvegardes). Clic = sélectionner · double-clic = recharger. « Valider » rejoue le scénario (départ + cible).</div>
     <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
       <button onclick="closeReload()">Annuler</button>
       <button class="primary" onclick="validateReload()">Valider</button>
@@ -699,9 +719,43 @@ function syncNodalCible(n){if(!n)return;
   NOD.groups=dropIso(n.groups||[],NOD.isolated);
   NOD.colorsCible=Object.assign({},NOD.colors,n.colors||{});
   NOD.selBranches=new Set();renderNodaleCible();}
+let SCENARIOS=[];
 async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).json();
-  const sel=document.getElementById('scenSel');sel.innerHTML='<option value="">—</option>';
-  r.scenarios.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;sel.add(o);});}
+  // tolère l'ancien format (liste de noms) et le nouveau (objets + métadonnées).
+  SCENARIOS=(r.scenarios||[]).map(s=>typeof s==='string'?{name:s}:s);
+  const sel=document.getElementById('scfVolt');
+  if(sel){const cur=sel.value;sel.innerHTML='<option value="">tension</option>';
+    [...new Set(SCENARIOS.map(s=>s.nominal_v).filter(v=>v!=null))].sort((a,b)=>b-a)
+      .forEach(v=>{const o=document.createElement('option');o.value=v;o.text=Math.round(v)+' kV';sel.add(o);});
+    sel.value=cur;}
+  renderScenList();}
+// Recherche dans la base partagée de scénarios : texte (poste/nom) + tension +
+// seuils min sur barres / DJ / SA / INT / ouvrages déplacés (nœud).
+function renderScenList(){const root=document.getElementById('scenList');if(!root)return;
+  const g=id=>document.getElementById(id),
+    q=(g('scfText').value||'').trim().toLowerCase(),fv=g('scfVolt').value,
+    fb=parseInt(g('scfBarres').value),fd=parseInt(g('scfDj').value),
+    fsa=parseInt(g('scfSa').value),fi=parseInt(g('scfInt').value),fn=parseInt(g('scfNodal').value);
+  const ge=(v,m)=>isNaN(m)||((v||0)>=m);
+  const hits=SCENARIOS.filter(s=>{
+    if(q&&!((s.name+' '+(s.vl||'')+' '+(s.sub||'')).toLowerCase().includes(q)))return false;
+    if(fv&&Math.round(s.nominal_v||0)!==Math.round(+fv))return false;
+    return ge(s.nb_barres,fb)&&ge(s.n_dj,fd)&&ge(s.n_sa,fsa)&&ge(s.n_int,fi)&&ge(s.n_nodal,fn);});
+  g('scenCount').textContent='— '+hits.length+'/'+SCENARIOS.length;
+  const sel=g('scenSel').value;root.innerHTML='';
+  if(!hits.length){root.innerHTML='<div class="scempty">Aucun scénario ne correspond.</div>';return;}
+  hits.forEach(s=>{const d=document.createElement('div');
+    d.className='scrow'+(s.name===sel?' cur':'');
+    const kv=s.nominal_v!=null?Math.round(s.nominal_v)+' kV':'?';
+    let chips='<span class="scchip" style="background:'+voltColor(s.nominal_v||0)+'">'+kv+'</span>';
+    if(s.nb_barres!=null)chips+='<span class="scc">'+s.nb_barres+' barre'+(s.nb_barres>1?'s':'')+'</span>';
+    if(s.nb_depart!=null&&s.nb_cible!=null)chips+='<span class="scc">'+s.nb_depart+'→'+s.nb_cible+' nœud</span>';
+    if(s.n_dj!=null)chips+='<span class="scc">DJ '+(s.n_dj||0)+' · SA '+(s.n_sa||0)+' · INT '+(s.n_int||0)+'</span>';
+    if(s.n_nodal)chips+='<span class="scc">⚇ '+s.n_nodal+'</span>';
+    d.innerHTML='<div class="scnm">'+xesc(s.name)+'</div><div class="scmeta">'+chips+'</div>';
+    d.onclick=()=>{g('scenSel').value=s.name;renderScenList();};
+    d.ondblclick=()=>{g('scenSel').value=s.name;validateReload();};
+    root.appendChild(d);});}
 // Modale « Recharger un scénario » (remplace l'ancienne section « Scénarios
 // sauvegardés ») : rafraîchit la liste puis ouvre ; « Valider » rejoue le
 // scénario (départ + cible), « Annuler » referme sans rien recharger.
@@ -724,11 +778,17 @@ async function saveWithConfirm(url,name,msgEl){
   return r;
 }
 async function save(){const name=document.getElementById('scenName').value;
-  const r=await saveWithConfirm('/api/save',name,document.getElementById('savemsg'));
-  if(!r)return;
+  const msg=document.getElementById('savemsg');
+  const r=await api('/api/save',{name});
+  if(r&&r.already_exists){   // départ + cible identiques à un scénario existant
+    setValidated(true);await refreshScenarios();
+    msg.textContent='⚠ Scénario déjà existant (« '+r.name+' », départ + cible identiques) — non écrasé.';
+    return;}
+  if(!r||!r.path){msg.textContent='Échec de la sauvegarde.';return;}
   setValidated(true);await refreshScenarios();
   const dl=maybeDownload(r);   // copie locale si IHM déportée (Space)
-  document.getElementById('savemsg').textContent='✓ Sauvegardé : '+r.path
+  msg.textContent='✓ Sauvegardé : '+r.path
+    +(r.name&&r.name!==name?' (nom unique : « '+r.name+' »)':'')
     +(dl?' · téléchargé en local':'');}
 async function loadScen(mode){const name=document.getElementById('scenSel').value;if(!name)return;
   stopAnim();const d=await api('/api/load_scenario',{name,mode});
@@ -1286,6 +1346,16 @@ function applyVoltFilter(){const svg=document.getElementById('mapSvg');if(!svg)r
     el.style.display=(!MAP.showLines||MAP.voltOff.has(+el.getAttribute('data-vb')))?'none':'';});}
 function voltToggle(i){if(MAP.voltOff.has(i))MAP.voltOff.delete(i);else MAP.voltOff.add(i);
   applyVoltFilter();renderLegend();}
+// Clic simple = (dé)sélectionner cette tension ; double-clic = **isoler** ce
+// niveau (masquer tous les autres) ou, s'il est déjà seul affiché, **tout
+// réafficher**. Débounce pour distinguer simple/double clic.
+let _voltClickTimer=null;
+function voltClick(i){if(_voltClickTimer){clearTimeout(_voltClickTimer);_voltClickTimer=null;voltDouble(i);return;}
+  _voltClickTimer=setTimeout(()=>{_voltClickTimer=null;voltToggle(i);},230);}
+function voltDouble(i){
+  const seul=!MAP.voltOff.has(i)&&VOLT_BANDS.every((_,k)=>k===i||MAP.voltOff.has(k));
+  MAP.voltOff=seul?new Set():new Set(VOLT_BANDS.map((_,k)=>k).filter(k=>k!==i));
+  applyVoltFilter();renderLegend();}
 function linesToggle(){MAP.showLines=!MAP.showLines;applyVoltFilter();renderLegend();}
 function voltAll(on){MAP.voltOff=on?new Set():new Set(VOLT_BANDS.map((_,i)=>i));
   applyVoltFilter();renderLegend();}
@@ -1356,15 +1426,15 @@ function renderLegend(){const lg=document.getElementById('mapLegend');
     +'<button class="lgbtn" onclick="voltAll(true)">tout</button>'
     +'<button class="lgbtn" onclick="voltAll(false)">aucun</button></span></div>';
   VOLT_BANDS.forEach((b,i)=>{const off=MAP.voltOff.has(i);
-    h+='<div class="lg'+(off?' off':'')+'" onclick="voltToggle('+i+')" title="Cliquer pour '
-      +(off?'afficher':'masquer')+' cette tension"><span class="dot" style="background:'
-      +b.color+'"></span>'+b.label+'</div>';});
+    h+='<div class="lg'+(off?' off':'')+'" onclick="voltClick('+i+')" '
+      +'title="Clic : afficher/masquer · double-clic : isoler ce niveau (ou tout réafficher)">'
+      +'<span class="dot" style="background:'+b.color+'"></span>'+b.label+'</div>';});
   // Bascule de la couche « connexions » (lignes entre postes).
   const nc=(MAP.data&&MAP.data.n_connexions)||0;
   h+='<div class="lg lgln'+(MAP.showLines?'':' off')+'" onclick="linesToggle()" '
     +'title="Afficher/masquer les lignes entre postes"><span class="lndot"></span>'
     +'Lignes'+(nc?' ('+nc+')':'')+'</div>';
-  h+='<div class="hint">⭐ halo = top 10 · clic tension/lignes = afficher/masquer · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
+  h+='<div class="hint">⭐ halo = top 10 · clic tension/lignes = afficher/masquer · double-clic tension = isoler · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
   lg.innerHTML=h;}
 
 // Classement **par voltage level** (plus fin que par poste) : chaque ligne = un

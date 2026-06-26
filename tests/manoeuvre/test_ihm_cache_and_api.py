@@ -234,6 +234,40 @@ def test_api_save_returns_content_for_download(session, monkeypatch, tmp_path):
     assert (tmp_path / "t.json").exists()
 
 
+def test_api_save_dedup_and_autoindex(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    c = ihm.app.test_client()
+    r1 = c.post("/api/save", json={"name": "s"}).get_json()
+    assert r1["name"] == "s" and (tmp_path / "s.json").exists()
+    # ré-enregistrer un scénario identique (départ + cible) → non écrasé.
+    r2 = c.post("/api/save", json={"name": "s"}).get_json()
+    assert r2.get("already_exists") and r2["name"] == "s"
+    assert not (tmp_path / "s_0.json").exists()
+    # modifier la cible → nom unique indexé _0.
+    sid = next(iter(session.current))
+    session.current[sid] = not session.current[sid]
+    r3 = c.post("/api/save", json={"name": "s"}).get_json()
+    assert r3["name"] == "s_0" and (tmp_path / "s_0.json").exists()
+    # ré-enregistrer ce même état modifié → déjà existant (s_0), pas de _1.
+    r4 = c.post("/api/save", json={"name": "s"}).get_json()
+    assert r4.get("already_exists") and r4["name"] == "s_0"
+    assert not (tmp_path / "s_1.json").exists()
+
+
+def test_api_scenarios_metadata(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    c = ihm.app.test_client()
+    c.post("/api/save", json={"name": "m"})
+    scens = c.get("/api/scenarios").get_json()["scenarios"]
+    assert scens and isinstance(scens[0], dict)
+    meta = next(x for x in scens if x["name"] == "m")
+    for k in ("vl", "nominal_v", "nb_barres", "n_dj", "n_sa", "n_int",
+              "n_nodal", "nb_depart", "nb_cible"):
+        assert k in meta
+
+
 def test_api_save_sequence_returns_content_for_download(session, monkeypatch, tmp_path):
     monkeypatch.setattr(ihm, "SESSION", session)
     monkeypatch.setattr(ihm, "SEQ_DIR", tmp_path)

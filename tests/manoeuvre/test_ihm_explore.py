@@ -212,5 +212,7 @@ def test_asset_contient_la_carte():
                   # recherche de poste utilisable pendant l'exploration
                   "selectPoste",
                   # couche connexions (lignes inter-postes) + bascule légende
-                  "class=\"conn\"", "linesToggle", "showLines"):
+                  "class=\"conn\"", "linesToggle", "showLines",
+                  # recherche de scénarios + double-clic d'isolement de tension
+                  "renderScenList", "scfNodal", "voltClick", "voltDouble"):
         assert token in txt, f"jeton front-end manquant : {token}"

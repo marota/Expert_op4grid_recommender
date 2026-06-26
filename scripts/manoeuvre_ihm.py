@@ -938,27 +938,141 @@ class Session:
             "nodale": self.nodale_state(self.current),
         }
 
-    def save_scenario(self, name: str) -> str:
+    def _vl_info(self) -> tuple[float, str]:
+        """``(nominal_v, substation_id)`` du VL courant. Best-effort."""
+        try:
+            row = self.net.get_voltage_levels(all_attributes=True).loc[self.vl]
+            nv = float(row.get("nominal_v", 0.0) or 0.0)
+            sub = str(row.get("substation_id", "") or "")
+            return nv, sub
+        except Exception:
+            return 0.0, ""
+
+    def _partition_en_service(self, G: nx.Graph) -> dict:
+        """``{equipment_id: composante}`` des ouvrages **en service** (composante
+        de switches fermés contenant une barre) — pour mesurer les déplacements de
+        nœud entre départ et cible (les isolés sont ignorés)."""
+        closed = nx.Graph()
+        closed.add_nodes_from(G.nodes())
+        for u, v, d in G.edges(data=True):
+            if not d.get("open", False):
+                closed.add_edge(u, v)
+        barres, eqn = set(busbar_nodes(G)), set(equipment_nodes(G))
+        out: dict = {}
+        for idx, comp in enumerate(nx.connected_components(closed)):
+            if not (comp & barres):
+                continue
+            for n in comp & eqn:
+                eq = G.nodes[n].get("equipment_id")
+                if eq:
+                    out[eq] = idx
+        return out
+
+    def scenario_meta(self) -> dict:
+        """Métadonnées **de recherche** du scénario courant (départ → cible) :
+        tension, nb de barres, OC changés par type (DJ/SA/INT) et nombre d'ouvrages
+        **déplacés** entre nœuds (changement de partition, isolés ignorés)."""
+        df = self.switches_df(self.vl)
+        kinds = ({str(s): str(k) for s, k in zip(df.index, df["kind"])}
+                 if "kind" in df.columns else {})
+        cnt = {"BREAKER": 0, "DISCONNECTOR": 0, "LOAD_BREAK_SWITCH": 0}
+        for sid in self.initial:
+            if bool(self.initial[sid]) != bool(self.current.get(sid, self.initial[sid])):
+                k = kinds.get(str(sid), "")
+                if k in cnt:
+                    cnt[k] += 1
+        nv, sub = self._vl_info()
+        with self.applied(self.initial):
+            Gi = self._graph(self.initial)
+            nb_barres = len(busbar_nodes(Gi))
+            nb_depart = _nb_noeuds_reels(Gi)
+            pa = self._partition_en_service(Gi)
+        with self.applied(self.current):
+            Gc = self._graph(self.current)
+            nb_cible = _nb_noeuds_reels(Gc)
+            pb = self._partition_en_service(Gc)
+        poids = {eq: 1 for eq in set(pa) | set(pb)}
+        nodal = len(exploration.noeuds_deplaces(pa, pb, poids)) if poids else 0
+        return {"vl": self.vl, "sub": sub, "nominal_v": round(nv, 1),
+                "nb_barres": nb_barres, "nb_depart": nb_depart, "nb_cible": nb_cible,
+                "n_dj": cnt["BREAKER"], "n_sa": cnt["DISCONNECTOR"],
+                "n_int": cnt["LOAD_BREAK_SWITCH"], "n_nodal": nodal}
+
+    def save_scenario(self, name: str) -> dict:
+        """Sauvegarde le scénario courant (départ + cible) en **évitant les
+        doublons** :
+
+        - si un scénario **identique** (même départ ET même cible) existe déjà
+          (parmi ``name``, ``name_0``, ``name_1``…), **rien n'est écrit** →
+          ``{'status': 'exists', 'name': <existant>}`` ;
+        - sinon, on écrit sous ``name`` s'il est libre, ou sous le **premier index
+          libre** ``name_0``, ``name_1``… → ``{'status': 'saved', 'name': <final>}``.
+        """
         name = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or self.vl
+        cur_dep = {k: bool(v) for k, v in self.initial.items()}
+        cur_cib = {k: bool(self.current.get(k, self.initial[k])) for k in self.initial}
+
+        def _states(stem):
+            try:
+                d = json.loads((SCEN_DIR / f"{stem}.json").read_text())
+                return d.get("depart"), d.get("cible")
+            except Exception:
+                return None, None
+
+        # noms candidats existants : name, name_0, name_1, …
+        existants = [name] if (SCEN_DIR / f"{name}.json").exists() else []
+        i = 0
+        while (SCEN_DIR / f"{name}_{i}.json").exists():
+            existants.append(f"{name}_{i}")
+            i += 1
+        for stem in existants:
+            dep, cib = _states(stem)
+            if dep == cur_dep and cib == cur_cib:   # scénario déjà sauvegardé
+                self.apply(self.current)
+                return {"status": "exists", "name": stem,
+                        "path": str(SCEN_DIR / f"{stem}.json")}
+        # pas d'identique → premier nom libre (name, puis name_0, name_1, …)
+        if not (SCEN_DIR / f"{name}.json").exists():
+            final = name
+        else:
+            j = 0
+            while (SCEN_DIR / f"{name}_{j}.json").exists():
+                j += 1
+            final = f"{name}_{j}"
         data = {
-            "voltage_level_id": self.vl,
-            "name": name,
-            "depart": self.initial,
-            "cible": self.current,
+            "voltage_level_id": self.vl, "name": final,
+            "depart": cur_dep, "cible": cur_cib,
             "depart_nodale": self.groups_of(self.initial),
             "cible_nodale": self.groups_of(self.current),
+            "meta": self.scenario_meta(),
         }
         self.apply(self.current)  # restaurer l'affichage courant
         SCEN_DIR.mkdir(parents=True, exist_ok=True)
-        path = SCEN_DIR / f"{name}.json"
+        path = SCEN_DIR / f"{final}.json"
         path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
-        self.scenario_name = name
-        return str(path)
+        self.scenario_name = final
+        return {"status": "saved", "name": final, "path": str(path)}
 
     def list_scenarios(self):
+        """Scénarios sauvegardés **avec métadonnées de recherche** (tension, nb
+        barres, OC par type, ouvrages déplacés) ; ``meta`` absente pour les
+        anciens fichiers (champs ``None``)."""
         if not SCEN_DIR.exists():
             return []
-        return sorted(p.stem for p in SCEN_DIR.glob("*.json"))
+        out = []
+        for p in sorted(SCEN_DIR.glob("*.json")):
+            try:
+                d = json.loads(p.read_text())
+            except Exception:
+                continue
+            m = d.get("meta") or {}
+            out.append({"name": p.stem, "vl": d.get("voltage_level_id", ""),
+                        "sub": m.get("sub", ""),
+                        "nominal_v": m.get("nominal_v"), "nb_barres": m.get("nb_barres"),
+                        "nb_depart": m.get("nb_depart"), "nb_cible": m.get("nb_cible"),
+                        "n_dj": m.get("n_dj"), "n_sa": m.get("n_sa"),
+                        "n_int": m.get("n_int"), "n_nodal": m.get("n_nodal")})
+        return out
 
     def load_scenario(self, name: str, mode: str = "both") -> str:
         """
@@ -1663,13 +1777,15 @@ def _safe_name(name, default):
 @app.post("/api/save")
 def api_save():
     name = _safe_name(request.json.get("name", ""), SESSION.vl)
-    if not request.json.get("overwrite") and (SCEN_DIR / f"{name}.json").exists():
-        return jsonify(exists=True, name=name, path=str(SCEN_DIR / f"{name}.json"))
-    path = SESSION.save_scenario(name)
+    res = SESSION.save_scenario(name)
+    if res["status"] == "exists":
+        # scénario déjà présent (départ + cible identiques) → non écrasé.
+        return jsonify(already_exists=True, name=res["name"], path=res["path"],
+                       scenarios=SESSION.list_scenarios())
     # ``content`` : JSON écrit, renvoyé pour le téléchargement local côté front
     # (IHM déportée — FS éphémère du Space).
-    content = pathlib.Path(path).read_text(encoding="utf-8")
-    return jsonify(path=path, name=name, content=content,
+    content = pathlib.Path(res["path"]).read_text(encoding="utf-8")
+    return jsonify(path=res["path"], name=res["name"], content=content,
                    scenarios=SESSION.list_scenarios())
 
 
@@ -1755,10 +1871,17 @@ def main():
     ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
                     help="Interface d'écoute (0.0.0.0 pour un conteneur / Space).")
     ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
-    ap.add_argument("--scenarios-dir", default="tests/manoeuvre/scenarios",
-                    help="Dossier de sauvegarde des scénarios cible")
-    ap.add_argument("--sequences-dir", default="tests/manoeuvre/sequences",
-                    help="Dossier de sauvegarde des séquences générées")
+    ap.add_argument("--scenarios-dir",
+                    default=os.environ.get("MANOEUVRE_SCENARIOS_DIR",
+                                           "tests/manoeuvre/scenarios"),
+                    help="Dossier de sauvegarde des scénarios cible (env "
+                         "MANOEUVRE_SCENARIOS_DIR ; **base partagée** sur le Space "
+                         "— pointer un stockage persistant /data pour mutualiser).")
+    ap.add_argument("--sequences-dir",
+                    default=os.environ.get("MANOEUVRE_SEQUENCES_DIR",
+                                           "tests/manoeuvre/sequences"),
+                    help="Dossier de sauvegarde des séquences générées "
+                         "(env MANOEUVRE_SEQUENCES_DIR).")
     # Mode dataset (source par date depuis HuggingFace).
     ap.add_argument("--dataset", action="store_true",
                     help="Activer la source dataset RTE 7000 (défaut si --grid absent).")

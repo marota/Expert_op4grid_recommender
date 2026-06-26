@@ -157,7 +157,9 @@ glisser** (manipulation du `viewBox`, fluide jusqu'à ~6 000 postes). Interactio
 
 La **légende des tensions** est **filtrante** : cliquer une bande affiche/masque
 les disques de ce niveau ; les boutons **« tout »** / **« aucun »** (dé)sélectionnent
-toutes les bandes — utile pour isoler un niveau (p. ex. n'afficher que le 400 kV).
+toutes les bandes. Un **double-clic** sur une bande **isole** ce niveau (masque tous
+les autres) ; un nouveau double-clic lorsqu'il est seul affiché **réaffiche tout** —
+utile pour isoler un niveau (p. ex. n'afficher que le 400 kV) en un geste.
 
 **Connexions inter-postes** — la carte trace en option les **lignes électriques
 entre postes**, colorées par niveau de tension et **en fondu** (trait fin, faible
@@ -337,6 +339,17 @@ des variables CSS).
    (`observee` = cible = topologie observée à l'heure cible ; `modifiee` = éditée par
    l'utilisateur) ; en **local**,
    `poste_topoDepart{n}Noeud_topoCible{n}Noeud_nomFichier`.
+   La sauvegarde est **anti-doublon** : si un scénario **identique** (même départ
+   **et** même cible) existe déjà, il n'est pas réécrit (message à l'utilisateur) ;
+   sinon le nom est rendu **unique** par un index `_0`, `_1`… Les scénarios forment
+   une **base partagée** (dossier `MANOEUVRE_SCENARIOS_DIR` ; sur le Space, sous le
+   cache → persistable sur `/data`) alimentée par toutes les sauvegardes.
+
+   **Recharger** (⟳) ouvre une **recherche** dans cette base : filtre **texte**
+   (poste / nom) + **tension** + **seuils min** sur le nombre de jeux de barres et
+   d'OC changés (**DJ / SA / INT**) et d'**ouvrages déplacés** en changement de nœud
+   (métadonnées calculées à la sauvegarde, `Session.scenario_meta`). Clic = sélectionner,
+   double-clic = recharger.
 4. **Calculer la séquence** (étape 2, débloqué après validation) : choisir le
    **mode** (Smooth, défaut, ou Agressif) puis lancer le calcul départ → cible ;
    statut **VÉRIFIÉE / NON VÉRIFIÉE** (+ badge `mode`).

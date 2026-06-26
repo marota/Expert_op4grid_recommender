@@ -76,6 +76,25 @@ vue topologique d'un poste **à l'heure souhaitée**.
   **« aucun »** pour (dé)sélectionner toutes les bandes (`voltToggle`, `voltAll`,
   `voltBand`, `MAP.voltOff`). Permet d'isoler un niveau (p. ex. 400 kV) sur la
   carte.
+- **Sauvegarde de scénario : anti-doublon + nom unique indexé** — à l'enregistrement,
+  si un scénario **identique** (même départ **et** même cible) existe déjà (parmi
+  `name`, `name_0`, `name_1`…), il **n'est pas réécrit** et l'utilisateur est informé ;
+  sinon le scénario est écrit sous `name` (s'il est libre) ou sous le **premier
+  index libre** `name_0`, `name_1`… (`Session.save_scenario` → `{status}` ; plus de
+  invite « écraser/renommer »).
+- **Base de scénarios partagée + recherche par métadonnées** — les scénarios
+  enregistrés sont **mutualisés** (dossier configurable `MANOEUVRE_SCENARIOS_DIR` ;
+  sur le Space, sous le cache → persistable via un stockage `/data`) : toutes les
+  sauvegardes alimentent la **même base**, relisible par tous. Chaque scénario porte
+  des **métadonnées de recherche** (`Session.scenario_meta` : tension, nb de jeux de
+  barres, nœuds départ→cible, OC changés **DJ / SA / INT**, **ouvrages déplacés**
+  en changement de nœud). La modale « Recharger » devient une **recherche
+  filtrante** (texte poste/nom + tension + seuils min barres/DJ/SA/INT/nœud), chaque
+  résultat affichant ses métadonnées (`/api/scenarios` renvoie les objets).
+- **Légende des tensions — double-clic d'isolement** : un **double-clic** sur une
+  bande **isole** ce niveau (masque tous les autres) ; un nouveau double-clic
+  lorsqu'il est déjà seul affiché **réaffiche tout** (`voltClick`/`voltDouble`,
+  débounce simple/double clic).
 - **Connexions inter-postes (lignes)** : la carte trace les **lignes électriques
   entre postes**, **colorées par niveau de tension** et **en fondu** (trait fin
   d'épaisseur constante au zoom, faible opacité) sous les disques — pour visualiser
