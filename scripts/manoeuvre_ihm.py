@@ -981,19 +981,43 @@ class Session:
         self.scenario_name = None   # cible à revalider avant calcul de séquence
 
         svg, switches, nb = self.view(self.current)
+        realized = self.nodale_state(self.current)
+        iso_real = set(realized["isolated"])
+        nb_isoles = len(iso_real)
         seq = ident.sequence   # sous-produit éventuel (écarts détaillés)
+
+        if iso:
+            # Verdict **recalculé sur l'état final** (post-isolation) : on ne
+            # compte que les nœuds RÉELS — les ouvrages isolés sont présentés à
+            # part, **jamais** comptés comme des nœuds (sinon le verdict de l'algo,
+            # calculé avant l'isolation, gonfle le compte : « obtenu 4 » au lieu de
+            # « 2 nœuds + 2 ouvrages isolés »).
+            real_part = {frozenset(e for e in g if e not in iso_real)
+                         for g in realized["groups"]}
+            real_part.discard(frozenset())
+            target_part = {frozenset(g) for g in groups}
+            is_ok = (real_part == target_part) and iso <= iso_real
+            message, ecarts, non_real = "", [], []
+        else:
+            is_ok = ident.is_realisable
+            message = ident.message
+            ecarts = seq.ecarts if seq is not None else []
+            non_real = ident.noeuds_non_realisables
         return {
             "svg": svg, "switches": switches, "nb_noeuds": nb,
-            "is_verified": ident.is_realisable,
-            "message": ident.message,
-            "ecarts": seq.ecarts if seq is not None else [],
-            "noeuds_non_realisables": ident.noeuds_non_realisables,
-            "nb_obtenu": nb,
+            "is_verified": is_ok,
+            "message": message,
+            "ecarts": ecarts,
+            "noeuds_non_realisables": non_real,
+            "nb_obtenu": nb,            # nœuds **réels** (isolés exclus)
+            "nb_isoles": nb_isoles,     # ouvrages isolés (présentés à part)
             "nb_vise": topo_cible.nb_noeuds,
             "algo": self.algos["identificateur"],
+            # Diff départ → cible (organes verts/oranges) pour le surlignage.
+            "changes": self.diff_states(),
             # Vue nodale **réalisée** (partition + couleurs + isolés) pour
             # resynchroniser le volet nodal cible avec le détail obtenu.
-            "nodale": self.nodale_state(self.current),
+            "nodale": realized,
         }
 
     def _vl_info(self) -> tuple[float, str]:

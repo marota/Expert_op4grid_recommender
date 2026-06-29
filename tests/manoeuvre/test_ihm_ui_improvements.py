@@ -167,3 +167,68 @@ def test_isoler_dans_etat_opens_incident_switches(session):
     # L'opération ne mute pas l'entrée et déconnecte f.
     assert out is not state
     assert f in session.nodale_state(out)["isolated"]
+
+
+# --------------------------------------------------------------------------
+# 5. nodale_to_detaillee : diff vert/orange + compte de nœuds correct
+# --------------------------------------------------------------------------
+
+def test_to_detaillee_returns_changes_for_highlight(session):
+    # Le pont nodal → détaillé doit renvoyer le diff départ→cible pour le
+    # surlignage vert/orange (absent auparavant → pas de couleurs après calcul).
+    feeders = sorted(_feeders(session))
+    iso = [feeders[0]]
+    res = session.nodale_to_detaillee([feeders[1:]], iso)
+    assert "changes" in res and isinstance(res["changes"], list)
+    # l'ouvrage isolé était en service → son organe passe ouvert → diff "opened".
+    assert any(c["direction"] == "opened" for c in res["changes"])
+
+
+def test_to_detaillee_node_count_excludes_isolated(session):
+    # 2 isolés + reste sur 1 nœud : obtenu = nœuds RÉELS (sans les isolés), et le
+    # message ne gonfle pas le compte (« obtenu 4 » au lieu de « 1 + 2 isolés »).
+    feeders = sorted(_feeders(session))
+    iso = feeders[:2]
+    rest = feeders[2:]
+    res = session.nodale_to_detaillee([rest], iso)
+    assert res["nb_isoles"] == 2
+    assert res["nb_obtenu"] == res["nb_vise"] == 1     # 1 nœud réel visé/obtenu
+    assert res["is_verified"] is True
+    # côté isolés, le message reste vide (le front compose « N nœud(s) + M isolés »)
+    assert "obtenu" not in (res["message"] or "")
+    # et aucun nombre supérieur au compte réel n'apparaît dans le message.
+    assert "4" not in (res["message"] or "")
+
+
+def test_to_detaillee_without_iso_keeps_algo_verdict(session):
+    p = session.nodale_payload(session.initial)
+    res = session.nodale_to_detaillee(p["groups"], [])
+    assert res["nb_isoles"] == 0
+    assert "changes" in res
+    assert res["is_verified"] is True
+
+
+def test_api_nodale_to_detaillee_endpoint_shape(session, monkeypatch):
+    monkeypatch.setattr(ihm, "SESSION", session)
+    feeders = sorted(_feeders(session))
+    r = ihm.app.test_client().post("/api/nodale_to_detaillee",
+                                   json={"groups": [feeders[1:]], "isolated": [feeders[0]]})
+    d = r.get_json()
+    for k in ("changes", "nb_isoles", "nb_obtenu", "nb_vise", "nodale"):
+        assert k in d
+
+
+# --------------------------------------------------------------------------
+# 6. Données d'ordre de la vue nodale (axe gauche→droite = abscisse SLD)
+# --------------------------------------------------------------------------
+
+def test_nodale_order_data_present_for_all_feeders(session):
+    # La vue nodale trie de gauche à droite par ``order`` (abscisse SLD) et place
+    # le côté par ``dirs`` : ces deux champs doivent être fournis pour CHAQUE départ
+    # (sinon repli 0/BOTTOM → ordre alphabétique parasite).
+    p = session.nodale_payload(session.initial)
+    feeders = [e for g in p["groups"] for e in g]
+    assert feeders
+    for eq in feeders:
+        assert isinstance(p["order"].get(eq), (int, float))
+        assert p["dirs"].get(eq) in ("TOP", "BOTTOM")

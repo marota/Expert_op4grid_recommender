@@ -467,9 +467,16 @@ nœud électrique**.
 - **⚙ Calculer la topologie détaillée d'intérêt** : envoie la partition nodale
   (`/api/nodale_to_detaillee`) ; l'IHM **charge l'état détaillé réalisant** cette
   cible dans le schéma du bas (devient la nouvelle cible détaillée, à **valider**
-  avant calcul de séquence). Le statut indique **✓** si la cible nodale est
+  avant calcul de séquence). Le schéma détaillé obtenu met aussi en évidence les
+  **organes qui diffèrent du départ** (vert = fermé à la cible, orange = ouvert),
+  comme une édition manuelle (le diff `changes` est renvoyé par
+  `/api/nodale_to_detaillee`). Le statut indique **✓** si la cible nodale est
   intégralement réalisable, ou un message de **réalisation partielle** (nœuds non
-  réalisables, écarts) en cas de dégradation gracieuse de l'algorithme.
+  réalisables, écarts) en cas de dégradation gracieuse de l'algorithme. Les
+  **ouvrages isolés** sont **comptés à part**, jamais comme des nœuds : le statut
+  affiche « **N nœud(s) + M ouvrage(s) isolé(s)** » (`nb_obtenu` = nœuds réels,
+  `nb_isoles` = isolés) et **non** un total gonflé (plus de « obtenu 4 » pour
+  2 nœuds + 2 isolés).
   Le volet nodal cible est alors **resynchronisé sur la topologie réalisée**
   (partition, **couleurs** topological_coloring et ouvrages isolés renvoyés dans
   `nodale` par `/api/nodale_to_detaillee`) : il prend les mêmes nœuds et couleurs
@@ -594,7 +601,7 @@ navigateur).
 | `POST /api/promote_cible` | — | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, nodale_depart, nodale_cible}` | **Promeut la cible courante en nouvel état de départ** (chaînage sans scénario sauvegardé) ; met à jour les deux schémas + vues nodales |
 | `POST /api/cible` | — | `{svg, switches, nb_noeuds, nodale}` | Vue de la cible détaillée **courante** (sans la modifier) — pour revenir l'éditer alors qu'une séquence est calculée |
 | `POST /api/nodale` | — | `{nodale_depart, nodale_cible}` | Partitions nodales (cible initialisée = départ) ; `nodale_*` = `{groups[[…]], labels{id:nom}, types{id:type}, flows{id:MW}, dirs{id:TOP\|BOTTOM}, order{id:x}, colors{id:#hex}, isolated[…]}`. `labels`/`dirs`/`order`/`colors` sont **extraits du SLD** (libellés, côté, ordre horizontal et **couleur du nœud `topological_coloring`** identiques à la vue détaillée) ; `flows` provient d'une charge de réseau ; `isolated` liste les départs **déconnectés** (composante sans barre) |
-| `POST /api/nodale_to_detaillee` | `{groups, isolated?}` | `{svg, switches, nb_noeuds, is_verified, message, ecarts[], noeuds_non_realisables[[…]], nb_obtenu, nb_vise, nodale}` | Calcule la **topologie détaillée d'intérêt** réalisant la cible nodale `groups` (les `isolated` sont laissés hors partition) et la charge comme cible détaillée ; `nodale` = `{groups, colors, isolated}` de la topologie **réalisée** (resynchronise le volet nodal) |
+| `POST /api/nodale_to_detaillee` | `{groups, isolated?}` | `{svg, switches, nb_noeuds, is_verified, message, ecarts[], noeuds_non_realisables[[…]], nb_obtenu, nb_isoles, nb_vise, changes[], nodale}` | Calcule la **topologie détaillée d'intérêt** réalisant la cible nodale `groups` ; les `isolated` sont laissés **hors partition** et **réellement déconnectés** (nœud 0-barre). `nb_obtenu` = nœuds **réels** (isolés exclus), `nb_isoles` = ouvrages isolés (comptés à part), `changes` = diff départ→cible (surlignage vert/orange), `nodale` = `{groups, colors, isolated}` de la topologie **réalisée** (resynchronise le volet nodal) |
 | `POST /api/sequence` | `{mode?}` | `{verified, verified_detaillee, ecarts[], alertes[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited, mode}` | Calcule la séquence (cible **détaillée**) ; `mode` = `"smooth"` (défaut) ou `"aggressive"` ; `alertes` = **bonne pratique non bloquante** (R10ter : > 1 ouvrage ré-aiguillé hors tension à la fois, mode smooth), affichée en badge ⚠ |
 | `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i, reached, nodale}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** ; `reached` = l'état affiché est la topologie cible ; `nodale` = **partition nodale de l'état détaillé de l'étape** (`{groups, colors, isolated}`) → le volet nodal **suit l'étape** (départ → … → cible) ; `null` si aucune séquence |
 | `POST /api/seq_insert` | `{step, id}` | `{goto, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Insère une manœuvre basculant `id` **après** l'étape `step` (conserve la suite) |

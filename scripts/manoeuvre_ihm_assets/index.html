@@ -1338,14 +1338,16 @@ async function nodCompute(){
   // Charger la topologie détaillée d'intérêt comme cible (volet du bas).
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
-  bind(d.switches);hideSeq();setValidated(false);
+  bind(d.switches);highlightChanges(d.changes);hideSeq();setValidated(false);   // diff départ→cible (vert/orange)
   S.cibleModifiee=true;setDefaultScenName();   // cible issue d'une édition nodale
   // Resynchroniser la cible nodale sur la topologie détaillée RÉALISÉE
   // (partition + couleurs + isolés des nœuds obtenus).
   syncNodalCible(d.nodale);
+  // Les ouvrages isolés sont présentés à part, jamais comptés comme des nœuds.
+  const iso=d.nb_isoles||0, isoTxt=iso?(' + '+iso+' ouvrage(s) isolé(s)'):'';
   let msg='';
-  if(d.is_verified){st.className='okv';msg='✓ Topologie détaillée d\'intérêt chargée comme cible ('+d.nb_obtenu+' nœud(s)'+(d.algo?', algo '+d.algo:'')+'). Validez puis calculez la séquence.';}
-  else{st.className='kov';msg='⚠ Cible partiellement réalisable (obtenu '+d.nb_obtenu+' / visé '+d.nb_vise+' nœud(s)). '+(d.message||'');
+  if(d.is_verified){st.className='okv';msg='✓ Topologie détaillée d\'intérêt chargée comme cible ('+d.nb_obtenu+' nœud(s)'+isoTxt+(d.algo?', algo '+d.algo:'')+'). Validez puis calculez la séquence.';}
+  else{st.className='kov';msg='⚠ Cible partiellement réalisable (obtenu '+d.nb_obtenu+' nœud(s)'+isoTxt+' / visé '+d.nb_vise+' nœud(s)). '+(d.message||'');
     if(d.noeuds_non_realisables&&d.noeuds_non_realisables.length)msg+=' Nœuds non réalisables : '+d.noeuds_non_realisables.map(g=>g.join(',')).join(' | ')+'.';}
   if(d.ecarts&&d.ecarts.length)msg+=' Écarts : '+d.ecarts.join(' ; ')+'.';
   st.textContent=msg;}
