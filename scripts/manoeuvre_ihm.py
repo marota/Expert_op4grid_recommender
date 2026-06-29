@@ -908,6 +908,36 @@ class Session:
             colors = self._branch_colors([eq for g in groups for eq in g])
         return {"groups": groups, "colors": colors, "isolated": isolated}
 
+    def _isoler_dans_etat(self, state: dict[str, bool], equipements) -> dict[str, bool]:
+        """Force les ``equipements`` **déclarés isolés** à être réellement
+        déconnectés dans ``state`` : ouvre les organes **fermés** reliant chaque
+        équipement encore **en service** à une barre, de sorte qu'il devienne un
+        **nœud 0-barre** (ouvrage isolé) et non un véritable nœud électrique.
+
+        Les équipements **déjà déconnectés** au départ sont laissés tels quels.
+        Renvoie une **copie** de ``state`` (jamais muté en place)."""
+        cibles = {str(e) for e in (equipements or [])}
+        if not cibles:
+            return dict(state)
+        out = dict(state)
+        with self.applied(out):
+            G = self._graph(out)
+        deja_iso = set(_isolated_assets(G))
+        eq_to_nodes: dict[str, list] = {}
+        for n, data in G.nodes(data=True):
+            eq = data.get("equipment_id")
+            if eq in cibles:
+                eq_to_nodes.setdefault(eq, []).append(n)
+        for eq, nodes in eq_to_nodes.items():
+            if eq in deja_iso:
+                continue   # déjà déconnecté → aucun organe à manœuvrer
+            for node in nodes:
+                for _u, _v, d in G.edges(node, data=True):
+                    sid = d.get("switch_id")
+                    if sid is not None and not d.get("open", False) and sid in out:
+                        out[sid] = True   # ouvrir l'organe → détache l'ouvrage
+        return out
+
     def nodale_to_detaillee(self, groups, isolated=None) -> dict:
         """Pont **nodal → détaillé** : calcule une topologie détaillée d'intérêt
         réalisant la partition nodale cible ``groups`` (éditée par l'expert) et la
@@ -942,22 +972,52 @@ class Session:
                             for k, v in self.initial.items()}
         else:
             self.current = dict(self.initial)
+        # Ouvrages **explicitement déclarés isolés** par l'expert : forcer leur
+        # déconnexion réelle (nœud 0-barre) au lieu de les laisser sur une barre —
+        # l'algo ne manœuvre que les départs de la partition, donc un ouvrage en
+        # service déclaré isolé resterait sinon connecté.
+        if iso:
+            self.current = self._isoler_dans_etat(self.current, iso)
         self.scenario_name = None   # cible à revalider avant calcul de séquence
 
         svg, switches, nb = self.view(self.current)
+        realized = self.nodale_state(self.current)
+        iso_real = set(realized["isolated"])
+        nb_isoles = len(iso_real)
         seq = ident.sequence   # sous-produit éventuel (écarts détaillés)
+
+        if iso:
+            # Verdict **recalculé sur l'état final** (post-isolation) : on ne
+            # compte que les nœuds RÉELS — les ouvrages isolés sont présentés à
+            # part, **jamais** comptés comme des nœuds (sinon le verdict de l'algo,
+            # calculé avant l'isolation, gonfle le compte : « obtenu 4 » au lieu de
+            # « 2 nœuds + 2 ouvrages isolés »).
+            real_part = {frozenset(e for e in g if e not in iso_real)
+                         for g in realized["groups"]}
+            real_part.discard(frozenset())
+            target_part = {frozenset(g) for g in groups}
+            is_ok = (real_part == target_part) and iso <= iso_real
+            message, ecarts, non_real = "", [], []
+        else:
+            is_ok = ident.is_realisable
+            message = ident.message
+            ecarts = seq.ecarts if seq is not None else []
+            non_real = ident.noeuds_non_realisables
         return {
             "svg": svg, "switches": switches, "nb_noeuds": nb,
-            "is_verified": ident.is_realisable,
-            "message": ident.message,
-            "ecarts": seq.ecarts if seq is not None else [],
-            "noeuds_non_realisables": ident.noeuds_non_realisables,
-            "nb_obtenu": nb,
+            "is_verified": is_ok,
+            "message": message,
+            "ecarts": ecarts,
+            "noeuds_non_realisables": non_real,
+            "nb_obtenu": nb,            # nœuds **réels** (isolés exclus)
+            "nb_isoles": nb_isoles,     # ouvrages isolés (présentés à part)
             "nb_vise": topo_cible.nb_noeuds,
             "algo": self.algos["identificateur"],
+            # Diff départ → cible (organes verts/oranges) pour le surlignage.
+            "changes": self.diff_states(),
             # Vue nodale **réalisée** (partition + couleurs + isolés) pour
             # resynchroniser le volet nodal cible avec le détail obtenu.
-            "nodale": self.nodale_state(self.current),
+            "nodale": realized,
         }
 
     def _vl_info(self) -> tuple[float, str]:
@@ -1042,7 +1102,8 @@ class Session:
                 "n_int": cnt["LOAD_BREAK_SWITCH"], "n_nodal": nodal,
                 **self._date_tags(depart_dt)}
 
-    def save_scenario(self, name: str, depart_dt=None, source=None) -> dict:
+    def save_scenario(self, name: str, depart_dt=None, source=None,
+                      cible_dt=None, author=None) -> dict:
         """Sauvegarde le scénario courant (départ + cible) en **évitant les
         doublons** :
 
@@ -1086,6 +1147,15 @@ class Session:
         meta = self.scenario_meta(depart_dt)
         if source:
             meta["source"] = source   # 'rte' | 'local' (pour re-synchroniser l'IHM)
+        # Date/heure de la topologie **cible** : conservée pour les fichiers RTE7000
+        # quand la cible n'a **pas** été modifiée (topologie observée à cette heure).
+        # ``None`` sinon (cible éditée par l'expert : plus rattachée à un instantané).
+        meta["cible_dt"] = cible_dt or None
+        # **Date de création** du fichier (horloge serveur) + **auteur** (facultatif,
+        # renseigné par l'IHM) — traçabilité des scénarios sauvegardés.
+        from datetime import datetime
+        meta["created_at"] = datetime.now().strftime("%Y-%m-%dT%H:%M")
+        meta["author"] = (author or "").strip() or None
         data = {
             "voltage_level_id": self.vl, "name": final,
             "depart": cur_dep, "cible": cur_cib,
@@ -1121,7 +1191,8 @@ class Session:
                         "n_int": m.get("n_int"), "n_nodal": m.get("n_nodal"),
                         "dt": m.get("dt"), "year": m.get("year"),
                         "season": m.get("season"), "weekday": m.get("weekday"),
-                        "source": m.get("source")})
+                        "cible_dt": m.get("cible_dt"), "source": m.get("source"),
+                        "created_at": m.get("created_at"), "author": m.get("author")})
         return out
 
     def load_scenario(self, name: str, mode: str = "both") -> str:
@@ -1659,8 +1730,13 @@ def api_explore_coords_file():
 def api_load_grid():
     """Charge une **situation réseau** quelconque (chemin ``.xiidm`` côté serveur)
     et réinitialise la session. Permet d'inspecter/tester n'importe quel poste
-    d'une situation arbitraire sans relancer le serveur."""
+    d'une situation arbitraire sans relancer le serveur.
+
+    **Refusé sur une IHM déportée** (Space) : charger un ``.xiidm`` arbitraire
+    côté serveur est désactivé (confidentialité). Utiliser l'IHM en local."""
     global SESSION
+    if DATASET["hosted"]:
+        return jsonify(ok=False, error=_HOSTED_IMPORT_MSG, hosted=True), 403
     path = ((request.json or {}).get("path") or "").strip()
     if not path or not pathlib.Path(path).expanduser().exists():
         return jsonify(ok=False, error=f"Fichier introuvable : {path}"), 400
@@ -1710,12 +1786,26 @@ def _pick_grid_file_tkinter() -> dict:
     return {"path": proc.stdout.strip()}
 
 
+#: message renvoyé quand l'import local est refusé (IHM déportée / Space).
+_HOSTED_IMPORT_MSG = (
+    "Import de fichier local désactivé sur cette instance hébergée : un fichier "
+    "réseau peut contenir des informations confidentielles. Installez le package "
+    "et lancez l'IHM en local pour charger vos propres situations : "
+    'pip install -e ".[ihm]" puis '
+    "python scripts/manoeuvre_ihm.py --grid /chemin/grid.xiidm")
+
+
 @app.get("/api/pick_grid_file")
 def api_pick_grid_file():
     """Ouvre un sélecteur de fichier **natif** (usage local) pour choisir une
     situation réseau ``.xiidm`` et renvoie ``{path, error?}`` — ``path`` vide si
     l'utilisateur annule. Sur un serveur sans afficheur (Space), renvoie une
-    ``error`` (l'IHM invite alors à coller le chemin à la main)."""
+    ``error`` (l'IHM invite alors à coller le chemin à la main).
+
+    **Refusé sur une IHM déportée** (Space) : l'import local est désactivé (les
+    fichiers peuvent porter des données confidentielles)."""
+    if DATASET["hosted"]:
+        return jsonify(path="", error=_HOSTED_IMPORT_MSG, hosted=True), 403
     try:
         if platform.system() == "Darwin":
             return jsonify(_pick_grid_file_macos())
@@ -1805,6 +1895,40 @@ def api_algos_set():
     return jsonify(disponibles=algos_disponibles(), selection=selection)
 
 
+@app.get("/api/config")
+def api_config():
+    """Configuration **runtime** de l'IHM (modale ⚙ Config) : algorithmes
+    pluggables disponibles + sélection courante (par phase), et **chemins de
+    sauvegarde / rechargement** des scénarios et séquences. ``hosted`` => les
+    chemins sont en **lecture seule** (FS éphémère du Space)."""
+    return jsonify(
+        algos={"disponibles": algos_disponibles(), "selection": _algos_courants()},
+        scenarios_dir=str(SCEN_DIR), sequences_dir=str(SEQ_DIR),
+        hosted=DATASET["hosted"])
+
+
+@app.post("/api/config")
+def api_config_set():
+    """Met à jour la config runtime : sélection d'algorithmes (par phase) et
+    **dossiers** de scénarios / séquences. Sur une IHM déportée (Space), les
+    chemins sont **ignorés** (lecture seule). Renvoie la config effective."""
+    global SCEN_DIR, SEQ_DIR
+    body = request.json or {}
+    if SESSION is not None and isinstance(body.get("algos"), dict):
+        SESSION.set_algos(body["algos"])
+    if not DATASET["hosted"]:
+        sd = (body.get("scenarios_dir") or "").strip()
+        qd = (body.get("sequences_dir") or "").strip()
+        if sd:
+            SCEN_DIR = pathlib.Path(sd).expanduser()
+        if qd:
+            SEQ_DIR = pathlib.Path(qd).expanduser()
+    return jsonify(
+        algos={"disponibles": algos_disponibles(), "selection": _algos_courants()},
+        scenarios_dir=str(SCEN_DIR), sequences_dir=str(SEQ_DIR),
+        hosted=DATASET["hosted"])
+
+
 @app.post("/api/nodale_to_detaillee")
 def api_nodale_to_detaillee():
     """Calcule la topologie détaillée d'intérêt réalisant la cible nodale éditée
@@ -1848,7 +1972,9 @@ def _safe_name(name, default):
 def api_save():
     name = _safe_name(request.json.get("name", ""), SESSION.vl)
     res = SESSION.save_scenario(name, depart_dt=request.json.get("depart_dt"),
-                                source=request.json.get("source"))
+                                source=request.json.get("source"),
+                                cible_dt=request.json.get("cible_dt"),
+                                author=request.json.get("author"))
     if res["status"] == "exists":
         # scénario déjà présent (départ + cible identiques) → non écrasé.
         return jsonify(already_exists=True, name=res["name"], path=res["path"],

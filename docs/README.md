@@ -50,7 +50,9 @@ documented under [`architecture/plugins.md`](architecture/plugins.md).)
 - [`manoeuvre/regles.md`](manoeuvre/regles.md) — business rules (R1–R16) with
   rule-to-code traceability.
 - [`manoeuvre/ihm.md`](manoeuvre/ihm.md) — the interactive web IHM (topology
-  editor + sequence animation) and the hosted HuggingFace Space.
+  editor + sequence animation, day-exploration map, ⚙ config modal, isolated-device
+  declaration, scenario author/date metadata) and the hosted HuggingFace Space.
+  Launch recipes are in the [README Getting Started](../README.md#getting-started).
 - [`manoeuvre/postes_n_jeux_de_barres.md`](manoeuvre/postes_n_jeux_de_barres.md) —
   extension from 2-busbar to N-busbar substations.
 - [`manoeuvre/optimisations.md`](manoeuvre/optimisations.md) — performance/quality

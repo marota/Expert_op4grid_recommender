@@ -18,6 +18,7 @@ system shipped as the default. See
 - [Documentation](#documentation)
 - [Features](#features)
 - [Installation](#installation)
+- [Getting Started](#getting-started)
 - [Usage Example](#usage-example)
 - [Pypowsybl Backend](#pypowsybl-backend)
 - [Pluggable Recommendation Models](#pluggable-recommendation-models)
@@ -207,6 +208,79 @@ module & web IHM, the RTE-7000 dataset, release notes, and the archive.
         ```bash
         pip install -e .[test]
         ```
+    * **Install the maneuver IHM extra (optional, adds Flask):**
+        ```bash
+        pip install -e ".[ihm]"   # quotes required on zsh
+        ```
+
+---
+
+## Getting Started
+
+The project has **two entry points**, both launched from the **project root**
+after installation. Pick the one that matches your task.
+
+### A · Expert system recommender (CLI)
+
+Analyse an N-1 contingency and print a **ranked list of corrective actions**:
+
+```bash
+pip install -e .                          # core install
+
+# 1) Default scenario (parameters taken from expert_op4grid_recommender/config.py)
+python expert_op4grid_recommender/main.py
+
+# 2) Custom contingency — date / timestep / faulted line(s)
+python expert_op4grid_recommender/main.py \
+    --date 2024-08-28 --timestep 36 --lines-defaut P.SAOL31RONCI
+
+# 3) Pure pypowsybl backend (no grid2op), with the fast simulation mode
+python expert_op4grid_recommender/main.py --backend pypowsybl --fast-mode
+```
+
+It sets up the environment, simulates the contingency, builds the overflow graph
+(saved under `Overflow_Graph/`), applies the expert rules, and prints the
+prioritized actions. See [Usage Example](#usage-example) for the full pipeline,
+[Pypowsybl Backend](#pypowsybl-backend) for backend options, and
+[Configuration](#configuration) for all tunable parameters.
+
+### B · Maneuver IHM (web)
+
+Turn a chosen **nodal** action into a safe, animated **switching sequence**
+through a lightweight web interface. It needs the optional **Flask** extra
+(`pypowsybl` / `networkx` / `pandas` are already core dependencies):
+
+```bash
+pip install -e ".[ihm]"                   # quotes required on zsh
+```
+
+**Local mode** — open the IHM on your own `.xiidm` network situation:
+
+```bash
+python scripts/manoeuvre_ihm.py --grid /path/to/grid.xiidm
+# then open http://localhost:8000
+```
+
+**Dataset mode** — source France situations **on demand** from the RTE-7000
+HuggingFace dataset by date/hour (omit `--grid`; this is what the hosted Space
+runs):
+
+```bash
+python scripts/manoeuvre_ihm.py --dataset
+# then open http://localhost:8000  → pick a date/hour, or "🗺 Explorer la journée"
+```
+
+In the IHM you pick a substation, edit the **target topology** (detailed clicks
+or the nodal bus view), compute and **animate the switching sequence**, then save
+scenarios/sequences. The **⚙ Config** modal exposes the available algorithms (per
+phase, default `libtopo`) and the scenario/sequence save paths; the **✍ login**
+field (left of ⚙ Config) tags saved scenarios with their author. Full guide:
+[`docs/manoeuvre/ihm.md`](docs/manoeuvre/ihm.md).
+
+> [!NOTE]
+> On a **hosted** instance (HuggingFace Space, auto-detected via `SPACE_ID`) local
+> file import is **disabled** for confidentiality — install the package and run
+> the IHM locally to load your own situations.
 
 ---
 
@@ -563,8 +637,33 @@ compute and **animate the switching sequence**, and save scenarios/sequences.
 It also backs the hosted **TopologyManoeuver4Grid** HuggingFace Space (network
 situations sourced on demand from the RTE-7000 dataset by date/hour).
 
+**Launch it** (after `pip install -e ".[ihm]"`):
+
+```bash
+# Local mode — your own .xiidm network situation
+python scripts/manoeuvre_ihm.py --grid /path/to/grid.xiidm   # http://localhost:8000
+
+# Dataset mode — RTE-7000 France situations sourced by date/hour (no --grid)
+python scripts/manoeuvre_ihm.py --dataset                    # http://localhost:8000
+```
+
+Highlights:
+
+- **Topology editing** — toggle breakers/disconnectors on the detailed schema, or
+  edit the **nodal bus view** (drag a feeder to re-route, a busbar onto another to
+  merge, **+ Nœud**), then **⚙ Calculer la topologie détaillée d'intérêt**.
+- **Declare isolated devices** — the **⌀ Isoler** action (or drop onto the
+  *Ouvrages isolés* zone) marks a feeder as a disconnected device kept **out of the
+  partition** (no longer mistaken for a one-device node).
+- **Day exploration** — a France map of the RTE-7000 day; hover a substation to see
+  its name, double-click to open it.
+- **Config & authoring** — the **⚙ Config** modal lists the pluggable algorithms
+  per phase (default `libtopo`) and the scenario/sequence save paths; the **✍ login**
+  field tags saved scenarios with their author (and a creation date is recorded).
+
 See the **annotated walkthrough** in the [Quick Overview](#quick-overview) above
-for the numbered tour of the interface. Full guide:
+for the numbered tour of the interface, and the **launch recipes** in
+[Getting Started](#getting-started). Full guide:
 [`docs/manoeuvre/ihm.md`](docs/manoeuvre/ihm.md).
 
 ---

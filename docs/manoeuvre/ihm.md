@@ -80,6 +80,16 @@ La couche de sourcing est `manoeuvre/dataset/source.py` (`lister_instantanes`,
 se charge en quelques secondes au premier choix d'une date ; les changements de
 poste à date constante sont quasi instantanés.
 
+**Import local désactivé sur le Space.** Sur une IHM **déportée** (HuggingFace,
+détectée par `SPACE_ID` / `MANOEUVRE_IHM_HOSTED` / `--hosted`), l'**import de
+fichiers locaux** est **interdit** : un fichier réseau peut porter des
+informations confidentielles. L'onglet **📁 Local** et son sélecteur de fichier
+sont **masqués** (une invite propose d'**installer le package et de lancer l'IHM
+chez soi** pour charger ses propres situations) ; côté serveur,
+`/api/pick_grid_file` et `/api/load_grid` répondent **`403`** (`{hosted:true}`).
+Seule la source **RTE7000** (dataset public, téléchargé à la demande) reste
+disponible.
+
 **Déploiement HuggingFace Docker Space** : `Dockerfile` (mono-conteneur Flask sur
 `:7860`, mode dataset) + `deploy/huggingface/` (README du Space + `SETUP.md`
 détaillé) + `.github/workflows/deploy-huggingface.yml` (redéploiement auto sur
@@ -156,8 +166,12 @@ Coordonnées du **plan de masse RTE** (planaire). Un **sélecteur d'heure** (en-
 de la carte : 00 h / 12 h / 23 h) choisit
 l'heure de la topologie ouverte au double-clic. Carte **autonome** (SVG,
 sans tuiles ni librairie externe) avec **zoom molette** et **déplacement au
-glisser** (manipulation du `viewBox`, fluide jusqu'à ~6 000 postes). Interactions :
+glisser** (manipulation du `viewBox`, fluide jusqu'à ~6 000 postes). Le **curseur
+sur les disques est une croix** (pointeur précis) plutôt qu'une main, pour pointer
+exactement le poste visé. Interactions :
 
+- **survol** d'un disque → **étiquette** affichant le **nom du poste** qui suit la
+  souris (`#mapTip`) — repérage immédiat sans cliquer ;
 - **clic** sur un disque → **bulle d'information** (nom, tension, total d'OC
   changés + ventilation par type, détail par voltage level, rang) ;
 - **double-clic** (ou bouton de la bulle) → bascule en **vue topologique** du
@@ -286,7 +300,14 @@ le bandeau indique la cause (OSM injoignable, ou joignable mais 0 apparié avec 
   les journées « cas d'intérêt » documentées, chacune avec sa **bulle**
   d'explication) — et un **unique bouton ⏬ Charger** qui agit sur l'onglet actif.
   L'onglet **RTE7000 est mis en avant par défaut** sur le HuggingFace Space (mode
-  dataset) ; **Local** par défaut en usage local.
+  dataset) ; **Local** par défaut en usage local. Un bouton **⚙ Config** (en-tête
+  *Situation réseau*) ouvre une **modale de configuration** : **algorithmes
+  pluggables par phase** (identification / séquencement / planification, avec le
+  défaut **« libtopo »**) et **chemins de sauvegarde / rechargement** des
+  scénarios et séquences (en **lecture seule** sur une IHM déportée). Voir
+  `GET/POST /api/config`. À **gauche** de ce bouton, un champ **✍ votre login**
+  porte l'**auteur** des scénarios (mémorisé localement, modifiable à tout
+  moment ; demandé une fois à la première sauvegarde).
 - **Scénario Topologique** : la suite de travail en **trois étapes** —
   **1 · Poste** (champ de recherche **unique** sur tous les postes + liste
   browsable curée **par typologie** en dessous), **2 · Topologie cible** (éditer
@@ -399,7 +420,11 @@ défaut (qui délègue à `determiner_topo_complete_cible(poste, topo_cible)`).
   SLD : même nœud électrique ⇒ même couleur), repérée par un badge `N0`, `N1`… Ses
   branches sont des **départs verticaux** — *du haut* au-dessus de la barre, *du
   bas* en dessous, comme dans la vue détaillée — **triés de gauche à droite** par
-  leur abscisse SLD. Chaque branche porte son **libellé** (extrait du SLD, donc
+  leur abscisse SLD. Les départs *du haut* et *du bas* **partagent le même axe
+  horizontal** (une **colonne par rang d'abscisse SLD**, haut et bas confondus) :
+  chaque départ conserve donc **à la fois son côté (haut/bas) et sa position
+  gauche → droite** exactement comme dans la vue détaillée. Chaque branche porte
+  son **libellé** (extrait du SLD, donc
   **strictement identique** au schéma détaillé : `C.REG1`, `AT762`, `TR634`…) et sa
   **valeur de flux** (P en MW, état de départ). Les nœuds sont **empilés
   verticalement**. Le volet montre la topologie nodale de **départ** (lecture
@@ -430,12 +455,30 @@ d'espace en barre. Pour en **reconnecter** un, le **glisser sur une barre** (il
 rejoint ce nœud) ; côté serveur, les isolés restants sont **laissés déconnectés**
 (hors partition cible).
 Le compteur de nœuds exclut les isolés.
+
+**Déclarer un ouvrage à isoler** (champ dédié). Pour mettre un départ **hors
+service** dans la cible, on le **déclare isolé** plutôt que de le placer seul dans
+un nœud : sélectionner le(s) départ(s) puis **⌀ Isoler** (ou les **glisser sur la
+zone « Ouvrages isolés »** de la cible, qui reste visible comme cible de dépose
+même vide). Le départ rejoint alors la liste **Ouvrages isolés** (envoyée dans
+`isolated` à `/api/nodale_to_detaillee`) : le backend le **laisse hors partition**
+**et le déconnecte réellement** (nœud 0-barre — `Session._isoler_dans_etat` ouvre
+les organes fermés qui le raccordent à une barre). Cela évite l'ancien contournement
+(« nœud à un seul ouvrage ») que le backend interprétait à tort comme un **véritable
+nœud électrique**.
 - **⚙ Calculer la topologie détaillée d'intérêt** : envoie la partition nodale
   (`/api/nodale_to_detaillee`) ; l'IHM **charge l'état détaillé réalisant** cette
   cible dans le schéma du bas (devient la nouvelle cible détaillée, à **valider**
-  avant calcul de séquence). Le statut indique **✓** si la cible nodale est
+  avant calcul de séquence). Le schéma détaillé obtenu met aussi en évidence les
+  **organes qui diffèrent du départ** (vert = fermé à la cible, orange = ouvert),
+  comme une édition manuelle (le diff `changes` est renvoyé par
+  `/api/nodale_to_detaillee`). Le statut indique **✓** si la cible nodale est
   intégralement réalisable, ou un message de **réalisation partielle** (nœuds non
-  réalisables, écarts) en cas de dégradation gracieuse de l'algorithme.
+  réalisables, écarts) en cas de dégradation gracieuse de l'algorithme. Les
+  **ouvrages isolés** sont **comptés à part**, jamais comme des nœuds : le statut
+  affiche « **N nœud(s) + M ouvrage(s) isolé(s)** » (`nb_obtenu` = nœuds réels,
+  `nb_isoles` = isolés) et **non** un total gonflé (plus de « obtenu 4 » pour
+  2 nœuds + 2 isolés).
   Le volet nodal cible est alors **resynchronisé sur la topologie réalisée**
   (partition, **couleurs** topological_coloring et ouvrages isolés renvoyés dans
   `nodale` par `/api/nodale_to_detaillee`) : il prend les mêmes nœuds et couleurs
@@ -560,16 +603,19 @@ navigateur).
 | `POST /api/promote_cible` | — | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, nodale_depart, nodale_cible}` | **Promeut la cible courante en nouvel état de départ** (chaînage sans scénario sauvegardé) ; met à jour les deux schémas + vues nodales |
 | `POST /api/cible` | — | `{svg, switches, nb_noeuds, nodale}` | Vue de la cible détaillée **courante** (sans la modifier) — pour revenir l'éditer alors qu'une séquence est calculée |
 | `POST /api/nodale` | — | `{nodale_depart, nodale_cible}` | Partitions nodales (cible initialisée = départ) ; `nodale_*` = `{groups[[…]], labels{id:nom}, types{id:type}, flows{id:MW}, dirs{id:TOP\|BOTTOM}, order{id:x}, colors{id:#hex}, isolated[…]}`. `labels`/`dirs`/`order`/`colors` sont **extraits du SLD** (libellés, côté, ordre horizontal et **couleur du nœud `topological_coloring`** identiques à la vue détaillée) ; `flows` provient d'une charge de réseau ; `isolated` liste les départs **déconnectés** (composante sans barre) |
-| `POST /api/nodale_to_detaillee` | `{groups, isolated?}` | `{svg, switches, nb_noeuds, is_verified, message, ecarts[], noeuds_non_realisables[[…]], nb_obtenu, nb_vise, nodale}` | Calcule la **topologie détaillée d'intérêt** réalisant la cible nodale `groups` (les `isolated` sont laissés hors partition) et la charge comme cible détaillée ; `nodale` = `{groups, colors, isolated}` de la topologie **réalisée** (resynchronise le volet nodal) |
+| `POST /api/nodale_to_detaillee` | `{groups, isolated?}` | `{svg, switches, nb_noeuds, is_verified, message, ecarts[], noeuds_non_realisables[[…]], nb_obtenu, nb_isoles, nb_vise, changes[], nodale}` | Calcule la **topologie détaillée d'intérêt** réalisant la cible nodale `groups` ; les `isolated` sont laissés **hors partition** et **réellement déconnectés** (nœud 0-barre). `nb_obtenu` = nœuds **réels** (isolés exclus), `nb_isoles` = ouvrages isolés (comptés à part), `changes` = diff départ→cible (surlignage vert/orange), `nodale` = `{groups, colors, isolated}` de la topologie **réalisée** (resynchronise le volet nodal) |
 | `POST /api/sequence` | `{mode?}` | `{verified, verified_detaillee, ecarts[], alertes[], message, nb_manoeuvres, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited, mode}` | Calcule la séquence (cible **détaillée**) ; `mode` = `"smooth"` (défaut) ou `"aggressive"` ; `alertes` = **bonne pratique non bloquante** (R10ter : > 1 ouvrage ré-aiguillé hors tension à la fois, mode smooth), affichée en badge ⚠ |
 | `GET /api/step?i=k` | — | `{svg, switches[], nb_noeuds, i, reached, nodale}` | Image d'animation de l'étape *k* (surlignée) **+ organes cliquables** ; `reached` = l'état affiché est la topologie cible ; `nodale` = **partition nodale de l'état détaillé de l'étape** (`{groups, colors, isolated}`) → le volet nodal **suit l'étape** (départ → … → cible) ; `null` si aucune séquence |
 | `POST /api/seq_insert` | `{step, id}` | `{goto, manoeuvres[], n_steps, labels[], nb_final, matches_cible, edited}` | Insère une manœuvre basculant `id` **après** l'étape `step` (conserve la suite) |
 | `POST /api/seq_delete` | `{index}` | idem `seq_insert` | Supprime la manœuvre n°`index` (1-based) |
 | `POST /api/seq_delete_many` | `{indices:[…]}` | idem `seq_insert` | Supprime en une fois plusieurs manœuvres (sélection / bloc) |
 | `POST /api/manual_start` | — | `{cible_svg, cible_nb, goto, manoeuvres[], n_steps, labels[], …}` | Démarre une séquence **manuelle vierge** (départ → cible affichée en référence) |
-| `GET /api/scenarios` | — | `{scenarios:[{name, vl, sub, nominal_v, nb_barres, nb_depart, nb_cible, n_dj, n_sa, n_int, n_nodal, dt, year, season, weekday, source}]}` | Liste des scénarios **avec métadonnées de recherche** |
+| `GET /api/config` | — | `{algos:{disponibles,selection}, scenarios_dir, sequences_dir, hosted}` | Config **runtime** (modale ⚙ Config) : algos pluggables par phase + sélection, chemins de sauvegarde/rechargement |
+| `POST /api/config` | `{algos?, scenarios_dir?, sequences_dir?}` | idem `GET /api/config` | Met à jour la sélection d'algos et les **dossiers** scénarios/séquences ; chemins **ignorés** si `hosted` (lecture seule) |
+| `GET /api/pick_grid_file`, `POST /api/load_grid` *(déporté)* | — | `403 {ok:false, error, hosted:true}` | **Import local refusé** sur une IHM hébergée (confidentialité des fichiers) |
+| `GET /api/scenarios` | — | `{scenarios:[{name, vl, sub, nominal_v, nb_barres, nb_depart, nb_cible, n_dj, n_sa, n_int, n_nodal, dt, year, season, weekday, cible_dt, source, created_at, author}]}` | Liste des scénarios **avec métadonnées de recherche** (dont `cible_dt`, `created_at`, `author`) |
 | `GET /api/scenarios_archive` | — | `application/zip` | **Archive ZIP** de toute la base de scénarios (`scenarios.zip`) |
-| `POST /api/save` | `{name, depart_dt?, source?}` | `{path, name, content, scenarios[]}` ou `{already_exists:true, name, path, scenarios[]}` | Sauvegarde **anti-doublon** (identique → non réécrit) avec **nom unique indexé** ; `meta` calculée + `dt/source` loggés ; `content` = JSON pour téléchargement local |
+| `POST /api/save` | `{name, depart_dt?, cible_dt?, source?, author?}` | `{path, name, content, scenarios[]}` ou `{already_exists:true, name, path, scenarios[]}` | Sauvegarde **anti-doublon** (identique → non réécrit) avec **nom unique indexé** ; `meta` calculée + `dt`/`cible_dt`/`source`/`author` loggés + `created_at` (horloge serveur) ; `content` = JSON pour téléchargement local |
 | `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, meta, nodale_depart, nodale_cible}` | Recharge (`mode="both"` ou `"as_depart"`) ; `meta` (date/heure, source) → re-synchro Date/Heure côté IHM |
 | `POST /api/save_sequence` | `{name, overwrite?}` | `{path, name, content}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** ; `content` = JSON écrit |
 
@@ -600,14 +646,25 @@ Topologie cible validée, réutilisable comme cible (rejeu) ou comme départ.
     "vl": "CARRIP3", "sub": "CARRI", "nominal_v": 63.0,
     "nb_barres": 2, "nb_depart": 1, "nb_cible": 2,
     "n_dj": 3, "n_sa": 0, "n_int": 0, "n_nodal": 1,
-    "dt": "2021-01-03T12:00", "year": 2021, "season": "hiver",
-    "weekday": 6, "source": "rte"
+    "dt": "2021-01-03T08:00", "year": 2021, "season": "hiver",
+    "weekday": 6, "cible_dt": "2021-01-03T12:00", "source": "rte",
+    "created_at": "2025-02-14T09:30", "author": "Alice"
   }
 }
 ```
 Le bloc `meta` (ajouté v0.2.x) alimente la **recherche** dans la base partagée
 (tension, barres, OC par type, ouvrages déplacés, date/heure de départ →
-année/saison/jour). Absent des fichiers antérieurs (champs `null`).
+année/saison/jour). `dt` = date/heure de la **topologie de départ** (RTE7000 :
+date/heure choisies ; local : `case_date` du fichier) ; `cible_dt` = date/heure de
+la **topologie cible**, conservée pour un fichier RTE7000 dont la cible **n'a pas
+été modifiée** (topologie observée à cette heure ; `null` sinon). `created_at` =
+**date de création** du fichier (horloge serveur) ; `author` = **auteur**
+(facultatif, saisi dans l'IHM). Absent des fichiers antérieurs (champs `null`).
+
+> **Auteur** : un champ **✍ votre login** (à gauche du bouton **⚙ Config**) porte
+> l'auteur des scénarios — **mémorisé localement** (navigateur) et **modifiable à
+> tout moment**. À la **première sauvegarde** sans nom déclaré, l'IHM le **demande
+> une fois** via une petite modale offrant une coche **« ne plus me redemander »**.
 
 ### Séquence (`--sequences-dir/<nom>.json`)
 Séquence **courante** (telle qu'éventuellement éditée par l'expert) + topologies
@@ -706,6 +763,12 @@ assert res.ecarts == []
 | **Replier** indépendamment les sections nodales **Départ** / **Cible** | Bouton **▾ / ▸** dans le `.stitle` → `toggleNsec()` (replie tout sauf le titre ; l'autre section prend l'espace) |
 | **Re-éditer la cible détaillée** après calcul de séquence + signaler l'obsolescence | Bouton **✎ Modifier la cible** (`/api/cible`) ; bandeau « la séquence n'atteint plus cet état cible » |
 | Demander un **calcul de topologie détaillée d'intérêt** depuis la cible nodale | `/api/nodale_to_detaillee` → façade `identifier_topologie_detaillee` (phase A, algo sélectionné), cible détaillée chargée |
+| **Désactiver l'import de fichier local** sur une IHM déportée (confidentialité) | Onglet **📁 Local** masqué + invite à l'IHM locale (`#hostedNote`) ; `/api/pick_grid_file` & `/api/load_grid` → `403` si `hosted` |
+| Voir le **nom des postes au survol** sur la carte + **curseur pointeur précis** | `#mapTip` (étiquette suivant la souris) + `.pdisk{cursor:crosshair}` |
+| **Modale de configuration** : algos disponibles (+ défaut) et chemins de sauvegarde/rechargement | Bouton **⚙ Config** → modale `#configModal` ; `GET/POST /api/config` |
+| **Conserver date/heure** de la topo de départ **et** de la topo cible (RTE7000 non modifiée) | `meta.dt` (départ) + `meta.cible_dt` (cible) ; `save()` envoie `depart_dt`/`cible_dt` |
+| **Date de création** + **auteur** dans les métadonnées des scénarios | `meta.created_at` (horloge serveur) + `meta.author` ; champ **✍ votre login** (gauche de ⚙ Config), demandé une fois (coche « ne plus me redemander ») |
+| **Déclarer des ouvrages à isoler** (hors partition, vraiment déconnectés) | Bouton **⌀ Isoler** / dépose sur la zone *Ouvrages isolés* → `isolated` ; `Session._isoler_dans_etat` ouvre les organes (nœud 0-barre) |
 
 ---
 

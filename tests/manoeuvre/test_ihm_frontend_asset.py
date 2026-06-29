@@ -98,6 +98,15 @@ REQUIRED_MARKERS = [
     "＋ Nœud", 'id="ndDepartIso"', 'id="ndCibleIso"',
     # Dates d'accès rapide 2021-2023
     "'2022-06-15'", "'2023-02-08'",
+    # Améliorations IHM : import local hors-Space, carte (survol/curseur),
+    # config, ouvrages isolés, ordre nodal gauche→droite partagé haut/bas.
+    'id="hostedNote"', 'function dismissHostedNote', 'id="mapTip"',
+    'cursor:crosshair', 'onclick="openConfig()"', 'id="configModal"',
+    'function saveConfig', 'function nodIsolate', 'onclick="nodIsolateSel()"',
+    'colX(colOf', 'highlightChanges(d.changes)',
+    # Auteur des scénarios : champ persistant + modale « demander une fois »
+    'id="authorName"', 'id="authorModal"', 'function resolveAuthor',
+    'function askAuthor', 'id="authorNoask"',
 ]
 
 #: marqueurs qui ne DOIVENT PLUS apparaître (éléments retirés / renommés)
