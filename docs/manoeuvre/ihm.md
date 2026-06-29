@@ -305,7 +305,7 @@ le bandeau indique la cause (OSM injoignable, ou joignable mais 0 apparié avec 
   pluggables par phase** (identification / séquencement / planification, avec le
   défaut **« libtopo »**) et **chemins de sauvegarde / rechargement** des
   scénarios et séquences (en **lecture seule** sur une IHM déportée). Voir
-  `GET/POST /api/config`. À **gauche** de ce bouton, un champ **✍ votre nom**
+  `GET/POST /api/config`. À **gauche** de ce bouton, un champ **✍ votre login**
   porte l'**auteur** des scénarios (mémorisé localement, modifiable à tout
   moment ; demandé une fois à la première sauvegarde).
 - **Scénario Topologique** : la suite de travail en **trois étapes** —
@@ -661,7 +661,7 @@ la **topologie cible**, conservée pour un fichier RTE7000 dont la cible **n'a p
 **date de création** du fichier (horloge serveur) ; `author` = **auteur**
 (facultatif, saisi dans l'IHM). Absent des fichiers antérieurs (champs `null`).
 
-> **Auteur** : un champ **✍ votre nom** (à gauche du bouton **⚙ Config**) porte
+> **Auteur** : un champ **✍ votre login** (à gauche du bouton **⚙ Config**) porte
 > l'auteur des scénarios — **mémorisé localement** (navigateur) et **modifiable à
 > tout moment**. À la **première sauvegarde** sans nom déclaré, l'IHM le **demande
 > une fois** via une petite modale offrant une coche **« ne plus me redemander »**.
@@ -767,7 +767,7 @@ assert res.ecarts == []
 | Voir le **nom des postes au survol** sur la carte + **curseur pointeur précis** | `#mapTip` (étiquette suivant la souris) + `.pdisk{cursor:crosshair}` |
 | **Modale de configuration** : algos disponibles (+ défaut) et chemins de sauvegarde/rechargement | Bouton **⚙ Config** → modale `#configModal` ; `GET/POST /api/config` |
 | **Conserver date/heure** de la topo de départ **et** de la topo cible (RTE7000 non modifiée) | `meta.dt` (départ) + `meta.cible_dt` (cible) ; `save()` envoie `depart_dt`/`cible_dt` |
-| **Date de création** + **auteur** dans les métadonnées des scénarios | `meta.created_at` (horloge serveur) + `meta.author` ; champ **✍ votre nom** (gauche de ⚙ Config), demandé une fois (coche « ne plus me redemander ») |
+| **Date de création** + **auteur** dans les métadonnées des scénarios | `meta.created_at` (horloge serveur) + `meta.author` ; champ **✍ votre login** (gauche de ⚙ Config), demandé une fois (coche « ne plus me redemander ») |
 | **Déclarer des ouvrages à isoler** (hors partition, vraiment déconnectés) | Bouton **⌀ Isoler** / dépose sur la zone *Ouvrages isolés* → `isolated` ; `Session._isoler_dans_etat` ouvre les organes (nœud 0-barre) |
 
 ---

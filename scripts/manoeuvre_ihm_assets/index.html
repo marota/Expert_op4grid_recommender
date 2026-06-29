@@ -228,7 +228,7 @@
 <div id="side">
   <h2 style="margin-top:0;display:flex;align-items:center;gap:6px">
     <span style="flex:1">Situation réseau</span>
-    <input id="authorName" placeholder="✍ votre nom" autocomplete="off"
+    <input id="authorName" placeholder="✍ votre login" autocomplete="off"
            title="Auteur des scénarios sauvegardés — modifiable à tout moment ; enregistré dans les métadonnées des fichiers."
            style="width:104px;padding:2px 6px;font-size:11px;font-weight:normal">
     <button onclick="openConfig()" title="Configuration : algorithmes par phase + chemins de sauvegarde/rechargement des scénarios et séquences"
@@ -483,9 +483,9 @@ python scripts/manoeuvre_ihm.py --grid /chemin/grid.xiidm</code>
 </div>
 <div id="authorModal" class="modal" style="display:none" onclick="if(event.target===this)closeAuthor(null)">
   <div class="modalbox" style="max-width:380px">
-    <h3>✍ Votre nom (auteur)</h3>
-    <div style="font-size:12px;color:#475569;margin-bottom:8px">Indiquez votre nom : il sera enregistré dans les métadonnées des scénarios (facultatif).</div>
-    <input id="authorInput" placeholder="nom de l'auteur" autocomplete="off" style="width:100%;padding:6px"
+    <h3>✍ Votre login (auteur)</h3>
+    <div style="font-size:12px;color:#475569;margin-bottom:8px">Indiquez votre login : il sera enregistré dans les métadonnées des scénarios (facultatif).</div>
+    <input id="authorInput" placeholder="login de l'auteur" autocomplete="off" style="width:100%;padding:6px"
            onkeydown="if(event.key==='Enter')confirmAuthor()">
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:9px">
       <input type="checkbox" id="authorNoask"> Ne plus me redemander
@@ -903,7 +903,7 @@ function currentAuthor(){return (document.getElementById('authorName').value||''
 function initAuthor(){const el=document.getElementById('authorName');if(!el)return;
   el.value=localStorage.getItem('manoeuvre_author')||'';
   el.addEventListener('input',()=>localStorage.setItem('manoeuvre_author',currentAuthor()));}
-// Modale « ✍ Votre nom » : demandée une seule fois si aucun auteur déclaré, avec
+// Modale « ✍ Votre login » : demandée une seule fois si aucun auteur déclaré, avec
 // une coche « ne plus me redemander ». Renvoie une Promesse {name, noask} ou null.
 let _authorResolve=null;
 function askAuthor(){return new Promise(res=>{_authorResolve=res;
