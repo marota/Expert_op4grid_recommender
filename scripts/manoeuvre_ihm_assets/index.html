@@ -237,8 +237,10 @@
             title="Charger une situation du dataset RTE 7000 (France) par date / heure">📅 RTE7000</button>
   </div>
 
-  <div id="hostedNote" style="display:none;font-size:11px;color:#92400e;background:#fffbeb;
-       border:1px dashed #f59e0b;border-radius:6px;padding:7px 9px;margin-top:5px;line-height:1.4">
+  <div id="hostedNote" style="display:none;position:relative;font-size:11px;color:#92400e;background:#fffbeb;
+       border:1px dashed #f59e0b;border-radius:6px;padding:7px 22px 7px 9px;margin-top:5px;line-height:1.4">
+    <span onclick="dismissHostedNote()" title="Masquer ce message"
+          style="position:absolute;top:3px;right:6px;cursor:pointer;color:#b45309;font-weight:bold;font-size:13px">✕</span>
     📁 <b>Import de fichier local désactivé</b> sur cette instance hébergée : un fichier réseau
     peut contenir des informations confidentielles. Pour charger vos propres situations,
     installez le package et lancez l'IHM chez vous :
@@ -509,6 +511,9 @@ const DATE_INFO={
   '2022-06-15':{tag:'mer. · été',desc:"Mercredi, été — 6 400 blocs, 2 037 postes actifs, 181 reconfigurations structurelles : autre année (dataset 2022)."},
   '2023-02-08':{tag:'mer. · hiver',desc:"Mercredi, hiver — 6 442 blocs, 1 984 postes actifs, 185 reconfigurations structurelles, jusqu'à 38 organes manœuvrés (le plus profond) : autre année (dataset 2023)."},
 };
+// Masquer le bandeau d'information « import local désactivé » (IHM hébergée).
+function dismissHostedNote(){const hn=document.getElementById('hostedNote');
+  if(hn)hn.style.display='none';}
 // --- Onglets « Situation réseau » (Local ⇄ RTE7000) -----------------------
 function selectTab(which){
   const local=(which==='local');S.tab=local?'local':'rte';
