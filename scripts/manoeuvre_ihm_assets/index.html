@@ -97,6 +97,8 @@
  .isochip{font-family:monospace;font-size:10px;padding:2px 7px;border:1px dashed #f59e0b;border-radius:10px;background:#fffbeb;color:#92400e;cursor:grab;user-select:none}
  .nodiso.ro .isochip{cursor:default;border-color:#cbd5e1;background:#f1f5f9;color:#475569}
  .isochip.sel{background:#6366f1;color:#fff;border-color:#4f46e5;border-style:solid}
+ /* Survol de la zone isolés pendant un glisser = cible de dépose « isoler ». */
+ .nodiso.droptarget{outline:2px dashed #6366f1;outline-offset:-2px;background:#eef2ff}
  #nodstatus{font-size:11px;padding:4px 8px;white-space:normal}
  #nodstatus.okv{color:#065f46;background:#ecfdf5}
  #nodstatus.kov{color:#92400e;background:#fffbeb}
@@ -165,8 +167,13 @@
  .conn{stroke-width:0.9;vector-effect:non-scaling-stroke;stroke-opacity:.32;
    stroke-linecap:round;pointer-events:none}
  .dept{fill:#fcfcfa;stroke:#d9d2c0;stroke-width:0.8;stroke-linejoin:round;pointer-events:none}
- .pdisk{cursor:pointer;stroke:#ffffff;stroke-width:0.5}
+ /* Curseur en croix (pointeur précis) plutôt qu'une main : pointe pile le poste. */
+ .pdisk{cursor:crosshair;stroke:#ffffff;stroke-width:0.5}
  .pdisk:hover{stroke:#1e293b;stroke-width:2}
+ /* Étiquette de survol (nom du poste) qui suit la souris sur la carte. */
+ #mapTip{position:absolute;display:none;pointer-events:none;z-index:25;background:#0f172a;
+   color:#fff;font-size:11px;font-weight:bold;padding:2px 7px;border-radius:5px;
+   box-shadow:0 2px 8px rgba(0,0,0,.3);white-space:nowrap}
  .ptop{stroke:#111;stroke-width:1.5}
  .phalo{fill:none;stroke:#facc15;stroke-width:3.5;pointer-events:none}
  #mapHours{display:inline-flex;gap:2px;align-items:center}
@@ -219,12 +226,24 @@
  #btnExplore{width:100%;margin-top:4px;background:#0e7490;color:#fff;border-color:#0e7490}
 </style></head><body>
 <div id="side">
-  <h2 style="margin-top:0">Situation réseau</h2>
+  <h2 style="margin-top:0">Situation réseau
+    <button onclick="openConfig()" title="Configuration : algorithmes par phase + chemins de sauvegarde/rechargement des scénarios et séquences"
+            style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">⚙ Config</button>
+  </h2>
   <div class="tabs" role="tablist">
     <button id="tabLocal" class="tab" onclick="selectTab('local')"
             title="Charger une situation réseau depuis un fichier .xiidm local">📁 Local</button>
     <button id="tabRte" class="tab" onclick="selectTab('rte')"
             title="Charger une situation du dataset RTE 7000 (France) par date / heure">📅 RTE7000</button>
+  </div>
+
+  <div id="hostedNote" style="display:none;font-size:11px;color:#92400e;background:#fffbeb;
+       border:1px dashed #f59e0b;border-radius:6px;padding:7px 9px;margin-top:5px;line-height:1.4">
+    📁 <b>Import de fichier local désactivé</b> sur cette instance hébergée : un fichier réseau
+    peut contenir des informations confidentielles. Pour charger vos propres situations,
+    installez le package et lancez l'IHM chez vous :
+    <code style="display:block;margin-top:4px;font-size:10px;background:#fff7ed;padding:3px 5px;border-radius:4px">pip install -e ".[ihm]"
+python scripts/manoeuvre_ihm.py --grid /chemin/grid.xiidm</code>
   </div>
 
   <div id="panelLocal" class="tabpanel">
@@ -324,6 +343,7 @@
       <div id="mapSvgWrap">
         <div id="mapSpin" style="display:none">Chargement de la journée…</div>
         <div id="mapBubble"></div>
+        <div id="mapTip"></div>
         <div id="mapLegend"></div>
       </div>
       <div id="mapSide">
@@ -392,6 +412,7 @@
       <div class="nodiso ed" id="ndCibleIso" style="display:none"></div>
       <div class="ntools">
         <button onclick="nodNewNode()" title="Créer un nœud vide (puis y glisser des départs ; ou avec la sélection courante)">＋ Nœud</button>
+        <button onclick="nodIsolateSel()" title="Déclarer les départs sélectionnés comme ouvrages ISOLÉS (déconnectés / hors partition) — au lieu d'un nœud à un seul ouvrage. Glisser aussi un départ sur la zone « Ouvrages isolés » l'isole.">⌀ Isoler</button>
         <button onclick="nodReset()" title="Réinitialiser la cible (nodale + détaillée) à la topologie d'origine du poste (départ)">↺ Réinitialiser</button>
         <button onclick="nodClearSel()" title="Vider la sélection">∅ Désélectionner</button>
       </div>
@@ -428,6 +449,29 @@
       <span style="flex:1"></span>
       <button onclick="closeReload()">Annuler</button>
       <button class="primary" onclick="validateReload()">Valider</button>
+    </div>
+  </div>
+</div>
+<div id="configModal" class="modal" style="display:none" onclick="if(event.target===this)closeConfig()">
+  <div class="modalbox" style="max-width:540px">
+    <h3>⚙ Configuration</h3>
+    <div style="font-size:12px;font-weight:bold;color:#334155;margin:6px 0 3px">Algorithmes (par phase)</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:6px">« libtopo » = algorithme par défaut natif ; les plugins enregistrés apparaissent ici. Les verdicts affichés sont recalculés indépendamment de l'algorithme branché.</div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-size:12px">
+      <label for="cfgAlgoIdent">Identification (nodale → détaillée)</label><select id="cfgAlgoIdent" style="padding:3px"></select>
+      <label for="cfgAlgoSeq">Séquencement (détaillée → manœuvres)</label><select id="cfgAlgoSeq" style="padding:3px"></select>
+      <label for="cfgAlgoPlan">Planification (bout-en-bout)</label><select id="cfgAlgoPlan" style="padding:3px"></select>
+    </div>
+    <div style="font-size:12px;font-weight:bold;color:#334155;margin:13px 0 3px">Chemins de sauvegarde / rechargement</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:12px">
+      <label for="cfgScenDir">Scénarios</label><input id="cfgScenDir" style="padding:4px" placeholder="dossier des scénarios">
+      <label for="cfgSeqDir">Séquences</label><input id="cfgSeqDir" style="padding:4px" placeholder="dossier des séquences">
+    </div>
+    <div id="cfgHosted" style="display:none;font-size:11px;color:#92400e;background:#fffbeb;border:1px dashed #f59e0b;border-radius:6px;padding:6px 8px;margin-top:7px">IHM hébergée : les chemins sont en lecture seule (système de fichiers éphémère).</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:13px">
+      <span id="cfgMsg" style="font-size:11px;color:#1a7f37;flex:1"></span>
+      <button onclick="closeConfig()">Fermer</button>
+      <button class="primary" onclick="saveConfig()">Appliquer</button>
     </div>
   </div>
 </div>
@@ -602,7 +646,14 @@ async function initDataset(){
       b.innerHTML=xesc(d)+(meta.tag?'<span class="stag">'+xesc(meta.tag)+'</span>':'');
       b.onclick=()=>{di.value=d;loadDatasetTimestamps(d);};sm.appendChild(b);});
     await loadDatasetTimestamps(di.value);}
-  selectTab(DS.enabled?'rte':'local');   // RTE7000 « en avant » sur le Space
+  // IHM déportée (Space) : l'import local est interdit (confidentialité) — on
+  // masque l'onglet/panneau Local et on affiche une invitation à l'IHM locale.
+  if(DS.hosted){
+    document.getElementById('tabLocal').style.display='none';
+    document.getElementById('panelLocal').style.display='none';
+    const hn=document.getElementById('hostedNote');if(hn)hn.style.display='block';
+    selectTab('rte');
+  }else selectTab(DS.enabled?'rte':'local');   // RTE7000 « en avant » sur le Space
   if(DS.enabled&&!S.currentVL){const t=document.getElementById('diagTop');
     if(t)t.textContent='Choisissez une date puis « Charger la situation »…';}}
 async function loadDatasetTimestamps(date){
@@ -766,6 +817,8 @@ function renderScenList(){const root=document.getElementById('scenList');if(!roo
     if(s.dt){const jour=(s.weekday!=null?JOURS[s.weekday]:''),sai=s.season||'';
       chips+='<span class="scc scdt">📅 '+xesc(s.dt.replace('T',' '))
         +(jour?' · '+jour:'')+(sai?' · '+sai:'')+'</span>';}
+    if(s.cible_dt&&s.cible_dt!==s.dt)
+      chips+='<span class="scc scdt" title="date/heure de la topologie cible">🎯 '+xesc(s.cible_dt.replace('T',' '))+'</span>';
     if(s.nb_barres!=null)chips+='<span class="scc">'+s.nb_barres+' barre'+(s.nb_barres>1?'s':'')+'</span>';
     if(s.nb_depart!=null&&s.nb_cible!=null)chips+='<span class="scc">'+s.nb_depart+'→'+s.nb_cible+' nœud</span>';
     if(s.n_dj!=null)chips+='<span class="scc">DJ '+(s.n_dj||0)+' · SA '+(s.n_sa||0)+' · INT '+(s.n_int||0)+'</span>';
@@ -784,6 +837,39 @@ function downloadAllScenarios(){const a=document.createElement('a');
   a.href='/api/scenarios_archive';a.download='scenarios.zip';
   document.body.appendChild(a);a.click();a.remove();}
 function closeReload(){document.getElementById('reloadModal').style.display='none';}
+// Modale « ⚙ Configuration » : algorithmes pluggables par phase (avec le défaut)
+// + chemins de sauvegarde/rechargement des scénarios et séquences.
+async function openConfig(){
+  let r;try{r=await (await fetch('/api/config')).json();}catch(e){r=null;}
+  if(!r)return;
+  fillCfgAlgo('cfgAlgoIdent','identificateur',r.algos);
+  fillCfgAlgo('cfgAlgoSeq','sequenceur',r.algos);
+  fillCfgAlgo('cfgAlgoPlan','planificateur',r.algos);
+  const sd=document.getElementById('cfgScenDir'),qd=document.getElementById('cfgSeqDir');
+  sd.value=r.scenarios_dir||'';qd.value=r.sequences_dir||'';
+  sd.disabled=qd.disabled=!!r.hosted;
+  document.getElementById('cfgHosted').style.display=r.hosted?'block':'none';
+  document.getElementById('cfgMsg').textContent='';
+  document.getElementById('configModal').style.display='flex';}
+function fillCfgAlgo(id,phase,algos){const sel=document.getElementById(id);if(!sel)return;
+  sel.innerHTML='';((algos.disponibles||{})[phase]||[]).forEach(n=>{
+    const o=document.createElement('option');o.value=n;o.text=n+(n==='libtopo'?' (défaut)':'');sel.add(o);});
+  sel.value=(algos.selection||{})[phase]||'libtopo';
+  sel.disabled=sel.options.length<2;}
+function closeConfig(){document.getElementById('configModal').style.display='none';}
+async function saveConfig(){
+  const body={algos:{
+      identificateur:document.getElementById('cfgAlgoIdent').value,
+      sequenceur:document.getElementById('cfgAlgoSeq').value,
+      planificateur:document.getElementById('cfgAlgoPlan').value},
+    scenarios_dir:document.getElementById('cfgScenDir').value,
+    sequences_dir:document.getElementById('cfgSeqDir').value};
+  let r;try{r=await api('/api/config',body);}catch(e){
+    document.getElementById('cfgMsg').textContent='échec';return;}
+  await refreshAlgos();await refreshScenarios();   // resync sélecteurs inline + base
+  document.getElementById('cfgScenDir').value=r.scenarios_dir||'';
+  document.getElementById('cfgSeqDir').value=r.sequences_dir||'';
+  document.getElementById('cfgMsg').textContent='✓ Configuration appliquée.';}
 async function validateReload(){const name=document.getElementById('scenSel').value;
   if(name)await loadScen('both');closeReload();}
 async function saveWithConfirm(url,name,msgEl){
@@ -803,12 +889,17 @@ async function save(){const name=document.getElementById('scenName').value;
   const msg=document.getElementById('savemsg');
   // Date/heure de DÉPART à logger : en RTE7000, la date du dataset + l'heure de
   // départ choisie ; en local, le backend lit l'horodatage du fichier (case_date).
-  let depart_dt=null;
+  let depart_dt=null,cible_dt=null;
   if(S.tab==='rte'){
     const date=(MAP.data&&MAP.data.date)||document.getElementById('dsDate').value;
     const hour=MAP.topoHour||document.getElementById('dsTime').value;
-    if(date&&hour)depart_dt=date+'T'+hour;}
-  const r=await api('/api/save',{name,depart_dt,source:S.tab});
+    if(date&&hour)depart_dt=date+'T'+hour;
+    // Date/heure de la topologie CIBLE : conservée seulement si la cible n'a PAS
+    // été modifiée (topologie observée à l'heure cible d'un instantané RTE7000).
+    if(date&&!S.cibleModifiee){
+      const hc=MAP.cibleHour||MAP.topoHour||document.getElementById('dsTime').value;
+      if(hc)cible_dt=date+'T'+hc;}}
+  const r=await api('/api/save',{name,depart_dt,cible_dt,source:S.tab});
   if(r&&r.already_exists){   // départ + cible identiques à un scénario existant
     setValidated(true);await refreshScenarios();
     msg.textContent='⚠ Scénario déjà existant (« '+r.name+' », départ + cible identiques) — non écrasé.';
@@ -1132,7 +1223,13 @@ function renderNodaleCible(){
 // sur un nœud pour reconnecter (clic = (dé)sélection pour glisser un lot).
 function renderIso(rootId,list,editable){
   const root=document.getElementById(rootId);
-  if(!list||!list.length){root.style.display='none';root.innerHTML='';return;}
+  if(!list||!list.length){
+    if(!editable){root.style.display='none';root.innerHTML='';return;}
+    // Zone CIBLE éditable : reste visible (même vide) comme cible de dépose
+    // « isoler » — glisser-y un départ le déclare ouvrage isolé.
+    root.style.display='block';
+    root.innerHTML='<div class="isohd">⌀ Ouvrages isolés (0) — glisser un départ ici pour l\'isoler</div>';
+    return;}
   root.style.display='block';
   let h=`<div class="isohd">⚠ Ouvrages isolés (${list.length})`
     +(editable?' — glisser sur un nœud pour reconnecter':' — déconnectés')+`</div><div class="isochips">`;
@@ -1156,21 +1253,31 @@ function ndStart(e,info){e.preventDefault();
 function ndNodeUnder(e){const el=document.elementFromPoint(e.clientX,e.clientY);
   const g=el&&el.closest?el.closest('#ndCible .nbus'):null;
   return g?+g.getAttribute('data-node'):null;}
+// Survol de la zone « Ouvrages isolés » cible (cible de dépose pour isoler).
+function ndOverIso(e){const el=document.elementFromPoint(e.clientX,e.clientY);
+  return !!(el&&el.closest&&el.closest('#ndCibleIso'));}
 function ndMove(e){const d=NOD.dnd;if(!d)return;
   if(!d.moved&&Math.hypot(e.clientX-d.x0,e.clientY-d.y0)<5)return;
   d.moved=true;document.body.classList.add('ndndrag');
   const tgt=ndNodeUnder(e);
   document.querySelectorAll('#ndCible .nbus').forEach(g=>
     g.classList.toggle('droptarget',tgt!=null&&+g.getAttribute('data-node')===tgt));
+  const iso=document.getElementById('ndCibleIso');
+  if(iso)iso.classList.toggle('droptarget',d.type==='feeder'&&ndOverIso(e));
 }
 function ndUp(e){const d=NOD.dnd;NOD.dnd=null;
   document.body.classList.remove('ndndrag');
   document.querySelectorAll('.nbus.droptarget').forEach(g=>g.classList.remove('droptarget'));
+  const isoZ=document.getElementById('ndCibleIso');if(isoZ)isoZ.classList.remove('droptarget');
   if(!d)return;
   if(!d.moved){   // simple clic = (dé)sélection d'un départ
     if(d.type==='feeder'){if(NOD.selBranches.has(d.eq))NOD.selBranches.delete(d.eq);
       else NOD.selBranches.add(d.eq);renderNodaleCible();}
     return;}
+  // Déposer un (ou des) départ(s) sur la zone « Ouvrages isolés » = isoler.
+  if(d.type==='feeder'&&ndOverIso(e)){
+    const items=NOD.selBranches.has(d.eq)?[...NOD.selBranches]:[d.eq];
+    nodIsolate(items);return;}
   const tgt=ndNodeUnder(e);
   if(tgt==null)return;
   if(d.type==='node'){if(tgt!==d.node)nodMergeNodes(d.node,tgt);}
@@ -1196,6 +1303,20 @@ function nodMergeNodes(src,dst){
 // glisser-y ensuite des départs. Un nœud resté vide est ignoré au calcul.
 function nodNewNode(){NOD.groups.push([]);const idx=NOD.groups.length-1;
   if(NOD.selBranches.size)nodMoveSelTo(idx);else renderNodaleCible();}
+// Déclarer des départs comme **ouvrages isolés** (déconnectés / hors partition) :
+// les retire des nœuds et les ajoute à NOD.isolated (envoyé à /api/nodale_to_detaillee,
+// qui les laisse hors partition et les déconnecte réellement). Évite le « nœud à un
+// seul ouvrage » que le backend prenait pour un véritable nœud électrique.
+function nodIsolate(items){
+  if(!items||!items.length)return;
+  NOD.groups=NOD.groups.map(g=>g.filter(eq=>items.indexOf(eq)<0));
+  items.forEach(eq=>{if(NOD.isolated.indexOf(eq)<0)NOD.isolated.push(eq);});
+  NOD.selBranches=new Set();nodNormalize();renderNodaleCible();}
+function nodIsolateSel(){
+  const items=[...NOD.selBranches];
+  if(!items.length){const st=document.getElementById('nodstatus');
+    st.className='';st.textContent='Sélectionnez d\'abord un ou des départs (clic), puis « ⌀ Isoler ».';return;}
+  nodIsolate(items);}
 function nodClearSel(){NOD.selBranches=new Set();renderNodaleCible();}
 async function nodCompute(){
   const st=document.getElementById('nodstatus');st.className='';st.textContent='Calcul en cours…';
@@ -1427,6 +1548,18 @@ function initMap(){
   wrap.addEventListener('dblclick',e=>{const el=e.target.closest('.pdisk');if(!el)return;
     if(MAP.clickTimer){clearTimeout(MAP.clickTimer);MAP.clickTimer=null;}
     hideBubble();mapOpenPoste(el.getAttribute('data-sub'));});
+  // Survol : étiquette « nom du poste » qui suit la souris (pointeur précis).
+  const tip=document.getElementById('mapTip');
+  wrap.addEventListener('mousemove',e=>{
+    if(pan){tip.style.display='none';return;}
+    const el=e.target.closest('.pdisk'),p=el&&MAP.bySub[el.getAttribute('data-sub')];
+    if(!p){tip.style.display='none';return;}
+    const wr=wrap.getBoundingClientRect();
+    tip.textContent=p.name||p.sub;tip.style.display='block';
+    let x=e.clientX-wr.left+14,y=e.clientY-wr.top+14;
+    if(x+tip.offsetWidth>wr.width)x=e.clientX-wr.left-tip.offsetWidth-8;
+    tip.style.left=Math.max(2,x)+'px';tip.style.top=Math.max(2,y)+'px';});
+  wrap.addEventListener('mouseleave',()=>{tip.style.display='none';});
 }
 function mapZoom(f){const w=document.getElementById('mapSvgWrap').getBoundingClientRect();
   if(MAP._zoomAt)MAP._zoomAt({clientX:w.left+w.width/2,clientY:w.top+w.height/2},f);}
