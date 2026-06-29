@@ -1162,13 +1162,19 @@ function allByDir(top){const out=[];
 function buildNodaleSVG(groups, editable, colors){
   const BW=30, BUSH=6, STUB=24, PADX=14, PADY=10, GAPY=22, CW=6.1, BADGE=22;
   const topH=labLen(allByDir(true))*CW+6, botH=labLen(allByDir(false))*CW+6;
-  const place=(x0,len,j,cnt)=>cnt>1?x0+(j*(len-BW)/(cnt-1))+BW/2:x0+len/2;
   let y=PADY, maxX=0; const segs=[];
   groups.forEach((g,ni)=>{
-    const top=g.filter(isTop).sort(byOrder);
-    const bot=g.filter(eq=>!isTop(eq)).sort(byOrder);
-    const cols=Math.max(top.length,bot.length,1), busLen=Math.max(46,cols*BW);
+    // **Ordre gauche → droite identique au schéma détaillé** : on classe TOUS les
+    // départs du nœud par leur abscisse SLD (NOD.order) et on attribue une colonne
+    // par rang. Le haut (départs « top ») et le bas (« bottom ») **partagent ce
+    // même axe horizontal** — un départ garde donc sa position relative et son côté
+    // (haut/bas) exactement comme dans la vue détaillée.
+    const all=g.slice().sort(byOrder);
+    const colOf={}; all.forEach((eq,i)=>{colOf[eq]=i;});
+    const top=g.filter(isTop), bot=g.filter(eq=>!isTop(eq));
+    const cols=Math.max(all.length,1), busLen=Math.max(46,cols*BW);
     const x0=PADX+BADGE+6, x1=x0+busLen, busY=y+topH+STUB+BUSH/2;
+    const colX=col=>x0+(col+0.5)*busLen/cols;   // centre de la colonne (rang global)
     const blockH=topH+STUB+BUSH+STUB+botH;
     const col=nodeFill(g,ni,colors), tcol=textOn(col);
     let blk=`<g class="nbus${editable?' ed':''}" data-node="${ni}">`;
@@ -1180,9 +1186,9 @@ function buildNodaleSVG(groups, editable, colors){
        +`width="${BADGE}" height="${BADGE}" fill="${col}"/>`
        +`<text x="${(PADX+BADGE/2).toFixed(1)}" y="${(busY+3.8).toFixed(1)}" fill="${tcol}">N${ni}</text></g>`;
     blk+=`<title>N${ni} · ${g.length} branche(s)</title>`;
-    top.forEach((eq,j)=>blk+=branchSeg(eq,place(x0,busLen,j,top.length),
+    top.forEach(eq=>blk+=branchSeg(eq,colX(colOf[eq]),
       busY-BUSH/2,busY-BUSH/2-STUB,true,editable));
-    bot.forEach((eq,j)=>blk+=branchSeg(eq,place(x0,busLen,j,bot.length),
+    bot.forEach(eq=>blk+=branchSeg(eq,colX(colOf[eq]),
       busY+BUSH/2,busY+BUSH/2+STUB,false,editable));
     blk+=`</g>`;
     segs.push(blk); maxX=Math.max(maxX,x1); y+=blockH+GAPY;});

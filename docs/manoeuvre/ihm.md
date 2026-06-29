@@ -418,7 +418,11 @@ défaut (qui délègue à `determiner_topo_complete_cible(poste, topo_cible)`).
   SLD : même nœud électrique ⇒ même couleur), repérée par un badge `N0`, `N1`… Ses
   branches sont des **départs verticaux** — *du haut* au-dessus de la barre, *du
   bas* en dessous, comme dans la vue détaillée — **triés de gauche à droite** par
-  leur abscisse SLD. Chaque branche porte son **libellé** (extrait du SLD, donc
+  leur abscisse SLD. Les départs *du haut* et *du bas* **partagent le même axe
+  horizontal** (une **colonne par rang d'abscisse SLD**, haut et bas confondus) :
+  chaque départ conserve donc **à la fois son côté (haut/bas) et sa position
+  gauche → droite** exactement comme dans la vue détaillée. Chaque branche porte
+  son **libellé** (extrait du SLD, donc
   **strictement identique** au schéma détaillé : `C.REG1`, `AT762`, `TR634`…) et sa
   **valeur de flux** (P en MW, état de départ). Les nœuds sont **empilés
   verticalement**. Le volet montre la topologie nodale de **départ** (lecture
