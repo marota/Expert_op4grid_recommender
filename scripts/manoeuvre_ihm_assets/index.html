@@ -226,9 +226,13 @@
  #btnExplore{width:100%;margin-top:4px;background:#0e7490;color:#fff;border-color:#0e7490}
 </style></head><body>
 <div id="side">
-  <h2 style="margin-top:0">Situation réseau
+  <h2 style="margin-top:0;display:flex;align-items:center;gap:6px">
+    <span style="flex:1">Situation réseau</span>
+    <input id="authorName" placeholder="✍ votre nom" autocomplete="off"
+           title="Auteur des scénarios sauvegardés — modifiable à tout moment ; enregistré dans les métadonnées des fichiers."
+           style="width:104px;padding:2px 6px;font-size:11px;font-weight:normal">
     <button onclick="openConfig()" title="Configuration : algorithmes par phase + chemins de sauvegarde/rechargement des scénarios et séquences"
-            style="float:right;padding:1px 8px;font-size:11px;margin:0;font-weight:normal">⚙ Config</button>
+            style="padding:1px 8px;font-size:11px;margin:0;font-weight:normal">⚙ Config</button>
   </h2>
   <div class="tabs" role="tablist">
     <button id="tabLocal" class="tab" onclick="selectTab('local')"
@@ -477,6 +481,22 @@ python scripts/manoeuvre_ihm.py --grid /chemin/grid.xiidm</code>
     </div>
   </div>
 </div>
+<div id="authorModal" class="modal" style="display:none" onclick="if(event.target===this)closeAuthor(null)">
+  <div class="modalbox" style="max-width:380px">
+    <h3>✍ Votre nom (auteur)</h3>
+    <div style="font-size:12px;color:#475569;margin-bottom:8px">Indiquez votre nom : il sera enregistré dans les métadonnées des scénarios (facultatif).</div>
+    <input id="authorInput" placeholder="nom de l'auteur" autocomplete="off" style="width:100%;padding:6px"
+           onkeydown="if(event.key==='Enter')confirmAuthor()">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:9px">
+      <input type="checkbox" id="authorNoask"> Ne plus me redemander
+    </label>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:12px">
+      <span style="flex:1"></span>
+      <button onclick="closeAuthor(null)">Annuler</button>
+      <button class="primary" onclick="confirmAuthor()">Enregistrer</button>
+    </div>
+  </div>
+</div>
 <script>
 let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:false,
   editTarget:false,stale:false,currentVL:null,tab:'local'};
@@ -619,6 +639,7 @@ async function init(){const r=await (await fetch('/api/postes')).json();
   if(sn)sn.addEventListener('input',()=>{S.scenNameDirty=true;});
   search.addEventListener('keydown',e=>{if(e.key==='Enter'){
     const v=search.value.trim();if(v&&ALL_POSTES.includes(v))selectPoste(v);}});
+  initAuthor();
   initNodalResize(); initNodalDnD(); initMap(); await refreshScenarios(); await initDataset();
   // Pas d'auto-chargement de poste : on attend que l'utilisateur en choisisse un
   // (le schéma reste sur « Choisissez un poste… » tant qu'aucun n'est sélectionné).
@@ -806,7 +827,7 @@ function renderScenList(){const root=document.getElementById('scenList');if(!roo
     fy=g('scfYear').value,fse=g('scfSeason').value,fday=g('scfDay').value;
   const ge=(v,m)=>isNaN(m)||((v||0)>=m);
   const hits=SCENARIOS.filter(s=>{
-    if(q&&!((s.name+' '+(s.vl||'')+' '+(s.sub||'')).toLowerCase().includes(q)))return false;
+    if(q&&!((s.name+' '+(s.vl||'')+' '+(s.sub||'')+' '+(s.author||'')).toLowerCase().includes(q)))return false;
     if(fv&&Math.round(s.nominal_v||0)!==Math.round(+fv))return false;
     if(fy&&String(s.year)!==fy)return false;
     if(fse&&s.season!==fse)return false;
@@ -828,6 +849,8 @@ function renderScenList(){const root=document.getElementById('scenList');if(!roo
     if(s.nb_depart!=null&&s.nb_cible!=null)chips+='<span class="scc">'+s.nb_depart+'→'+s.nb_cible+' nœud</span>';
     if(s.n_dj!=null)chips+='<span class="scc">DJ '+(s.n_dj||0)+' · SA '+(s.n_sa||0)+' · INT '+(s.n_int||0)+'</span>';
     if(s.n_nodal)chips+='<span class="scc">⚇ '+s.n_nodal+'</span>';
+    if(s.author)chips+='<span class="scc" title="auteur">✍ '+xesc(s.author)+'</span>';
+    if(s.created_at)chips+='<span class="scc" title="date de création">🕒 '+xesc(s.created_at.replace('T',' '))+'</span>';
     d.innerHTML='<div class="scnm">'+xesc(s.name)+'</div><div class="scmeta">'+chips+'</div>';
     d.onclick=()=>{g('scenSel').value=s.name;renderScenList();};
     d.ondblclick=()=>{g('scenSel').value=s.name;validateReload();};
@@ -875,6 +898,35 @@ async function saveConfig(){
   document.getElementById('cfgScenDir').value=r.scenarios_dir||'';
   document.getElementById('cfgSeqDir').value=r.sequences_dir||'';
   document.getElementById('cfgMsg').textContent='✓ Configuration appliquée.';}
+// --- Auteur des scénarios (mémorisé localement, modifiable à tout moment) ----
+function currentAuthor(){return (document.getElementById('authorName').value||'').trim();}
+function initAuthor(){const el=document.getElementById('authorName');if(!el)return;
+  el.value=localStorage.getItem('manoeuvre_author')||'';
+  el.addEventListener('input',()=>localStorage.setItem('manoeuvre_author',currentAuthor()));}
+// Modale « ✍ Votre nom » : demandée une seule fois si aucun auteur déclaré, avec
+// une coche « ne plus me redemander ». Renvoie une Promesse {name, noask} ou null.
+let _authorResolve=null;
+function askAuthor(){return new Promise(res=>{_authorResolve=res;
+  document.getElementById('authorInput').value=localStorage.getItem('manoeuvre_author')||'';
+  document.getElementById('authorNoask').checked=false;
+  document.getElementById('authorModal').style.display='flex';
+  document.getElementById('authorInput').focus();});}
+function closeAuthor(val){document.getElementById('authorModal').style.display='none';
+  const r=_authorResolve;_authorResolve=null;if(r)r(val);}
+function confirmAuthor(){closeAuthor({name:(document.getElementById('authorInput').value||'').trim(),
+  noask:document.getElementById('authorNoask').checked});}
+// Auteur à enregistrer pour une sauvegarde : si aucun nom déclaré et que
+// l'utilisateur n'a pas coché « ne plus me redemander », on le demande une fois.
+async function resolveAuthor(){
+  let author=currentAuthor();
+  if(author||localStorage.getItem('manoeuvre_author_noask')==='1')return author;
+  const a=await askAuthor();
+  if(a){
+    if(a.noask)localStorage.setItem('manoeuvre_author_noask','1');
+    author=a.name;
+    if(author){localStorage.setItem('manoeuvre_author',author);
+      document.getElementById('authorName').value=author;}}
+  return author;}
 async function validateReload(){const name=document.getElementById('scenSel').value;
   if(name)await loadScen('both');closeReload();}
 async function saveWithConfirm(url,name,msgEl){
@@ -904,7 +956,8 @@ async function save(){const name=document.getElementById('scenName').value;
     if(date&&!S.cibleModifiee){
       const hc=MAP.cibleHour||MAP.topoHour||document.getElementById('dsTime').value;
       if(hc)cible_dt=date+'T'+hc;}}
-  const r=await api('/api/save',{name,depart_dt,cible_dt,source:S.tab});
+  const author=await resolveAuthor();   // demande le nom une fois si non déclaré
+  const r=await api('/api/save',{name,depart_dt,cible_dt,source:S.tab,author});
   if(r&&r.already_exists){   // départ + cible identiques à un scénario existant
     setValidated(true);await refreshScenarios();
     msg.textContent='⚠ Scénario déjà existant (« '+r.name+' », départ + cible identiques) — non écrasé.';

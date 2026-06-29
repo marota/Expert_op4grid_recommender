@@ -305,7 +305,9 @@ le bandeau indique la cause (OSM injoignable, ou joignable mais 0 apparié avec 
   pluggables par phase** (identification / séquencement / planification, avec le
   défaut **« libtopo »**) et **chemins de sauvegarde / rechargement** des
   scénarios et séquences (en **lecture seule** sur une IHM déportée). Voir
-  `GET/POST /api/config`.
+  `GET/POST /api/config`. À **gauche** de ce bouton, un champ **✍ votre nom**
+  porte l'**auteur** des scénarios (mémorisé localement, modifiable à tout
+  moment ; demandé une fois à la première sauvegarde).
 - **Scénario Topologique** : la suite de travail en **trois étapes** —
   **1 · Poste** (champ de recherche **unique** sur tous les postes + liste
   browsable curée **par typologie** en dessous), **2 · Topologie cible** (éditer
@@ -611,9 +613,9 @@ navigateur).
 | `GET /api/config` | — | `{algos:{disponibles,selection}, scenarios_dir, sequences_dir, hosted}` | Config **runtime** (modale ⚙ Config) : algos pluggables par phase + sélection, chemins de sauvegarde/rechargement |
 | `POST /api/config` | `{algos?, scenarios_dir?, sequences_dir?}` | idem `GET /api/config` | Met à jour la sélection d'algos et les **dossiers** scénarios/séquences ; chemins **ignorés** si `hosted` (lecture seule) |
 | `GET /api/pick_grid_file`, `POST /api/load_grid` *(déporté)* | — | `403 {ok:false, error, hosted:true}` | **Import local refusé** sur une IHM hébergée (confidentialité des fichiers) |
-| `GET /api/scenarios` | — | `{scenarios:[{name, vl, sub, nominal_v, nb_barres, nb_depart, nb_cible, n_dj, n_sa, n_int, n_nodal, dt, year, season, weekday, cible_dt, source}]}` | Liste des scénarios **avec métadonnées de recherche** (dont `cible_dt`) |
+| `GET /api/scenarios` | — | `{scenarios:[{name, vl, sub, nominal_v, nb_barres, nb_depart, nb_cible, n_dj, n_sa, n_int, n_nodal, dt, year, season, weekday, cible_dt, source, created_at, author}]}` | Liste des scénarios **avec métadonnées de recherche** (dont `cible_dt`, `created_at`, `author`) |
 | `GET /api/scenarios_archive` | — | `application/zip` | **Archive ZIP** de toute la base de scénarios (`scenarios.zip`) |
-| `POST /api/save` | `{name, depart_dt?, cible_dt?, source?}` | `{path, name, content, scenarios[]}` ou `{already_exists:true, name, path, scenarios[]}` | Sauvegarde **anti-doublon** (identique → non réécrit) avec **nom unique indexé** ; `meta` calculée + `dt`/`cible_dt`/`source` loggés (`cible_dt` = date/heure de la topo **cible** RTE7000 **non modifiée**) ; `content` = JSON pour téléchargement local |
+| `POST /api/save` | `{name, depart_dt?, cible_dt?, source?, author?}` | `{path, name, content, scenarios[]}` ou `{already_exists:true, name, path, scenarios[]}` | Sauvegarde **anti-doublon** (identique → non réécrit) avec **nom unique indexé** ; `meta` calculée + `dt`/`cible_dt`/`source`/`author` loggés + `created_at` (horloge serveur) ; `content` = JSON pour téléchargement local |
 | `POST /api/load_scenario` | `{name, mode}` | `{initial_svg, nb_initial, svg, switches, nb_noeuds, vl, meta, nodale_depart, nodale_cible}` | Recharge (`mode="both"` ou `"as_depart"`) ; `meta` (date/heure, source) → re-synchro Date/Heure côté IHM |
 | `POST /api/save_sequence` | `{name, overwrite?}` | `{path, name, content}` ou `{exists:true, name, path}` | Sauvegarde la séquence **courante** ; `content` = JSON écrit |
 
@@ -645,7 +647,8 @@ Topologie cible validée, réutilisable comme cible (rejeu) ou comme départ.
     "nb_barres": 2, "nb_depart": 1, "nb_cible": 2,
     "n_dj": 3, "n_sa": 0, "n_int": 0, "n_nodal": 1,
     "dt": "2021-01-03T08:00", "year": 2021, "season": "hiver",
-    "weekday": 6, "cible_dt": "2021-01-03T12:00", "source": "rte"
+    "weekday": 6, "cible_dt": "2021-01-03T12:00", "source": "rte",
+    "created_at": "2025-02-14T09:30", "author": "Alice"
   }
 }
 ```
@@ -654,8 +657,14 @@ Le bloc `meta` (ajouté v0.2.x) alimente la **recherche** dans la base partagée
 année/saison/jour). `dt` = date/heure de la **topologie de départ** (RTE7000 :
 date/heure choisies ; local : `case_date` du fichier) ; `cible_dt` = date/heure de
 la **topologie cible**, conservée pour un fichier RTE7000 dont la cible **n'a pas
-été modifiée** (topologie observée à cette heure ; `null` sinon). Absent des
-fichiers antérieurs (champs `null`).
+été modifiée** (topologie observée à cette heure ; `null` sinon). `created_at` =
+**date de création** du fichier (horloge serveur) ; `author` = **auteur**
+(facultatif, saisi dans l'IHM). Absent des fichiers antérieurs (champs `null`).
+
+> **Auteur** : un champ **✍ votre nom** (à gauche du bouton **⚙ Config**) porte
+> l'auteur des scénarios — **mémorisé localement** (navigateur) et **modifiable à
+> tout moment**. À la **première sauvegarde** sans nom déclaré, l'IHM le **demande
+> une fois** via une petite modale offrant une coche **« ne plus me redemander »**.
 
 ### Séquence (`--sequences-dir/<nom>.json`)
 Séquence **courante** (telle qu'éventuellement éditée par l'expert) + topologies
@@ -758,6 +767,7 @@ assert res.ecarts == []
 | Voir le **nom des postes au survol** sur la carte + **curseur pointeur précis** | `#mapTip` (étiquette suivant la souris) + `.pdisk{cursor:crosshair}` |
 | **Modale de configuration** : algos disponibles (+ défaut) et chemins de sauvegarde/rechargement | Bouton **⚙ Config** → modale `#configModal` ; `GET/POST /api/config` |
 | **Conserver date/heure** de la topo de départ **et** de la topo cible (RTE7000 non modifiée) | `meta.dt` (départ) + `meta.cible_dt` (cible) ; `save()` envoie `depart_dt`/`cible_dt` |
+| **Date de création** + **auteur** dans les métadonnées des scénarios | `meta.created_at` (horloge serveur) + `meta.author` ; champ **✍ votre nom** (gauche de ⚙ Config), demandé une fois (coche « ne plus me redemander ») |
 | **Déclarer des ouvrages à isoler** (hors partition, vraiment déconnectés) | Bouton **⌀ Isoler** / dépose sur la zone *Ouvrages isolés* → `isolated` ; `Session._isoler_dans_etat` ouvre les organes (nœud 0-barre) |
 
 ---

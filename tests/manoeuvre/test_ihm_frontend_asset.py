@@ -104,6 +104,9 @@ REQUIRED_MARKERS = [
     'cursor:crosshair', 'onclick="openConfig()"', 'id="configModal"',
     'function saveConfig', 'function nodIsolate', 'onclick="nodIsolateSel()"',
     'colX(colOf', 'highlightChanges(d.changes)',
+    # Auteur des scénarios : champ persistant + modale « demander une fois »
+    'id="authorName"', 'id="authorModal"', 'function resolveAuthor',
+    'function askAuthor', 'id="authorNoask"',
 ]
 
 #: marqueurs qui ne DOIVENT PLUS apparaître (éléments retirés / renommés)

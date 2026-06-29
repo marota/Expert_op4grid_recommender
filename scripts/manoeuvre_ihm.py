@@ -1103,7 +1103,7 @@ class Session:
                 **self._date_tags(depart_dt)}
 
     def save_scenario(self, name: str, depart_dt=None, source=None,
-                      cible_dt=None) -> dict:
+                      cible_dt=None, author=None) -> dict:
         """Sauvegarde le scénario courant (départ + cible) en **évitant les
         doublons** :
 
@@ -1151,6 +1151,11 @@ class Session:
         # quand la cible n'a **pas** été modifiée (topologie observée à cette heure).
         # ``None`` sinon (cible éditée par l'expert : plus rattachée à un instantané).
         meta["cible_dt"] = cible_dt or None
+        # **Date de création** du fichier (horloge serveur) + **auteur** (facultatif,
+        # renseigné par l'IHM) — traçabilité des scénarios sauvegardés.
+        from datetime import datetime
+        meta["created_at"] = datetime.now().strftime("%Y-%m-%dT%H:%M")
+        meta["author"] = (author or "").strip() or None
         data = {
             "voltage_level_id": self.vl, "name": final,
             "depart": cur_dep, "cible": cur_cib,
@@ -1186,7 +1191,8 @@ class Session:
                         "n_int": m.get("n_int"), "n_nodal": m.get("n_nodal"),
                         "dt": m.get("dt"), "year": m.get("year"),
                         "season": m.get("season"), "weekday": m.get("weekday"),
-                        "cible_dt": m.get("cible_dt"), "source": m.get("source")})
+                        "cible_dt": m.get("cible_dt"), "source": m.get("source"),
+                        "created_at": m.get("created_at"), "author": m.get("author")})
         return out
 
     def load_scenario(self, name: str, mode: str = "both") -> str:
@@ -1967,7 +1973,8 @@ def api_save():
     name = _safe_name(request.json.get("name", ""), SESSION.vl)
     res = SESSION.save_scenario(name, depart_dt=request.json.get("depart_dt"),
                                 source=request.json.get("source"),
-                                cible_dt=request.json.get("cible_dt"))
+                                cible_dt=request.json.get("cible_dt"),
+                                author=request.json.get("author"))
     if res["status"] == "exists":
         # scénario déjà présent (départ + cible identiques) → non écrasé.
         return jsonify(already_exists=True, name=res["name"], path=res["path"],

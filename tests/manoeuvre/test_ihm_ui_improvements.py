@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import pathlib
+import re
 
 import pytest
 
@@ -134,6 +135,36 @@ def test_scenario_cible_dt_none_when_modified(session, monkeypatch, tmp_path):
     res = session.save_scenario("sc2", depart_dt="2021-01-03T08:00", source="rte")
     data = json.loads((tmp_path / f"{res['name']}.json").read_text())
     assert data["meta"]["cible_dt"] is None
+
+
+def test_scenario_records_created_at_and_author(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    res = session.save_scenario("sc3", author="  Alice  ")
+    data = json.loads((tmp_path / f"{res['name']}.json").read_text())
+    # date de création (horloge serveur) au format ISO minute, + auteur nettoyé.
+    assert re.match(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", data["meta"]["created_at"])
+    assert data["meta"]["author"] == "Alice"
+    listed = {s["name"]: s for s in session.list_scenarios()}
+    assert listed[res["name"]]["author"] == "Alice"
+    assert listed[res["name"]]["created_at"] == data["meta"]["created_at"]
+
+
+def test_scenario_author_none_when_blank(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    res = session.save_scenario("sc4", author="   ")
+    data = json.loads((tmp_path / f"{res['name']}.json").read_text())
+    assert data["meta"]["author"] is None
+    assert data["meta"]["created_at"]            # toujours daté
+
+
+def test_api_save_passes_author(session, monkeypatch, tmp_path):
+    monkeypatch.setattr(ihm, "SCEN_DIR", tmp_path)
+    monkeypatch.setattr(ihm, "SESSION", session)
+    r = ihm.app.test_client().post("/api/save", json={"name": "sc5", "author": "Bob"})
+    d = r.get_json()
+    assert "Bob" in d["content"]
+    data = json.loads((tmp_path / f"{d['name']}.json").read_text())
+    assert data["meta"]["author"] == "Bob"
 
 
 # --------------------------------------------------------------------------
