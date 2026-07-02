@@ -195,23 +195,41 @@ class DiscovererBase:
         return ranked[:cap]
 
     def _get_simulation_baseline(self):
-        """Return ``(act_defaut, baseline_rho)`` for candidate rho checks.
+        """Return ``(act_defaut, baseline_rho, branch_obs)`` for candidate rho checks.
 
-        Computed once per discovery run and shared across the discovery
-        passes (load shedding, redispatching, renewable curtailment) — each
-        previously rebuilt the identical contingency action and re-ran the
-        same baseline load flow. The discoverer instance is created fresh for
-        every Step-2 run, so instance-level caching cannot go stale.
+        Computed once per discovery run and shared across *all* discovery
+        passes — the injection passes (load shedding, redispatching, renewable
+        curtailment) call this directly, and on the pypowsybl backend the
+        topological passes reach it through the shared-baseline wrapper wired in
+        ``main.py`` (see ``_branch_candidates_from_baseline``). Each pass
+        previously rebuilt the identical contingency action and re-ran the same
+        baseline load flow (2 LFs + 1 leaked kept-variant per candidate); the
+        shared baseline reduces that to a single baseline load flow per run. The
+        discoverer instance is created fresh for every Step-2 run, so
+        instance-level caching cannot go stale.
+
+        ``branch_obs`` is the observation a candidate action should be simulated
+        *on top of*. The two backends have opposite contracts: grid2op re-applies
+        the contingency itself, so candidates branch from the healthy N-state
+        (``self.obs``); pypowsybl branches from the contingency-applied kept
+        variant (``obs_baseline``) and applies only the candidate. The
+        ``_branch_candidates_from_baseline`` flag (set for pypowsybl in
+        ``main.py``) selects between them.
         """
         if not hasattr(self, "_cached_simulation_baseline"):
             act_defaut = self._create_default_action(
                 self.action_space, self.lines_defaut
             )
-            baseline_rho, _ = self._compute_baseline(
+            baseline_rho, obs_baseline = self._compute_baseline(
                 self.obs, self.timestep, act_defaut,
                 self.act_reco_maintenance, self.lines_overloaded_ids,
             )
-            self._cached_simulation_baseline = (act_defaut, baseline_rho)
+            branch_obs = (
+                obs_baseline
+                if getattr(self, "_branch_candidates_from_baseline", False)
+                else self.obs
+            )
+            self._cached_simulation_baseline = (act_defaut, baseline_rho, branch_obs)
         return self._cached_simulation_baseline
 
     def _build_lookup_caches(self):
