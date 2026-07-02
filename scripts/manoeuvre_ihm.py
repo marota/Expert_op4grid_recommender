@@ -1205,7 +1205,7 @@ class Session:
           **nouvel état de départ** (et la cible éditable en repart) ; permet de
           chaîner les scénarios (partir d'une topologie validée, non pristine).
         """
-        data = json.loads((SCEN_DIR / f"{name}.json").read_text())
+        data = json.loads(_stored_json_path(SCEN_DIR, name).read_text())
         self.load(data["voltage_level_id"])
         base = {k: bool(self.initial[k]) for k in self.initial}
         if mode == "as_depart":
@@ -1919,10 +1919,19 @@ def api_config_set():
     if not DATASET["hosted"]:
         sd = (body.get("scenarios_dir") or "").strip()
         qd = (body.get("sequences_dir") or "").strip()
-        if sd:
+        # Only allow repointing within an allowed store root (cwd / persistent
+        # data root). Rejecting arbitrary paths neutralises the exfiltration
+        # (zip-archive) and arbitrary-write (/api/save) primitives.
+        if sd and _dir_within_allowed(sd):
             SCEN_DIR = pathlib.Path(sd).expanduser()
-        if qd:
+            app.logger.warning("scenarios_dir repointé vers %s", SCEN_DIR)
+        elif sd:
+            app.logger.warning("scenarios_dir refusé (hors dossier autorisé): %s", sd)
+        if qd and _dir_within_allowed(qd):
             SEQ_DIR = pathlib.Path(qd).expanduser()
+            app.logger.warning("sequences_dir repointé vers %s", SEQ_DIR)
+        elif qd:
+            app.logger.warning("sequences_dir refusé (hors dossier autorisé): %s", qd)
     return jsonify(
         algos={"disponibles": algos_disponibles(), "selection": _algos_courants()},
         scenarios_dir=str(SCEN_DIR), sequences_dir=str(SEQ_DIR),
@@ -1968,6 +1977,44 @@ def _safe_name(name, default):
     return re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip()) or default
 
 
+def _stored_json_path(base, name):
+    """Resolve ``<base>/<name>.json`` for a **client-supplied** identifier and
+    guarantee the result stays directly inside ``base``.
+
+    Defence against path traversal (e.g. ``name='../../../../etc/passwd'``):
+    ``_safe_name`` already turns path separators into ``_``, and the
+    resolved-parent check below is belt-and-braces. Raises ``ValueError`` on an
+    empty/unsafe name so callers can return HTTP 400 instead of reading an
+    arbitrary file.
+    """
+    stem = _safe_name(name, "")
+    if not stem:
+        raise ValueError("nom de fichier invalide")
+    base = pathlib.Path(base)
+    path = (base / f"{stem}.json").resolve()
+    if path.parent != base.resolve():
+        raise ValueError("chemin hors du dossier autorisé")
+    return path
+
+
+def _dir_within_allowed(p):
+    """True if directory ``p`` sits inside an allowed store root.
+
+    Allowed roots are the process working directory and, when set, the
+    persistent data root (``MANOEUVRE_DATA_DIR`` / ``DGITT_CACHE_DIR``). This
+    stops ``/api/config`` from repointing the scenario/sequence directories at
+    an arbitrary path — which, combined with the zip-archive endpoint, would be
+    a directory-exfiltration primitive (and an arbitrary-write one via
+    ``/api/save``).
+    """
+    rp = pathlib.Path(p).expanduser().resolve()
+    roots = [pathlib.Path.cwd().resolve()]
+    data_root = _persist_root()
+    if data_root:
+        roots.append(pathlib.Path(data_root).expanduser().resolve())
+    return any(rp == root or root in rp.parents for root in roots)
+
+
 @app.post("/api/save")
 def api_save():
     name = _safe_name(request.json.get("name", ""), SESSION.vl)
@@ -1989,12 +2036,17 @@ def api_save():
 @app.post("/api/load_scenario")
 def api_load_scenario():
     name = request.json["name"]
-    SESSION.load_scenario(name, request.json.get("mode", "both"))
+    try:
+        SESSION.load_scenario(name, request.json.get("mode", "both"))
+    except ValueError as e:                      # nom invalide / hors dossier
+        return jsonify(ok=False, error=str(e)), 400
+    except FileNotFoundError:
+        return jsonify(ok=False, error="scénario introuvable"), 404
     # ``meta`` du scénario (date/heure de départ, source) → l'IHM peut re-synchroniser
     # les sélecteurs Date/Heure RTE7000 sur le contexte du scénario rechargé.
     meta = {}
     try:
-        meta = (json.loads((SCEN_DIR / f"{name}.json").read_text()).get("meta") or {})
+        meta = (json.loads(_stored_json_path(SCEN_DIR, name).read_text()).get("meta") or {})
     except Exception:
         pass
     svg_i, _, nb_i = SESSION.view(SESSION.initial)

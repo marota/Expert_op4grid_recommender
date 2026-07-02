@@ -8,7 +8,6 @@ Provides the same interface for easy migration.
 
 import os
 import datetime
-import sys
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple, Union
 
@@ -20,6 +19,7 @@ from expert_op4grid_recommender.pypowsybl_backend import (
     PypowsyblObservation
 )
 from expert_op4grid_recommender import config
+from expert_op4grid_recommender.exceptions import LoadFlowDivergedError
 from expert_op4grid_recommender.data_loader import load_interesting_lines, DELETED_LINE_NAME, load_actions
 
 
@@ -340,9 +340,10 @@ def switch_to_dc_load_flow_pypowsybl(env: SimulationEnvironment,
     )
     
     if not has_converged:
-        print("Simulation failed even in DC mode. Cannot build overflow graph.")
-        sys.exit(0)
-    
+        raise LoadFlowDivergedError(
+            "Simulation failed even in DC mode. Cannot build overflow graph."
+        )
+
     return env, obs, obs_simu
 
 
