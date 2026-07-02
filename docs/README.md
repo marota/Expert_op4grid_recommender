@@ -10,6 +10,7 @@ docs/
 ├── recommender/       corrective-action design specs
 ├── manoeuvre/         detailed-topology maneuver module (+ IHM, assets, dataset)
 │   └── dataset_rte7000/   historical RTE-7000 topology/maneuver benchmark
+├── reviews/           point-in-time code reviews (audits of a given version)
 ├── archive/           finished/transient notes kept for the record
 └── release-notes/     per-version notes (canonical history: CHANGELOG.md)
 ```
@@ -78,6 +79,14 @@ dataset, used to validate the maneuver module.
 ## Release notes (`release-notes/`)
 Per-version notes (v0.2.2 → v0.2.5). The canonical, continuously updated history
 is [CHANGELOG.md](../CHANGELOG.md).
+
+## Reviews (`reviews/`)
+Point-in-time audits of the codebase at a given version — findings age with the
+code they describe.
+- [`reviews/2026-07_full_code_review.md`](reviews/2026-07_full_code_review.md) —
+  comprehensive review at v0.2.5: architecture, interfaces, performance,
+  documentation, maintainability; prioritized findings, deep revisions and
+  quick wins.
 
 ## Archive (`archive/`)
 Finished / transient documents kept for the record — not living reference.
