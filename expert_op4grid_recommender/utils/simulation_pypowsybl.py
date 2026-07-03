@@ -226,9 +226,15 @@ def check_rho_reduction(obs: Any, timestep: int, act_defaut: Any, action: Any,
     if baseline_rho is None:
         return False, None
 
-    # Use the optimized function
+    # Branch the candidate from ``obs_baseline`` (the contingency-applied state
+    # kept by compute_baseline_simulation), NOT from ``obs`` (the healthy
+    # N-state). check_rho_reduction_with_baseline simulates only ``action`` on
+    # top of the observation it receives, so passing the N-state here would
+    # compare "action on the healthy grid" against the N-1 baseline. Contrast
+    # the grid2op variant, which re-applies act_defaut and therefore takes the
+    # N-state.
     return check_rho_reduction_with_baseline(
-        obs, timestep, act_defaut, action, overload_ids, act_reco_maintenance,
+        obs_baseline, timestep, act_defaut, action, overload_ids, act_reco_maintenance,
         baseline_rho, lines_we_care_about, rho_tolerance, fast_mode=fast_mode
     )
 
