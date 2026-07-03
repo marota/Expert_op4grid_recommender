@@ -494,7 +494,7 @@ combined = action1 + action2
    ```bash
    python scripts/patch_pypowsybl2grid_file.py
    ```
-   In CircleCI, this is done automatically in `.circleci/config.yml`. Runtime monkey-patching doesn't work because modules are imported before conftest.py runs.
+   In CI, this is done automatically in the `build-and-test` job of `.github/workflows/ci.yml`. Runtime monkey-patching doesn't work because modules are imported before conftest.py runs.
 
 ---
 
