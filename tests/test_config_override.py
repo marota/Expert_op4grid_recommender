@@ -3,6 +3,7 @@ Test to verify config override is working properly.
 Run this test first to debug configuration issues.
 """
 import sys
+
 import pytest
 
 
@@ -221,6 +222,26 @@ def test_sum_min_actions_does_not_exceed_n_prioritized_actions():
     )
 
     print(f"\n✓ sum(MIN_*) = {sum_min} <= N_PRIORITIZED_ACTIONS = {config.N_PRIORITIZED_ACTIONS}")
+
+
+def test_config_test_inherits_real_config_keys():
+    """config_test.py star-imports config.py + overrides only the test deltas, so
+    the swapped-in config must expose the keys the real config defines — including
+    the ones the old hand-maintained fork was missing (review finding C7/M2). It
+    must also carry the pydantic ``settings`` instance and the ``Settings`` class
+    pulled in by the star-import."""
+    from expert_op4grid_recommender import config
+
+    # Keys that the pre-star-import fork was missing (surfaced as AttributeError
+    # deep in test runs) plus a v0.2.x key and the pydantic objects.
+    for key in ("ENABLE_ANTENNA_RECOMMENDATIONS", "MAX_CANDIDATE_SIMULATIONS",
+                "VISUALIZATION_FORMAT", "USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH",
+                "LINES_MONITORING_FILE", "ALLOWED_ACTION_TYPES",
+                "MIN_REDISPATCH", "settings", "Settings"):
+        assert hasattr(config, key), f"swapped-in config is missing '{key}'"
+
+    # And the test override still wins over the star-imported value.
+    assert config.DO_VISUALIZATION is False
 
 
 if __name__ == "__main__":

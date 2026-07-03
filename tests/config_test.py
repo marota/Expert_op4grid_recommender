@@ -8,10 +8,24 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of expert_op4grid_recommender, Expert system analyzer based on ExpertOp4Grid principles. ⚡️ This tool builds overflow graphs,
 # applies expert rules to filter potential actions, and identifies relevant corrective measures to alleviate line overloads.
+#
+# Test configuration. ``conftest.py`` swaps this module in for
+# ``expert_op4grid_recommender.config`` for the whole test session.
+#
+# It is NOT a hand-maintained fork of the package config: the star-import below
+# pulls in EVERY key from the real config (so ``Settings`` validation and the
+# env-var parsing actually run, and new config keys never go missing here), and
+# only the handful of test-specific deltas are overridden underneath. Add a new
+# override only when a test genuinely needs a value different from production.
 
 from datetime import datetime
 
 from pathlib import Path # Import Path
+
+# Inherit every key from the real config (runs pydantic Settings validation),
+# then override the test deltas below. This is what keeps this file from
+# drifting out of sync with config.py.
+from expert_op4grid_recommender.config import *  # noqa: F401,F403
 
 # --- Get Project Root Directory ---
 # Path to the directory containing this config.py file

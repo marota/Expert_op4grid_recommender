@@ -70,35 +70,51 @@ pytest -k "test_name"  # specific test by name
 ```
 expert_op4grid_recommender/
 ├── main.py                    # Entry point, CLI, run_analysis() orchestration
-├── config.py                  # Main configuration (paths, parameters, flags)
-├── config_*.py                # Alternative configs (RTE, basic, test)
+├── config.py                  # Main configuration (pydantic Settings, re-exported as module attrs)
+├── config_basic.py            # One alternative config variant (Settings(...) with overrides)
+├── exceptions.py              # Domain exceptions (LoadFlowDivergedError)
 ├── environment.py             # Grid2Op environment setup
 ├── environment_pypowsybl.py   # Pure pypowsybl environment setup
 ├── data_loader.py             # Load action dictionaries from JSON
 │
+├── models/                    # Pluggable recommender-model contract
+│   ├── base.py                # RecommenderModel ABC, RecommenderInputs/Output DTOs
+│   └── expert.py              # ExpertRecommender (the default expert-system model)
+│
 ├── action_evaluation/         # Action analysis module
 │   ├── classifier.py          # ActionClassifier: categorize action types
 │   ├── rules.py               # ActionRuleValidator: apply expert rules
-│   └── discovery.py           # ActionDiscoverer: find & prioritize actions
-│                              # (also: load shedding, renewable curtailment,
-│                              #        PST actions, node splitting/merging)
+│   └── discovery/             # ActionDiscoverer PACKAGE (split from the old ~3000-line
+│       ├── _base.py           #   discovery.py). DiscovererBase + one mixin per family:
+│       ├── _orchestrator.py   #   discover_and_prioritize() assembly + MIN_*/N cap
+│       ├── _line_reconnection.py, _line_disconnection.py, _node_splitting.py,
+│       ├── _node_merging.py, _pst.py, _load_shedding.py,
+│       └── _renewable_curtailment.py, _redispatch.py
 │
 ├── graph_analysis/            # Overflow graph module
 │   ├── builder.py             # build_overflow_graph() using alphaDeesp
-│   ├── processor.py           # Graph connectivity, path analysis
-│   └── visualization.py       # Graph visualization with matplotlib
+│   ├── processor.py           # Graph connectivity, path analysis, antenna context
+│   ├── antenna_graph.py       # Antenna (islanded-pocket) synthetic overflow graph
+│   └── visualization.py       # Graph visualization (Graphviz/pydot)
 │
 ├── pypowsybl_backend/         # Pure pypowsybl implementation (no grid2op)
 │   ├── simulation_env.py      # SimulationEnvironment: main interface
-│   ├── network_manager.py     # Network loading, variants, load flow
+│   ├── network_manager.py     # Network loading, variants, load flow, caches
 │   ├── observation.py         # Grid2op-compatible observation
 │   ├── action_space.py        # Action creation (topology, switching)
-│   ├── topology.py            # Topology vector management
+│   ├── topology.py            # Topology vector management (legacy; unused by pipeline)
 │   └── overflow_analysis.py   # Overflow graph without alphaDeesp
+│
+├── manoeuvre/                 # Detailed-topology maneuver module (~9k LOC, self-contained;
+│   ├── algo/                  #   zero imports to/from the rest of the package). Sequencing,
+│   ├── dataset/               #   targets, placement; RTE-7000 dataset; plugin architecture;
+│   ├── plugins/               #   Flask IHM lives in scripts/manoeuvre_ihm.py. See
+│   └── ...                    #   expert_op4grid_recommender/manoeuvre/CLAUDE.md + docs/manoeuvre/.
 │
 └── utils/                     # Utility modules
     ├── simulation.py          # Grid2Op simulation helpers
     ├── simulation_pypowsybl.py # pypowsybl simulation helpers
+    ├── reassessment.py        # Per-action reassessment (parallelised) + combined-pair estimation
     ├── helpers.py             # Timer, sorting, test data saving
     ├── helpers_pypowsybl.py   # pypowsybl-specific helpers
     ├── action_rebuilder.py    # Rebuild actions from REPAS format
@@ -108,6 +124,9 @@ expert_op4grid_recommender/
     ├── data_utils.py          # StateInfo and data structures
     └── make_*_env.py          # Environment factory functions
 ```
+(The test configuration lives in `tests/config_test.py` — it star-imports
+`config.py` and overrides only the test deltas; `tests/conftest.py` swaps it in
+via `sys.modules` + the package attribute.)
 
 ---
 
@@ -125,11 +144,15 @@ expert_op4grid_recommender/
     - `"lines_overloaded_names"`: `List[str]`
     - `"prioritized_actions"`: `{action_id: {action, description_unitaire, rho_before, rho_after, max_rho, max_rho_line, is_rho_reduction, observation, ...}}`
     - `"action_scores"`: per-type scoring dict (see Data Structures below)
+    - `"reassessment_parallelism"`: `{parallel, workers, cores_available, n_actions}` — how the per-action reassessment was parallelised (v0.2.6+)
+    - `"prediction_time"` / `"assessment_time"`: per-stage execution times
     - Superposition theorem fields (`virtual_flows`, `delta_theta`, etc.) when available
 
 ### Action Evaluation (`action_evaluation/`)
 - **`ActionClassifier`**: Determines action type (line open/close, nodal split/merge, load disconnect)
-  - `identify_action_type(action_desc, by_description=True) -> ActionType`
+  - `identify_action_type(action_desc, by_description=True) -> str` — returns a free-form
+    type string (e.g. `"open_line"`, `"close_coupling"`), matched by substring downstream.
+    (There is **no** `ActionType` enum.)
   - `_is_nodale_grid2op_action(act) -> (is_nodale, subs, is_splitting)`
 
 - **`ActionRuleValidator`**: Filters actions based on expert rules
@@ -137,8 +160,8 @@ expert_op4grid_recommender/
   - `check_rules(action_type, localization, subs_topology) -> (do_filter, reason)`
   - `localize_line_action(lines)`, `localize_coupling_action(subs)`
 
-- **`ActionDiscoverer`** (`action_evaluation/discovery.py`, ~3000 lines, 42+ methods): Discovers and scores candidate actions across **seven** action types
-  - `discover_and_prioritize(n_action_max) -> (Dict[action_id, action], action_scores)`
+- **`ActionDiscoverer`** (`action_evaluation/discovery/` **package** — `DiscovererBase` in `_base.py` + one mixin per family; the old ~3000-line `discovery.py` monolith is gone): Discovers and scores candidate actions across **eight** action types (the seven below + redispatch)
+  - `discover_and_prioritize(n_action_max) -> (Dict[action_id, action], action_scores)` — returns a **tuple** (despite an older `-> Dict` hint)
   - Action types discovered:
     1. `verify_relevant_reconnections` — line reconnections
     2. `find_relevant_disconnections` — line disconnections (asymmetric bell / linear scoring)
@@ -206,7 +229,7 @@ PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # exclude unless worsened by 2
 # Pypowsybl simulation tuning (v0.1.4+)
 PYPOWSYBL_FAST_MODE = False         # disable voltage control for speed
 
-# Minimum prioritized actions per type (v0.1.3+ / v0.1.9+)
+# Minimum prioritized actions per type (v0.1.3+ / v0.1.9+ / v0.2.x)
 MIN_LINE_RECONNECTIONS = 0
 MIN_CLOSE_COUPLING = 0
 MIN_OPEN_COUPLING = 0
@@ -214,6 +237,17 @@ MIN_LINE_DISCONNECTIONS = 0
 MIN_PST = 0                         # v0.1.7+
 MIN_LOAD_SHEDDING = 0               # v0.1.9+
 MIN_RENEWABLE_CURTAILMENT = 0       # v0.1.9+
+MIN_REDISPATCH = 0                  # v0.2.x
+
+# Recommendation restriction (v0.2.x): empty list = all families allowed;
+# otherwise only the listed family tokens are discovered
+# ("reco","close","open","split","disco","pst","ls","rc","redispatch").
+ALLOWED_ACTION_TYPES = []
+
+# Antenna (islanded-pocket) recommendations (v0.2.x): when an overload islands a
+# radial pocket, build a synthetic downstream overflow graph and restrict
+# recommendations to injection actions.
+ENABLE_ANTENNA_RECOMMENDATIONS = True
 
 # Load shedding parameters (v0.1.9+)
 LOAD_SHEDDING_MARGIN = 0.05         # 5% safety margin on required shedding
@@ -223,6 +257,11 @@ LOAD_SHEDDING_MIN_MW = 1.0          # ignore trivial shedding
 RENEWABLE_CURTAILMENT_MARGIN = 0.05
 RENEWABLE_CURTAILMENT_MIN_MW = 1.0
 RENEWABLE_ENERGY_SOURCES = ["WIND", "SOLAR"]
+
+# Redispatching parameters (v0.2.x)
+REDISPATCH_DEFAULT_DELTA_MW = 10.0
+REDISPATCH_MARGIN = 0.05
+REDISPATCH_MIN_MW = 1.0
 
 # Expert system parameters
 PARAM_OPTIONS_EXPERT_OP = {
@@ -368,7 +407,13 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.1.9` (see `CHANGELOG.md` for full history)
+**Current version**: `0.2.6` (see `CHANGELOG.md` for full history)
+
+> **v0.2.6 highlights**: parallelised per-action reassessment (worker threads on private
+> pypowsybl network copies, `min(10, cores, n_actions)`) + cheaper observation construction;
+> maneuver-IHM path-traversal fix; `sys.exit(0)` → `LoadFlowDivergedError`; shared discovery
+> baseline; overflow-graph edge cache keyed by `(u, v, key)`; CI migrated CircleCI → GitHub
+> Actions. See `docs/release-notes/v0.2.6.md` and `docs/reviews/2026-07_full_code_review.md`.
 
 ### Active Migration: Grid2Op → Pure pypowsybl
 See `docs/archive/MIGRATION_PLAN.md` for details. The goal is to remove `grid2op` dependency.
@@ -423,15 +468,15 @@ See `docs/archive/MIGRATION_PLAN.md` for details. The goal is to remove `grid2op
 |------|---------------|
 | Add new action type | `action_evaluation/classifier.py`, `rules.py` |
 | Modify expert rules | `action_evaluation/rules.py` |
-| Modify action scoring | `action_evaluation/discovery.py` |
+| Modify action scoring | `action_evaluation/discovery/` (per-family mixins) |
 | Change graph analysis | `graph_analysis/builder.py`, `processor.py` |
 | Antenna (islanded-pocket) graph | `graph_analysis/antenna_graph.py`, `processor.py` (`extract_antenna_context`, `pre_process_antenna_graph`); see `docs/recommender/antenna_overflow_graph.md` |
 | pypowsybl migration | `pypowsybl_backend/*`, `environment_pypowsybl.py` |
 | Adjust rho calculation | `pypowsybl_backend/observation.py`, `overflow_analysis.py` |
 | Configure monitoring | `config.py` (`LINES_MONITORING_FILE`, `IGNORE_LINES_MONITORING`) |
-| Add load shedding logic | `action_evaluation/discovery.py` (`find_relevant_load_shedding`) |
-| Add curtailment logic | `action_evaluation/discovery.py` (`find_relevant_renewable_curtailment`) |
-| PST actions | `action_evaluation/discovery.py` (`find_relevant_pst_actions`), `utils/repas.py` |
+| Add load shedding logic | `action_evaluation/discovery/_load_shedding.py` |
+| Add curtailment logic | `action_evaluation/discovery/_renewable_curtailment.py` |
+| PST actions | `action_evaluation/discovery/_pst.py`, `utils/repas.py` |
 | Superposition theorem | `utils/superposition.py` |
 | Add new test | `tests/test_*.py`, update `conftest.py` if needed |
 
@@ -482,7 +527,14 @@ combined = action1 + action2
 
 1. **Thermal limits**: If `env.get_thermal_limit()` returns very high values (≥10⁴), the code auto-loads limits from `n_grid.get_operational_limits()`.
 
-2. **Config override in tests**: Always import config through `expert_op4grid_recommender.config` not directly, to ensure test overrides work.
+2. **Config override in tests**: Always import config as a module
+   (`from expert_op4grid_recommender import config`; read `config.X`) rather than
+   binding values at import time (`from ...config import X`), so the test override
+   applies. `tests/conftest.py` swaps `tests/config_test.py` in for the package
+   config via **both** `sys.modules` and the package attribute
+   (`expert_op4grid_recommender.config = config_test`). `config_test.py`
+   **star-imports** the real `config.py` (so `Settings` validation runs and no key
+   goes missing) and overrides only the test deltas — do not re-fork it.
 
 3. **Path handling**: Use `Path` objects and `PROJECT_ROOT` from config, not relative string paths.
 

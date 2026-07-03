@@ -25,9 +25,18 @@ if str(project_root) not in sys.path:
 # First, import the test config
 from tests import config_test
 
-# Then IMMEDIATELY replace it in sys.modules BEFORE anything else can import it
+# Then IMMEDIATELY replace it in sys.modules BEFORE anything else can import it.
+# We must keep the *package attribute* in sync too: ``from package import
+# submodule`` resolves via the package attribute, not sys.modules, and
+# config_test now imports the real config (``import *``) which sets
+# ``expert_op4grid_recommender.config`` to the real module — so swapping only
+# sys.modules would leave ``from expert_op4grid_recommender import config``
+# returning the real config.
+import expert_op4grid_recommender as _pkg
+
 sys.modules['expert_op4grid_recommender.config'] = config_test
 sys.modules['config'] = config_test
+_pkg.config = config_test
 
 # Print confirmation (this helps debug if the override isn't working)
 print(f"\n{'='*70}")
