@@ -9,16 +9,15 @@
 
 This is a codebase with **two clearly different generations of code living side by side**, and the newer generation is markedly better. The recent work — the `models/` recommender contract, the pydantic `Settings`, the three-step pipeline split, the `manoeuvre` module and its plugin architecture, the superposition estimator, the CI lint ratchet — shows a deliberate architectural direction and unusually good engineering discipline (measured optimizations with benchmark numbers in comments, golden tests with a regeneration protocol, an isolation invariant codified in `pyproject.toml`). The liability is concentrated in the **transitional glue**: a 34–41-key untyped context dict carrying function pointers, module-level mutable config used as a parameter channel, a hand-forked test config, `main.py` acting simultaneously as CLI, pipeline core and import hub, and a `utils/` package that mixes excellent engineering with genuinely broken modules.
 
-> **Status note (revert).** The four discovery-pipeline changes originally landed on this
-> branch — the C-diag rho-check contract fix, C3 (MultiDiGraph edge cache), C4/P1 (shared
-> baseline) — were **reverted** after they regressed the recommendation set on the
-> `config_pypsa_eur_*` / pypowsybl configuration (5 fewer actions: the non-topological
-> injection actions and one parallel-line disconnection went missing). The discovery
-> pipeline is now byte-identical to `main`. Any "Fixed in this branch" wording below for
-> C-diag / C3 / C4 / P1 refers to those reverted commits and **no longer applies** — those
-> findings are open again and need a safe re-introduction validated against that config.
-> The non-discovery fixes remain in place: **C2** (IHM path traversal), **C5** (`sys.exit`),
-> **C6** (utils bugs), plus the CI migration and this document.
+> **Status note.** The four discovery-pipeline changes (C-diag rho-check contract, C3
+> MultiDiGraph edge cache, C4/P1 shared baseline) were briefly reverted after a suspected
+> recommendation regression on `config_pypsa_eur_*` / pypowsybl — which turned out to be a
+> bad local config on the reporter's side. With the correct config the recommendation set
+> is **identical** to `main`, so the changes were **re-applied** and stand. Follow-up in
+> progress: benchmarking simulation time on the pypsa-eur network (defaut `LANNEL61PRAGN`),
+> in particular the end-of-run action reassessment, since the discovery-side speedup is not
+> yet visible end-to-end. The non-discovery fixes (**C2** IHM path traversal, **C5**
+> `sys.exit`, **C6** utils bugs) plus the CI migration also stand.
 
 **Highest-priority findings** (detail in §4). One finding originally headlined here — a pypowsybl rho-check comparing the candidate against the wrong reference state — was **downgraded to cosmetic** after tracing the data flow (discovery ranks from the overflow graph, not from that simulation; the rho-check output is diagnostic-only and gated off by default) and **fixed in this branch**; it is kept in the table's last row and written up as C-diag in §4.1 as a worked example of review principle #4 (verify the failure scenario before assigning severity).
 
