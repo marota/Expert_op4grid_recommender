@@ -27,6 +27,34 @@ This is a codebase with **two clearly different generations of code living side 
 > non-discovery fixes (**C2** IHM path traversal, **C5** `sys.exit`, **C6** utils bugs) plus
 > the CI migration also stand.
 
+### What was implemented on this branch (shipped as v0.2.6)
+
+The review was not just written — a subset of its findings was fixed and merged into this
+branch (released as **0.2.6**). Summary of what landed:
+
+- **Security** — maneuver IHM path traversal on `/api/load_scenario` (sanitize + confine to
+  the scenarios dir; 400/404 on bad names) and `/api/config` directory constraint (closes a
+  zip-archive exfiltration / arbitrary-write vector). *(C2)*
+- **Robustness** — library `sys.exit(0)` on load-flow divergence → `LoadFlowDivergedError`
+  (`RuntimeError` subclass, caught by the CLI). *(C5)*
+- **Correctness** — four `utils/load_*` bugs (`StateInfo` indexing, `__main__`-only global
+  `NameError`, `raise "string"`, a "reconnect" action that disconnected); overflow-graph edge
+  cache keyed by full `(u, v, k)` so parallel circuits are no longer collapsed (regression
+  test added). *(C6, C3)*
+- **Performance** — the shared discovery baseline (halves discovery load flows + removes a
+  per-candidate variant leak when `CHECK_ACTION_SIMULATION` is on) *(P1/C4)*; and — after
+  benchmarking the pypsa-eur scenario 1 showed the end-of-run **reassessment dominates**
+  (~24 s of ~32 s; discovery does no candidate simulation in the game config) — two
+  reassessment optimizations: observation-fetch dedup + variant-invariant R/X caching
+  (obs build ~0.47→0.25 s) *(P2)*, and **parallel per-action re-simulation** across worker
+  threads on private network copies (workers = `min(10, cores, n_actions)`, bit-identical to
+  serial, cores/workers in `result["reassessment_parallelism"]`; ~1.43× on a 4-core host).
+- **Infrastructure** — CI migrated CircleCI → GitHub Actions (`.github/workflows/ci.yml`);
+  added `scripts/benchmark_pipeline.py`.
+
+Still open (not implemented here): the deep-revision roadmap in §6 (typed pipeline spine,
+config single-source, `manoeuvre` IHM promotion, etc.) and the C7 formula ambiguities.
+
 **Highest-priority findings** (detail in §4). One finding originally headlined here — a pypowsybl rho-check comparing the candidate against the wrong reference state — was **downgraded to cosmetic** after tracing the data flow (discovery ranks from the overflow graph, not from that simulation; the rho-check output is diagnostic-only and gated off by default) and **fixed in this branch**; it is kept in the table's last row and written up as C-diag in §4.1 as a worked example of review principle #4 (verify the failure scenario before assigning severity).
 
 | # | Finding | Where | Severity |
