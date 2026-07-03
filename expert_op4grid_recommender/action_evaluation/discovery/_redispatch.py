@@ -235,11 +235,11 @@ class RedispatchMixin:
         )
         if candidates_to_check:
             try:
-                act_defaut, baseline_rho = self._get_simulation_baseline()
+                act_defaut, baseline_rho, branch_obs = self._get_simulation_baseline()
                 if baseline_rho is not None:
                     for action_id, action in candidates_to_check:
                         is_reduced, _ = self._check_rho_with_baseline(
-                            self.obs,
+                            branch_obs,
                             self.timestep,
                             act_defaut,
                             action,
