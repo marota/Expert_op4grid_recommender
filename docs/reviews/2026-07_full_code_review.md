@@ -13,11 +13,19 @@ This is a codebase with **two clearly different generations of code living side 
 > MultiDiGraph edge cache, C4/P1 shared baseline) were briefly reverted after a suspected
 > recommendation regression on `config_pypsa_eur_*` / pypowsybl — which turned out to be a
 > bad local config on the reporter's side. With the correct config the recommendation set
-> is **identical** to `main`, so the changes were **re-applied** and stand. Follow-up in
-> progress: benchmarking simulation time on the pypsa-eur network (defaut `LANNEL61PRAGN`),
-> in particular the end-of-run action reassessment, since the discovery-side speedup is not
-> yet visible end-to-end. The non-discovery fixes (**C2** IHM path traversal, **C5**
-> `sys.exit`, **C6** utils bugs) plus the CI migration also stand.
+> is **identical** to `main`, so the changes were **re-applied** and stand. Follow-up (done):
+> benchmarked on the pypsa-eur network (Co-Study scenario 1, contingency
+> `relation_8423570-225` / LANNEL61PRAGN → MARSIL61PRAGN overload, the game config with
+> `CHECK_ACTION_SIMULATION=False`). Finding: the end-of-run **action reassessment dominates**
+> (~24 s of a ~32 s run — one full `simulate()` per prioritized action), while discovery runs
+> no candidate simulation in this config, so the shared-baseline work is inert here. Two
+> reassessment optimizations landed: observation-fetch dedup + variant-invariant R/X caching
+> (obs build ~0.47→0.25 s), and per-action re-simulation parallelised across worker threads on
+> private network copies (workers = `min(10, cores, n_actions)`, results bit-identical to
+> serial, cores/workers surfaced in `result["reassessment_parallelism"]`). Measured on a
+> 4-core host: reassessment 16.4→11.4 s (1.43×); larger on higher-core hosts. The
+> non-discovery fixes (**C2** IHM path traversal, **C5** `sys.exit`, **C6** utils bugs) plus
+> the CI migration also stand.
 
 **Highest-priority findings** (detail in §4). One finding originally headlined here — a pypowsybl rho-check comparing the candidate against the wrong reference state — was **downgraded to cosmetic** after tracing the data flow (discovery ranks from the overflow graph, not from that simulation; the rho-check output is diagnostic-only and gated off by default) and **fixed in this branch**; it is kept in the table's last row and written up as C-diag in §4.1 as a worked example of review principle #4 (verify the failure scenario before assigning severity).
 
