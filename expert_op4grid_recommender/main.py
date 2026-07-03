@@ -828,14 +828,37 @@ def _run_expert_discovery(context: Dict[str, Any], n_action_max: int = None
         )
 
         if is_pypowsybl:
-            original_check = discoverer._check_rho_reduction
-            discoverer._check_rho_reduction = lambda *args, **kwargs: original_check(*args, fast_mode=actual_fast_mode, **kwargs)
             from expert_op4grid_recommender.utils.simulation_pypowsybl import (
                 compute_baseline_simulation as _pypowsybl_compute_baseline,
                 check_rho_reduction_with_baseline as _pypowsybl_check_with_baseline,
             )
             discoverer._compute_baseline = lambda *args, **kwargs: _pypowsybl_compute_baseline(*args, fast_mode=actual_fast_mode, **kwargs)
             discoverer._check_rho_with_baseline = lambda *args, **kwargs: _pypowsybl_check_with_baseline(*args, fast_mode=actual_fast_mode, **kwargs)
+            # On pypowsybl, candidates branch from the contingency-applied kept
+            # variant (obs_baseline), not the healthy N-state — see
+            # _get_simulation_baseline. This flag selects that contract.
+            discoverer._branch_candidates_from_baseline = True
+
+            # Route the five topological passes (reconnection / disconnection /
+            # merge / split / PST) through the single shared baseline instead of
+            # the per-candidate check_rho_reduction, which re-ran the baseline
+            # load flow AND leaked one kept pypowsybl variant for every
+            # candidate (~2x load flows, unbounded variant growth). The
+            # topological call sites pass (obs, timestep, act_defaut, action,
+            # overload_ids, act_reco_maintenance, lines_we_care_about); we ignore
+            # the per-call obs/act_defaut and use the cached contingency baseline.
+            def _shared_baseline_check(_obs, timestep, _act_defaut, action,
+                                       overload_ids, act_reco_maintenance,
+                                       lines_we_care_about=None):
+                act_defaut, baseline_rho, branch_obs = discoverer._get_simulation_baseline()
+                if baseline_rho is None:
+                    return False, None
+                return _pypowsybl_check_with_baseline(
+                    branch_obs, timestep, act_defaut, action, overload_ids,
+                    act_reco_maintenance, baseline_rho, lines_we_care_about,
+                    fast_mode=actual_fast_mode,
+                )
+            discoverer._check_rho_reduction = _shared_baseline_check
 
         prioritized_actions, action_scores = discoverer.discover_and_prioritize(
             n_action_max=n_action_max
@@ -928,6 +951,10 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         # time breakdown to the operator.
         "prediction_time": prediction_time,
         "assessment_time": assessment_time,
+        # How the per-action reassessment was parallelised (worker threads /
+        # cores used). Surfaced so the UI can annotate the reassessment-time
+        # tooltip, e.g. "reassessment: 8.1 s on 4 cores".
+        "reassessment_parallelism": context.get("reassessment_parallelism"),
     }
 
 

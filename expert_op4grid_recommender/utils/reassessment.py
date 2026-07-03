@@ -19,6 +19,8 @@ combinations.
 from __future__ import annotations
 
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -27,6 +29,47 @@ from expert_op4grid_recommender import config
 from expert_op4grid_recommender.utils.helpers import Timer
 
 logger = logging.getLogger(__name__)
+
+#: Hard cap on reassessment worker threads (see ``_reassessment_worker_count``).
+_MAX_REASSESSMENT_WORKERS = 10
+
+
+def _reassessment_worker_count(n_actions: int) -> Tuple[int, int]:
+    """Return ``(cores_available, workers)`` for the reassessment pool.
+
+    Workers = ``min(10, available cores, n_actions)`` — capped at 10 so a
+    many-core host does not spawn an unbounded number of full network copies,
+    and never more than the number of actions to simulate.
+    """
+    cores = os.cpu_count() or 1
+    workers = max(1, min(_MAX_REASSESSMENT_WORKERS, cores, n_actions))
+    return cores, workers
+
+
+def _make_worker_baseline_obs(binary_buffer, thermal_limits):
+    """Build a self-contained N-1 observation on a *private* network copy.
+
+    Each reassessment worker owns an independent pypowsybl network (cloned from
+    ``binary_buffer``) so their load flows run truly in parallel — pypowsybl
+    releases the GIL during the load flow, but the *working variant* is network
+    global, so concurrent ``simulate()`` on one shared network would race.
+
+    ``binary_buffer`` is captured from the main network's *contingency* variant
+    (N-1 topology + maintenance already applied), and pypowsybl's binary buffer
+    preserves the working-variant topology, so the worker loads straight into
+    the N-1 baseline — no per-worker contingency load flow needed. Candidate
+    actions are then simulated on top of it, exactly as the serial path does on
+    ``obs_simu_defaut``.
+    """
+    import pypowsybl as pp
+
+    from expert_op4grid_recommender.pypowsybl_backend.simulation_env import (
+        SimulationEnvironment,
+    )
+
+    net = pp.network.load_from_binary_buffer(binary_buffer)
+    wenv = SimulationEnvironment(network=net, thermal_limits=thermal_limits)
+    return wenv, wenv.get_obs()
 
 
 def _extract_pypowsybl_network(env: Any) -> Any:
@@ -154,22 +197,11 @@ def reassess_prioritized_actions(
             config, "PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD", 0.02,
         )
 
-        detailed_actions: Dict[str, dict] = {}
-        for action_id, action in prioritized_actions.items():
+        def _build_detail(action_id, action, obs_simu_action, info_action):
+            """Turn one (action, simulated observation) into the card payload."""
             description_unitaire = None
             if action_id in dict_action:
                 description_unitaire = dict_action[action_id].get("description_unitaire")
-
-            if is_pypowsybl:
-                obs_simu_action, _, _, info_action = obs_simu_defaut.simulate(
-                    action, time_step=current_timestep, keep_variant=True,
-                    fast_mode=actual_fast_mode,
-                )
-            else:
-                obs_simu_action, _, _, info_action = obs.simulate(
-                    action + act_defaut + act_reco_maintenance,
-                    time_step=current_timestep,
-                )
 
             rho_before = baseline_rho
             rho_after = None
@@ -209,7 +241,7 @@ def reassess_prioritized_actions(
                 print(f"  Rho reduction from {np.round(rho_before, 2)} to {np.round(rho_after, 2)}")
                 print(f"  New max rho is {max_rho:.2f} on line {max_rho_line}")
 
-            detailed_actions[action_id] = {
+            return {
                 "action": action,
                 "description_unitaire": description_unitaire,
                 "rho_before": rho_before,
@@ -220,6 +252,88 @@ def reassess_prioritized_actions(
                 "observation": obs_simu_action,
                 "non_convergence": non_convergence,
             }
+
+        action_items = list(prioritized_actions.items())
+        n_actions = len(action_items)
+        cores, workers = _reassessment_worker_count(n_actions)
+
+        # ``{action_id: (obs_simu_action, info_action)}`` — the raw simulation
+        # outputs, filled either in parallel (pypowsybl, each worker on its own
+        # network copy) or serially, then turned into cards in original order.
+        sim_out: Dict[str, tuple] = {}
+        used_workers = 1
+
+        if is_pypowsybl and workers >= 2 and n_actions >= 2:
+            try:
+                main_nm = obs_simu_defaut._network_manager
+                # Capture the N-1 baseline (contingency + maintenance) variant so
+                # each worker loads straight into it; restore the main network to
+                # base afterwards so nothing downstream is disturbed.
+                main_nm.set_working_variant(obs_simu_defaut._variant_id)
+                binary_buffer = main_nm.network.save_to_binary_buffer()
+                main_nm.set_working_variant(main_nm.base_variant_id)
+                thermal_limits = obs_simu_defaut._thermal_limits
+                buckets = [action_items[i::workers] for i in range(workers)]
+
+                def _run_bucket(bucket):
+                    _, wobs_defaut = _make_worker_baseline_obs(
+                        binary_buffer, thermal_limits,
+                    )
+                    local = {}
+                    for aid, act in bucket:
+                        oa, _, _, info = wobs_defaut.simulate(
+                            act, time_step=current_timestep, keep_variant=True,
+                            fast_mode=actual_fast_mode,
+                        )
+                        local[aid] = (oa, info)
+                    return local
+
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    for part in pool.map(_run_bucket, buckets):
+                        sim_out.update(part)
+                used_workers = workers
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                logger.warning(
+                    "Parallel reassessment failed (%s); falling back to serial.",
+                    exc, exc_info=True,
+                )
+                sim_out = {}
+                used_workers = 1
+
+        if not sim_out:
+            for action_id, action in action_items:
+                if is_pypowsybl:
+                    oa, _, _, info = obs_simu_defaut.simulate(
+                        action, time_step=current_timestep, keep_variant=True,
+                        fast_mode=actual_fast_mode,
+                    )
+                else:
+                    oa, _, _, info = obs.simulate(
+                        action + act_defaut + act_reco_maintenance,
+                        time_step=current_timestep,
+                    )
+                sim_out[action_id] = (oa, info)
+
+        detailed_actions: Dict[str, dict] = {}
+        for action_id, action in action_items:
+            obs_simu_action, info_action = sim_out[action_id]
+            detailed_actions[action_id] = _build_detail(
+                action_id, action, obs_simu_action, info_action,
+            )
+
+        # Surface how the reassessment was parallelised so callers can show it
+        # in the reassessment-time tooltip.
+        context["reassessment_parallelism"] = {
+            "parallel": used_workers > 1,
+            "workers": used_workers,
+            "cores_available": cores,
+            "n_actions": n_actions,
+        }
+        print(
+            f"[Reassessment] {n_actions} action(s) re-simulated on "
+            f"{used_workers}/{cores} core(s) "
+            f"({'parallel' if used_workers > 1 else 'serial'})."
+        )
 
     pre_existing_info = [
         {"name": str(obs.name_line[i]), "rho_N": pre_existing_rho[i]}

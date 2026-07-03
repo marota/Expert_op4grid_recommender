@@ -9,6 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-07-03
+
+### Performance
+
+- **Parallel action reassessment** (`utils/reassessment.py`): the end-of-run
+  per-action re-simulation now runs across worker threads, each on a private
+  pypowsybl network copy cloned from the N-1 baseline variant (pypowsybl
+  releases the GIL during the load flow, but the working variant is
+  network-global, so shared-network concurrency would race). Workers =
+  `min(10, cpu_count, n_actions)`; results are bit-identical to serial with a
+  robust serial fallback. The worker/core count used is exposed in
+  `result["reassessment_parallelism"]` (for the reassessment-time tooltip).
+  Measured ~1.43× on a 4-core host (Co-Study scenario-1 pypsa-eur, 15 actions);
+  larger on higher-core hosts.
+- **Observation construction** (`pypowsybl_backend/observation.py`): removed
+  redundant cross-JNI DataFrame fetches (`get_buses` ×3→×1, `get_loads` ×2→×1)
+  and cached the variant-invariant line R/X on the `NetworkManager` instead of
+  re-fetching `get_lines()` / `get_2wt()` per observation (~0.47→0.25 s per
+  observation build).
+- **Shared discovery baseline** (`action_evaluation/discovery`): the topological
+  discovery passes share one contingency baseline load flow instead of
+  recomputing it per candidate (active when `CHECK_ACTION_SIMULATION` is on),
+  halving discovery load flows and removing a per-candidate kept-variant leak.
+
+### Fixed
+
+- **Security (maneuver IHM)**: `/api/load_scenario` no longer allows path
+  traversal — the client-supplied scenario name is sanitized and confined to the
+  scenarios directory (HTTP 400/404 on invalid names); `/api/config` only accepts
+  scenario/sequence directories under an allowed root, closing a zip-archive
+  exfiltration / arbitrary-write vector.
+- **Load-flow divergence no longer terminates the host process**: `environment.py`
+  and `environment_pypowsybl.py` raise `LoadFlowDivergedError` (a `RuntimeError`
+  subclass caught by the CLI) instead of `sys.exit(0)`.
+- **`utils/load_training_data.py` / `load_evaluation_data.py`**: fixed a
+  `StateInfo` indexing `TypeError`, a `NameError` on a `__main__`-only global, a
+  `raise "string"`, and a maintenance "reconnect" action that actually
+  disconnected the lines.
+- **Overflow-graph edge cache** (`action_evaluation/discovery`): keyed by the
+  full `(u, v, key)` id so parallel circuits are no longer collapsed in
+  flow-influence scoring (regression test added).
+
+### Changed
+
+- **CI migrated from CircleCI to GitHub Actions** (`.github/workflows/ci.yml`):
+  faithful port of the `build-and-test` (pytest + pypowsybl2grid patch) and
+  `quality` (ruff / interrogate / radon) jobs; `.circleci/` removed.
+
+### Added
+
+- `scripts/benchmark_pipeline.py` — per-phase load-flow benchmark of the
+  pypowsybl analysis pipeline.
+- `docs/reviews/2026-07_full_code_review.md` — comprehensive architecture /
+  performance / maintainability review of the repository.
+
 ### IHM de manœuvre : « Explorer la journée » — carte des postes + intérêt
 
 Sous l'onglet **RTE7000**, après le choix d'une date, le bouton **🗺 Explorer la

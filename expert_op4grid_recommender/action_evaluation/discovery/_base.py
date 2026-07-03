@@ -195,23 +195,41 @@ class DiscovererBase:
         return ranked[:cap]
 
     def _get_simulation_baseline(self):
-        """Return ``(act_defaut, baseline_rho)`` for candidate rho checks.
+        """Return ``(act_defaut, baseline_rho, branch_obs)`` for candidate rho checks.
 
-        Computed once per discovery run and shared across the discovery
-        passes (load shedding, redispatching, renewable curtailment) — each
-        previously rebuilt the identical contingency action and re-ran the
-        same baseline load flow. The discoverer instance is created fresh for
-        every Step-2 run, so instance-level caching cannot go stale.
+        Computed once per discovery run and shared across *all* discovery
+        passes — the injection passes (load shedding, redispatching, renewable
+        curtailment) call this directly, and on the pypowsybl backend the
+        topological passes reach it through the shared-baseline wrapper wired in
+        ``main.py`` (see ``_branch_candidates_from_baseline``). Each pass
+        previously rebuilt the identical contingency action and re-ran the same
+        baseline load flow (2 LFs + 1 leaked kept-variant per candidate); the
+        shared baseline reduces that to a single baseline load flow per run. The
+        discoverer instance is created fresh for every Step-2 run, so
+        instance-level caching cannot go stale.
+
+        ``branch_obs`` is the observation a candidate action should be simulated
+        *on top of*. The two backends have opposite contracts: grid2op re-applies
+        the contingency itself, so candidates branch from the healthy N-state
+        (``self.obs``); pypowsybl branches from the contingency-applied kept
+        variant (``obs_baseline``) and applies only the candidate. The
+        ``_branch_candidates_from_baseline`` flag (set for pypowsybl in
+        ``main.py``) selects between them.
         """
         if not hasattr(self, "_cached_simulation_baseline"):
             act_defaut = self._create_default_action(
                 self.action_space, self.lines_defaut
             )
-            baseline_rho, _ = self._compute_baseline(
+            baseline_rho, obs_baseline = self._compute_baseline(
                 self.obs, self.timestep, act_defaut,
                 self.act_reco_maintenance, self.lines_overloaded_ids,
             )
-            self._cached_simulation_baseline = (act_defaut, baseline_rho)
+            branch_obs = (
+                obs_baseline
+                if getattr(self, "_branch_candidates_from_baseline", False)
+                else self.obs
+            )
+            self._cached_simulation_baseline = (act_defaut, baseline_rho, branch_obs)
         return self._cached_simulation_baseline
 
     def _build_lookup_caches(self):
@@ -764,18 +782,30 @@ class DiscovererBase:
             return self._cached_edge_data
         g = self.g_overflow.g
         result = []
-        for u, v, data in g.edges(data=True):
+        # The overflow graph is a Multi(Di)Graph: parallel circuits between the
+        # same two substations (twin RTE lines, e.g. L61/L62) share a (u, v)
+        # pair. Key the name/label lookup dicts by the full edge id (u, v, k) so
+        # parallel edges do not overwrite each other in flow-influence scoring.
+        # This matches nx.get_edge_attributes (3-tuple keys on a multigraph),
+        # which _build_node_flow_cache uses on the non-cached fallback path.
+        is_multi = g.is_multigraph()
+        edges_iter = g.edges(keys=True, data=True) if is_multi else g.edges(data=True)
+        # Also cache name->edges and label->edges dicts for fast lookup.
+        edge_names = {}
+        edge_labels = {}
+        for edge in edges_iter:
+            if is_multi:
+                u, v, k, data = edge
+                key = (u, v, k)
+            else:
+                u, v, data = edge
+                key = (u, v)
             name = data.get("name", "")
             label = float(data.get("label", 0.0))
             cap = float(data.get("capacity", 0.0))
             result.append((name, label, cap))
-        # Also cache name->edges and label->edges dicts for fast lookup
-        edge_names = {}
-        edge_labels = {}
-        for i, (u, v) in enumerate(g.edges()):
-            name, label, cap = result[i]
-            edge_names[(u, v)] = name
-            edge_labels[(u, v)] = label
+            edge_names[key] = name
+            edge_labels[key] = label
         self._cached_edge_data = result
         self._cached_edge_names = edge_names
         self._cached_edge_labels = edge_labels

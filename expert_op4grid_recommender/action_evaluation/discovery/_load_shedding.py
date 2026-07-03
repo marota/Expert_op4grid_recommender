@@ -79,8 +79,9 @@ class LoadSheddingMixin:
         # computed when there are candidate nodes to check.
         act_defaut = None
         baseline_rho = None
+        branch_obs = self.obs
         if self.check_action_simulation and relevant_nodes:
-            act_defaut, baseline_rho = self._get_simulation_baseline()
+            act_defaut, baseline_rho, branch_obs = self._get_simulation_baseline()
 
         for node_idx in relevant_nodes:
             sub_name = str(name_sub_arr[node_idx])
@@ -166,7 +167,7 @@ class LoadSheddingMixin:
                 if self.check_action_simulation and baseline_rho is not None:
                     try:
                         is_reduction, obs_after = self._check_rho_with_baseline(
-                            self.obs,
+                            branch_obs,
                             self.timestep,
                             act_defaut,
                             action,

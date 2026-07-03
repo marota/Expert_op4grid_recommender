@@ -228,7 +228,7 @@ l'asset, plus aucun bloc HTML dans le `.py`).
   poids de coût (`POIDS_*`) et garde‑fous combinatoires (`MAX_COMBINAISONS_*`)
   extraits en constantes documentées (`algo/_constants.py`) ;
   `itertools`/`Counter`/`re` remontés en tête de module.
-- **#10 — qualité en CI** : job `quality` (CircleCI), sans dépendances lourdes —
+- **#10 — qualité en CI** : job `quality` (`.github/workflows/ci.yml`), sans dépendances lourdes —
   `ruff` (lint, **bloquant**), `interrogate` (docstrings ≥ 80 %, **bloquant**),
   `radon` (complexité, **indicatif**). Configuration dans `pyproject.toml`
   (`[tool.ruff.lint]`, `[tool.interrogate]`).
