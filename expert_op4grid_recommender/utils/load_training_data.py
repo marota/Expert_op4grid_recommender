@@ -73,7 +73,7 @@ def set_state(
     """
     timings = {}
     if isinstance(action_path, StateInfo):
-        state = action_path[0]
+        state = action_path
     else:
         pth, ext_ = os.path.splitext(action_path)
         beg_read = time.perf_counter()
@@ -311,7 +311,8 @@ def load_interesting_lines(
         
 
 def filter_out_non_reproductible_observation(
-    env: Any, all_obs_files: List[str], lines_we_care_about: List[str]
+    env: Any, all_obs_files: List[str], lines_we_care_about: List[str],
+    line_we_disconnect: List[str]
 ) -> Tuple[List[str], List[str]]:
     """Split ``all_obs_files`` into (usable, not-usable) based on replay consistency.
 
@@ -319,6 +320,11 @@ def filter_out_non_reproductible_observation(
     N-1 line disconnection is reflected in ``obs.line_status`` and that the
     overflow set matches the file metadata. Files failing any of those
     checks are rerouted to the second list.
+
+    ``line_we_disconnect`` is the list of line names eligible as the N-1
+    contingency (previously read from a module-global that only existed in the
+    ``__main__`` block, which raised ``NameError`` when the function was
+    imported and called as a library).
     """
     from tqdm import tqdm
     if not _HAS_GRID2OP:
@@ -427,7 +433,7 @@ if __name__ == "__main__":
     print(f"Found {len(all_possible_act)} possible actions.")
     
     # perform some consistency check
-    usable_obs_files, not_usable_obs_file  = filter_out_non_reproductible_observation(env, all_obs_files, lines_we_care_about)
+    usable_obs_files, not_usable_obs_file  = filter_out_non_reproductible_observation(env, all_obs_files, lines_we_care_about, line_we_disconnect)
     save_observation_files(usable_obs_files, not_usable_obs_file)
     # find some possible actions
     this_file = usable_obs_files[0]

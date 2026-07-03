@@ -12,9 +12,9 @@
 import os
 import json
 import datetime
-import sys
 import numpy as np
 from expert_op4grid_recommender import config
+from expert_op4grid_recommender.exceptions import LoadFlowDivergedError
 from expert_op4grid_recommender.data_loader import load_interesting_lines, DELETED_LINE_NAME, load_actions
 from expert_op4grid_recommender.utils.simulation import simulate_contingency, check_simu_overloads
 
@@ -231,7 +231,8 @@ def switch_to_dc_load_flow(env, date, timestep, lines_defaut, lines_overloaded_i
     )
 
     if not has_converged_1 or not has_converged_2:
-        print("Simulation failed even in DC mode. Cannot build overflow graph.")
-        sys.exit(0)
+        raise LoadFlowDivergedError(
+            "Simulation failed even in DC mode. Cannot build overflow graph."
+        )
 
     return new_env, new_obs, obs_simu

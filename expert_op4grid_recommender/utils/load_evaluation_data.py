@@ -106,7 +106,7 @@ def get_first_obs_on_chronic(
     date_str=date.strftime('%Y%m%d')
     
     if date_str not in chronic_dates_str:
-        raise("no chronic is found for this date")
+        raise ValueError("no chronic is found for this date")
     else:
         chronic_name=[list_chronic_names[i] for i,date_cr in enumerate(chronic_dates_str) if date_cr==date_str][0]
         print("we found the  chronic "+chronic_name+" for this date")
@@ -192,24 +192,27 @@ def run_remedial_action(
     """
     act_deco_defaut = env.action_space({"set_bus": {"lines_ex_id":{defaut:-1}, "lines_or_id":{defaut:-1}}})  # + action_topo_init
 
+    still_overloaded_timesteps = []
     for t in overloaded_timesteps:
         state = StateInfo()  # TO DO: give some relevant values when we know which ones and how to pass them
         state.should_not_reco=lines_non_reconnectable
 
-        # act to reconnect some initially disconnected lines ?
+        # act to reconnect some initially disconnected lines (status 1 = reconnect,
+        # matching run_contingency_on_scenario) — NOT set_bus -1, which disconnects.
         maintenance_to_reco_at_t = get_lines_disconnected_at_start_to_reconnect(maintenance_df,reconnectabble_line_in_maintenance_at_start,t)
         act_reco_maintenance = env.action_space(
-            {"set_bus": {"lines_ex_id":{line_reco:-1 for line_reco in maintenance_to_reco_at_t}, "lines_or_id":{line_reco:-1 for line_reco in maintenance_to_reco_at_t}}})
+            {"set_line_status": [(line_reco, 1) for line_reco in maintenance_to_reco_at_t]})
 
         act_defaut_parade = aux_prevent_asset_reconnection(obs, state,act_reco_maintenance + act_deco_defaut + action)
         obs_simu, reward, done, info = obs.simulate(act_defaut_parade, time_step=t)
 
         if np.any(obs_simu.rho[id_interesting_lines]>=1):
             print("there is still an overload at timestep "+str(t))
-    if len(overloaded_timesteps)==0:
+            still_overloaded_timesteps.append(t)
+    if len(still_overloaded_timesteps)==0:
         print("Success for the remedial action")
         print(action)
-    return overloaded_timesteps
+    return still_overloaded_timesteps
     
 if __name__ == "__main__":
     from expert_op4grid_recommender.utils.make_assistant_env import make_grid2op_assistant_env
