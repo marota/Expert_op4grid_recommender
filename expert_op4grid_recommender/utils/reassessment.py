@@ -34,6 +34,47 @@ logger = logging.getLogger(__name__)
 #: Hard cap on reassessment worker threads (see ``_reassessment_worker_count``).
 _MAX_REASSESSMENT_WORKERS = 10
 
+#: Default minimum worker count below which the parallel reassessment is NOT
+#: worth it. The parallel path clones the whole network per worker
+#: (``save``/``load_from_binary_buffer`` + ``SimulationEnvironment`` + obs
+#: build) — a fixed overhead the serial path never pays. That overhead is only
+#: amortized above ~3-4 usable cores; v0.2.6 measured **+1.43x on a 4-core
+#: host**, but on a **2-vCPU** host (e.g. a small HuggingFace Space) the 2
+#: clones + GIL contention on the Python-side observation build make it a net
+#: *loss* vs. serial. So we stay serial below the threshold.
+_DEFAULT_MIN_PARALLEL_WORKERS = 4
+
+#: Environment override for operators who know their hardware.
+_MIN_PARALLEL_WORKERS_ENV = "EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS"
+
+
+def _min_parallel_workers() -> int:
+    """Minimum worker count to enable parallel reassessment (env-tunable).
+
+    Floored at 2 (a single worker is strictly worse than serial: it pays the
+    clone overhead for zero concurrency). Set the env var high (e.g. 99) to
+    force serial on any host, or to 2 to restore the pre-0.2.7.post1 aggressive
+    behaviour.
+    """
+    raw = os.environ.get(_MIN_PARALLEL_WORKERS_ENV)
+    if raw is None:
+        return _DEFAULT_MIN_PARALLEL_WORKERS
+    try:
+        return max(2, int(raw))
+    except ValueError:
+        return _DEFAULT_MIN_PARALLEL_WORKERS
+
+
+def _should_parallelize_reassessment(is_pypowsybl: bool, workers: int,
+                                     n_actions: int) -> bool:
+    """Whether to run the reassessment in parallel.
+
+    Parallel only pays off above a core threshold — below it the per-worker
+    network-clone overhead makes it slower than the serial path (see
+    :data:`_DEFAULT_MIN_PARALLEL_WORKERS`).
+    """
+    return bool(is_pypowsybl) and n_actions >= 2 and workers >= _min_parallel_workers()
+
 
 def _reassessment_worker_count(n_actions: int) -> Tuple[int, int]:
     """Return ``(cores_available, workers)`` for the reassessment pool.
@@ -265,7 +306,7 @@ def reassess_prioritized_actions(
         sim_out: Dict[str, tuple] = {}
         used_workers = 1
 
-        if is_pypowsybl and workers >= 2 and n_actions >= 2:
+        if _should_parallelize_reassessment(is_pypowsybl, workers, n_actions):
             try:
                 main_nm = obs_simu_defaut._network_manager
                 # Capture the N-1 baseline (contingency + maintenance) variant so
