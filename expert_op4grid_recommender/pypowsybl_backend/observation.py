@@ -90,8 +90,10 @@ class PypowsyblObservation:
         all_terminals_df = pd.concat([lines_df, trafos_df])
         reindexed_flows = all_terminals_df.reindex(nm.name_line)
 
-        # Bus voltages and angles - fetch with voltage_level_id for bus assignments
-        bus_cols = ['v_mag', 'v_angle', 'voltage_level_id']
+        # Bus voltages and angles - fetch with voltage_level_id for bus assignments.
+        # Fetch connected_component here too so the component/main-load computation
+        # below reuses this single get_buses() call instead of re-fetching it twice.
+        bus_cols = ['v_mag', 'v_angle', 'voltage_level_id', 'connected_component']
         bus_data_df = net.get_buses()[bus_cols]
         bus_df_aligned = bus_data_df.reindex(nm.name_sub)
 
@@ -124,8 +126,11 @@ class PypowsyblObservation:
         # Compute effective terminal power factor cos_phi = |X|/|Z|
         self._compute_line_cos_phi()
 
-        # Load and generation - ensure alignment with name_load/name_gen
-        loads_df = net.get_loads()[['p', 'q']].reindex(nm.name_load)
+        # Load and generation - ensure alignment with name_load/name_gen.
+        # Single get_loads() call (with bus_id) reused for both the aligned
+        # load arrays and the per-component load below.
+        loads_full = net.get_loads()[['p', 'q', 'bus_id']]
+        loads_df = loads_full[['p', 'q']].reindex(nm.name_load)
         gens_df = net.get_generators()[['p', 'q', 'energy_source']].reindex(nm.name_gen)
         self._load_p = loads_df['p'].fillna(0.0).values
         self._load_q = loads_df['q'].fillna(0.0).values
@@ -133,14 +138,15 @@ class PypowsyblObservation:
         self._gen_q = gens_df['q'].fillna(0.0).values
         self._gen_type = gens_df['energy_source'].fillna("UNKNOWN").values
 
-        # Connected components and main component load
-        self._n_components = net.get_buses()['connected_component'].nunique()
-        
-        loads_p_bus = net.get_loads()[['p', 'bus_id']]
+        # Connected components and main component load - reuse bus_data_df
+        # (fetched once above) instead of re-calling get_buses() twice.
+        self._n_components = bus_data_df['connected_component'].nunique()
+
+        loads_p_bus = loads_full[['p', 'bus_id']]
         if loads_p_bus.empty:
             self._main_component_load_mw = 0.0
         else:
-            buses_comp = net.get_buses()[['connected_component']]
+            buses_comp = bus_data_df[['connected_component']]
             load_with_comp = loads_p_bus.merge(buses_comp, left_on='bus_id', right_index=True)
             if load_with_comp.empty:
                 self._main_component_load_mw = 0.0
@@ -219,18 +225,25 @@ class PypowsyblObservation:
         self._v_ex = v_ex.fillna(0.0).values
 
     def _compute_line_impedances(self, terminals: pd.DataFrame):
-        """Compute line resistance and reactance from network branch data.
+        """Assign line resistance and reactance from network branch data.
 
-        Fetches R and X from both lines and 2-winding transformers, then
-        aligns to nm.name_line ordering.
+        R and X are structural branch parameters — invariant across variants and
+        across the operating point — so they are fetched from the network once
+        and cached on the NetworkManager (keyed by the fixed ``name_line``
+        ordering), instead of re-fetching ``get_lines()`` / ``get_2wt()`` on every
+        observation. On a large network this removes two cross-JNI DataFrame
+        fetches per observation (a hot path during action reassessment).
         """
         nm = self._network_manager
-        net = nm.network
-        lines_rx = net.get_lines()[['r', 'x']]
-        trafos_rx = net.get_2_windings_transformers()[['r', 'x']]
-        all_rx = pd.concat([lines_rx, trafos_rx]).reindex(nm.name_line)
-        self._line_r = all_rx['r'].fillna(0.0).values
-        self._line_x = all_rx['x'].fillna(1e-6).values
+        cached = getattr(nm, "_cached_line_rx", None)
+        if cached is None:
+            net = nm.network
+            lines_rx = net.get_lines()[['r', 'x']]
+            trafos_rx = net.get_2_windings_transformers()[['r', 'x']]
+            all_rx = pd.concat([lines_rx, trafos_rx]).reindex(nm.name_line)
+            cached = (all_rx['r'].fillna(0.0).values, all_rx['x'].fillna(1e-6).values)
+            nm._cached_line_rx = cached
+        self._line_r, self._line_x = cached
 
     def _compute_line_cos_phi(self):
         """Compute effective terminal power factor for each line.
