@@ -34,6 +34,85 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar, Dict, List, Literal, Optional
 
 
+class DictCompatMixin:
+    """Backward-compatible mapping view over a dataclass's attributes.
+
+    The analysis pipeline historically threaded plain ``dict`` payloads
+    (the ~41-key context dict, the result dict, the per-action card dict).
+    The typed dataclasses that replace them (``AnalysisContext``,
+    ``AnalysisResult``, :class:`SimulatedAction`) mix this in so that every
+    existing dict-style consumer keeps working unchanged: ``obj["key"]``,
+    ``obj.get(...)``, ``obj.pop(...)``, ``obj.update(...)``, ``key in obj``
+    and iteration all operate on the instance attributes. ``obj.key`` and
+    ``obj["key"]`` are therefore the *same* slot — the dataclass fields are
+    the single source of truth and the mapping interface is a compatibility
+    view over them. Extra keys added dynamically (as the pipeline does when
+    it enriches the context between steps) simply become extra attributes.
+
+    Implemented directly over ``__dict__`` (rather than deriving from
+    :class:`collections.abc.MutableMapping`) so it does not inherit a
+    dict-style ``__eq__`` that would deep-compare numpy-array fields and
+    raise "ambiguous truth value"; the dataclasses opt out of a generated
+    ``__eq__`` (``eq=False``) and keep object identity.
+    """
+
+    __slots__ = ()
+
+    def __getitem__(self, key):
+        try:
+            return self.__dict__[key]
+        except KeyError:
+            raise KeyError(key) from None
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def __delitem__(self, key):
+        try:
+            del self.__dict__[key]
+        except KeyError:
+            raise KeyError(key) from None
+
+    def __contains__(self, key):
+        return key in self.__dict__
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
+
+    def setdefault(self, key, default=None):
+        if key not in self.__dict__:
+            setattr(self, key, default)
+        return self.__dict__[key]
+
+    def pop(self, key, *default):
+        if key in self.__dict__:
+            value = self.__dict__[key]
+            del self.__dict__[key]
+            return value
+        if default:
+            return default[0]
+        raise KeyError(key)
+
+    def update(self, *args, **kwargs):
+        for key, value in dict(*args, **kwargs).items():
+            setattr(self, key, value)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def items(self):
+        return self.__dict__.items()
+
+    def values(self):
+        return self.__dict__.values()
+
+
 @dataclass
 class RecommenderInputs:
     """Every input a recommendation model may consume.
@@ -150,12 +229,15 @@ class RecommenderInputs:
     _context: Optional[dict] = None
 
 
-@dataclass
-class SimulatedAction:
+@dataclass(eq=False, repr=False)
+class SimulatedAction(DictCompatMixin):
     """A single action enriched with its simulated state.
 
     Schema preserved verbatim from the historical reassessment output so
-    every existing action-card consumer keeps working unchanged.
+    every existing action-card consumer keeps working unchanged. Mixes in
+    :class:`DictCompatMixin` so the reassessment stage can emit typed
+    ``SimulatedAction`` instances while callers that still index the card
+    (``card["rho_before"]``, ``card.get("observation")``) keep working.
     """
 
     action: Any

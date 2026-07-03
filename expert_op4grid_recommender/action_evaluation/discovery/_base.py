@@ -53,6 +53,10 @@ class DiscovererBase:
         lines_we_care_about: Optional[List[str]] = None,
         check_rho_reduction_func: Optional[Callable] = None,
         create_default_action_func: Optional[Callable] = None,
+        compute_baseline_func: Optional[Callable] = None,
+        check_rho_with_baseline_func: Optional[Callable] = None,
+        branch_candidates_from_baseline: bool = False,
+        use_shared_baseline_for_topological: bool = False,
         obs_linecut: Optional[Any] = None,
         antenna_mode: bool = False,
         antenna_meta: Optional[Dict] = None,
@@ -115,16 +119,30 @@ class DiscovererBase:
         self.check_action_simulation = check_action_simulation
         self.lines_we_care_about = lines_we_care_about
 
-        # Store backend-specific simulation functions (use defaults for grid2op if not provided)
-        self._check_rho_reduction = (
+        # Backend-specific simulation callables (default to the grid2op module
+        # helpers when not injected). Previously ``main.py`` monkey-patched
+        # these onto the live instance for the pypowsybl backend; they now
+        # arrive as constructor arguments derived from the SimulationBackend.
+        self._per_candidate_check = (
             check_rho_reduction_func or _default_check_rho_reduction
         )
         self._create_default_action = (
             create_default_action_func or _default_create_default_action
         )
-        # Optimized baseline simulation functions (can be overridden for pypowsybl in main.py)
-        self._compute_baseline = _default_compute_baseline
-        self._check_rho_with_baseline = _default_check_with_baseline
+        self._compute_baseline = compute_baseline_func or _default_compute_baseline
+        self._check_rho_with_baseline = (
+            check_rho_with_baseline_func or _default_check_with_baseline
+        )
+        self._branch_candidates_from_baseline = branch_candidates_from_baseline
+        # Route the topological candidate rho-checks either per-candidate
+        # (grid2op — re-applies the contingency and recomputes the baseline for
+        # every candidate) or through the single shared baseline (pypowsybl —
+        # one baseline load flow per run). Stored as an instance attribute so
+        # the family mixins keep calling ``self._check_rho_reduction(...)``.
+        if use_shared_baseline_for_topological:
+            self._check_rho_reduction = self._shared_baseline_check
+        else:
+            self._check_rho_reduction = self._per_candidate_check
 
         # Initialize results holders (remain the same)
         self.identified_reconnections = {}
@@ -231,6 +249,27 @@ class DiscovererBase:
             )
             self._cached_simulation_baseline = (act_defaut, baseline_rho, branch_obs)
         return self._cached_simulation_baseline
+
+    def _shared_baseline_check(self, obs, timestep, act_defaut, action,
+                               overload_ids, act_reco_maintenance,
+                               lines_we_care_about=None):
+        """Topological candidate rho-check routed through the shared baseline.
+
+        Selected in ``__init__`` when the backend sets
+        ``use_shared_baseline_for_topological`` (pypowsybl). Ignores the
+        per-call ``obs`` / ``act_defaut`` and reuses the single cached
+        contingency baseline (one baseline load flow per run instead of one per
+        candidate), branching each candidate from the contingency-applied
+        observation. Previously this lived as a closure monkey-patched onto the
+        instance in ``main.py``.
+        """
+        cached_act_defaut, baseline_rho, branch_obs = self._get_simulation_baseline()
+        if baseline_rho is None:
+            return False, None
+        return self._check_rho_with_baseline(
+            branch_obs, timestep, cached_act_defaut, action, overload_ids,
+            act_reco_maintenance, baseline_rho, lines_we_care_about,
+        )
 
     def _build_lookup_caches(self):
         """Pre-computes name-to-index lookup dictionaries to avoid repeated np.where calls."""

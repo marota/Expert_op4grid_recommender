@@ -69,7 +69,16 @@ pytest -k "test_name"  # specific test by name
 
 ```
 expert_op4grid_recommender/
-├── main.py                    # Entry point, CLI, run_analysis() orchestration
+├── main.py                    # Thin backward-compat facade re-exporting the
+│                              #   pipeline/CLI/backends API (kept so every
+│                              #   `from …main import …` keeps resolving)
+├── cli.py                     # Command-line entry point (argparse + main())
+├── pipeline.py                # Analysis pipeline core: run_analysis[_step1/2*],
+│                              #   AnalysisContext / AnalysisResult dataclasses
+├── backends.py                # SimulationBackend protocol + Grid2opBackend /
+│                              #   PypowsyblBackend (fast_mode as ctor state);
+│                              #   replaces the old *_grid2op/*_pypowsybl wrappers,
+│                              #   the context function-pointers and the is_pypowsybl forks
 ├── config.py                  # Main configuration (pydantic Settings, re-exported as module attrs)
 ├── config_basic.py            # One alternative config variant (Settings(...) with overrides)
 ├── exceptions.py              # Domain exceptions (LoadFlowDivergedError)
@@ -78,8 +87,11 @@ expert_op4grid_recommender/
 ├── data_loader.py             # Load action dictionaries from JSON
 │
 ├── models/                    # Pluggable recommender-model contract
-│   ├── base.py                # RecommenderModel ABC, RecommenderInputs/Output DTOs
-│   └── expert.py              # ExpertRecommender (the default expert-system model)
+│   ├── base.py                # RecommenderModel ABC, RecommenderInputs/Output DTOs,
+│   │                          #   SimulatedAction card, DictCompatMixin
+│   ├── expert.py              # ExpertRecommender (the default expert-system model)
+│   └── _expert_discovery.py   # _run_expert_discovery + _run_expert_action_filter
+│                              #   (moved out of main.py to break the import cycle)
 │
 ├── action_evaluation/         # Action analysis module
 │   ├── classifier.py          # ActionClassifier: categorize action types
@@ -133,14 +145,17 @@ via `sys.modules` + the package attribute.)
 ## Key Classes & Functions
 
 ### Main Entry Point
-- **`run_analysis(analysis_date, current_timestep, current_lines_defaut, env_path=None, env_name=None, backend=Backend.GRID2OP, fast_mode=None)`** in `main.py`
+- **`run_analysis(analysis_date, current_timestep, current_lines_defaut, env_path=None, env_name=None, backend=Backend.GRID2OP, fast_mode=None)`** — lives in `pipeline.py`, re-exported from `main.py`
   - Orchestrates the full analysis pipeline
   - **Two-step pipeline** (v0.1.5+): internally delegates to
-    - `run_analysis_step1(...)` → detects overloads, selects overloads to keep
+    - `run_analysis_step1(...)` → detects overloads; returns an
+      `AnalysisContext` to continue, or an `AnalysisResult` short-circuit when
+      there is no actionable overload (was a `(Optional, Optional)` tuple)
     - `run_analysis_step2_graph(context)` → builds the overflow graph
     - `run_analysis_step2_discovery(context)` → discovers, scores, prioritizes actions
   - The two-step split lets external callers (e.g. UI, notebooks) intervene between steps.
-  - Returns `Dict[str, Any]` with keys:
+  - Returns an **`AnalysisResult`** (a dataclass with a dict-compatible view, so
+    `result["prioritized_actions"]` / `result.get(...)` still work) carrying:
     - `"lines_overloaded_names"`: `List[str]`
     - `"prioritized_actions"`: `{action_id: {action, description_unitaire, rho_before, rho_after, max_rho, max_rho_line, is_rho_reduction, observation, ...}}`
     - `"action_scores"`: per-type scoring dict (see Data Structures below)
@@ -373,7 +388,11 @@ tests/
 ├── test_environment_detection.py        # Env detection logic
 ├── test_antenna_graph.py                # Antenna (islanded-pocket) overflow graph
 │                                        # (see docs/recommender/antenna_overflow_graph.md)
-└── test_visualization_filtering.py      # Visualization filters
+├── test_visualization_filtering.py      # Visualization filters
+└── test_typed_pipeline_spine.py         # R1/R2 contracts: AnalysisContext/Result +
+                                         # SimulatedAction dict-compat, SimulationBackend
+                                         # flags, shared-baseline routing, import-cycle
+                                         # dissolution, main facade re-exports
 ```
 
 ### Test Configuration Override
@@ -407,8 +426,16 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.2.6` (see `CHANGELOG.md` for full history)
+**Current version**: `0.2.7` (see `CHANGELOG.md` for full history)
 
+> **v0.2.7 highlights** (deep revisions R1 + R2 from the 2026-07 review): typed pipeline
+> spine — `AnalysisContext` / `AnalysisResult` dataclasses replace the ~41-key context dict
+> and the untyped result dict (dict-compatible via `DictCompatMixin`); a `SimulationBackend`
+> protocol (`backends.py`) replaces the 18 delegation wrappers, the 8 context function
+> pointers, the `is_pypowsybl` forks and the discoverer monkey-patching; `main.py` split into
+> `cli.py` + `pipeline.py` with `_run_expert_discovery` moved under `models/`, dissolving the
+> three import cycles. Behaviour-preserving (byte-identical prioritized-action output).
+>
 > **v0.2.6 highlights**: parallelised per-action reassessment (worker threads on private
 > pypowsybl network copies, `min(10, cores, n_actions)`) + cheaper observation construction;
 > maneuver-IHM path-traversal fix; `sys.exit(0)` → `LoadFlowDivergedError`; shared discovery
@@ -484,16 +511,19 @@ See `docs/archive/MIGRATION_PLAN.md` for details. The goal is to remove `grid2op
 
 ## Common Patterns
 
-### Backend Abstraction Pattern (main.py)
+### Backend Abstraction Pattern (`backends.py`)
+The old per-call `if backend == GRID2OP: fn = fn_grid2op else fn = fn_pypowsybl`
+forks (and the function-pointers stashed in the context dict) are gone. The
+pipeline builds one `SimulationBackend` and calls methods on it; `fast_mode` is
+constructor state, so call sites never thread it through:
 ```python
-if backend == Backend.GRID2OP:
-    setup_environment = setup_environment_grid2op
-    simulate_contingency = simulate_contingency_grid2op
-    # ... other functions
-elif backend == Backend.PYPOWSYBL:
-    setup_environment = setup_environment_pypowsybl
-    simulate_contingency = simulate_contingency_pypowsybl
-    # ... other functions
+from expert_op4grid_recommender.backends import make_backend, Backend
+
+backend = make_backend(Backend.PYPOWSYBL, fast_mode=True)  # or Backend.GRID2OP
+obs_simu_defaut, converged = backend.simulate_contingency(env, obs, lines, act_reco, t)
+df, sim, g, hubs, dist, mapping = backend.build_overflow_graph(...)
+# Discovery is configured from backend flags (branch_candidates_from_baseline,
+# use_shared_baseline_for_topological) instead of monkey-patching the discoverer.
 ```
 
 ### Timer Context Manager

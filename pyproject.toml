@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "expert_op4grid_recommender"
-version = "0.2.6"
+version = "0.2.7"
 authors = [
     { name="RTE", email="rte@rte-france.com" },
 ]
@@ -96,7 +96,6 @@ select = ["E4", "E7", "E9", "F"]
 "expert_op4grid_recommender/environment.py" = ["E741", "F401"]
 "expert_op4grid_recommender/environment_pypowsybl.py" = ["E741"]
 "expert_op4grid_recommender/graph_analysis/processor.py" = ["E721"]
-"expert_op4grid_recommender/main.py" = ["E741", "F841"]
 "expert_op4grid_recommender/pypowsybl_backend/action_space.py" = ["E701"]
 "expert_op4grid_recommender/pypowsybl_backend/migration_guide.py" = ["E741"]
 "expert_op4grid_recommender/pypowsybl_backend/network_manager.py" = ["E701", "F841"]

@@ -217,26 +217,28 @@ def test_no_method_is_defined_in_two_places():
 
 
 def test_method_count_matches_original_class():
-    """Sanity check: the new package distributes exactly 48 methods
-    across the base + mixins. The base contributes ``__init__`` plus 29
+    """Sanity check: the new package distributes exactly 49 methods
+    across the base + mixins. The base contributes ``__init__`` plus 30
     helpers (the original 24 plus ``_get_subs_with_dispatchable_gens``,
     ``_get_voltage_level_metadata`` and ``_get_site_higher_voltage_map``
     added for redispatching, ``_cap_candidates_for_simulation`` that
     bounds the per-candidate simulation of the generator-targeting passes,
-    and ``_get_simulation_baseline`` that shares the candidate-check
-    baseline LF across discovery passes); the nine mixins together
-    contribute the remaining 18 family methods
-    (1 + 2 + 8 + 2 + 1 + 1 + 1 + 1 + 1)."""
+    ``_get_simulation_baseline`` that shares the candidate-check baseline LF
+    across discovery passes, and ``_shared_baseline_check`` that routes the
+    topological passes through that shared baseline on pypowsybl — replacing
+    the old ``main.py`` monkey-patch); the nine mixins together contribute
+    the remaining 18 family methods (1 + 2 + 8 + 2 + 1 + 1 + 1 + 1 + 1)."""
     non_dunder = sum(
         len(_class_defined_methods(cls))
         for cls in [DiscovererBase, *MIXIN_EXPECTED_METHODS.keys()]
     )
     # _class_defined_methods filters out dunder names, so __init__ is
     # excluded from the per-class counts. Add it back explicitly to get
-    # the full 48 (42 original + redispatch mixin + 3 redispatch helpers +
-    # the candidate-simulation cap helper + the shared baseline helper).
+    # the full 49 (42 original + redispatch mixin + 3 redispatch helpers +
+    # the candidate-simulation cap helper + the shared baseline helper +
+    # the shared-baseline topological-check helper).
     assert "__init__" in DiscovererBase.__dict__
-    assert non_dunder + 1 == 48
+    assert non_dunder + 1 == 49
 
 
 # ---------------------------------------------------------------------------

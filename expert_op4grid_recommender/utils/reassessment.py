@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from expert_op4grid_recommender import config
+from expert_op4grid_recommender.models.base import SimulatedAction
 from expert_op4grid_recommender.utils.helpers import Timer
 
 logger = logging.getLogger(__name__)
@@ -160,23 +161,20 @@ def reassess_prioritized_actions(
     dict_action = context["dict_action"]
     is_pypowsybl = context["is_pypowsybl"]
     actual_fast_mode = context["actual_fast_mode"]
-    create_default_action = context["create_default_action"]
-
-    from expert_op4grid_recommender.main import (
-        simulate_contingency_grid2op, simulate_contingency_pypowsybl,
-    )
 
     with Timer("Reassessment"):
-        act_defaut = create_default_action(env.action_space, current_lines_defaut)
+        # ``backend`` is the SimulationBackend threaded through the context; it
+        # holds fast_mode so the re-simulation needs no per-call fast_mode.
+        act_defaut = backend.create_default_action(env.action_space, current_lines_defaut)
 
-        if is_pypowsybl and obs_simu_defaut._network_manager._default_dc:
-            obs_simu_defaut, _ = simulate_contingency_pypowsybl(
-                env, obs, current_lines_defaut, act_reco_maintenance,
-                current_timestep, fast_mode=actual_fast_mode,
-            )
-            obs_simu_defaut._network_manager._default_dc = False
-        elif not is_pypowsybl:
-            obs_simu_defaut, _ = simulate_contingency_grid2op(
+        if is_pypowsybl:
+            if obs_simu_defaut._network_manager._default_dc:
+                obs_simu_defaut, _ = backend.simulate_contingency(
+                    env, obs, current_lines_defaut, act_reco_maintenance, current_timestep,
+                )
+                obs_simu_defaut._network_manager._default_dc = False
+        else:
+            obs_simu_defaut, _ = backend.simulate_contingency(
                 env, obs, current_lines_defaut, act_reco_maintenance, current_timestep,
             )
         baseline_rho = obs_simu_defaut.rho[lines_overloaded_ids]
@@ -241,17 +239,21 @@ def reassess_prioritized_actions(
                 print(f"  Rho reduction from {np.round(rho_before, 2)} to {np.round(rho_after, 2)}")
                 print(f"  New max rho is {max_rho:.2f} on line {max_rho_line}")
 
-            return {
-                "action": action,
-                "description_unitaire": description_unitaire,
-                "rho_before": rho_before,
-                "rho_after": rho_after,
-                "max_rho": max_rho,
-                "max_rho_line": max_rho_line,
-                "is_rho_reduction": is_rho_reduction,
-                "observation": obs_simu_action,
-                "non_convergence": non_convergence,
-            }
+            # Typed action-card payload. ``SimulatedAction`` mixes in
+            # ``DictCompatMixin`` so every existing card consumer that indexes
+            # the payload (``card["rho_before"]``, ``card.get("observation")``)
+            # keeps working unchanged.
+            return SimulatedAction(
+                action=action,
+                description_unitaire=description_unitaire,
+                rho_before=rho_before,
+                rho_after=rho_after,
+                max_rho=max_rho,
+                max_rho_line=max_rho_line,
+                is_rho_reduction=is_rho_reduction,
+                observation=obs_simu_action,
+                non_convergence=non_convergence,
+            )
 
         action_items = list(prioritized_actions.items())
         n_actions = len(action_items)

@@ -95,6 +95,7 @@ def main() -> None:
     reass.reassess_prioritized_actions = timed_reass
 
     from expert_op4grid_recommender.main import (
+        AnalysisResult,
         Backend,
         run_analysis_step1,
         run_analysis_step2_graph,
@@ -104,12 +105,15 @@ def main() -> None:
     phase_times: dict[str, float] = {}
     phase["name"] = "step1"
     t = time.perf_counter()
-    res1, ctx = run_analysis_step1(None, 0, list(args.defaut), backend=Backend.PYPOWSYBL)
+    # run_analysis_step1 returns an AnalysisContext (proceed) or an
+    # AnalysisResult (no-overload short-circuit) — no longer a 2-tuple.
+    outcome = run_analysis_step1(None, 0, list(args.defaut), backend=Backend.PYPOWSYBL)
     phase_times["step1"] = time.perf_counter() - t
-    if ctx is None:
+    if isinstance(outcome, AnalysisResult):
         print("Early exit at step1 (no actionable overflow graph). "
-              "Overloaded:", (res1 or {}).get("lines_overloaded_names"))
+              "Overloaded:", outcome.get("lines_overloaded_names"))
         return
+    ctx = outcome
 
     phase["name"] = "graph"
     t = time.perf_counter()
