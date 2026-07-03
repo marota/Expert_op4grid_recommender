@@ -951,6 +951,10 @@ def run_analysis_step2_discovery(context: Dict[str, Any],
         # time breakdown to the operator.
         "prediction_time": prediction_time,
         "assessment_time": assessment_time,
+        # How the per-action reassessment was parallelised (worker threads /
+        # cores used). Surfaced so the UI can annotate the reassessment-time
+        # tooltip, e.g. "reassessment: 8.1 s on 4 cores".
+        "reassessment_parallelism": context.get("reassessment_parallelism"),
     }
 
 
