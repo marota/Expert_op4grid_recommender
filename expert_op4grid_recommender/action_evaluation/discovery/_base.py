@@ -782,18 +782,30 @@ class DiscovererBase:
             return self._cached_edge_data
         g = self.g_overflow.g
         result = []
-        for u, v, data in g.edges(data=True):
+        # The overflow graph is a Multi(Di)Graph: parallel circuits between the
+        # same two substations (twin RTE lines, e.g. L61/L62) share a (u, v)
+        # pair. Key the name/label lookup dicts by the full edge id (u, v, k) so
+        # parallel edges do not overwrite each other in flow-influence scoring.
+        # This matches nx.get_edge_attributes (3-tuple keys on a multigraph),
+        # which _build_node_flow_cache uses on the non-cached fallback path.
+        is_multi = g.is_multigraph()
+        edges_iter = g.edges(keys=True, data=True) if is_multi else g.edges(data=True)
+        # Also cache name->edges and label->edges dicts for fast lookup.
+        edge_names = {}
+        edge_labels = {}
+        for edge in edges_iter:
+            if is_multi:
+                u, v, k, data = edge
+                key = (u, v, k)
+            else:
+                u, v, data = edge
+                key = (u, v)
             name = data.get("name", "")
             label = float(data.get("label", 0.0))
             cap = float(data.get("capacity", 0.0))
             result.append((name, label, cap))
-        # Also cache name->edges and label->edges dicts for fast lookup
-        edge_names = {}
-        edge_labels = {}
-        for i, (u, v) in enumerate(g.edges()):
-            name, label, cap = result[i]
-            edge_names[(u, v)] = name
-            edge_labels[(u, v)] = label
+            edge_names[key] = name
+            edge_labels[key] = label
         self._cached_edge_data = result
         self._cached_edge_names = edge_names
         self._cached_edge_labels = edge_labels
