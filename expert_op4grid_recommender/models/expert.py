@@ -74,13 +74,13 @@ class ExpertRecommender(RecommenderModel):
     def recommend(self, inputs: RecommenderInputs, params: dict) -> RecommenderOutput:
         """Run the existing expert pipeline on the overflow-graph context.
 
-        Implementation note: delegates to the legacy helper
+        Implementation note: delegates to the helper
         :func:`_run_expert_discovery` in
-        :mod:`expert_op4grid_recommender.main` because the expert
-        discovery is tightly coupled to internal context (validator,
-        graph pre-processing, simulation helpers). External models
-        rebuild a clean path via ``inputs`` instead — the ``_context``
-        escape hatch is private to this class.
+        :mod:`expert_op4grid_recommender.models._expert_discovery` because
+        the expert discovery is tightly coupled to internal context
+        (validator, graph pre-processing, simulation helpers). External
+        models rebuild a clean path via ``inputs`` instead — the
+        ``_context`` escape hatch is private to this class.
         """
         if inputs._context is None:
             raise RuntimeError(
@@ -88,7 +88,9 @@ class ExpertRecommender(RecommenderModel):
                 "It is meant to be called from run_analysis_step2_discovery, "
                 "not directly by external code."
             )
-        from expert_op4grid_recommender.main import _run_expert_discovery
+        from expert_op4grid_recommender.models._expert_discovery import (
+            _run_expert_discovery,
+        )
         n_action_max = int(params.get("n_prioritized_actions",
                                       config.N_PRIORITIZED_ACTIONS))
         prioritized_actions, action_scores = _run_expert_discovery(

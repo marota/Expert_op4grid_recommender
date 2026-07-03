@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-07-03
+
+### Changed
+
+- **Typed pipeline spine + backend protocol (deep revisions R1 + R2)** — a
+  behaviour-preserving restructure of the analysis entry point (verified
+  byte-identical prioritized-action output on the bare-env golden):
+  - **`SimulationBackend` protocol** (`backends.py`, new): the 18 `*_grid2op` /
+    `*_pypowsybl` delegation wrappers, the 8 backend-selected function pointers
+    that used to live in the context dict, the `if is_pypowsybl:` call-site forks
+    and the `discoverer._*` monkey-patching are all replaced by a single
+    protocol with two implementations (`Grid2opBackend`, `PypowsyblBackend`) that
+    hold `fast_mode` as constructor state. The discovery pass is now configured
+    from the backend's flags (`branch_candidates_from_baseline`,
+    `use_shared_baseline_for_topological`) passed to `ActionDiscoverer.__init__`
+    instead of being monkey-patched; the shared-baseline routing became a real
+    `DiscovererBase._shared_baseline_check` method.
+  - **`AnalysisContext` / `AnalysisResult` dataclasses** (`pipeline.py`, new):
+    replace the ~41-key untyped context dict and the untyped result dict. Both
+    keep a dict-compatible view (`DictCompatMixin`) so existing item-access
+    consumers are unaffected. `run_analysis_step1` now returns
+    `AnalysisContext | AnalysisResult` (the no-overload short-circuit) instead
+    of the `(Optional, Optional)` sentinel tuple.
+  - **`SimulatedAction` is now actually used**: the reassessment stage emits the
+    typed `SimulatedAction` (previously defined, exported, tested — never
+    instantiated) for each action card.
+  - **`main.py` split into `cli.py` + `pipeline.py`**, and `_run_expert_discovery`
+    moved under `models/_expert_discovery.py`. The dependency direction is now
+    `cli → pipeline → models → action_evaluation/graph_analysis → utils`,
+    dissolving the three import cycles (`models.expert ↔ main`,
+    `reassessment ↔ main`, `main ↔ models/reassessment`). `main.py` remains as a
+    thin re-export facade so every `from expert_op4grid_recommender.main import …`
+    keeps resolving.
+
 ## [0.2.6] - 2026-07-03
 
 ### Performance

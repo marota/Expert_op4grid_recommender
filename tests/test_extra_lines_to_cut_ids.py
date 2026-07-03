@@ -344,25 +344,45 @@ def test_pypowsybl_builder_extras_none_defaults_to_empty(MockAdapter):
 
 
 def _make_step2_context(extra_lines_to_cut_ids, is_pypowsybl=False):
-    """Builds the minimal context dict that ``run_analysis_step2_graph``
-    expects, with all heavyweight bits replaced by mocks."""
+    """Builds the minimal :class:`AnalysisContext` that
+    ``run_analysis_step2_graph`` expects, with the physics operations
+    provided by a fake :class:`SimulationBackend` (post-R1 the graph builder
+    is ``context.backend.build_overflow_graph``, not a context function
+    pointer)."""
+    from expert_op4grid_recommender.pipeline import AnalysisContext
+
     captured = {}
 
-    def fake_build_overflow_graph(*args, **kwargs):
-        captured["args"] = args
-        captured["kwargs"] = kwargs
-        # Mimic the 6-tuple return signature of the real function.
-        return (
-            pd.DataFrame({
-                "new_flows_swapped": pd.Series([], dtype=bool),
-                "line_name": pd.Series([], dtype=str),
-            }),
-            MagicMock(),  # overflow_sim
-            MagicMock(g=nx.DiGraph()),  # g_overflow
-            [],  # hubs
-            MagicMock(),  # g_distribution_graph
-            {},  # node_name_mapping
-        )
+    class _FakeBackend:
+        is_pypowsybl = False
+        branch_candidates_from_baseline = False
+        use_shared_baseline_for_topological = False
+        fast_mode = True
+
+        def check_simu_overloads(self, *args, **kwargs):
+            return (True, False)
+
+        def switch_to_dc(self, env, *args, **kwargs):
+            return (env, MagicMock(), MagicMock())
+
+        def build_overflow_graph(self, *args, **kwargs):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            # Mimic the 6-tuple return signature of the real function.
+            return (
+                pd.DataFrame({
+                    "new_flows_swapped": pd.Series([], dtype=bool),
+                    "line_name": pd.Series([], dtype=str),
+                }),
+                MagicMock(),  # overflow_sim
+                MagicMock(g=nx.DiGraph()),  # g_overflow
+                [],  # hubs
+                MagicMock(),  # g_distribution_graph
+                {},  # node_name_mapping
+            )
+
+    fake_backend = _FakeBackend()
+    fake_backend.is_pypowsybl = is_pypowsybl
 
     env = MagicMock()
     env.action_space = MagicMock()
@@ -370,40 +390,32 @@ def _make_step2_context(extra_lines_to_cut_ids, is_pypowsybl=False):
     obs_simu_defaut = MagicMock()
     obs_simu_defaut.name_line = np.array(["L0"])
 
-    context = {
-        "backend": "grid2op" if not is_pypowsybl else "pypowsybl",
-        "env": env,
-        "obs": obs,
-        "obs_simu_defaut": obs_simu_defaut,
-        "analysis_date": None,
-        "current_timestep": 0,
-        "current_lines_defaut": ["LX"],
-        "lines_overloaded_ids": [0],
-        "lines_overloaded_ids_kept": [0],
-        "maintenance_to_reco_at_t": [],
-        "act_reco_maintenance": MagicMock(),
-        "lines_non_reconnectable": [],
-        "lines_we_care_about": [],
-        "classifier": MagicMock(),
-        "custom_layout": None,
-        "chronic_name": "test",
-        "pre_existing_rho": 0.0,
-        "lines_overloaded_names": ["L0"],
-        "non_connected_reconnectable_lines": [],
-        "dict_action": {},
-        "is_bare_env": True,
-        "is_pypowsybl": is_pypowsybl,
-        "actual_fast_mode": True,
-        # backend-specific function mocks
-        "check_simu_overloads": MagicMock(return_value=(True, False)),
-        "switch_to_dc": MagicMock(return_value=(env, obs, obs_simu_defaut)),
-        "build_overflow_graph": fake_build_overflow_graph,
-        "get_env_first_obs": MagicMock(),
-        "simulate_contingency": MagicMock(),
-        "create_default_action": MagicMock(),
-        "check_rho_reduction": MagicMock(),
-        "compute_baseline": MagicMock(),
-    }
+    context = AnalysisContext(
+        backend=fake_backend,
+        env=env,
+        obs=obs,
+        obs_simu_defaut=obs_simu_defaut,
+        analysis_date=None,
+        current_timestep=0,
+        current_lines_defaut=["LX"],
+        lines_overloaded_ids=[0],
+        lines_overloaded_ids_kept=[0],
+        maintenance_to_reco_at_t=[],
+        act_reco_maintenance=MagicMock(),
+        lines_non_reconnectable=[],
+        lines_we_care_about=[],
+        classifier=MagicMock(),
+        custom_layout=None,
+        chronic_name="test",
+        pre_existing_rho={},
+        lines_overloaded_names=["L0"],
+        non_connected_reconnectable_lines=[],
+        dict_action={},
+        is_bare_env=True,
+        is_pypowsybl=is_pypowsybl,
+        actual_fast_mode=True,
+        antenna_mode=False,
+    )
     if extra_lines_to_cut_ids is not None:
         context["extra_lines_to_cut_ids"] = extra_lines_to_cut_ids
     return context, captured
