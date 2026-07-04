@@ -327,7 +327,7 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
     # ``<title>`` / ``data-name`` — and therefore pin overlays, SLD lookups
     # and search — keep using the stable ID.
     applied_label_nodes = []
-    if getattr(config, "USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH", True):
+    if config.USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH:
         try:
             vl_name_map = get_zone_voltage_level_names(config.ENV_PATH)
             if vl_name_map:
@@ -449,7 +449,7 @@ def make_overflow_graph_visualization(env, overflow_sim, g_overflow, hubs, obs_s
             raise
 
     # Pick output format from config ("pdf" default, or "html" from PR #74).
-    output_format = getattr(config, "VISUALIZATION_FORMAT", "pdf").lower()
+    output_format = config.VISUALIZATION_FORMAT.lower()
     if output_format not in ("pdf", "html"):
         raise ValueError(
             f"Unsupported VISUALIZATION_FORMAT={output_format!r}; expected 'pdf' or 'html'."

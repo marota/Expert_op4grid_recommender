@@ -7,16 +7,23 @@ import sys
 import pytest
 
 
-def test_config_is_test_version():
-    """Verify we're using the test config, not the package config."""
+def test_config_is_real_module_with_test_overrides():
+    """The real config module stays in place; the test deltas are applied through
+    the validated ``override_settings`` accessor (no more ``config_test`` fork /
+    ``sys.modules`` swap — review finding M2)."""
     from expert_op4grid_recommender import config
-    
-    # Check the file path
-    assert 'config_test' in config.__file__, \
-        f"FAIL: Using {config.__file__} instead of config_test.py"
-    
+
+    # The real package config module is what's imported (not a hand-forked copy).
+    assert config.__file__.endswith("expert_op4grid_recommender/config.py"), \
+        f"FAIL: Unexpected config module {config.__file__}"
+
+    # The test delta was applied and is reflected both on the module and on the
+    # authoritative Settings instance.
+    assert config.ENV_NAME == "env_dijon_v2_assistant"
+    assert config.get_settings().ENV_NAME == "env_dijon_v2_assistant"
+
     print(f"\n✓ Config file: {config.__file__}")
-    
+
 
 def test_do_visualization_is_false():
     """Verify DO_VISUALIZATION is False in tests."""
@@ -31,16 +38,16 @@ def test_do_visualization_is_false():
     print(f"\n✓ DO_VISUALIZATION = {config.DO_VISUALIZATION}")
 
 
-def test_config_in_sys_modules():
-    """Verify the config module in sys.modules is the test version."""
+def test_config_in_sys_modules_is_real_module():
+    """The config in sys.modules is the real package module (no fork swap)."""
     assert 'expert_op4grid_recommender.config' in sys.modules, \
         "FAIL: expert_op4grid_recommender.config not in sys.modules"
-    
+
     config_module = sys.modules['expert_op4grid_recommender.config']
-    
-    assert 'config_test' in config_module.__file__, \
-        f"FAIL: sys.modules has wrong config: {config_module.__file__}"
-    
+
+    assert config_module.__file__.endswith("expert_op4grid_recommender/config.py"), \
+        f"FAIL: sys.modules has unexpected config: {config_module.__file__}"
+
     print(f"\n✓ sys.modules['expert_op4grid_recommender.config'] = {config_module.__file__}")
 
 
@@ -224,23 +231,23 @@ def test_sum_min_actions_does_not_exceed_n_prioritized_actions():
     print(f"\n✓ sum(MIN_*) = {sum_min} <= N_PRIORITIZED_ACTIONS = {config.N_PRIORITIZED_ACTIONS}")
 
 
-def test_config_test_inherits_real_config_keys():
-    """config_test.py star-imports config.py + overrides only the test deltas, so
-    the swapped-in config must expose the keys the real config defines — including
-    the ones the old hand-maintained fork was missing (review finding C7/M2). It
-    must also carry the pydantic ``settings`` instance and the ``Settings`` class
-    pulled in by the star-import."""
+def test_config_exposes_all_keys_and_accessors():
+    """The real config module exposes every key (no hand-maintained fork can drop
+    one — review finding C7/M2), including the derived ``@computed_field`` paths,
+    plus the pydantic ``settings`` instance, the ``Settings`` class, and the
+    ``get_settings`` / ``override_settings`` accessors introduced by R3."""
     from expert_op4grid_recommender import config
 
-    # Keys that the pre-star-import fork was missing (surfaced as AttributeError
-    # deep in test runs) plus a v0.2.x key and the pydantic objects.
+    # Keys the pre-star-import fork was missing (surfaced as AttributeError deep
+    # in test runs), a v0.2.x key, the derived paths, and the R3 accessors.
     for key in ("ENABLE_ANTENNA_RECOMMENDATIONS", "MAX_CANDIDATE_SIMULATIONS",
                 "VISUALIZATION_FORMAT", "USE_VOLTAGE_LEVEL_NAMES_IN_GRAPH",
                 "LINES_MONITORING_FILE", "ALLOWED_ACTION_TYPES",
-                "MIN_REDISPATCH", "settings", "Settings"):
-        assert hasattr(config, key), f"swapped-in config is missing '{key}'"
+                "MIN_REDISPATCH", "ENV_PATH", "ACTION_FILE_PATH", "CASE_NAME",
+                "settings", "Settings", "get_settings", "override_settings"):
+        assert hasattr(config, key), f"config is missing '{key}'"
 
-    # And the test override still wins over the star-imported value.
+    # And the test override wins.
     assert config.DO_VISUALIZATION is False
 
 
@@ -249,9 +256,9 @@ if __name__ == "__main__":
     print("Running config override verification...")
     print("=" * 70)
 
-    test_config_is_test_version()
+    test_config_is_real_module_with_test_overrides()
     test_do_visualization_is_false()
-    test_config_in_sys_modules()
+    test_config_in_sys_modules_is_real_module()
     test_main_uses_test_config()
     test_run_analysis_will_skip_visualization()
     test_monitoring_factor_thermal_limits_exists()
@@ -265,3 +272,58 @@ if __name__ == "__main__":
     print("=" * 70)
     print("✓ ALL VERIFICATION TESTS PASSED!")
     print("=" * 70)
+
+
+# ---------------------------------------------------------------------------
+# R3 — one config, one source of truth (computed fields + accessors)
+# ---------------------------------------------------------------------------
+
+def test_derived_paths_track_env_name_without_staleness():
+    """Overriding ENV_NAME / FILE_ACTION_SPACE_DESC recomputes the derived paths
+    (review finding A3 — no stale ENV_PATH / ACTION_FILE_PATH)."""
+    from expert_op4grid_recommender import config
+    from expert_op4grid_recommender.config import Settings
+
+    s = Settings(ENV_NAME="some_env", FILE_ACTION_SPACE_DESC="acts.json")
+    assert s.ENV_PATH == s.ENV_FOLDER / "some_env"
+    assert s.ACTION_FILE_PATH == s.ENV_FOLDER / "action_space" / "acts.json"
+    assert s.ENV_PATH.name == "some_env"
+
+
+def test_override_settings_revalidates_and_repromotes():
+    """override_settings validates, recomputes derived paths, and re-promotes to
+    the module namespace; it can be rolled back to the current test deltas."""
+    from expert_op4grid_recommender import config
+
+    before = config.get_settings()
+    try:
+        config.override_settings(ENV_NAME="rollback_env")
+        assert config.ENV_NAME == "rollback_env"
+        assert config.ENV_PATH.name == "rollback_env"          # module attr recomputed
+        assert config.get_settings().ENV_NAME == "rollback_env"  # instance updated
+    finally:
+        config.override_settings(before)  # restore the session's test settings
+    assert config.ENV_NAME == "env_dijon_v2_assistant"
+
+
+def test_override_settings_rejects_unknown_key():
+    """Unknown overrides raise instead of being silently ignored."""
+    import pytest
+    from expert_op4grid_recommender import config
+    with pytest.raises(ValueError):
+        config.override_settings(NOT_A_REAL_SETTING=1)
+
+
+def test_override_settings_validates_field_constraints():
+    """Field constraints (e.g. N_PRIORITIZED_ACTIONS >= 0) are enforced — the old
+    fork bypassed pydantic entirely, so CI never exercised validation (M2)."""
+    import pytest
+    from pydantic import ValidationError
+    from expert_op4grid_recommender import config
+
+    before = config.get_settings()
+    try:
+        with pytest.raises(ValidationError):
+            config.override_settings(N_PRIORITIZED_ACTIONS=-5)
+    finally:
+        config.override_settings(before)

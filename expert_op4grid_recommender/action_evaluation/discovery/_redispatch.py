@@ -58,9 +58,9 @@ class RedispatchMixin:
         name_line_arr = obs.name_line
         gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
 
-        margin = getattr(config, "REDISPATCH_MARGIN", 0.05)
-        min_mw = getattr(config, "REDISPATCH_MIN_MW", 1.0)
-        delta = getattr(config, "REDISPATCH_DEFAULT_DELTA_MW", 10.0)
+        margin = config.REDISPATCH_MARGIN
+        min_mw = config.REDISPATCH_MIN_MW
+        delta = config.REDISPATCH_DEFAULT_DELTA_MW
 
         name_to_capacity = self._build_line_capacity_map()
         if not name_to_capacity:

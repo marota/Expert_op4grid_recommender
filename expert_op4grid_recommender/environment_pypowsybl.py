@@ -193,7 +193,7 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
         env_folder,
         env_name,
         is_DC=config.USE_DC_LOAD_FLOW,
-        threshold_thermal_limit=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 0.95),
+        threshold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS,
         network=network,
         skip_initial_obs=skip_initial_obs,
     )
@@ -245,7 +245,7 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
             print(f"Excluded {n_excluded} branch(es) without permanent operational limits from monitoring.")
     else:
         try:
-            monitoring_file = getattr(config, 'LINES_MONITORING_FILE', None)
+            monitoring_file = config.LINES_MONITORING_FILE
             if monitoring_file is None:
                 monitoring_file = os.path.join(str(env_folder), "lignes_a_monitorer.csv")
             lines_we_care_about = load_interesting_lines(file_name=monitoring_file)

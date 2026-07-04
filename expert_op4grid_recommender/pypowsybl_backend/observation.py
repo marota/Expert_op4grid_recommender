@@ -452,7 +452,7 @@ class PypowsyblObservation:
     def gen_renewable(self) -> np.ndarray:
         """Boolean array: True if generator is renewable (WIND or SOLAR by default)."""
         from expert_op4grid_recommender import config
-        renewable_sources = set(getattr(config, 'RENEWABLE_ENERGY_SOURCES', ['WIND', 'SOLAR']))
+        renewable_sources = set(config.RENEWABLE_ENERGY_SOURCES)
         return np.array([str(src).upper() in renewable_sources for src in self.gen_energy_source])
 
     @property

@@ -201,7 +201,7 @@ class DiscovererBase:
 
         Returns a list of ``(action_id, action)`` pairs.
         """
-        cap = getattr(config, "MAX_CANDIDATE_SIMULATIONS", 0)
+        cap = config.MAX_CANDIDATE_SIMULATIONS
         if cap == 0:
             return []
         items = list(identified.items())
@@ -328,10 +328,10 @@ class DiscovererBase:
         obs = self.obs_defaut
         renewable_sources = set(
             s.upper()
-            for s in getattr(config, "RENEWABLE_ENERGY_SOURCES", ["WIND", "SOLAR"])
+            for s in config.RENEWABLE_ENERGY_SOURCES
         )
         gen_energy_sources = getattr(obs, "gen_energy_source", getattr(obs, "gen_type", None))
-        min_mw = getattr(config, "RENEWABLE_CURTAILMENT_MIN_MW", 1.0)
+        min_mw = config.RENEWABLE_CURTAILMENT_MIN_MW
         result: Dict[int, List[int]] = {}
 
         if gen_energy_sources is not None and hasattr(obs, "gen_to_subid"):
@@ -386,10 +386,10 @@ class DiscovererBase:
         obs = self.obs_defaut
         renewable_sources = set(
             s.upper()
-            for s in getattr(config, "RENEWABLE_ENERGY_SOURCES", ["WIND", "SOLAR"])
+            for s in config.RENEWABLE_ENERGY_SOURCES
         )
         gen_energy_sources = getattr(obs, "gen_energy_source", getattr(obs, "gen_type", None))
-        min_mw = getattr(config, "REDISPATCH_MIN_MW", 1.0)
+        min_mw = config.REDISPATCH_MIN_MW
         result: Dict[int, List[int]] = {}
 
         if gen_energy_sources is not None and hasattr(obs, "gen_to_subid"):

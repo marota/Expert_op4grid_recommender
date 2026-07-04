@@ -43,8 +43,8 @@ class RenewableCurtailmentMixin:
         name_line_arr = obs.name_line
         gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
 
-        margin = getattr(config, "RENEWABLE_CURTAILMENT_MARGIN", 0.05)
-        min_mw = getattr(config, "RENEWABLE_CURTAILMENT_MIN_MW", 1.0)
+        margin = config.RENEWABLE_CURTAILMENT_MARGIN
+        min_mw = config.RENEWABLE_CURTAILMENT_MIN_MW
 
         # Compute overload excess in MW (uses cached capacity map)
         name_to_capacity = self._build_line_capacity_map()

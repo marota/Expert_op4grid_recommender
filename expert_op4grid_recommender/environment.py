@@ -176,7 +176,7 @@ def setup_environment_configs(analysis_date: datetime): # Add analysis_date argu
             print(f"Warning: Could not filter branches by permanent limits: {e}. Monitoring all lines.")
             lines_we_care_about = np.array(list(env.name_line))
     else:
-        monitoring_file = getattr(config, 'LINES_MONITORING_FILE', None)
+        monitoring_file = config.LINES_MONITORING_FILE
         if monitoring_file is None:
             monitoring_file = os.path.join(config.ENV_FOLDER, "lignes_a_monitorer.csv")
         lines_we_care_about = load_interesting_lines(file_name=monitoring_file)
