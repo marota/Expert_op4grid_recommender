@@ -281,7 +281,6 @@ if __name__ == "__main__":
 def test_derived_paths_track_env_name_without_staleness():
     """Overriding ENV_NAME / FILE_ACTION_SPACE_DESC recomputes the derived paths
     (review finding A3 — no stale ENV_PATH / ACTION_FILE_PATH)."""
-    from expert_op4grid_recommender import config
     from expert_op4grid_recommender.config import Settings
 
     s = Settings(ENV_NAME="some_env", FILE_ACTION_SPACE_DESC="acts.json")
