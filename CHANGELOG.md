@@ -55,6 +55,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     that reuses one `NetworkManager` across analyses (closes the cross-run half of
     review-C4).
 
+## [0.2.7.post1] - 2026-07-03
+
+### Fixed
+
+- **Reassessment: stay serial on low-core hosts** (`utils/reassessment.py`). The
+  parallel per-action reassessment (0.2.6) clones the whole network per worker
+  (`save`/`load_from_binary_buffer` + `SimulationEnvironment` + observation
+  build) — a fixed overhead the serial path never pays, only amortized above
+  ~3-4 usable cores. On a **2-vCPU host** (e.g. a small HuggingFace Space) the
+  two clones + GIL contention on the Python-side observation build made the
+  "parallel" path **slower than serial** (observed ~42 s vs ~9 s on a many-core
+  Mac for the same 15-action pan-European case). Parallel reassessment is now
+  gated behind `min(10, cores, n_actions) >= 4` (env-tunable via
+  `EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS`; floored at 2). 2-vCPU
+  deployments fall back to the faster serial path; ≥4-core hosts keep the
+  speed-up. Behaviour and output are otherwise unchanged.
+
 ## [0.2.7] - 2026-07-03
 
 ### Changed

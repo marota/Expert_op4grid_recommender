@@ -457,6 +457,11 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 > (review C4). Behaviour-preserving (byte-identical grid2op output; real pypowsybl
 > end-to-end verified).
 >
+> **v0.2.7.post1**: reassessment stays serial on low-core hosts — the parallel
+> path's per-worker network clone is only amortized above ~4 cores, so a 2-vCPU
+> Space now uses the faster serial path (gate:
+> `EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS`, default 4).
+>
 > **v0.2.7 highlights** (deep revisions R1 + R2 from the 2026-07 review): typed pipeline
 > spine — `AnalysisContext` / `AnalysisResult` dataclasses replace the ~41-key context dict
 > and the untyped result dict (dict-compatible via `DictCompatMixin`); a `SimulationBackend`
