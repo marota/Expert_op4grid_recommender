@@ -27,6 +27,7 @@ from expert_op4grid_recommender.utils.simulation import (
     compute_baseline_simulation as _default_compute_baseline,
     check_rho_reduction_with_baseline as _default_check_with_baseline,
 )
+from expert_op4grid_recommender.utils.simulation import BaselineContext
 
 class DiscovererBase:
     """Core state, caches, and shared helpers for action discovery."""
@@ -184,6 +185,9 @@ class DiscovererBase:
         self.scores_redispatch = {}
         self.params_redispatch = {}
         self.prioritized_actions = {}
+        # Shared per-run baseline (BaselineContext), lazily built by
+        # _get_simulation_baseline and released by _release_simulation_baseline.
+        self._cached_simulation_baseline = None
 
     def _cap_candidates_for_simulation(self, identified, scores_map):
         """Return the subset of ``identified`` actions to validate by simulation.
@@ -233,8 +237,13 @@ class DiscovererBase:
         variant (``obs_baseline``) and applies only the candidate. The
         ``_branch_candidates_from_baseline`` flag (set for pypowsybl in
         ``main.py``) selects between them.
+
+        Returns a :class:`BaselineContext`; it iterates as
+        ``(act_defaut, baseline_rho, branch_obs)`` so existing unpacking call
+        sites are unchanged. :meth:`_release_simulation_baseline` frees its
+        retained variant at the end of the run.
         """
-        if not hasattr(self, "_cached_simulation_baseline"):
+        if self._cached_simulation_baseline is None:
             act_defaut = self._create_default_action(
                 self.action_space, self.lines_defaut
             )
@@ -247,8 +256,27 @@ class DiscovererBase:
                 if getattr(self, "_branch_candidates_from_baseline", False)
                 else self.obs
             )
-            self._cached_simulation_baseline = (act_defaut, baseline_rho, branch_obs)
+            self._cached_simulation_baseline = BaselineContext(
+                act_defaut=act_defaut,
+                baseline_rho=baseline_rho,
+                obs_baseline=obs_baseline,
+                branch_obs=branch_obs,
+            )
         return self._cached_simulation_baseline
+
+    def _release_simulation_baseline(self) -> None:
+        """Release the shared baseline's retained variant (best-effort).
+
+        Called once at the end of ``discover_and_prioritize``. Frees the single
+        kept baseline variant the pypowsybl backend retained for this run so it
+        does not linger on the ``NetworkManager`` across analyses (review C4).
+        The ``NetworkManager`` variant registry is the harder backstop; this is
+        the explicit, timely release.
+        """
+        ctx = self._cached_simulation_baseline
+        if isinstance(ctx, BaselineContext):
+            ctx.release()
+        self._cached_simulation_baseline = None
 
     def _shared_baseline_check(self, obs, timestep, act_defaut, action,
                                overload_ids, act_reco_maintenance,

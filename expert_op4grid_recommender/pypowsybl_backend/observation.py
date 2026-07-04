@@ -835,10 +835,16 @@ class PypowsyblObservation:
         finally:
             # Always return to base variant
             nm.set_working_variant(nm.base_variant_id)
-            # Only remove variant if not keeping it
-            if not keep_variant:
+            if keep_variant:
+                # Track the retained variant so the NetworkManager LRU backstop
+                # can bound accumulation across analyses (review C4). Under
+                # normal operation the caller (BaselineContext.release /
+                # reassessment cleanup) still releases it explicitly.
+                nm.register_kept_variant(variant_id)
+            else:
+                # Transient variant — drop it immediately.
                 nm.remove_variant(variant_id)
-    
+
     def __add__(self, action: 'PypowsyblAction') -> 'PypowsyblObservation':
         """
         Support obs + action syntax (returns observation with action applied).
