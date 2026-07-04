@@ -51,6 +51,8 @@ hypothetical scenario lives in its own **variant**:
 - `nm.set_working_variant(name)` — switches the "active" variant. All
   subsequent reads and writes target it.
 - `nm.remove_variant(name)` — drops the storage. Cannot remove `base`.
+- `nm.register_kept_variant(name)` / `nm.sweep_kept_variants()` — the
+  kept-variant registry + LRU backstop (see §2.1).
 
 Lifecycle rules enforced by the codebase:
 
@@ -58,13 +60,28 @@ Lifecycle rules enforced by the codebase:
 |---|---|
 | `SimulationEnvironment.__init__` | LF on base variant; result cached. |
 | `env.reset()` | restore base + re-run initial LF with `DC_VALUES`. |
-| `obs.simulate(action)` | clone *current* obs variant → temp variant → apply + LF → discard (or keep if `keep_variant=True`). |
-| `simulate_contingency_pypowsybl(...)` | clone from base → disconnect contingency lines → LF → return obs (variant kept on `obs._variant_id` so callers can branch off). |
-| Manual cleanup | every keep-variant caller is responsible for `nm.remove_variant(obs._variant_id)`. |
+| `obs.simulate(action)` | clone *current* obs variant → temp variant → apply + LF → discard (or keep + **register** if `keep_variant=True`). |
+| `simulate_contingency(..., simulate_kwargs={"keep_variant": True, ...})` | clone from base → disconnect contingency lines → LF → return obs (variant kept on `obs._variant_id` so callers can branch off). Backend-agnostic since R4 (`utils.simulation`); the pypowsybl `keep_variant` / `fast_mode` flags are passed via `simulate_kwargs`. |
+| Explicit cleanup | `BaselineContext.release()` frees the shared discovery baseline; every other keep-variant caller still releases via `nm.remove_variant(obs._variant_id)`. |
 
 `obs.simulate` always restores the working variant to `base` in its
 `finally` block — so a caller can chain simulations freely without
 having to remember to reset.
+
+### 2.1 Kept-variant registry + LRU backstop (R4)
+
+`keep_variant=True` retains a variant beyond the `finally` block (the N-1
+contingency observation, the shared discovery baseline, and each
+prioritized-action state). These are operator-relevant states, released
+explicitly under normal operation. To keep a **long-running service** that reuses
+one `NetworkManager` across many analyses from accumulating them unbounded
+(review finding C4), `obs.simulate(keep_variant=True)` also calls
+`nm.register_kept_variant(variant_id)`. The registry is an insertion-ordered map
+with an LRU backstop: once it exceeds `max_kept_variants` (default `256`, chosen
+well above what any single analysis needs), the oldest retained variant that is
+**neither the base nor the current working variant** is evicted. `remove_variant`
+de-registers; `sweep_kept_variants()` clears them all. A single analysis never
+trips the backstop; it only bounds growth across analyses.
 
 ## 3. Load flow — modes, parameters, default values
 
@@ -303,9 +320,19 @@ returned observation as `obs._variant_id`. Used by:
   its own kept variant during the optimisation loop.
 
 Caller is responsible for cleanup — `nm.remove_variant(obs._variant_id)`
-when done. Leaks are detectable via `nm.network.get_variant_ids()`.
+when done (the shared discovery baseline uses `BaselineContext.release()`).
+Leaks are detectable via `nm.network.get_variant_ids()`, and since R4 the
+kept-variant registry + LRU backstop (§2.1) bounds any that slip through across
+analyses.
 
-## 5. Contingency simulation (`simulate_contingency_pypowsybl`)
+## 5. Contingency simulation (`utils.simulation.simulate_contingency`)
+
+> **R4 note.** The grid2op and pypowsybl simulation helpers were unified into a
+> single backend-agnostic `utils/simulation.py` module; the old
+> `simulate_contingency_pypowsybl` is gone. The pypowsybl behaviour is expressed
+> by passing `simulate_kwargs={"keep_variant": True, "fast_mode": fast_mode}`; the
+> pipeline invokes it through `PypowsyblBackend.simulate_contingency`, which fills
+> those kwargs from constructor `fast_mode` state.
 
 Wraps `obs.simulate` with the contingency model:
 
@@ -329,15 +356,38 @@ single LF computes both effects.
 
 ## 6. Action simulation in the analysis pipeline
 
-The analysis flow uses three layered entry points:
+The analysis flow uses layered entry points, all in the unified
+`utils/simulation.py` and reached through the `SimulationBackend` (R1) so the
+backend difference is a parameter, not a forked module (R4):
 
 | Function | Role |
 |---|---|
-| `simulate_contingency_pypowsybl(env, obs, lines_defaut, ...)` | Build the N-1 observation that is the **baseline** for every candidate action. Called once per (timestep, contingency). |
-| `_pypowsybl_compute_baseline(...)` | Re-uses the N-1 baseline; injects an action's `obs` into the recommender's scoring math. |
-| `_pypowsybl_check_with_baseline(...)` / `_check_rho_reduction` | Simulate an action against the N-1 baseline, return `max_rho`, `rho_after`, impacted-line set. Used both by the discoverer (during candidate filtering) and by `reassess_prioritized_actions` (after the model recommends). |
+| `simulate_contingency(env, obs, lines_defaut, ..., simulate_kwargs)` | Build the N-1 observation that is the **baseline** for every candidate action. Called once per (timestep, contingency). |
+| `compute_baseline_simulation(...)` | Compute the shared baseline once (contingency + maintenance); returns `(baseline_rho, obs_baseline)`. The kept `obs_baseline` is what pypowsybl candidates branch from. |
+| `check_rho_reduction_with_baseline(branch_obs, ..., *, reapply_contingency, simulate_kwargs)` | Simulate a candidate against the baseline and report whether every monitored rho dropped. Used by the discoverer (candidate filtering) and by `reassess_prioritized_actions`. |
 
-All three call `obs.simulate(action, fast_mode=...)` and pass the
+### 6.1 The explicit backend contract (`BaselineContext`, `reapply_contingency`)
+
+Before R4 the two backends had **opposite first-argument contracts** for
+`check_rho_reduction_with_baseline`, hidden behind identical signatures in two
+forked modules — the seam that bred the C-diag bug. They are now explicit:
+
+- **grid2op** — `reapply_contingency=True`: the candidate is simulated as
+  `action + act_defaut + act_reco_maintenance` from the **healthy N-state**
+  (grid2op re-applies the contingency itself). `simulate_kwargs = {}`.
+- **pypowsybl** — `reapply_contingency=False`: the candidate is simulated as
+  **only** `action` on top of the already-contingency-applied kept variant
+  (`obs_baseline`). `simulate_kwargs = {"fast_mode": …}`.
+
+`DiscovererBase._get_simulation_baseline()` builds a single
+`BaselineContext(act_defaut, baseline_rho, obs_baseline, branch_obs)` per run —
+the baseline load flow runs **once** and is shared across all eight discovery
+families (review P1) — and `_release_simulation_baseline()` frees its retained
+variant at the end of `discover_and_prioritize` (review C4). The context iterates
+as `(act_defaut, baseline_rho, branch_obs)`, so the injection mixins unpack it
+like the previous tuple.
+
+All entry points call `obs.simulate(action, **simulate_kwargs)` and thread the
 `actual_fast_mode` resolved at the top of `run_analysis`:
 
 ```python

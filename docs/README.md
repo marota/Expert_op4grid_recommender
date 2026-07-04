@@ -22,7 +22,13 @@ docs/
   development chronology (mermaid diagrams + tables).
 - [`architecture/simulation-pipeline.md`](architecture/simulation-pipeline.md) —
   the pypowsybl simulation pipeline: AC/DC & fast/slow load-flow modes, voltage
-  initialisation, variant lifecycle, thermal-limit hypotheses, retry branches.
+  initialisation, variant lifecycle (kept-variant registry + LRU backstop), the
+  unified backend simulation seam + `BaselineContext` (R4), thermal-limit
+  hypotheses, retry branches.
+- [`architecture/configuration.md`](architecture/configuration.md) — the pydantic
+  `Settings` single source of truth (R3): computed derived paths, the
+  `get_settings()` / `override_settings()` / `reset_settings()` accessors, the
+  module-attribute compatibility layer, and the fork-free test override.
 - [`architecture/recommender_models.md`](architecture/recommender_models.md) —
   the pluggable `RecommenderModel` contract: DTO fields, capability flags,
   reusable pipeline phases, integration point, and a minimal new-model example.

@@ -398,9 +398,13 @@ tests/
 │                                        # SimulatedAction dict-compat, SimulationBackend
 │                                        # flags, shared-baseline routing, import-cycle
 │                                        # dissolution, main facade re-exports
-└── test_baseline_context_and_variant_registry.py  # R4: BaselineContext (iteration /
-                                         # release / explicit branch-obs contract) +
-                                         # NetworkManager kept-variant registry / LRU backstop
+├── test_baseline_context_and_variant_registry.py  # R4: BaselineContext (iteration /
+│                                        # release / explicit branch-obs contract),
+│                                        # check_rho_reduction per-backend contract, +
+│                                        # NetworkManager kept-variant registry / LRU backstop
+│                                        # (incl. a real-network simulate→register→release test)
+└── test_backends_simulation_wiring.py   # R4: each SimulationBackend forwards the right
+                                         # simulate_kwargs / reapply_contingency to utils.simulation
 ```
 
 ### Test Configuration Override (R3)

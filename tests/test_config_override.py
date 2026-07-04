@@ -326,3 +326,83 @@ def test_override_settings_validates_field_constraints():
             config.override_settings(N_PRIORITIZED_ACTIONS=-5)
     finally:
         config.override_settings(before)
+
+
+def test_override_settings_accepts_a_settings_instance_positionally():
+    from expert_op4grid_recommender import config
+    from expert_op4grid_recommender.config import Settings
+
+    before = config.get_settings()
+    try:
+        applied = config.override_settings(Settings(N_PRIORITIZED_ACTIONS=7))
+        assert applied.N_PRIORITIZED_ACTIONS == 7
+        assert config.N_PRIORITIZED_ACTIONS == 7
+        assert config.get_settings() is applied
+    finally:
+        config.override_settings(before)
+
+
+def test_override_settings_rejects_instance_and_kwargs_together():
+    import pytest
+    from expert_op4grid_recommender import config
+    from expert_op4grid_recommender.config import Settings
+    with pytest.raises(TypeError):
+        config.override_settings(Settings(), N_PRIORITIZED_ACTIONS=1)
+
+
+def test_all_derived_paths_recompute_on_override_not_just_env_path():
+    from expert_op4grid_recommender import config
+
+    before = config.get_settings()
+    try:
+        config.override_settings(ENV_NAME="grid_x", FILE_ACTION_SPACE_DESC="a.json",
+                                 TIMESTEP=3, LINES_DEFAUT=["L9"])
+        assert config.ENV_PATH == config.ENV_FOLDER / "grid_x"
+        assert config.ACTION_FILE_PATH == config.ACTION_SPACE_FOLDER / "a.json"
+        assert config.ACTION_SPACE_FOLDER == config.ENV_FOLDER / "action_space"
+        assert config.CASE_NAME == "defaut_L9_t3"
+    finally:
+        config.override_settings(before)
+
+
+def test_computed_fields_are_in_model_dump_and_promoted():
+    from expert_op4grid_recommender import config
+    dumped = config.get_settings().model_dump()
+    for key in ("CASE_NAME", "ENV_FOLDER", "ENV_PATH", "ACTION_SPACE_FOLDER",
+                "ACTION_FILE_PATH", "SAVE_FOLDER_VISUALIZATION"):
+        assert key in dumped, f"{key} missing from model_dump()"
+        assert getattr(config, key) == dumped[key]  # module attr == instance value
+
+
+def test_env_var_parsing_runs_through_pydantic(monkeypatch):
+    """EXPERT_OP4GRID_* env vars feed Settings (the fork used to bypass this)."""
+    from expert_op4grid_recommender.config import Settings
+    monkeypatch.setenv("EXPERT_OP4GRID_TIMESTEP", "12")
+    monkeypatch.setenv("EXPERT_OP4GRID_N_PRIORITIZED_ACTIONS", "8")
+    s = Settings()
+    assert s.TIMESTEP == 12
+    assert s.N_PRIORITIZED_ACTIONS == 8
+
+
+def test_lines_defaut_validator_accepts_bare_name_and_json(monkeypatch):
+    from expert_op4grid_recommender.config import Settings
+    monkeypatch.setenv("EXPERT_OP4GRID_LINES_DEFAUT", "BEON L31CPVAN")
+    assert Settings().LINES_DEFAUT == ["BEON L31CPVAN"]     # bare name
+    monkeypatch.setenv("EXPERT_OP4GRID_LINES_DEFAUT", '["A", "B"]')
+    assert Settings().LINES_DEFAUT == ["A", "B"]            # JSON list
+
+
+def test_raw_module_mutation_still_works_as_back_compat_escape_hatch():
+    """Co-Study4Grid mutates config.X directly; that must keep working."""
+    from expert_op4grid_recommender import config
+
+    before = config.DO_CONSOLIDATE_GRAPH
+    try:
+        config.DO_CONSOLIDATE_GRAPH = not before
+        assert config.DO_CONSOLIDATE_GRAPH == (not before)
+        # arbitrary (non-Settings) attributes are allowed too
+        config.SOME_COSTUDY_ONLY_KEY = 123
+        assert config.SOME_COSTUDY_ONLY_KEY == 123
+    finally:
+        config.DO_CONSOLIDATE_GRAPH = before
+        del config.SOME_COSTUDY_ONLY_KEY
