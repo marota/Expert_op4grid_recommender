@@ -258,57 +258,63 @@ class PypowsyblBackend(SimulationBackend):
             maintenance_to_reco_at_t,
         )
 
+    # pypowsybl-only ``obs.simulate`` kwargs. The baseline / contingency calls
+    # retain their variant (``keep_variant``) so candidates can branch from it;
+    # the per-candidate calls only need ``fast_mode``.
+    @property
+    def _sk_kept(self):
+        return {"keep_variant": True, "fast_mode": self.fast_mode}
+
+    @property
+    def _sk(self):
+        return {"fast_mode": self.fast_mode}
+
     def simulate_contingency(self, env, obs, lines_defaut, act_reco_maintenance,
                              timestep):
-        from expert_op4grid_recommender.utils.simulation_pypowsybl import (
-            simulate_contingency,
-        )
+        from expert_op4grid_recommender.utils.simulation import simulate_contingency
         return simulate_contingency(env, obs, lines_defaut, act_reco_maintenance,
-                                    timestep, fast_mode=self.fast_mode)
+                                    timestep, simulate_kwargs=self._sk_kept)
 
     def check_simu_overloads(self, obs, obs_defaut, action_space, timestep,
                              lines_defaut, lines_overloaded_ids,
                              maintenance_to_reco_at_t):
-        from expert_op4grid_recommender.utils.simulation_pypowsybl import (
-            check_simu_overloads,
-        )
+        from expert_op4grid_recommender.utils.simulation import check_simu_overloads
         return check_simu_overloads(obs, obs_defaut, action_space, timestep,
                                     lines_defaut, lines_overloaded_ids,
-                                    maintenance_to_reco_at_t, fast_mode=self.fast_mode)
+                                    maintenance_to_reco_at_t, simulate_kwargs=self._sk)
 
     def create_default_action(self, action_space, defauts):
-        from expert_op4grid_recommender.utils.simulation_pypowsybl import (
-            create_default_action,
-        )
+        from expert_op4grid_recommender.utils.simulation import create_default_action
         return create_default_action(action_space, defauts)
 
     def check_rho_reduction(self, obs, timestep, act_defaut, action, overload_ids,
                             act_reco_maintenance, lines_we_care_about=None):
-        from expert_op4grid_recommender.utils.simulation_pypowsybl import (
-            check_rho_reduction,
-        )
+        from expert_op4grid_recommender.utils.simulation import check_rho_reduction
+        # Branch candidates from the contingency-applied kept variant (no
+        # re-application of the contingency) — see BaselineContext / C-diag.
         return check_rho_reduction(obs, timestep, act_defaut, action, overload_ids,
                                    act_reco_maintenance, lines_we_care_about,
-                                   fast_mode=self.fast_mode)
+                                   reapply_contingency=False,
+                                   baseline_simulate_kwargs=self._sk_kept,
+                                   candidate_simulate_kwargs=self._sk)
 
     def compute_baseline(self, obs, timestep, act_defaut, act_reco_maintenance,
                          overload_ids):
-        from expert_op4grid_recommender.utils.simulation_pypowsybl import (
-            compute_baseline_simulation,
-        )
+        from expert_op4grid_recommender.utils.simulation import compute_baseline_simulation
         return compute_baseline_simulation(obs, timestep, act_defaut,
                                            act_reco_maintenance, overload_ids,
-                                           fast_mode=self.fast_mode)
+                                           simulate_kwargs=self._sk_kept)
 
     def check_rho_with_baseline(self, obs, timestep, act_defaut, action,
                                 overload_ids, act_reco_maintenance, baseline_rho,
                                 lines_we_care_about=None):
-        from expert_op4grid_recommender.utils.simulation_pypowsybl import (
+        from expert_op4grid_recommender.utils.simulation import (
             check_rho_reduction_with_baseline,
         )
         return check_rho_reduction_with_baseline(
             obs, timestep, act_defaut, action, overload_ids, act_reco_maintenance,
-            baseline_rho, lines_we_care_about, fast_mode=self.fast_mode,
+            baseline_rho, lines_we_care_about,
+            reapply_contingency=False, simulate_kwargs=self._sk,
         )
 
     def build_overflow_graph(self, env, obs_simu_defaut, lines_overloaded_ids_kept,

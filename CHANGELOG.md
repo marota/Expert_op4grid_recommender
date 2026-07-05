@@ -9,6 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-07-04
+
+### Changed
+
+- **Config single source of truth (deep revision R3)** — the pydantic `Settings`
+  instance is now authoritative, without locking the module down (Co-Study4Grid
+  still drives the recommender by mutating `config.*` attributes directly):
+  - Derived paths (`CASE_NAME`, `ENV_FOLDER`, `ENV_PATH`, `ACTION_SPACE_FOLDER`,
+    `ACTION_FILE_PATH`, `SAVE_FOLDER_VISUALIZATION`) are `@computed_field`s on
+    `Settings`, so overriding `ENV_NAME` / `FILE_ACTION_SPACE_DESC` recomputes
+    `ENV_PATH` / `ACTION_FILE_PATH` (fixes the review-A3 staleness bug). They are
+    still promoted to module attributes via `model_dump()` for the many
+    `config.X` readers.
+  - New `config.get_settings()` / `config.override_settings()` /
+    `config.reset_settings()` accessors: `override_settings` runs full pydantic
+    validation, recomputes the derived paths, and re-promotes to the module
+    namespace. `pipeline.py` routes its `ENV_NAME` override through it instead of
+    raw module mutation.
+  - The 29 defensive `getattr(config, 'X', default)` sites collapsed to direct
+    attribute access — every key is a guaranteed `Settings` field.
+  - Tests: the hand-forked `tests/config_test.py` and the `sys.modules` swap are
+    deleted; `conftest.py` applies the test deltas via
+    `config.override_settings(**TEST_CONFIG_DELTAS)`, so `Settings` validation now
+    runs in CI (closes review-M2).
+- **Unified per-backend simulation seam behind `BaselineContext` (deep revision
+  R4)** — behaviour-preserving (grid2op output byte-identical; real pypowsybl
+  end-to-end verified):
+  - `utils/simulation_pypowsybl.py` is deleted; `utils/simulation.py` is the
+    single backend-agnostic module. The two real backend differences are explicit
+    parameters (`simulate_kwargs` for pypowsybl `keep_variant` / `fast_mode`;
+    `reapply_contingency` for the grid2op-branches-from-N-state vs.
+    pypowsybl-branches-from-kept-variant contract) instead of a forked file.
+    `check_rho_reduction_with_baseline` now takes the branch observation and the
+    contract flag explicitly, so the opposite-first-argument-contract trap that
+    bred the C-diag bug is gone by construction (and the three injection mixins
+    route through the same explicit seam).
+  - New `BaselineContext` (`act_defaut` / `baseline_rho` / `obs_baseline` /
+    `branch_obs` / `release()`), built once per run by `_get_simulation_baseline`
+    and freed by `_release_simulation_baseline` at the end of
+    `discover_and_prioritize`.
+  - `NetworkManager` gained a kept-variant registry (`register_kept_variant` /
+    `sweep_kept_variants`, `max_kept_variants=256`) with an LRU backstop that
+    never evicts the base or the working variant, bounding a long-running service
+    that reuses one `NetworkManager` across analyses (closes the cross-run half of
+    review-C4).
+
 ## [0.2.7.post1] - 2026-07-03
 
 ### Fixed

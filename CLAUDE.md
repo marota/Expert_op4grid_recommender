@@ -79,7 +79,10 @@ expert_op4grid_recommender/
 │                              #   PypowsyblBackend (fast_mode as ctor state);
 │                              #   replaces the old *_grid2op/*_pypowsybl wrappers,
 │                              #   the context function-pointers and the is_pypowsybl forks
-├── config.py                  # Main configuration (pydantic Settings, re-exported as module attrs)
+├── config.py                  # Main configuration (authoritative pydantic Settings;
+│                              #   derived paths as @computed_field; get_settings() /
+│                              #   override_settings() / reset_settings() accessors;
+│                              #   re-exported as module attrs for back-compat)
 ├── config_basic.py            # One alternative config variant (Settings(...) with overrides)
 ├── exceptions.py              # Domain exceptions (LoadFlowDivergedError)
 ├── environment.py             # Grid2Op environment setup
@@ -124,8 +127,10 @@ expert_op4grid_recommender/
 │   └── ...                    #   expert_op4grid_recommender/manoeuvre/CLAUDE.md + docs/manoeuvre/.
 │
 └── utils/                     # Utility modules
-    ├── simulation.py          # Grid2Op simulation helpers
-    ├── simulation_pypowsybl.py # pypowsybl simulation helpers
+    ├── simulation.py          # Backend-agnostic simulation helpers + BaselineContext
+    │                          #   (unified grid2op/pypowsybl seam, R4 — the two
+    │                          #   backends differ only by simulate_kwargs +
+    │                          #   reapply_contingency; simulation_pypowsybl.py is gone)
     ├── reassessment.py        # Per-action reassessment (parallelised) + combined-pair estimation
     ├── helpers.py             # Timer, sorting, test data saving
     ├── helpers_pypowsybl.py   # pypowsybl-specific helpers
@@ -136,9 +141,10 @@ expert_op4grid_recommender/
     ├── data_utils.py          # StateInfo and data structures
     └── make_*_env.py          # Environment factory functions
 ```
-(The test configuration lives in `tests/config_test.py` — it star-imports
-`config.py` and overrides only the test deltas; `tests/conftest.py` swaps it in
-via `sys.modules` + the package attribute.)
+(The test configuration deltas live in `tests/conftest.py` as
+`TEST_CONFIG_DELTAS`, applied at import time through
+`config.override_settings(**TEST_CONFIG_DELTAS)` — validated by pydantic, no
+`config_test.py` fork, no `sys.modules` swap (R3).)
 
 ---
 
@@ -363,8 +369,7 @@ action_scores = {
 ### Test Structure
 ```
 tests/
-├── conftest.py                          # Config override (DO_VISUALIZATION=False)
-├── config_test.py                       # Test-specific configuration
+├── conftest.py                          # Test config deltas via config.override_settings (R3)
 ├── test_ActionClassifier.py             # Unit tests for classifier
 ├── test_ActionDiscoverer.py             # Unit tests for discoverer (incl. action_scores)
 ├── test_ActionRuleValidator.py          # Unit tests for rules
@@ -389,17 +394,25 @@ tests/
 ├── test_antenna_graph.py                # Antenna (islanded-pocket) overflow graph
 │                                        # (see docs/recommender/antenna_overflow_graph.md)
 ├── test_visualization_filtering.py      # Visualization filters
-└── test_typed_pipeline_spine.py         # R1/R2 contracts: AnalysisContext/Result +
-                                         # SimulatedAction dict-compat, SimulationBackend
-                                         # flags, shared-baseline routing, import-cycle
-                                         # dissolution, main facade re-exports
+├── test_typed_pipeline_spine.py         # R1/R2 contracts: AnalysisContext/Result +
+│                                        # SimulatedAction dict-compat, SimulationBackend
+│                                        # flags, shared-baseline routing, import-cycle
+│                                        # dissolution, main facade re-exports
+├── test_baseline_context_and_variant_registry.py  # R4: BaselineContext (iteration /
+│                                        # release / explicit branch-obs contract),
+│                                        # check_rho_reduction per-backend contract, +
+│                                        # NetworkManager kept-variant registry / LRU backstop
+│                                        # (incl. a real-network simulate→register→release test)
+└── test_backends_simulation_wiring.py   # R4: each SimulationBackend forwards the right
+                                         # simulate_kwargs / reapply_contingency to utils.simulation
 ```
 
-### Test Configuration Override
-Tests automatically use `tests/config_test.py` via `conftest.py` which:
+### Test Configuration Override (R3)
+`tests/conftest.py` applies the test deltas at import time via
+`config.override_settings(**TEST_CONFIG_DELTAS)` (validated by pydantic), which:
 - Sets `DO_VISUALIZATION = False`
-- Uses smaller test environments
-- Adjusts paths for test fixtures
+- Uses the dijon test environment + 5-action prioritized output
+- Recomputes the derived paths (`ENV_PATH`, `ACTION_FILE_PATH`) from the deltas
 
 ### Running Tests
 ```bash
@@ -426,13 +439,29 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.2.7.post1` (see `CHANGELOG.md` for full history)
+**Current version**: `0.2.8` (see `CHANGELOG.md` for full history)
 
+> **v0.2.8 highlights** (deep revisions R3 + R4 from the 2026-07 review):
+> **R3 — config single source of truth**: the pydantic `Settings` is authoritative
+> with derived paths as `@computed_field` (overriding `ENV_NAME` recomputes
+> `ENV_PATH` — no staleness), `get_settings()` / `override_settings()` /
+> `reset_settings()` accessors, the 29 defensive `getattr(config, …)` sites
+> collapsed, and the hand-forked `tests/config_test.py` + `sys.modules` swap
+> deleted (deltas now go through `config.override_settings`, so pydantic validation
+> runs in CI). **R4 — unified simulation seam**: `utils/simulation_pypowsybl.py`
+> deleted, `utils/simulation.py` is one backend-agnostic module (the backends
+> differ only by `simulate_kwargs` + `reapply_contingency`);
+> `check_rho_reduction_with_baseline` takes the branch observation explicitly
+> (kills the C-diag contract trap); a `BaselineContext` (with `release()`) is built
+> once per run; `NetworkManager` gained a kept-variant registry + LRU backstop
+> (review C4). Behaviour-preserving (byte-identical grid2op output; real pypowsybl
+> end-to-end verified).
+>
 > **v0.2.7.post1**: reassessment stays serial on low-core hosts — the parallel
 > path's per-worker network clone is only amortized above ~4 cores, so a 2-vCPU
 > Space now uses the faster serial path (gate:
 > `EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS`, default 4).
-
+>
 > **v0.2.7 highlights** (deep revisions R1 + R2 from the 2026-07 review): typed pipeline
 > spine — `AnalysisContext` / `AnalysisResult` dataclasses replace the ~41-key context dict
 > and the untyped result dict (dict-compatible via `DictCompatMixin`); a `SimulationBackend`
@@ -562,14 +591,18 @@ combined = action1 + action2
 
 1. **Thermal limits**: If `env.get_thermal_limit()` returns very high values (≥10⁴), the code auto-loads limits from `n_grid.get_operational_limits()`.
 
-2. **Config override in tests**: Always import config as a module
+2. **Config override in tests (R3)**: Always import config as a module
    (`from expert_op4grid_recommender import config`; read `config.X`) rather than
-   binding values at import time (`from ...config import X`), so the test override
-   applies. `tests/conftest.py` swaps `tests/config_test.py` in for the package
-   config via **both** `sys.modules` and the package attribute
-   (`expert_op4grid_recommender.config = config_test`). `config_test.py`
-   **star-imports** the real `config.py` (so `Settings` validation runs and no key
-   goes missing) and overrides only the test deltas — do not re-fork it.
+   binding values at import time (`from ...config import X`), so overrides apply.
+   There is **no more `config_test.py` fork or `sys.modules` swap**:
+   `tests/conftest.py` applies the test deltas through
+   `config.override_settings(**TEST_CONFIG_DELTAS)` at import time, which runs full
+   pydantic `Settings` validation (so CI exercises it) and recomputes the derived
+   paths. Change config at runtime through `config.override_settings(...)` (or
+   `config.reset_settings()`); raw `config.X = y` still works for back-compat but
+   skips validation and derived-path recomputation. Derived paths (`ENV_PATH`,
+   `ACTION_FILE_PATH`, …) are `@computed_field`s — overriding `ENV_NAME`
+   recomputes them.
 
 3. **Path handling**: Use `Path` objects and `PROJECT_ROOT` from config, not relative string paths.
 

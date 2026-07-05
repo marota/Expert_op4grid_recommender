@@ -9,6 +9,7 @@ import pypowsybl as pp
 import pypowsybl.loadflow as lf
 import numpy as np
 import pandas as pd
+from collections import OrderedDict
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple, Any, Union
 
@@ -30,18 +31,28 @@ class NetworkManager:
     """
     
     BASE_VARIANT = "base"
-    
-    def __init__(self, 
+
+    #: Upper bound on retained ("kept") variants before the LRU backstop starts
+    #: evicting the oldest. Set well above what any single analysis needs
+    #: (~1 baseline + 1 N-1 + N prioritized-action variants), so it only bounds
+    #: a long-running service that reuses one NetworkManager across analyses
+    #: (review C4) and never evicts within a single run.
+    DEFAULT_MAX_KEPT_VARIANTS = 256
+
+    def __init__(self,
                  network_path: Optional[Union[str, Path]] = None,
                  network: Optional[pp.network.Network] = None,
-                 lf_parameters: Optional[lf.Parameters] = None):
+                 lf_parameters: Optional[lf.Parameters] = None,
+                 max_kept_variants: Optional[int] = None):
         """
         Initialize the NetworkManager.
-        
+
         Args:
             network_path: Path to network file (XIIDM, CGMES, etc.)
             network: Pre-loaded pypowsybl network (alternative to path)
             lf_parameters: Load flow parameters. If None, uses RTE defaults.
+            max_kept_variants: LRU backstop size for retained variants
+                (default :attr:`DEFAULT_MAX_KEPT_VARIANTS`).
         """
         if network is not None:
             self.network = network
@@ -49,13 +60,23 @@ class NetworkManager:
             self.network = pp.network.load(str(network_path))
         else:
             raise ValueError("Either network_path or network must be provided")
-        
+
         self.lf_parameters = lf_parameters or self._create_default_lf_parameters()
         self.base_variant_id = self.BASE_VARIANT
-        
+
         # DC mode flag (can be set externally)
         self._default_dc = False
-        
+
+        # Registry of retained ("kept") variants in creation order, so a
+        # long-running service that never releases them (review C4) is bounded:
+        # once it exceeds ``_max_kept_variants`` the oldest non-active variant is
+        # evicted. Each simulate(keep_variant=True) registers here.
+        self._kept_variants: "OrderedDict[str, None]" = OrderedDict()
+        self._max_kept_variants = (
+            self.DEFAULT_MAX_KEPT_VARIANTS if max_kept_variants is None
+            else max_kept_variants
+        )
+
         # Ensure we have a working variant
         self._setup_base_variant()
         
@@ -352,6 +373,51 @@ class NetworkManager:
         if variant_id != self.base_variant_id:
             if variant_id in self.network.get_variant_ids():
                 self.network.remove_variant(variant_id)
+            self._kept_variants.pop(variant_id, None)
+
+    def register_kept_variant(self, variant_id: str) -> None:
+        """Register a retained variant and enforce the LRU backstop.
+
+        Called by ``PypowsyblObservation.simulate(keep_variant=True)`` for every
+        variant it keeps alive. Retained variants are the operator-relevant
+        states (the N-1 contingency, prioritized-action states, the shared
+        discovery baseline) and are normally released explicitly. This registry
+        is the backstop for a long-running service that reuses one
+        ``NetworkManager`` across many analyses without releasing them (review
+        C4): once more than ``_max_kept_variants`` accumulate, the oldest one
+        that is neither the base nor the current working variant is evicted.
+        """
+        # Refresh recency (move to newest) and record.
+        self._kept_variants.pop(variant_id, None)
+        self._kept_variants[variant_id] = None
+
+        if self._max_kept_variants is None or self._max_kept_variants <= 0:
+            return
+
+        try:
+            current = self.network.get_working_variant_id()
+        except Exception:
+            current = None
+
+        while len(self._kept_variants) > self._max_kept_variants:
+            # Evict the oldest variant that is safe to drop.
+            evicted = None
+            for candidate in list(self._kept_variants.keys()):
+                if candidate != self.base_variant_id and candidate != current:
+                    evicted = candidate
+                    break
+            if evicted is None:
+                break  # nothing safe to evict
+            print(
+                f"Warning: kept-variant registry exceeded {self._max_kept_variants}; "
+                f"evicting oldest retained variant {evicted!r} (backstop)."
+            )
+            self.remove_variant(evicted)
+
+    def sweep_kept_variants(self) -> None:
+        """Remove every retained variant except the base (explicit full reset)."""
+        for variant_id in list(self._kept_variants.keys()):
+            self.remove_variant(variant_id)
     
     def _run_ac_with_init_fallback(self, params: lf.Parameters):
         """Helper to run AC load flow, retrying with DC_VALUES on failure.

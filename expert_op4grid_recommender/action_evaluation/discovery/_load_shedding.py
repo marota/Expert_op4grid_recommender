@@ -36,8 +36,8 @@ class LoadSheddingMixin:
         name_line_arr = obs.name_line
         load_p_arr = obs.load_p
 
-        margin = getattr(config, "LOAD_SHEDDING_MARGIN", 0.05)
-        min_mw = getattr(config, "LOAD_SHEDDING_MIN_MW", 1.0)
+        margin = config.LOAD_SHEDDING_MARGIN
+        min_mw = config.LOAD_SHEDDING_MIN_MW
 
         # Compute overload excess in MW (uses cached capacity map)
         name_to_capacity = self._build_line_capacity_map()

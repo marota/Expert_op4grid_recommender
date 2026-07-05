@@ -255,7 +255,7 @@ class OrchestratorMixin:
                 + config.MIN_LINE_DISCONNECTIONS
                 + config.MIN_RENEWABLE_CURTAILMENT
                 + config.MIN_LOAD_SHEDDING
-                + getattr(config, "MIN_REDISPATCH", 0),
+                + config.MIN_REDISPATCH,
             )
 
             self.prioritized_actions = add_prioritized_actions(
@@ -307,13 +307,13 @@ class OrchestratorMixin:
                 self.prioritized_actions,
                 self.identified_redispatch,
                 min_phase_cap,
-                n_action_max_per_type=getattr(config, "MIN_REDISPATCH", 0),
+                n_action_max_per_type=config.MIN_REDISPATCH,
             )
             self.prioritized_actions = add_prioritized_actions(
                 self.prioritized_actions,
                 self.identified_renewable_curtailment,
                 min_phase_cap,
-                n_action_max_per_type=getattr(config, "MIN_RENEWABLE_CURTAILMENT", 0),
+                n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT,
             )
 
             # 2. Fill the remaining slots sequentially using the original priority logic and limits
@@ -487,4 +487,8 @@ class OrchestratorMixin:
         print(
             f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}"
         )
+        # Free the shared baseline's retained variant now that every family has
+        # finished consuming it (best-effort; no-op for grid2op and when no
+        # candidate simulation ran).
+        self._release_simulation_baseline()
         return self.prioritized_actions, self.action_scores

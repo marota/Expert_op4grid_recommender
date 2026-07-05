@@ -246,8 +246,13 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     date_str = analysis_date.strftime('%Y-%m-%d') if analysis_date else "None"
     print(f"Running Step 1 analysis for Date: {date_str}, Timestep: {current_timestep}, Contingency: {current_lines_defaut}")
 
+    # Route env overrides through the validated accessor rather than mutating
+    # module attributes: overriding ENV_NAME recomputes the derived ENV_PATH /
+    # ACTION_FILE_PATH (no staleness — review finding A3). ``env_path`` is a rare
+    # direct-path escape hatch (only read by save_data_for_test); ENV_PATH is a
+    # computed field, so it is set as a module attribute here after the override.
     if env_name is not None:
-        config.ENV_NAME = env_name
+        config.override_settings(ENV_NAME=env_name)
     if env_path is not None:
         config.ENV_PATH = env_path
 
@@ -319,7 +324,7 @@ def run_analysis_step1(analysis_date: Optional[datetime],
     lines_overloaded_ids = []
     pre_existing_overloads = []
     pre_existing_rho = {}
-    worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
+    worsening_threshold = config.PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD
 
     for i, l_name in enumerate(obs_simu_defaut.name_line):
         if l_name in lines_we_care_about and obs_simu_defaut.rho[i] >= 1:
@@ -444,7 +449,7 @@ def _make_antenna_visualization(context: AnalysisContext, df_of_g, g_overflow, h
                 context.env, None, g_overflow_for_viz, hubs, obs_simu_defaut, save_folder,
                 graph_file_name, lines_swapped=[], custom_layout=None,
                 lines_we_care_about=context.get("lines_we_care_about"),
-                monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
+                monitoring_factor_thermal_limits=config.MONITORING_FACTOR_THERMAL_LIMITS,
                 lines_constrained_path=lines_constrained_path,
                 nodes_constrained_path=nodes_constrained_path,
                 lines_red_loops=None, nodes_red_loops=None,
@@ -571,7 +576,7 @@ def run_analysis_step2_graph(context: AnalysisContext) -> AnalysisContext:
                 make_overflow_graph_visualization(
                     env, overflow_sim, g_overflow, hubs, obs_simu_defaut, save_folder, graph_file_name, lines_swapped,
                     custom_layout, lines_we_care_about=lines_we_care_about,
-                    monitoring_factor_thermal_limits=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0),
+                    monitoring_factor_thermal_limits=config.MONITORING_FACTOR_THERMAL_LIMITS,
                     lines_constrained_path=lines_constrained_path,
                     nodes_constrained_path=nodes_constrained_path,
                     lines_red_loops=lines_red_loops,

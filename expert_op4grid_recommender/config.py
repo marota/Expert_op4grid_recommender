@@ -31,7 +31,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, Dict, List, Literal, MutableMapping, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # --- Get Project Root Directory ---
@@ -234,31 +234,112 @@ class Settings(BaseSettings):
             return [stripped]
         return value
 
+    # -------------------
+    #  Derived values (single source of truth)
+    # -------------------
+    # These used to be recomputed by hand at module level *after* the Settings
+    # instance was built, which meant an override of e.g. ``ENV_NAME`` left the
+    # stale ``ENV_PATH`` behind (review finding A3). Expressing them as
+    # ``@computed_field`` properties on the authoritative Settings instance keeps
+    # them in lock-step with the primary fields: ``model_dump()`` includes them,
+    # so :func:`apply_settings_to_namespace` promotes them alongside the plain
+    # fields, and :func:`override_settings` recomputes them on every override.
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def CASE_NAME(self) -> str:
+        return "defaut_" + "_".join(map(str, self.LINES_DEFAUT)) + "_t" + str(self.TIMESTEP)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def ENV_FOLDER(self) -> Path:
+        return PROJECT_ROOT / "data"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def ENV_PATH(self) -> Path:
+        return self.ENV_FOLDER / self.ENV_NAME
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def ACTION_SPACE_FOLDER(self) -> Path:
+        return self.ENV_FOLDER / "action_space"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def ACTION_FILE_PATH(self) -> Path:
+        return self.ACTION_SPACE_FOLDER / self.FILE_ACTION_SPACE_DESC
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def SAVE_FOLDER_VISUALIZATION(self) -> Path:
+        return PROJECT_ROOT / "Overflow_Graph"
+
 
 def apply_settings_to_namespace(
     settings: Settings, namespace: MutableMapping[str, Any]
 ) -> None:
-    """Promote each Settings field to a module-level attribute.
+    """Promote each Settings field (including derived ``@computed_field``\\ s) to a
+    module-level attribute.
 
     This is the compatibility shim that lets pre-pydantic call sites such as
     ``from expert_op4grid_recommender.config import DATE`` or
-    ``config.ENV_NAME = env_name`` continue to work unchanged.
+    ``config.ENV_NAME = env_name`` continue to work unchanged. ``model_dump()``
+    includes the computed derived paths (``ENV_PATH``, ``ACTION_FILE_PATH`` …),
+    so they are promoted here too and never need a separate hand-maintained
+    block.
     """
     for name, value in settings.model_dump().items():
         namespace[name] = value
 
 
 # --- Instantiate the default Settings object and populate module globals ---
+#: The process-wide authoritative configuration. Read it through
+#: :func:`get_settings`; change it through :func:`override_settings` (validated,
+#: staleness-free) rather than by mutating module attributes directly.
 settings: Settings = Settings()
 apply_settings_to_namespace(settings, globals())
 
-# --- Derived values (kept as plain module attributes for backwards compat) ---
-CASE_NAME: str = "defaut_" + "_".join(map(str, settings.LINES_DEFAUT)) + "_t" + str(
-    settings.TIMESTEP
-)
 
-ENV_FOLDER: Path = PROJECT_ROOT / "data"
-ENV_PATH: Path = ENV_FOLDER / settings.ENV_NAME
-ACTION_SPACE_FOLDER: Path = ENV_FOLDER / "action_space"
-ACTION_FILE_PATH: Path = ACTION_SPACE_FOLDER / settings.FILE_ACTION_SPACE_DESC
-SAVE_FOLDER_VISUALIZATION: Path = PROJECT_ROOT / "Overflow_Graph"
+def get_settings() -> Settings:
+    """Return the current authoritative :class:`Settings` instance."""
+    return settings
+
+
+def override_settings(_new: Optional[Settings] = None, /, **overrides: Any) -> Settings:
+    """Replace the process-wide :class:`Settings` and refresh module attributes.
+
+    This is the sanctioned runtime-override path. It runs full pydantic
+    validation, recomputes the derived paths (so overriding ``ENV_NAME`` keeps
+    ``ENV_PATH`` in sync — no staleness, review finding A3), and re-promotes the
+    fields so existing ``config.X`` reads observe the new values.
+
+    Pass either a ready :class:`Settings` positionally, or field overrides as
+    keyword arguments (merged onto the current settings). Unknown keys raise
+    ``ValueError``. Returns the new active :class:`Settings`.
+    """
+    global settings
+    if _new is not None:
+        if overrides:
+            raise TypeError(
+                "override_settings: pass either a Settings instance or keyword "
+                "overrides, not both"
+            )
+        new_settings = _new
+    else:
+        unknown = set(overrides) - set(Settings.model_fields)
+        if unknown:
+            raise ValueError(
+                f"override_settings: unknown setting(s) {sorted(unknown)}"
+            )
+        merged = {name: getattr(settings, name) for name in Settings.model_fields}
+        merged.update(overrides)
+        new_settings = Settings(**merged)
+    settings = new_settings
+    apply_settings_to_namespace(settings, globals())
+    return settings
+
+
+def reset_settings() -> Settings:
+    """Rebuild :class:`Settings` from defaults + environment (drops overrides)."""
+    return override_settings(Settings())

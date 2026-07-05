@@ -182,6 +182,9 @@ def _make_discoverer(**overrides):
     d.act_reco_maintenance = MagicMock()
     d.lines_overloaded_ids = [0]
     d.obs = "N_STATE_OBS"
+    # Normally initialised in __init__ (bypassed here via __new__): the lazily
+    # built shared BaselineContext cache.
+    d._cached_simulation_baseline = None
     d._create_default_action = lambda space, defauts: "ACT_DEFAUT"
     d._compute_baseline = MagicMock(return_value=("BASELINE_RHO", "OBS_BASELINE"))
     d._check_rho_with_baseline = MagicMock(return_value=(True, "OBS_AFTER"))
