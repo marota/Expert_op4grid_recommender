@@ -28,8 +28,12 @@ dependencies = [
     "pandas",
     "networkx",
     "pypowsybl>=1.13.0",
-    "pypowsybl2grid>=0.2.1",
-    "expertop4grid>=0.2.8",
+    # Floor bumped 0.2.1 -> 0.3.0: utils/make_env_utils.py enforces
+    # MIN_PP2GRID_VERSION = 0.3.0 at import, so the old floor was a latent bug.
+    "pypowsybl2grid>=0.3.0",
+    # Floor bumped 0.2.8 -> 0.3.2 to match the tested family (requirements.txt
+    # pins 0.3.2.post3) and resolve the pyproject/requirements disagreement (M4).
+    "expertop4grid>=0.3.2",
     "matplotlib>=3.8.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
@@ -38,6 +42,18 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest",
+]
+# The Grid2Op simulation backend. NOTE: `expertop4grid` (a base dependency)
+# already pulls Grid2Op + lightsim2grid transitively, so a base install is not
+# grid2op-free at the wheel level today; this extra makes the grid2op backend's
+# DIRECT requirements explicit and pins the floors the code enforces
+# (utils/make_env_utils.py). `pypowsybl2grid` intentionally stays a BASE dep —
+# the pure-pypowsybl pipeline needs it and downstream consumers (e.g.
+# Co-Study4Grid, the HuggingFace Docker image) install the base package without
+# this extra. The CI `grid2op-optional` leg enforces the code-level contract.
+grid2op = [
+    "grid2op>=1.12.1",
+    "LightSim2Grid>=0.10.3",
 ]
 quality = [
     "radon>=6.0",

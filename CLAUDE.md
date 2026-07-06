@@ -482,12 +482,20 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 **Core:**
 - `numpy >= 2.0.0`, `scipy >= 1.13.0`, `pandas`, `networkx`
-- `pypowsybl >= 1.13.0`, `pypowsybl2grid >= 0.2.1`
-- `expertop4grid >= 0.2.8` (contains alphaDeesp)
-- `matplotlib >= 3.8.0`
+- `pypowsybl >= 1.13.0`, `pypowsybl2grid >= 0.3.0` (floor matches the
+  `MIN_PP2GRID_VERSION` guard in `utils/make_env_utils.py`)
+- `expertop4grid >= 0.3.2` (contains alphaDeesp; pulls grid2op + lightsim2grid
+  transitively — so a base install is not grid2op-free at the wheel level)
+- `matplotlib >= 3.8.0`, `pydantic >= 2.0`, `pydantic-settings >= 2.0`
 
-**Test:**
-- `pytest`
+**Extras:**
+- `[grid2op]` — `grid2op >= 1.12.1`, `LightSim2Grid >= 0.10.3` (the Grid2Op
+  backend's *direct* deps, made explicit). `requirements.txt` pins the whole
+  set for reproducible CI; the CI `grid2op-optional` leg installs the base
+  package, removes the grid2op family, and asserts the pure-pypowsybl pipeline
+  still imports/runs (the PR #26 optionality contract).
+- `[test]` — `pytest`; `[quality]` — ruff / interrogate / radon / vulture;
+  `[ihm]` — flask.
 
 ---
 

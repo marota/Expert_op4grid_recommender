@@ -14,25 +14,31 @@ permissions:
 
 jobs:
   build-and-test:
-    name: Build and test
+    name: Build and test (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Matches the classifiers (3.10–3.12). `numpy>=2.0,<3` in
+        # requirements.txt lets the resolver pick a 3.10-compatible numpy (2.3
+        # dropped 3.10). fail-fast:false so a surprise 3.10 wheel gap doesn't
+        # mask the 3.11/3.12 results.
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install dependencies
-        # Mirrors the CircleCI "Install Dependencies" step: install runtime +
-        # test deps from requirements.txt, then numpy (which requirements.txt
-        # omits — CircleCI pinned it separately).
+        # requirements.txt now includes numpy (was an ad-hoc `pip install
+        # numpy==2.3.0` step here).
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install numpy==2.3.0
 
       - name: Apply pypowsybl2grid patch (redundant fallback since M5)
         # The zero-value fix is now applied at package import time by
@@ -44,6 +50,42 @@ jobs:
 
       - name: Run unit tests (exclude slow)
         run: pytest -m "not slow"
+
+  grid2op-optional:
+    name: grid2op-optional contract (pypowsybl-only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install base package, then remove the grid2op family
+        # expertop4grid pulls grid2op + lightsim2grid transitively, so a base
+        # install is NOT grid2op-free; remove the grid2op family to prove the
+        # pure-pypowsybl path imports and runs without it (enforces the PR #26
+        # optionality contract).
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip uninstall -y grid2op lightsim2grid pypowsybl2grid || true
+
+      - name: Assert grid2op is absent and the pypowsybl path imports without it
+        run: |
+          python - <<'PY'
+          import importlib.util, sys
+          assert importlib.util.find_spec("grid2op") is None, "grid2op should be uninstalled in this leg"
+          import expert_op4grid_recommender  # package import must not need grid2op
+          from expert_op4grid_recommender.pipeline import run_analysis, run_analysis_step1  # noqa: F401
+          from expert_op4grid_recommender.backends import make_backend, Backend
+          b = make_backend(Backend.PYPOWSYBL)
+          assert type(b).__name__ == "PypowsyblBackend", type(b).__name__
+          assert "grid2op" not in sys.modules, "importing the pypowsybl path must not import grid2op"
+          print("grid2op-optional contract OK")
+          PY
 
   quality:
     name: Static analysis

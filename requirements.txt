@@ -1,6 +1,14 @@
+# Pinned, reproducible CI/dev environment. A superset of pyproject.toml's floors
+# (the grid2op family is included here because the default CI leg tests the
+# grid2op-installed path). Keep floors consistent with pyproject.toml and with
+# the runtime guards in utils/make_env_utils.py (the MIN_* constants).
+#
+# numpy is a real runtime dependency (pyproject lists it); it used to be missing
+# here and installed ad-hoc in CI (`pip install numpy==2.3.0`). The `<3` upper
+# bound lets the resolver pick a Python-3.10-compatible numpy (2.3 dropped 3.10)
+# while keeping 2.3.x on 3.11/3.12.
+numpy>=2.0.0,<3
 scipy>=1.13.0
-grid2op==1.12.1
-LightSim2Grid==0.10.3
 pandas==2.3.3
 networkx==3.5
 pypowsybl==1.14.0
@@ -9,3 +17,8 @@ expertop4grid==0.3.2.post3
 matplotlib==3.10.7
 pydantic>=2.0
 pydantic-settings>=2.0
+# --- grid2op simulation backend (also declared as the [grid2op] extra in
+# pyproject; installed in the default CI leg, removed in the grid2op-optional
+# contract leg) ---
+grid2op==1.12.1
+LightSim2Grid==0.10.3
