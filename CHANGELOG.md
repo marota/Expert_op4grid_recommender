@@ -11,6 +11,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Discovery restructured around data (deep revisions R5 + A5).** Action
+  discovery no longer carries its per-family outcome as ~40 hand-repeated
+  instance attributes. `action_evaluation/discovery/_results.py` holds one typed
+  `FamilyResult` per family in `self.results`, described by a declarative
+  `FAMILY_SPECS` registry that also generates back-compat `@property` bridges
+  (zero mixin/test churn). Consequences:
+  - `__init__` boilerplate, the PST `getattr` special-casing (PST is now a
+    normal family in `self.results`), the 8× `action_scores` literal, and the
+    18 hand-written prioritization calls all collapse to data-driven loops
+    (`MIN_PHASE_ORDER` / `FILL_PHASE_ORDER`, one entry per family). This removes
+    a `renewable_curtailment` add that had slipped in **twice** per phase — a
+    real latent double-add.
+  - PST scoring's cross-file, order-sensitive `_disco_bounds` del/lazy protocol
+    is replaced by a memoised `_get_disconnection_bounds()` returning a frozen
+    `DisconnectionBounds`.
+  - `InjectionDiscoveryBase` factors the shared overload preamble + influence
+    factor out of the three injection families (the divergent cache / flow-arity
+    pairing is intentionally kept per-family).
+  - `DiscovererProtocol` declares the shared surface the mixins depend on.
+  Behaviour-preserving (mock discovery suite green; byte-identical `action_scores`).
+- **`ActionType` enum + declarative classifier; C7 rule-bypass fix (R5 / C7).**
+  `action_evaluation/action_types.py` gives the action-type vocabulary a typed
+  home (values byte-identical to the historical strings) and turns the
+  classifier's description cascade into one ordered keyword table. `rules.py`
+  now localizes grid2op-format couplings (substation in
+  `content['set_bus']['substations_id']`) backend-agnostically — previously they
+  fell through to `"unknown"` and escaped every expert rule (silent, backend-
+  specific bypass).
+- **R6 (partial):** verified all four C6 `utils/` bugs are fixed and gave the two
+  previously-untested data modules their first tests. The `utils/` file-move
+  reorganization (`repas/` subpackage, environment merge, superposition /
+  reassessment promotion, `__main__` → `scripts/`) remains to be landed as its
+  own PR.
 - **Container-aware reassessment parallelism (2-vCPU fix).** The per-action
   reassessment (`utils/reassessment.py`) used `os.cpu_count()` to size its
   worker pool. Inside a CPU-limited container (e.g. a 2-vCPU cloud box on a

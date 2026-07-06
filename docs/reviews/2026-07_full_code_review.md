@@ -55,6 +55,35 @@ branch (released as **0.2.6**). Summary of what landed:
 Still open (not implemented here): the deep-revision roadmap in §6 (typed pipeline spine,
 config single-source, `manoeuvre` IHM promotion, etc.) and the C7 formula ambiguities.
 
+### What landed subsequently (R1/R2 in 0.2.7; R5/A5/C7 + partial R6 after)
+
+- **R1 + R2** (0.2.7): typed pipeline spine (`AnalysisContext` / `AnalysisResult`),
+  `SimulationBackend` protocol, `main.py` → `cli.py` + `pipeline.py`.
+- **R5 + A5** (discovery restructured around data): `discovery/_results.py` holds one
+  typed `FamilyResult` per family in `self.results`, described by a declarative
+  `FAMILY_SPECS` registry that also generates back-compat `@property` bridges. The
+  `__init__` quintuplet block, the PST `getattr` special-casing, the 8× `action_scores`
+  literal and the 18 hand-written prioritization calls collapse to data-driven loops
+  (`MIN_PHASE_ORDER` / `FILL_PHASE_ORDER` — one entry per family, so the twice-slipped
+  `renewable_curtailment` add is structurally impossible; it was a real latent double-add).
+  The PST/disconnection `_disco_bounds` del/lazy temporal coupling is replaced by a memoised
+  `_get_disconnection_bounds()` → frozen `DisconnectionBounds`. `InjectionDiscoveryBase`
+  factors the shared injection preamble + influence factor (the divergent cache/flow-arity
+  pairing is kept per-family, documented). `DiscovererProtocol` declares the shared mixin
+  surface. Behaviour-preserving (mock discovery suite green).
+- **R5 / C7** (action-type): `ActionType` enum + declarative keyword table
+  (`action_evaluation/action_types.py`) with byte-identical string values; the classifier
+  cascade is now one ordered table. **C7 rule bypass fixed**: grid2op-format couplings
+  (substation in `content['set_bus']['substations_id']`, no `VoltageLevelId`) are now
+  localized backend-agnostically instead of falling to `"unknown"` and escaping every rule.
+- **R6 (partial)**: all four **C6** bugs verified fixed; the two previously-untested data
+  modules got their first tests (`tests/test_data_modules.py`).
+- **Still deferred**: the R6 `utils/` file-move reorganization (`repas/` subpackage split,
+  environment-factory merge, `superposition`/`reassessment` promotion, `__main__` bodies →
+  `scripts/`). It is a large mechanical import-surface change (`utils/__init__.py` is empty,
+  so re-export shims make it low-risk) best landed as its own PR with full cross-repo CI —
+  the exact function→module boundary map exists and should drive it.
+
 **Highest-priority findings** (detail in §4). One finding originally headlined here — a pypowsybl rho-check comparing the candidate against the wrong reference state — was **downgraded to cosmetic** after tracing the data flow (discovery ranks from the overflow graph, not from that simulation; the rho-check output is diagnostic-only and gated off by default) and **fixed in this branch**; it is kept in the table's last row and written up as C-diag in §4.1 as a worked example of review principle #4 (verify the failure scenario before assigning severity).
 
 | # | Finding | Where | Severity |
