@@ -75,8 +75,16 @@ python scripts/render_carrip3_sld.py --grid path/to/grid.xiidm
 #   choisir un poste, modifier DJ/SA, valider/sauver la cible, calculer +
 #   animer la sequence, sauvegarder scenarios et sequences. Doc complete :
 #   docs/manoeuvre/ihm.md
+#
+# R7 (partiel) : le script expose une fabrique create_app(config) + serve()
+#   (waitress, threads=1 pour serialiser l'etat pypowsybl partage ; repli sur
+#   le serveur Flask de dev) et une route /healthz. La promotion physique dans
+#   un package manoeuvre/ihm/ (blueprints, decoupage de Session, shim) et les
+#   points M8 restent a faire (differes : la verification exige les 12 tests
+#   IHM sous pypowsybl). Cf. docs/reviews/2026-07_full_code_review.md (R7/M8).
 pip install -e ".[ihm]"   # guillemets requis sous zsh (sinon: pip install flask)
 python scripts/manoeuvre_ihm.py --grid path/to/grid.xiidm   # http://localhost:8000
+curl http://localhost:8000/healthz                          # sonde liveness/readiness
 
 # Mode dataset RTE 7000 (sans --grid) : source les situations par date/heure
 # dans le dataset HF OpenSynth/D-GITT-RTE7000-* (telechargement a la demande).

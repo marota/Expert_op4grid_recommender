@@ -63,6 +63,10 @@ quality = [
 ]
 ihm = [
     "flask>=3.0",
+    # Production WSGI server for the manoeuvre IHM / HuggingFace Space (R7).
+    # Served with threads=1 to preserve request serialisation (shared pypowsybl
+    # network state); falls back to the Flask dev server if absent.
+    "waitress>=3.0",
 ]
 
 [tool.setuptools.packages.find]

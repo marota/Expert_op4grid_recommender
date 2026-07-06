@@ -34,6 +34,7 @@ WORKDIR /home/user/app
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir \
         flask \
+        "waitress>=3.0" \
         "pypowsybl>=1.13.0" \
         networkx \
         pandas

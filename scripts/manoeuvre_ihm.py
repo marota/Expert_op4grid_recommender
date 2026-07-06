@@ -2117,6 +2117,59 @@ PAGE = (_ASSETS_DIR / "index.html").read_text(encoding="utf-8")
 
 
 
+@app.get("/healthz")
+def healthz():
+    """Liveness/readiness probe for containers and the HuggingFace Space.
+
+    Reports whether a network session is loaded and whether the dataset source
+    is enabled, so an orchestrator can distinguish "process up" from "ready".
+    """
+    return jsonify(
+        status="ok",
+        session_loaded=SESSION is not None,
+        dataset_enabled=bool(DATASET.get("enabled")),
+    ), 200
+
+
+def create_app(config=None):
+    """Application factory (R7).
+
+    Returns the configured Flask ``app``. The IHM is intentionally mono-user
+    (the pypowsybl network is shared mutable state), so this returns the module
+    singleton rather than minting a fresh app; ``config`` lets a caller apply
+    the static wiring ``main()`` used to poke into globals — ``scenarios_dir``,
+    ``sequences_dir``, ``dataset`` (merged in place), and ``grid`` (loaded into
+    a fresh :class:`Session`) — without going through argparse.
+    """
+    global SCEN_DIR, SEQ_DIR, SESSION
+    if config:
+        if config.get("scenarios_dir"):
+            SCEN_DIR = pathlib.Path(config["scenarios_dir"])
+        if config.get("sequences_dir"):
+            SEQ_DIR = pathlib.Path(config["sequences_dir"])
+        if config.get("dataset"):
+            DATASET.update(config["dataset"])  # in place → shared object
+        if config.get("grid"):
+            SESSION = Session(pp.network.load(config["grid"]))
+    return app
+
+
+def serve(flask_app, host="127.0.0.1", port=8000):
+    """Serve the IHM under a production WSGI server when available (R7).
+
+    Uses waitress with ``threads=1`` — the pypowsybl network is shared mutable
+    state, so requests must stay serialised (the same guarantee the historical
+    ``app.run(threaded=False)`` gave). Falls back to Flask's dev server if
+    waitress is not installed.
+    """
+    try:
+        from waitress import serve as _wserve
+        _wserve(flask_app, host=host, port=port, threads=1)
+    except ImportError:
+        # threaded=False : sérialise les requêtes (l'état réseau pypowsybl est partagé).
+        flask_app.run(host=host, port=port, threaded=False)
+
+
 def main():
     global SESSION
     ap = argparse.ArgumentParser(description=__doc__)
@@ -2175,8 +2228,10 @@ def main():
         print(f"Mode dataset : {DATASET['repo']} (cache {DATASET['cache_dir']}). "
               "Choisir une date/heure dans l'IHM.")
     print(f"IHM Manœuvre : http://{args.host}:{args.port}  (Ctrl-C pour arrêter)")
-    # threaded=False : sérialise les requêtes (l'état réseau pypowsybl est partagé).
-    app.run(host=args.host, port=args.port, threaded=False)
+    # create_app() is a no-op here (config already applied above); kept so the
+    # factory is exercised on the CLI path. serve() prefers waitress (threads=1)
+    # and falls back to the Flask dev server.
+    serve(create_app(), host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
