@@ -561,25 +561,29 @@ class NetworkManager:
     
     def disconnect_line(self, line_id: str):
         """Disconnect a line (open both terminals)."""
-        if line_id in self.network.get_lines().index:
+        # P3: O(1) membership on the cached sets instead of fetching the full
+        # lines / 2wt tables on every call. The element index is structural and
+        # never changes across variants, so the sets stay valid.
+        if line_id in self._lines_set:
             self.network.update_lines(id=line_id, connected1=False, connected2=False)
-        elif line_id in self.network.get_2_windings_transformers().index:
+        elif line_id in self._trafos_set:
             self.network.update_2_windings_transformers(
                 id=line_id, connected1=False, connected2=False
             )
-    
+
     def reconnect_line(self, line_id: str, bus_or: int = 1, bus_ex: int = 1):
         """
         Reconnect a line to specified buses.
-        
+
         Args:
             line_id: Line identifier
             bus_or: Bus number at origin (1 or 2)
             bus_ex: Bus number at extremity (1 or 2)
         """
-        if line_id in self.network.get_lines().index:
+        # P3: cached-set membership instead of full-table fetches (see disconnect_line).
+        if line_id in self._lines_set:
             self.network.update_lines(id=line_id, connected1=True, connected2=True)
-        elif line_id in self.network.get_2_windings_transformers().index:
+        elif line_id in self._trafos_set:
             self.network.update_2_windings_transformers(
                 id=line_id, connected1=True, connected2=True
             )
