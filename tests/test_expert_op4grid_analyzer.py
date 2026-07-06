@@ -159,6 +159,9 @@ class MockActionObject:
         self.lines_or_id = lines_or_id or {}
         self.lines_status= lines_status or {}
         self.action_id = str(substations_id)+str(lines_or_id)
+        # Mirrors the meaningful (non-empty) parts of the action dict passed to
+        # MockActionSpace; an empty action (e.g. no line to reconnect) has {}.
+        self.content = {}
 
     def get_topological_impact(self):
         # Return dummy lists, just to satisfy the interface
@@ -182,14 +185,20 @@ class MockActionSpace:
         if "set_bus" in action_dict:
             set_bus = action_dict["set_bus"]
             if "substations_id" in set_bus:
-                return MockActionObject(substations_id=set_bus["substations_id"])
+                act = MockActionObject(substations_id=set_bus["substations_id"])
             else:
                 # Handles lines_ex_id / lines_or_id for act_defaut
-                return MockActionObject(lines_ex_id=set_bus.get("lines_ex_id"),
+                act = MockActionObject(lines_ex_id=set_bus.get("lines_ex_id"),
                                     lines_or_id=set_bus.get("lines_or_id"))
         elif "set_line_status" in action_dict:
             set_line_status=action_dict["set_line_status"]
-            return MockActionObject(lines_status=set_line_status)
+            act = MockActionObject(lines_status=set_line_status)
+        else:
+            act = MockActionObject()
+        # Expose the meaningful (non-empty) parts of the action dict as `.content`
+        # so an empty action reconstructs to {} (see get_maintenance_timestep tests).
+        act.content = {key: value for key, value in action_dict.items() if value}
+        return act
 
 
 def mock_action_space(content):
@@ -372,9 +381,11 @@ def test_get_maintenance_timestep_scenarios():
     assert reconnected == []
     assert act.content == {}
 
-    # --- Case 3: timestep where all lines are out of maintenance ---
+    # --- Case 3: timestep where the maintained line has not been released yet ---
+    # At t=0 L1 is still in maintenance, so although it was maintained at start it
+    # is not yet reconnectable — the function must return nothing.
     act, reconnected = get_maintenance_timestep(
-        timestep=2,
+        timestep=0,
         lines_non_reconnectable=lines_non_reconnectable,
         env=env,
         do_reco_maintenance=True
