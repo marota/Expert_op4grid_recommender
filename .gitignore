@@ -34,3 +34,7 @@ venv*/
 # artefacts non versionnés sur le Space (profiling, slides)
 *.prof
 *.pptx
+
+# Runtime-generated overflow graphs (PDF/HTML/.dot written during an analysis;
+# e.g. by scripts/benchmark_pipeline.py or an app run) — never a deliverable.
+/Overflow_Graph/
