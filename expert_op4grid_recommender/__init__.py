@@ -52,3 +52,16 @@ else:
         # grid2op present but unexpected API surface — log and move on.
         _logger.debug("Failed to patch grid2op get_shunt_setpoint: %s", exc)
 # -----------------------------------------------------------
+
+# --- pypowsybl grid2op backend integer-value fix (0 sentinel -> -1), M5 ---
+# Replaces the historical site-packages edit (scripts/patch_pypowsybl2grid_file.py)
+# with an import-time, idempotent, version-guarded class patch. No-op when
+# pypowsybl is not installed. Runs before any backend construction.
+try:
+    from expert_op4grid_recommender.patched_backend import (
+        apply_pypowsybl_integer_value_patch,
+    )
+    apply_pypowsybl_integer_value_patch()
+except Exception as exc:  # never let a patch failure break package import
+    _logger.debug("Could not apply pypowsybl integer-value patch at import: %s", exc)
+# -----------------------------------------------------------

@@ -85,6 +85,9 @@ expert_op4grid_recommender/
 │                              #   re-exported as module attrs for back-compat)
 ├── config_basic.py            # One alternative config variant (Settings(...) with overrides)
 ├── exceptions.py              # Domain exceptions (LoadFlowDivergedError)
+├── patched_backend.py         # Import-time, version-guarded fix for pypowsybl's
+│                              #   grid2op backend update_integer_value (0→−1);
+│                              #   replaces the site-packages patch script (M5)
 ├── environment.py             # Grid2Op environment setup
 ├── environment_pypowsybl.py   # Pure pypowsybl environment setup
 ├── data_loader.py             # Load action dictionaries from JSON
@@ -678,11 +681,24 @@ combined = action1 + action2
 
 5. **alphaDeesp dependency**: `expertop4grid >= 0.2.8` is required for `AlphaDeesp_warmStart`.
 
-6. **pypowsybl2grid backend patch**: The `PyPowSyBlBackend.update_integer_value` method has an issue with zero-value handling. The original code `changed[value == 0] = False` must be replaced with `value[value == 0] = -1`. **This patch must be applied to the installed package file before running tests**:
-   ```bash
-   python scripts/patch_pypowsybl2grid_file.py
-   ```
-   In CI, this is done automatically in the `build-and-test` job of `.github/workflows/ci.yml`. Runtime monkey-patching doesn't work because modules are imported before conftest.py runs.
+6. **pypowsybl grid2op backend integer-value fix (0 → −1)**: the buggy method
+   is `update_integer_value` on **`pypowsybl.grid2op.Backend`** (the internal
+   delegate `pypowsybl2grid.PyPowSyBlBackend` instantiates as `self._grid`) —
+   *not* on `PyPowSyBlBackend` itself. It forwards the grid2op bus array to the
+   native `_pypowsybl.update_grid2op_integer_value`, but grid2op encodes the
+   disconnected/unset-bus sentinel as `0` while pypowsybl expects `-1`, so the
+   fix inserts `value[value == 0] = -1` before the native call.
+
+   As of M5 this is applied **at package import time** by
+   `expert_op4grid_recommender/__init__.py`, via an idempotent, version-guarded
+   class patch in `expert_op4grid_recommender/patched_backend.py`
+   (`apply_pypowsybl_integer_value_patch()` + the `make_patched_pypowsybl_backend`
+   factory the assistant-env builder uses). It is a no-op when pypowsybl is
+   absent and self-disables if a future upstream already applies the fix. **No
+   site-packages edit is required.** `scripts/patch_pypowsybl2grid_file.py`
+   remains only as a manual fallback; the `.github/workflows/ci.yml` step that
+   runs it is now a redundant belt-and-suspenders (idempotent with the runtime
+   patch).
 
 ---
 

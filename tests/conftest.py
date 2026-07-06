@@ -70,13 +70,15 @@ print(f"{'='*70}\n")
 # Now import pytest
 import pytest
 
-# NOTE: pypowsybl2grid backend patch is applied via scripts/patch_pypowsybl2grid_file.py
-# This must be run BEFORE tests (see .github/workflows/ci.yml)
-# Runtime monkey-patching doesn't work because modules are imported before conftest runs
+# NOTE: the pypowsybl grid2op backend integer-value fix (0 sentinel -> -1) is
+# applied at package IMPORT time by expert_op4grid_recommender/__init__.py, via
+# an idempotent, version-guarded class patch of pypowsybl.grid2op.Backend
+# (expert_op4grid_recommender/patched_backend.py, M5). Because
+# config_test star-imports config — which imports the package — the patch is in
+# force before any backend is constructed; no site-packages edit is required.
 #
-# For local development, run:
-#   python scripts/patch_pypowsybl2grid_file.py
-# before running tests.
+# scripts/patch_pypowsybl2grid_file.py remains only as a manual fallback (e.g. if
+# the runtime patch's version guard fires against an unfamiliar upstream).
 
 
 @pytest.fixture(scope="session", autouse=True)

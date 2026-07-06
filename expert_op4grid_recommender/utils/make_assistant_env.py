@@ -18,7 +18,10 @@ try:
     from grid2op.Environment import Environment
     from grid2op.Backend import Backend
     from grid2op.Chronics import ChangeNothing
-    from pypowsybl2grid import PyPowSyBlBackend
+    # Import guard for _HAS_GRID2OP: the backend is built through
+    # make_patched_pypowsybl_backend (M5), but this import must still fail when
+    # pypowsybl2grid is absent so _HAS_GRID2OP is set correctly.
+    from pypowsybl2grid import PyPowSyBlBackend  # noqa: F401
     import numpy as np
     _HAS_GRID2OP = True
 except (ImportError, Exception):
@@ -41,7 +44,13 @@ def create_pypowsybl_backend(
     logging.getLogger('powsybl').setLevel(logging.ERROR)
     logging.getLogger('pypowsybl2grid').setLevel(logging.ERROR)
     lf_parameters = create_olf_rte_parameter()
-    return PyPowSyBlBackend(n_busbar_per_sub=n_busbar_per_sub,
+    # M5: build through the vendored factory so the pypowsybl grid2op backend's
+    # integer-value 0->-1 fix is guaranteed in force (no site-packages patch).
+    from expert_op4grid_recommender.patched_backend import (
+        make_patched_pypowsybl_backend,
+    )
+    return make_patched_pypowsybl_backend(
+                            n_busbar_per_sub=n_busbar_per_sub,
                             check_isolated_and_disconnected_injections=check_isolated_and_disconnected_injections,
                             lf_parameters=lf_parameters)
 

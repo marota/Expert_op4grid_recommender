@@ -34,10 +34,12 @@ jobs:
           pip install -r requirements.txt
           pip install numpy==2.3.0
 
-      - name: Apply pypowsybl2grid patch
-        # Patches the installed pypowsybl2grid backend to fix zero-value
-        # handling (see CLAUDE.md gotcha #6). Must run before the tests import
-        # the backend. --debug prints the file-content analysis.
+      - name: Apply pypowsybl2grid patch (redundant fallback since M5)
+        # The zero-value fix is now applied at package import time by
+        # expert_op4grid_recommender/patched_backend.py (see CLAUDE.md gotcha #6),
+        # so this in-file edit is a belt-and-suspenders redundancy — idempotent
+        # and composes harmlessly with the runtime patch. Kept for one release;
+        # safe to remove once the runtime patch has soaked.
         run: python scripts/patch_pypowsybl2grid_file.py --debug
 
       - name: Run unit tests (exclude slow)
