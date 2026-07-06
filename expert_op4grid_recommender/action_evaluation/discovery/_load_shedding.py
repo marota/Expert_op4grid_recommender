@@ -5,13 +5,18 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 """Load shedding discovery mixin."""
-import numpy as np
 from typing import List
 
-from expert_op4grid_recommender import config
+from expert_op4grid_recommender.action_evaluation.discovery._injection_base import (
+    InjectionDiscoveryBase,
+)
 
-class LoadSheddingMixin:
+
+class LoadSheddingMixin(InjectionDiscoveryBase):
     """Load shedding discovery mixin."""
+
+    MARGIN_KEY = "LOAD_SHEDDING_MARGIN"
+    MIN_MW_KEY = "LOAD_SHEDDING_MIN_MW"
 
     def find_relevant_load_shedding(self, nodes_aval_indices: List[int]):
         """
@@ -23,42 +28,25 @@ class LoadSheddingMixin:
         - Cached node flow calculations
         - Hoisted default action and baseline simulation
         """
-        self._build_lookup_caches()
-        # Ensure edge data cache is populated (single pass over all edges)
-        self._get_edge_data_cache()
-        obs = self.obs_defaut
+        # Shared overload preamble (InjectionDiscoveryBase): warm caches, read
+        # the LOAD_SHEDDING margin / min-MW knobs, and compute
+        # max_overload_flow + P_overload_excess. None => early return.
+        _ctx = self._injection_overload_context()
+        if _ctx is None:
+            return
+        obs = _ctx.obs
 
         # Hoist observation arrays to locals ONCE — ``obs.name_sub`` /
         # ``obs.name_load`` rebuild a fresh numpy string array on every access
         # and ``obs.load_p`` copies its array each time.
         name_sub_arr = obs.name_sub
         name_load_arr = obs.name_load
-        name_line_arr = obs.name_line
         load_p_arr = obs.load_p
 
-        margin = getattr(config, "LOAD_SHEDDING_MARGIN", 0.05)
-        min_mw = getattr(config, "LOAD_SHEDDING_MIN_MW", 1.0)
-
-        # Compute overload excess in MW (uses cached capacity map)
-        name_to_capacity = self._build_line_capacity_map()
-        if not name_to_capacity:
-            return
-
-        overloaded_line_names = {name_line_arr[i] for i in self.lines_overloaded_ids}
-        overloaded_caps = [
-            name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
-        ]
-        max_overload_flow = (
-            max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
-        )
-
-        rho_overloaded = obs.rho[self.lines_overloaded_ids]
-        if len(rho_overloaded) == 0:
-            return
-        rho_max = float(np.max(rho_overloaded))
-        if rho_max <= 1.0:
-            return
-        P_overload_excess = (rho_max - 1.0) * max_overload_flow
+        margin = _ctx.margin
+        min_mw = _ctx.min_mw
+        max_overload_flow = _ctx.max_overload_flow
+        P_overload_excess = _ctx.P_overload_excess
 
         # Use cached blue edge set and node flow cache
         blue_edge_names_set = self._get_blue_edge_names_set()
@@ -102,10 +90,8 @@ class LoadSheddingMixin:
             if influence_flow <= 0:
                 continue
 
-            influence_factor = (
-                min(1.0, influence_flow / max_overload_flow)
-                if max_overload_flow > 0
-                else 0.0
+            influence_factor = self._injection_influence_factor(
+                influence_flow, max_overload_flow
             )
             if influence_factor <= 0:
                 continue
