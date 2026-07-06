@@ -94,11 +94,23 @@ expert_op4grid_recommender/
 │                              #   (moved out of main.py to break the import cycle)
 │
 ├── action_evaluation/         # Action analysis module
-│   ├── classifier.py          # ActionClassifier: categorize action types
+│   ├── classifier.py          # ActionClassifier: categorize action types (now
+│   │                          #   table-driven via action_types.classify_by_description)
+│   ├── action_types.py        # ActionType enum (values == the historical type
+│   │                          #   strings) + declarative keyword→type table (R5)
 │   ├── rules.py               # ActionRuleValidator: apply expert rules
+│   │                          #   (backend-agnostic coupling localization, C7 fix)
 │   └── discovery/             # ActionDiscoverer PACKAGE (split from the old ~3000-line
-│       ├── _base.py           #   discovery.py). DiscovererBase + one mixin per family:
-│       ├── _orchestrator.py   #   discover_and_prioritize() assembly + MIN_*/N cap
+│       ├── _base.py           #   discovery.py). DiscovererBase + one mixin per family.
+│       ├── _results.py        #   R5 data model: FamilyResult (per-family outcome) +
+│       │                      #   FAMILY_SPECS registry + generated legacy @property
+│       │                      #   bridges + ACTION_SCORES_ORDER / MIN_PHASE_ORDER /
+│       │                      #   FILL_PHASE_ORDER tables + DisconnectionBounds
+│       ├── _injection_base.py #   InjectionDiscoveryBase: shared overload preamble +
+│       │                      #   influence factor for the 3 injection families
+│       ├── _protocols.py      #   DiscovererProtocol: the shared self surface mixins need
+│       ├── _orchestrator.py   #   discover_and_prioritize() — data-driven action_scores
+│       │                      #   assembly + two-pass prioritization over the tables
 │       ├── _line_reconnection.py, _line_disconnection.py, _node_splitting.py,
 │       ├── _node_merging.py, _pst.py, _load_shedding.py,
 │       └── _renewable_curtailment.py, _redispatch.py
@@ -165,17 +177,39 @@ via `sys.modules` + the package attribute.)
 
 ### Action Evaluation (`action_evaluation/`)
 - **`ActionClassifier`**: Determines action type (line open/close, nodal split/merge, load disconnect)
-  - `identify_action_type(action_desc, by_description=True) -> str` — returns a free-form
-    type string (e.g. `"open_line"`, `"close_coupling"`), matched by substring downstream.
-    (There is **no** `ActionType` enum.)
+  - `identify_action_type(action_desc, by_description=True) -> str` — returns a
+    type string (e.g. `"open_line"`, `"close_coupling"`). The description cascade
+    is now data-driven via `action_types.classify_by_description` (R5).
+  - **`ActionType` enum** (`action_evaluation/action_types.py`, R5): the 14 type
+    tokens with `.value` **byte-identical** to the historical strings, plus
+    category predicates (`involves_line`, `involves_coupling`, `is_open`,
+    `is_topological`, …) that replace the scattered `"x" in action_type`
+    substring checks. `classify_by_description(desc, has_line_load)` is the
+    ordered keyword table.
   - `_is_nodale_grid2op_action(act) -> (is_nodale, subs, is_splitting)`
 
 - **`ActionRuleValidator`**: Filters actions based on expert rules
   - `categorize_actions(dict_action, ...) -> (filtered_out, unfiltered)`
   - `check_rules(action_type, localization, subs_topology) -> (do_filter, reason)`
   - `localize_line_action(lines)`, `localize_coupling_action(subs)`
+  - `_resolve_coupling_subs(action_desc)` (C7 fix): resolves a coupling's
+    substation(s) + pre-action topology **backend-agnostically** — from either
+    the pypowsybl `VoltageLevelId` or the grid2op `content['set_bus']
+    ['substations_id']`. Previously grid2op couplings localized to `"unknown"`
+    and escaped every expert rule.
 
 - **`ActionDiscoverer`** (`action_evaluation/discovery/` **package** — `DiscovererBase` in `_base.py` + one mixin per family; the old ~3000-line `discovery.py` monolith is gone): Discovers and scores candidate actions across **eight** action types (the seven below + redispatch)
+  - **Data model (R5, `_results.py`)**: the per-family outcome lives in one typed
+    `FamilyResult` per family under `self.results[family]` (identified / effective
+    / ineffective / scores / params / non_convergence), described by the
+    declarative `FAMILY_SPECS` registry that also generates the back-compat
+    `@property` bridges for the legacy attribute names
+    (`identified_reconnections`, `scores_splits_dict`, `scores_pst_actions`, …).
+    The `action_scores` assembly and the two-pass prioritization are data-driven
+    loops over `ACTION_SCORES_ORDER` / `MIN_PHASE_ORDER` / `FILL_PHASE_ORDER`
+    (one entry per family). Disconnection/PST scoring share the memoised
+    `_get_disconnection_bounds()` (frozen `DisconnectionBounds`). The three
+    injection families share `InjectionDiscoveryBase`.
   - `discover_and_prioritize(n_action_max) -> (Dict[action_id, action], action_scores)` — returns a **tuple** (despite an older `-> Dict` hint)
   - Action types discovered:
     1. `verify_relevant_reconnections` — line reconnections
@@ -396,10 +430,20 @@ tests/
 ├── test_antenna_graph.py                # Antenna (islanded-pocket) overflow graph
 │                                        # (see docs/recommender/antenna_overflow_graph.md)
 ├── test_visualization_filtering.py      # Visualization filters
-└── test_typed_pipeline_spine.py         # R1/R2 contracts: AnalysisContext/Result +
-                                         # SimulatedAction dict-compat, SimulationBackend
-                                         # flags, shared-baseline routing, import-cycle
-                                         # dissolution, main facade re-exports
+├── test_typed_pipeline_spine.py         # R1/R2 contracts: AnalysisContext/Result +
+│                                        # SimulatedAction dict-compat, SimulationBackend
+│                                        # flags, shared-baseline routing, import-cycle
+│                                        # dissolution, main facade re-exports
+├── test_discovery_package_structure.py  # discovery package layout invariants + the
+│                                        # DiscovererProtocol conformance check (A5)
+├── test_discovery_results_model.py      # R5 FamilyResult / FAMILY_SPECS registry /
+│                                        # property bridge / phase-order no-dup invariant
+│                                        # + rc double-add behavioural regression
+├── test_injection_base.py              # InjectionDiscoveryBase (overload preamble +
+│                                        # influence factor) + memoised _get_disconnection_bounds
+├── test_action_types_enum.py           # ActionType enum + declarative classify_by_description
+└── test_data_modules.py                # first tests for utils/load_{training,evaluation}_data
+                                         # (import smoke, load_interesting_lines, C6 guards)
 ```
 
 ### Test Configuration Override
@@ -500,9 +544,10 @@ See `docs/archive/MIGRATION_PLAN.md` for details. The goal is to remove `grid2op
 ### Key Files for Development
 | Task | Primary Files |
 |------|---------------|
-| Add new action type | `action_evaluation/classifier.py`, `rules.py` |
+| Add new action type | `action_evaluation/action_types.py` (add an `ActionType` + keyword rule), `classifier.py`, `rules.py`; add its `FamilySpec` to `discovery/_results.py` if it is a discovery family |
 | Modify expert rules | `action_evaluation/rules.py` |
-| Modify action scoring | `action_evaluation/discovery/` (per-family mixins) |
+| Add a discovery family / per-family result | `action_evaluation/discovery/_results.py` (`FamilySpec` + phase-order tables) + the family mixin |
+| Modify action scoring | `action_evaluation/discovery/` (per-family mixins); injection families share `_injection_base.py` |
 | Change graph analysis | `graph_analysis/builder.py`, `processor.py` |
 | Antenna (islanded-pocket) graph | `graph_analysis/antenna_graph.py`, `processor.py` (`extract_antenna_context`, `pre_process_antenna_graph`); see `docs/recommender/antenna_overflow_graph.md` |
 | pypowsybl migration | `pypowsybl_backend/*`, `environment_pypowsybl.py` |

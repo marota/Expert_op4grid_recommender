@@ -103,6 +103,39 @@ def test_min_and_fill_orders_differ():
 
 # --- Property bridge --------------------------------------------------------
 
+def test_prioritization_tables_do_not_double_add_curtailment():
+    """Behavioural guard for the R5 double-add fix.
+
+    Mirrors the orchestrator's two-pass loop over the PRODUCTION ordering tables
+    with an rc-heavy candidate set. The old hand-written code listed
+    ``renewable_curtailment`` twice per phase, so with 6 rc candidates and spare
+    budget it could admit up to 2x the fill cap; the single-entry tables must
+    cap it at the fill default (3).
+    """
+    from expert_op4grid_recommender import config
+    from expert_op4grid_recommender.utils.helpers import add_prioritized_actions
+
+    results = new_results()
+    results["renewable_curtailment"].identified = {f"curtail_{i}": object() for i in range(6)}
+
+    n_action_max, fill_caps = 5, {"reconnections": 2, "splits": 3, "pst": 2}
+    min_cap = max(n_action_max, sum(
+        getattr(config, FAMILY_MIN_CONFIG_ATTR[f], 0) for f in MIN_PHASE_ORDER))
+
+    prioritized = {}
+    for fam in MIN_PHASE_ORDER:
+        prioritized = add_prioritized_actions(
+            prioritized, results[fam].identified, min_cap,
+            n_action_max_per_type=getattr(config, FAMILY_MIN_CONFIG_ATTR[fam], 0))
+    for fam in FILL_PHASE_ORDER:
+        prioritized = add_prioritized_actions(
+            prioritized, results[fam].identified, n_action_max,
+            n_action_max_per_type=fill_caps.get(fam, 3))
+
+    rc = [k for k in prioritized if k.startswith("curtail_")]
+    assert len(rc) <= 3, f"renewable_curtailment exceeded its fill cap: {rc}"
+
+
 def test_property_bridge_round_trips_via_results():
     class Dummy:
         def __init__(self):
