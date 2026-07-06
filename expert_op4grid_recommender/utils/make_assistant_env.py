@@ -13,6 +13,8 @@ from expert_op4grid_recommender.utils.make_env_utils import (N_BUSBAR_PER_SUB,
                                                              make_default_params,
                                                              create_olf_rte_parameter)
 
+logger = logging.getLogger(__name__)
+
 try:
     import grid2op
     from grid2op.Environment import Environment
@@ -39,8 +41,10 @@ def create_pypowsybl_backend(
     """
     if not _HAS_GRID2OP:
         raise ImportError("grid2op and pypowsybl2grid are required for create_pypowsybl_backend()")
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.ERROR)
+    # Silence powsybl / pypowsybl2grid chatter WITHOUT touching the root logger.
+    # The previous logging.basicConfig() + root setLevel(ERROR) was a global
+    # side effect that silenced the host application's own INFO/WARNING logs
+    # every time an assistant env was built (M6).
     logging.getLogger('powsybl').setLevel(logging.ERROR)
     logging.getLogger('pypowsybl2grid').setLevel(logging.ERROR)
     lf_parameters = create_olf_rte_parameter()
@@ -86,7 +90,7 @@ def make_grid2op_assistant_env(
                        param=params
                        )
     else:
-        print("Warning: this is a bare environment with no chronics")
+        logger.warning("Bare environment with no chronics at %s", path)
         env = grid2op.make(path,
                    backend=backend,
                    allow_detachment=allow_detachment,

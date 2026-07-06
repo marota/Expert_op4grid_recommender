@@ -1379,20 +1379,23 @@ class TestRunRebuildActions:
         mock_rebuild.assert_called_once()
     
     @patch('expert_op4grid_recommender.utils.action_rebuilder.repas.parse_json')
-    def test_returns_original_on_failure(self, mock_parse, mock_network):
-        """Test that original dict is returned on failure."""
+    def test_raises_on_failure(self, mock_parse, mock_network):
+        """A failure now RE-RAISES (M6) instead of silently returning the input.
+
+        Previously the function swallowed every exception and returned the
+        untouched input dict, so callers could not tell success from failure.
+        """
         mock_parse.side_effect = Exception("Parse error")
-        
+
         original_dict = {"original": {"content": {}}}
-        
-        result = run_rebuild_actions(
-            mock_network,
-            do_from_scratch=False,
-            repas_file_path="fake_repas.json",
-            dict_action_to_filter_on=original_dict
-        )
-        
-        assert result == original_dict
+
+        with pytest.raises(Exception, match="Parse error"):
+            run_rebuild_actions(
+                mock_network,
+                do_from_scratch=False,
+                repas_file_path="fake_repas.json",
+                dict_action_to_filter_on=original_dict
+            )
 
 
 # =============================================================================

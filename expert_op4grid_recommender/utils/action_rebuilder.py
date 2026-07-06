@@ -16,6 +16,7 @@ from REPAS format to Grid2Op format based on network grid snapshots.
 
 import copy
 import json
+import logging
 import os
 from collections import defaultdict
 from expert_op4grid_recommender.utils.helpers import Timer
@@ -26,6 +27,9 @@ from expert_op4grid_recommender.utils.conversion_actions_repas import (
     create_dict_disco_reco_lines_disco,
     get_all_switch_descriptions,
 )
+
+logger = logging.getLogger(__name__)
+
 
 def make_description_unitaire(switches_by_voltage_level):
     """
@@ -508,8 +512,9 @@ def run_rebuild_actions(n_grid, do_from_scratch, repas_file_path, dict_action_to
         print(f"Successfully rebuilt actions. Saved to: {output_file_path}")
         return new_dict_actions
 
-    except Exception as e:
-        import traceback
-        print(f"Error rebuilding actions: {e}")
-        traceback.print_exc()
-        return dict_action_to_filter_on  # Return original on failure
+    except Exception:
+        # M6: log with the full traceback and RE-RAISE. Previously this
+        # swallowed every error and returned the untouched input dict, so a
+        # caller could not tell "rebuilt N actions" from "everything failed".
+        logger.error("Error rebuilding actions from %s", repas_file_path, exc_info=True)
+        raise

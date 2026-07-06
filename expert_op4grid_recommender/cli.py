@@ -92,11 +92,17 @@ def main():
                 else:
                     do_from_scratch = True
 
-                dict_action = run_rebuild_actions(n_grid, do_from_scratch, args.repas_file,
-                                                   dict_action_to_filter_on=dict_action,
-                                                   voltage_filter_threshold=args.voltage_threshold,
-                                                   output_file_base_name="reduced_model_actions",
-                                                   pypowsybl_format=args.pypowsybl_format)
+                try:
+                    dict_action = run_rebuild_actions(n_grid, do_from_scratch, args.repas_file,
+                                                       dict_action_to_filter_on=dict_action,
+                                                       voltage_filter_threshold=args.voltage_threshold,
+                                                       output_file_base_name="reduced_model_actions",
+                                                       pypowsybl_format=args.pypowsybl_format)
+                except Exception as exc:  # print acceptable in the CLI entry point
+                    # run_rebuild_actions now RE-RAISES on failure (M6); surface
+                    # it and stop instead of printing "complete" over a failure.
+                    print(f"Action rebuilding failed: {exc}", file=sys.stderr)
+                    sys.exit(1)
 
                 print("Action rebuilding process complete. Stopping analysis as requested.")
                 return
