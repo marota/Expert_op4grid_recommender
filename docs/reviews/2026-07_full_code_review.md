@@ -55,45 +55,80 @@ branch (released as **0.2.6**). Summary of what landed:
 Still open (not implemented here): the deep-revision roadmap in §6 (typed pipeline spine,
 config single-source, `manoeuvre` IHM promotion, etc.) and the C7 formula ambiguities.
 
-### Deep-revision status — what's left
+### Status & what's left (all categories)
 
-Per-revision status now lives **inline in [§6](#6-deep-revision-proposals)** — each
-`R1…R10` carries a **Done / Partial / Deferred** annotation with what actually landed,
-mirroring the "**FIXED in this branch**" tags on the correctness findings in
-[§4.1](#41-correctness--security-fix-first). Shipped so far: **R1 + R2** (0.2.7),
-**R4 core** (0.2.6 → 0.2.7), **R3 interim + R5 + A5 + C7 + R6-partial** (0.2.9).
+Per-finding status is tracked **inline**: the §4 weaknesses carry "**FIXED in this branch**"
+tags on the ones already closed, and each deep revision in [§6](#6-deep-revision-proposals)
+carries a **Done / Partial / Deferred** annotation. **Shipped so far:** the **C2–C6 + C-diag**
+correctness/security fixes and **P1** (0.2.6); **R1 + R2** typed pipeline spine + backend
+protocol (0.2.7); **R4 core** shared baseline (0.2.6 → 0.2.7); **R3 interim + R5 + A5 + C7 +
+R6-partial** (0.2.9). This closes **A1** (god object → R1), **A2** (import cycles → R2),
+**A5** (discovery modularization → R5), **M1** (stale CLAUDE.md, now current at 0.2.9), and
+the **P2** observation-fetch cost (0.2.6).
 
-**Still to do** (the open roadmap):
+**Still to do — comprehensive, by category** (`→R#` = the deep revision that subsumes it):
 
-- **R3 (full).** Make the pydantic `Settings` the single source of truth: `@computed_field`
-  derived paths, a `get_settings()/override_settings()` accessor, pipeline overrides passed
-  as parameters — retiring `apply_settings_to_namespace`, the plain-attribute derived paths
-  (`config.py:275-284`) and the `config.*` module-mutation channel (`pipeline.py:250-252`,
-  `cli.py:64`). *(Only the `config_test.py` star-import interim step has landed.)*
-- **R4 (remainder).** A `BaselineContext` with an explicit `release()` lifecycle, deletion
-  of the ~85%-duplicated `simulation.py` / `simulation_pypowsybl.py` pair (both still
-  present), and a `NetworkManager` variant registry (LRU / `max_variants`) for the cross-run
-  C4 backstop. *(The shared-baseline routing itself is done.)*
-- **R6 (remainder).** The `utils/` file-move reorganization — `repas/` subpackage, merge the
-  environment factories, promote `superposition` / `reassessment` to the pipeline layer,
-  `__main__` bodies → `scripts/`. A large mechanical import-surface change (re-export shims
-  keep it low-risk) best landed as its own PR. *(C6 bugs + first data-module tests are done.)*
-- **R7.** Promote the manoeuvre IHM into the package (`create_app()`, `Session` split into
-  `NetworkView`/`SequenceEditor`/`ScenarioStore`, blueprints, a WSGI server) and decompose
-  `determiner_manoeuvres_avec_sections` (CC 165) over the golden suite. *Not started.*
-- **R8.** Python 3.10–3.12 matrix, `pytest --cov` coverage ratchet, a **no-grid2op** CI leg,
-  `pypowsybl2grid` behind a `[grid2op]` extra, one dependency source + lockfile, and a
-  vendored pypowsybl2grid subclass replacing the site-packages patch. *(The one-CI-platform
-  migration — CircleCI → GitHub Actions — already landed in 0.2.6.)*
-- **R9 (remainder).** A declared bilingual language policy, a release-checklist guard, and
-  extending the golden-test net to the recommender (freeze `action_scores` /
-  `prioritized_actions` for 2–3 canonical contingencies — the scoring code still has none).
-  *(The CLAUDE.md reset — M1 — is done and kept current at 0.2.9.)*
-- **R10.** Decide the `manoeuvre` product split — separate distribution vs. formalized
-  monorepo (independent versioning, CI path filters). *Not started.*
-- **Residual C7 quick wins.** Initialize `raw_dict_action`; guard the two `max()` calls in
+*Deep-revision roadmap (§6):*
+
+- **R3 (full):** pydantic `Settings` as single source of truth — `@computed_field` paths,
+  `get_settings()/override_settings()`, overrides-as-parameters (retire the `config.*`
+  module-mutation channel). *Interim `config_test` star-import done.*
+- **R4 (remainder):** `BaselineContext` + `release()` lifecycle, delete the duplicated
+  `simulation.py` / `simulation_pypowsybl.py` pair, `NetworkManager` variant registry.
+- **R6 (remainder):** the `utils/` file-move reorg (`repas/` subpackage, environment-factory
+  merge, `superposition` / `reassessment` promotion, `__main__` → `scripts/`).
+- **R7:** promote the manoeuvre IHM into the package + decompose
+  `determiner_manoeuvres_avec_sections` (CC 165).
+- **R8:** Python 3.10–3.12 matrix, `pytest --cov` ratchet, a no-grid2op CI leg, `pypowsybl2grid`
+  behind a `[grid2op]` extra, one dependency source + lockfile, vendored pypowsybl2grid subclass.
+- **R9 (remainder):** language policy, release-checklist guard, and the recommender golden-test net.
+- **R10:** the `manoeuvre` product-split decision.
+
+*Correctness & security residuals (§4.1 / C7 / W3):*
+
+- Initialize `raw_dict_action` (latent `NameError`); guard the two `max()` calls in
   `_node_merging.py`; match overload edges by `name` (not float-equal rho) in `processor.py`;
-  fix the two `ObservationWithTopologyOverride` property groups.
+  fix the two `ObservationWithTopologyOverride` property groups (`n_components` / `q_or` / `q_ex`).
+- Resolve the three ambiguous-physics sites: the competing `max_redispatch` formulas
+  (`discovery/_base.py`), the reconnection delta-theta **sort direction**, and the in/out
+  flow-orientation asymmetry.
+- Manoeuvre IHM: the `SESSION is None` route guards (W3) and `Host`-header validation
+  (DNS-rebinding vector). *(C2–C6, C-diag, the C7 rule-bypass and the missing `config_test`
+  keys are already fixed.)*
+
+*Architecture (§4.2):*
+
+- **A3** config desync → R3; **A4** the shipped defaults are the test fixture (production
+  values live in `config_basic.py`, so `python main.py` analyzes the toy grid); **A6** residual
+  interface bloat (`ActionDiscoverer`'s 23 kwargs, `fast_mode`'s three conflicting defaults);
+  **A7** leaky backend abstraction (external code reaches `env.backend._grid.network`,
+  `obs._network_manager._default_dc`, `obs._limit_or`; `theta_or` radians-vs-degrees; two
+  divergent rho definitions); **A8** `utils/` split → R6. *(A1 / A2 closed by R1 / R2; A5 by R5.)*
+
+*Performance (§4.3):*
+
+- **P3** per-element full-table fetches in action application (`disconnect_line` /
+  `reconnect_line`, `SwitchAction.apply` fetching the whole switch table per switch id);
+  **P4** cache the `name_line` / `name_sub` / `name_gen` arrays (the O(n²) trap class, incl.
+  `set_thermal_limit`); **P5** per-candidate full-graph recompute in scoring (now **unblocked**
+  by the C3 fix — pass the cached labels through); **P6** misc (LF-params JSON round-trip,
+  defensive `.copy()` patterns, the dead O(n²) `topology.py`). *(P1 done; P2 largely landed in 0.2.6.)*
+
+*Maintainability / tests / packaging (§4.4):*
+
+- **M3** no coverage measurement — add `pytest --cov` + a ratchet (blind spots remain:
+  `simulation_env.py`, `make_*_env.py`, `data_loader.py`); **M4** dependency-declaration drift
+  → R8; **M5** the load-bearing site-packages patch → vendored subclass (→R8); **M6**
+  observability — 191 `print()` vs. logging, swallowed failures, the still-empty
+  `non_convergence` field; **M7** a declared bilingual policy → R9; **M8** manoeuvre structural
+  debt (the 2,131-line Flask app, the `Session` god class, the Flask dev server in prod, 1.1 MB
+  of map JSON in every wheel) → R7 / R10.
+
+*Quick wins (§7, mechanical):*
+
+- Register the `slow` pytest marker + `testpaths` + error-on-unknown-marks; sync
+  `requirements.txt` with `pyproject.toml` (add numpy / pydantic / pydantic-settings; one floor
+  per dependency); hoist `act_defaut` out of the node-merging loop.
 
 **Highest-priority findings** (detail in §4). One finding originally headlined here — a pypowsybl rho-check comparing the candidate against the wrong reference state — was **downgraded to cosmetic** after tracing the data flow (discovery ranks from the overflow graph, not from that simulation; the rho-check output is diagnostic-only and gated off by default) and **fixed in this branch**; it is kept in the table's last row and written up as C-diag in §4.1 as a worked example of review principle #4 (verify the failure scenario before assigning severity).
 
