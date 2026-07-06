@@ -97,11 +97,23 @@ expert_op4grid_recommender/
 │                              #   (moved out of main.py to break the import cycle)
 │
 ├── action_evaluation/         # Action analysis module
-│   ├── classifier.py          # ActionClassifier: categorize action types
+│   ├── classifier.py          # ActionClassifier: categorize action types (now
+│   │                          #   table-driven via action_types.classify_by_description)
+│   ├── action_types.py        # ActionType enum (values == the historical type
+│   │                          #   strings) + declarative keyword→type table (R5)
 │   ├── rules.py               # ActionRuleValidator: apply expert rules
+│   │                          #   (backend-agnostic coupling localization, C7 fix)
 │   └── discovery/             # ActionDiscoverer PACKAGE (split from the old ~3000-line
-│       ├── _base.py           #   discovery.py). DiscovererBase + one mixin per family:
-│       ├── _orchestrator.py   #   discover_and_prioritize() assembly + MIN_*/N cap
+│       ├── _base.py           #   discovery.py). DiscovererBase + one mixin per family.
+│       ├── _results.py        #   R5 data model: FamilyResult (per-family outcome) +
+│       │                      #   FAMILY_SPECS registry + generated legacy @property
+│       │                      #   bridges + ACTION_SCORES_ORDER / MIN_PHASE_ORDER /
+│       │                      #   FILL_PHASE_ORDER tables + DisconnectionBounds
+│       ├── _injection_base.py #   InjectionDiscoveryBase: shared overload preamble +
+│       │                      #   influence factor for the 3 injection families
+│       ├── _protocols.py      #   DiscovererProtocol: the shared self surface mixins need
+│       ├── _orchestrator.py   #   discover_and_prioritize() — data-driven action_scores
+│       │                      #   assembly + two-pass prioritization over the tables
 │       ├── _line_reconnection.py, _line_disconnection.py, _node_splitting.py,
 │       ├── _node_merging.py, _pst.py, _load_shedding.py,
 │       └── _renewable_curtailment.py, _redispatch.py
@@ -171,17 +183,39 @@ expert_op4grid_recommender/
 
 ### Action Evaluation (`action_evaluation/`)
 - **`ActionClassifier`**: Determines action type (line open/close, nodal split/merge, load disconnect)
-  - `identify_action_type(action_desc, by_description=True) -> str` — returns a free-form
-    type string (e.g. `"open_line"`, `"close_coupling"`), matched by substring downstream.
-    (There is **no** `ActionType` enum.)
+  - `identify_action_type(action_desc, by_description=True) -> str` — returns a
+    type string (e.g. `"open_line"`, `"close_coupling"`). The description cascade
+    is now data-driven via `action_types.classify_by_description` (R5).
+  - **`ActionType` enum** (`action_evaluation/action_types.py`, R5): the 14 type
+    tokens with `.value` **byte-identical** to the historical strings, plus
+    category predicates (`involves_line`, `involves_coupling`, `is_open`,
+    `is_topological`, …) that replace the scattered `"x" in action_type`
+    substring checks. `classify_by_description(desc, has_line_load)` is the
+    ordered keyword table.
   - `_is_nodale_grid2op_action(act) -> (is_nodale, subs, is_splitting)`
 
 - **`ActionRuleValidator`**: Filters actions based on expert rules
   - `categorize_actions(dict_action, ...) -> (filtered_out, unfiltered)`
   - `check_rules(action_type, localization, subs_topology) -> (do_filter, reason)`
   - `localize_line_action(lines)`, `localize_coupling_action(subs)`
+  - `_resolve_coupling_subs(action_desc)` (C7 fix): resolves a coupling's
+    substation(s) + pre-action topology **backend-agnostically** — from either
+    the pypowsybl `VoltageLevelId` or the grid2op `content['set_bus']
+    ['substations_id']`. Previously grid2op couplings localized to `"unknown"`
+    and escaped every expert rule.
 
 - **`ActionDiscoverer`** (`action_evaluation/discovery/` **package** — `DiscovererBase` in `_base.py` + one mixin per family; the old ~3000-line `discovery.py` monolith is gone): Discovers and scores candidate actions across **eight** action types (the seven below + redispatch)
+  - **Data model (R5, `_results.py`)**: the per-family outcome lives in one typed
+    `FamilyResult` per family under `self.results[family]` (identified / effective
+    / ineffective / scores / params / non_convergence), described by the
+    declarative `FAMILY_SPECS` registry that also generates the back-compat
+    `@property` bridges for the legacy attribute names
+    (`identified_reconnections`, `scores_splits_dict`, `scores_pst_actions`, …).
+    The `action_scores` assembly and the two-pass prioritization are data-driven
+    loops over `ACTION_SCORES_ORDER` / `MIN_PHASE_ORDER` / `FILL_PHASE_ORDER`
+    (one entry per family). Disconnection/PST scoring share the memoised
+    `_get_disconnection_bounds()` (frozen `DisconnectionBounds`). The three
+    injection families share `InjectionDiscoveryBase`.
   - `discover_and_prioritize(n_action_max) -> (Dict[action_id, action], action_scores)` — returns a **tuple** (despite an older `-> Dict` hint)
   - Action types discovered:
     1. `verify_relevant_reconnections` — line reconnections
@@ -249,6 +283,13 @@ PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # exclude unless worsened by 2
 
 # Pypowsybl simulation tuning (v0.1.4+)
 PYPOWSYBL_FAST_MODE = False         # disable voltage control for speed
+
+# Reassessment parallelism (v0.2.9+) — the per-action reassessment clones a
+# full pypowsybl network per worker, so on a CPU-limited container it over-
+# subscribes the CPU and is slower than serial. Detection is container-aware
+# (cgroup CPU quota + affinity), not os.cpu_count().
+REASSESSMENT_PARALLEL = None        # None=auto, True=force parallel, False=force serial
+REASSESSMENT_MIN_PARALLEL_CORES = 4 # auto mode: min effective cores to parallelise
 
 # Minimum prioritized actions per type (v0.1.3+ / v0.1.9+ / v0.2.x)
 MIN_LINE_RECONNECTIONS = 0
@@ -398,6 +439,16 @@ tests/
 │                                        # SimulatedAction dict-compat, SimulationBackend
 │                                        # flags, shared-baseline routing, import-cycle
 │                                        # dissolution, main facade re-exports
+├── test_discovery_package_structure.py  # discovery package layout invariants + the
+│                                        # DiscovererProtocol conformance check (A5)
+├── test_discovery_results_model.py      # R5 FamilyResult / FAMILY_SPECS registry /
+│                                        # property bridge / phase-order no-dup invariant
+│                                        # + rc double-add behavioural regression
+├── test_injection_base.py              # InjectionDiscoveryBase (overload preamble +
+│                                        # influence factor) + memoised _get_disconnection_bounds
+├── test_action_types_enum.py           # ActionType enum + declarative classify_by_description
+├── test_data_modules.py                # first tests for utils/load_{training,evaluation}_data
+│                                        # (import smoke, load_interesting_lines, C6 guards)
 ├── test_baseline_context_and_variant_registry.py  # R4: BaselineContext (iteration /
 │                                        # release / explicit branch-obs contract),
 │                                        # check_rho_reduction per-backend contract, +
@@ -439,8 +490,24 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.2.8` (see `CHANGELOG.md` for full history)
+**Current version**: `0.2.9` (see `CHANGELOG.md` for full history)
 
+> **v0.2.9 highlights** (deep revisions R5 + A5 + R6-partial from the 2026-07 review, plus a
+> container-aware reassessment fix): discovery restructured around data — one typed
+> `FamilyResult` per family in `self.results` via a declarative `FAMILY_SPECS` registry (with
+> generated back-compat `@property` bridges), data-driven `action_scores` assembly +
+> prioritization loops (`MIN_PHASE_ORDER` / `FILL_PHASE_ORDER`) that make the old latent
+> `renewable_curtailment` double-add impossible, a memoised `_get_disconnection_bounds()`
+> replacing the PST/disconnection `_disco_bounds` temporal coupling, a shared
+> `InjectionDiscoveryBase`, and a `DiscovererProtocol` declaring the mixin surface. `ActionType`
+> enum + declarative keyword classifier (byte-identical string values) with the **C7** grid2op-
+> coupling rule-bypass fixed. **Container-aware reassessment** completes the `0.2.7.post1` serial
+> gate: CPU detection now reads the cgroup quota + scheduler affinity (not `os.cpu_count()`), so
+> the gate actually fires on a 2-vCPU container (where `os.cpu_count()` reported the 16-core
+> host); adds `REASSESSMENT_PARALLEL` / `REASSESSMENT_MIN_PARALLEL_CORES` config knobs
+> (env-overridable). Behaviour-preserving (mock discovery suite green; byte-identical
+> `action_scores`). See `docs/release-notes/v0.2.9.md`.
+>
 > **v0.2.8 highlights** (deep revisions R3 + R4 from the 2026-07 review):
 > **R3 — config single source of truth**: the pydantic `Settings` is authoritative
 > with derived paths as `@computed_field` (overriding `ENV_NAME` recomputes
@@ -527,9 +594,10 @@ See `docs/archive/MIGRATION_PLAN.md` for details. The goal is to remove `grid2op
 ### Key Files for Development
 | Task | Primary Files |
 |------|---------------|
-| Add new action type | `action_evaluation/classifier.py`, `rules.py` |
+| Add new action type | `action_evaluation/action_types.py` (add an `ActionType` + keyword rule), `classifier.py`, `rules.py`; add its `FamilySpec` to `discovery/_results.py` if it is a discovery family |
 | Modify expert rules | `action_evaluation/rules.py` |
-| Modify action scoring | `action_evaluation/discovery/` (per-family mixins) |
+| Add a discovery family / per-family result | `action_evaluation/discovery/_results.py` (`FamilySpec` + phase-order tables) + the family mixin |
+| Modify action scoring | `action_evaluation/discovery/` (per-family mixins); injection families share `_injection_base.py` |
 | Change graph analysis | `graph_analysis/builder.py`, `processor.py` |
 | Antenna (islanded-pocket) graph | `graph_analysis/antenna_graph.py`, `processor.py` (`extract_antenna_context`, `pre_process_antenna_graph`); see `docs/recommender/antenna_overflow_graph.md` |
 | pypowsybl migration | `pypowsybl_backend/*`, `environment_pypowsybl.py` |
@@ -617,6 +685,46 @@ combined = action1 + action2
    In CI, this is done automatically in the `build-and-test` job of `.github/workflows/ci.yml`. Runtime monkey-patching doesn't work because modules are imported before conftest.py runs.
 
 ---
+
+## Contributing & Pull Requests
+
+- **Upstream is `ainetus`; `marota` is the working fork.** Development branches
+  are pushed to `marota/Expert_op4grid_recommender`, but **pull requests are
+  opened directly against the upstream `ainetus/Expert_op4grid_recommender`**
+  (base = its default branch, head = `marota:<branch>`). PRs are *not* opened
+  against `marota`.
+- **Load `ainetus` as an initial source.** A cross-fork PR into `ainetus` can
+  only be created from a session/tool context that has the `ainetus` repo in
+  scope. So a new working session should be started with
+  **`ainetus/Co-Study4Grid` and `ainetus/Expert_op4grid_recommender` as the
+  initial sources** (they should always be auto-loaded) — a session rooted only
+  at `marota` cannot target `ainetus` (cross-tier adds are blocked), and the PR
+  step will fail with an access-denied error.
+- **Sync `marota` with `ainetus` before starting new work.** PRs merge into
+  `ainetus/main`, but development happens on `marota`, so `marota/main` drifts
+  behind `ainetus/main` after every merged PR. **At the start of a dev session,
+  bring `marota/main` up to date with `ainetus/main`** — GitHub "Sync fork", or
+  locally `git fetch ainetus main && git merge --ff-only ainetus/main` then push
+  `marota/main` — and branch from there. Skipping this makes a new branch collide
+  with the already-merged revisions when it is PR'd into `ainetus`. If the sync
+  was missed and the PR already shows conflicts, merge `ainetus/main` into the
+  branch (or rebase onto it) and resolve, then force-with-lease push.
+- **DCO sign-off is required on every commit.** The `ainetus` repos enforce the
+  [Developer Certificate of Origin](https://developercertificate.org/). Every
+  commit must carry a `Signed-off-by: <Name> <amarot91@gmail.com>` trailer, and
+  because the DCO check matches the sign-off against the commit **author**, the
+  commit must also be *authored* under that same identity (author email =
+  `amarot91@gmail.com`). Practically:
+
+  ```bash
+  git config user.name  "<Name>"
+  git config user.email "amarot91@gmail.com"
+  git commit -s -m "..."          # -s appends the Signed-off-by trailer
+  ```
+
+  To sign off commits that were already made under a different identity, re-author
+  and add the trailer (e.g. `git rebase --exec 'git commit --amend --no-edit \
+  --reset-author -s' <base>`), then force-with-lease push the branch.
 
 ## Contact / License
 

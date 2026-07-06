@@ -56,6 +56,9 @@ from expert_op4grid_recommender.action_evaluation.discovery._orchestrator import
     OrchestratorMixin,
 )
 from expert_op4grid_recommender.action_evaluation.discovery._pst import PSTMixin
+from expert_op4grid_recommender.action_evaluation.discovery._injection_base import (
+    InjectionDiscoveryBase,
+)
 from expert_op4grid_recommender.action_evaluation.discovery._renewable_curtailment import (
     RenewableCurtailmentMixin,
 )
@@ -82,6 +85,10 @@ MIXIN_EXPECTED_METHODS: dict[type, set[str]] = {
     LoadSheddingMixin: {"find_relevant_load_shedding"},
     RenewableCurtailmentMixin: {"find_relevant_renewable_curtailment"},
     RedispatchMixin: {"find_relevant_redispatch"},
+    InjectionDiscoveryBase: {
+        "_injection_overload_context",
+        "_injection_influence_factor",
+    },
     OrchestratorMixin: {"discover_and_prioritize"},
     NodeSplittingMixin: {
         "identify_bus_of_interest_in_node_splitting_",
@@ -132,8 +139,26 @@ BASE_SHARED_HELPERS: set[str] = {
 
 
 def _class_defined_methods(cls: type) -> set[str]:
-    """All non-dunder names defined locally on ``cls`` (excluding inherited)."""
-    return {name for name in cls.__dict__ if not name.startswith("__")}
+    """All non-dunder *methods* defined locally on ``cls`` (excluding inherited).
+
+    Counts only callables (functions / static- / classmethods). This excludes
+    the per-family ``FamilyResult`` ``@property`` bridges installed on
+    :class:`DiscovererBase` (``identified_reconnections``, ``scores_splits_dict``,
+    …) and the ``MARGIN_KEY`` / ``MIN_MW_KEY`` class constants on the injection
+    mixins — data, not methods — which would otherwise inflate the invariants
+    below.
+    """
+    import inspect
+
+    return {
+        name
+        for name, value in cls.__dict__.items()
+        if not name.startswith("__")
+        and (
+            inspect.isfunction(value)
+            or isinstance(value, (staticmethod, classmethod))
+        )
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +219,19 @@ def test_mixin_defines_exactly_its_family_methods(mixin, expected_methods):
     )
 
 
+def test_action_discoverer_satisfies_discoverer_protocol_methods():
+    """A5: the shared surface the family mixins depend on is now declared in
+    ``DiscovererProtocol``. Guard that the base keeps providing every required
+    helper — so "the base lost a method a mixin needs" fails here, not with an
+    AttributeError deep inside discovery."""
+    from expert_op4grid_recommender.action_evaluation.discovery._protocols import (
+        DISCOVERER_REQUIRED_METHODS,
+    )
+
+    missing = [m for m in DISCOVERER_REQUIRED_METHODS if not callable(getattr(ActionDiscoverer, m, None))]
+    assert not missing, f"ActionDiscoverer no longer provides: {missing}"
+
+
 def test_discoverer_base_owns_init_and_shared_helpers():
     """The helpers that multiple families call (caches, scoring primitives,
     generic lookups) must remain on :class:`DiscovererBase`."""
@@ -217,8 +255,8 @@ def test_no_method_is_defined_in_two_places():
 
 
 def test_method_count_matches_original_class():
-    """Sanity check: the new package distributes exactly 50 methods
-    across the base + mixins. The base contributes ``__init__`` plus 31
+    """Sanity check: the new package distributes exactly 53 methods
+    across the base + mixins. The base contributes ``__init__`` plus 32
     helpers (the original 24 plus ``_get_subs_with_dispatchable_gens``,
     ``_get_voltage_level_metadata`` and ``_get_site_higher_voltage_map``
     added for redispatching, ``_cap_candidates_for_simulation`` that
@@ -226,22 +264,29 @@ def test_method_count_matches_original_class():
     ``_get_simulation_baseline`` that shares the candidate-check baseline LF
     across discovery passes as a :class:`BaselineContext`,
     ``_shared_baseline_check`` that routes the topological passes through that
-    shared baseline on pypowsybl — replacing the old ``main.py`` monkey-patch —
-    and ``_release_simulation_baseline`` that frees the shared baseline's
-    retained variant at the end of the run (R4)); the nine mixins together
-    contribute the remaining 18 family methods
-    (1 + 2 + 8 + 2 + 1 + 1 + 1 + 1 + 1)."""
+    shared baseline on pypowsybl — replacing the old ``main.py`` monkey-patch —,
+    ``_release_simulation_baseline`` that frees the shared baseline's retained
+    variant at the end of the run (R4), and ``_get_disconnection_bounds`` that
+    memoises the disconnection/PST flow bounds once per run, replacing the
+    order-sensitive ``_disco_bounds`` del/lazy protocol (R5); the nine mixins
+    together contribute the remaining 18 family methods
+    (1 + 2 + 8 + 2 + 1 + 1 + 1 + 1 + 1), and InjectionDiscoveryBase adds 2 shared
+    injection helpers. The FamilyResult @property bridges and the injection
+    MARGIN_KEY / MIN_MW_KEY class constants are excluded by
+    ``_class_defined_methods`` (they are data, not methods)."""
     non_dunder = sum(
         len(_class_defined_methods(cls))
         for cls in [DiscovererBase, *MIXIN_EXPECTED_METHODS.keys()]
     )
     # _class_defined_methods filters out dunder names, so __init__ is
     # excluded from the per-class counts. Add it back explicitly to get
-    # the full 50 (42 original + redispatch mixin + 3 redispatch helpers +
+    # the full 53 (42 original + redispatch mixin + 3 redispatch helpers +
     # the candidate-simulation cap helper + the shared baseline helper +
-    # the shared-baseline topological-check helper + the baseline release helper).
+    # the shared-baseline topological-check helper + _get_disconnection_bounds
+    # + InjectionDiscoveryBase's 2 shared injection helpers (R5) + the baseline
+    # release helper (R4)).
     assert "__init__" in DiscovererBase.__dict__
-    assert non_dunder + 1 == 50
+    assert non_dunder + 1 == 53
 
 
 # ---------------------------------------------------------------------------

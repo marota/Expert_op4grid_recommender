@@ -19,14 +19,19 @@ The default delta (``REDISPATCH_DEFAULT_DELTA_MW``) is editable downstream
 (Co-Study4Grid); the real target setpoint ``current ± delta`` is encoded in
 the ``set_gen_p`` action so the variation is actually simulated.
 """
-import numpy as np
 from typing import List
 
 from expert_op4grid_recommender import config
+from expert_op4grid_recommender.action_evaluation.discovery._injection_base import (
+    InjectionDiscoveryBase,
+)
 
 
-class RedispatchMixin:
+class RedispatchMixin(InjectionDiscoveryBase):
     """Redispatching discovery mixin."""
+
+    MARGIN_KEY = "REDISPATCH_MARGIN"
+    MIN_MW_KEY = "REDISPATCH_MIN_MW"
 
     def find_relevant_redispatch(
         self,
@@ -45,9 +50,14 @@ class RedispatchMixin:
             nodes_dispatch_loop_names: names of the red dispatch-loop edges,
                 used to account for parallel-path influence when raising.
         """
-        self._build_lookup_caches()
-        self._get_edge_data_cache()
-        obs = self.obs_defaut
+        # Shared overload preamble (InjectionDiscoveryBase): warm caches, read
+        # the REDISPATCH margin / min-MW knobs, and compute max_overload_flow +
+        # P_overload_excess. None => early return. ``delta`` (the redispatch
+        # step) is family-specific and read here.
+        _ctx = self._injection_overload_context()
+        if _ctx is None:
+            return
+        obs = _ctx.obs
 
         # Hoist observation arrays to locals ONCE — ``obs.name_sub`` /
         # ``obs.name_gen`` rebuild a fresh numpy string array on every access
@@ -55,31 +65,13 @@ class RedispatchMixin:
         # candidate inside the loops below is O(candidates x n_elements).
         name_sub_arr = obs.name_sub
         name_gen_arr = obs.name_gen
-        name_line_arr = obs.name_line
         gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
 
-        margin = config.REDISPATCH_MARGIN
-        min_mw = config.REDISPATCH_MIN_MW
-        delta = config.REDISPATCH_DEFAULT_DELTA_MW
-
-        name_to_capacity = self._build_line_capacity_map()
-        if not name_to_capacity:
-            return
-
-        overloaded_line_names = {name_line_arr[i] for i in self.lines_overloaded_ids}
-        overloaded_caps = [
-            name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
-        ]
-        max_overload_flow = (
-            max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
-        )
-
-        if len(self.lines_overloaded_ids) == 0:
-            return
-        rho_max = float(np.max(obs.rho[self.lines_overloaded_ids]))
-        if rho_max <= 1.0:
-            return
-        P_overload_excess = (rho_max - 1.0) * max_overload_flow
+        margin = _ctx.margin
+        min_mw = _ctx.min_mw
+        delta = getattr(config, "REDISPATCH_DEFAULT_DELTA_MW", 10.0)
+        max_overload_flow = _ctx.max_overload_flow
+        P_overload_excess = _ctx.P_overload_excess
 
         blue_edge_names_set = self._get_blue_edge_names_set()
         dispatch_loop_set = (
@@ -152,10 +144,8 @@ class RedispatchMixin:
                 if influence_flow <= 0:
                     continue
 
-                influence_factor = (
-                    min(1.0, influence_flow / max_overload_flow)
-                    if max_overload_flow > 0
-                    else 0.0
+                influence_factor = self._injection_influence_factor(
+                    influence_flow, max_overload_flow
                 )
                 if influence_factor <= 0:
                     continue

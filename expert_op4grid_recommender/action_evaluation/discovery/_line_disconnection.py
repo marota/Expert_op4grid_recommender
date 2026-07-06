@@ -42,19 +42,20 @@ class LineDisconnectionMixin:
         Returns:
             float: The heuristic score for this disconnection action.
         """
-        # Lazy-compute and cache the bounds and capacity map
-        if not hasattr(self, "_disco_bounds"):
-            self._disco_bounds = self._compute_disconnection_flow_bounds()
-            self._disco_capacity_map = self._build_line_capacity_map()
-
-        max_overload_flow, min_redispatch, max_redispatch = self._disco_bounds
+        # Shared disconnection/PST flow bounds + capacity map, memoised once per
+        # run via _get_disconnection_bounds() (A5: replaces the order-sensitive
+        # ``_disco_bounds`` del/lazy protocol shared with PST scoring).
+        _bounds = self._get_disconnection_bounds()
+        max_overload_flow = _bounds.max_overload_flow
+        min_redispatch = _bounds.min_redispatch
+        max_redispatch = _bounds.max_redispatch
 
         if max_overload_flow < 1e-6:
             return 0.0
 
         # Sum capacities of lines being disconnected (observed redispatch flow)
         observed_flow = sum(
-            self._disco_capacity_map.get(line, 0.0) for line in lines_in_action
+            _bounds.capacity_map.get(line, 0.0) for line in lines_in_action
         )
 
         if max_redispatch == float("inf"):
@@ -98,11 +99,6 @@ class LineDisconnectionMixin:
         identified, effective, ineffective, ignored = {}, [], [], []
         scores_map: Dict[str, float] = {}
         act_defaut = self._create_default_action(self.action_space, self.lines_defaut)
-
-        # Invalidate cached disconnection bounds so they are recomputed for this call
-        if hasattr(self, "_disco_bounds"):
-            del self._disco_bounds
-            del self._disco_capacity_map
 
         overloaded_line_names = {
             self.obs_defaut.name_line[i] for i in self.lines_overloaded_ids
@@ -179,9 +175,18 @@ class LineDisconnectionMixin:
         self.ignored_disconnections = ignored
         self.scores_disconnections = scores_map
 
-        # Capture computed bounds before cleanup
-        if hasattr(self, "_disco_bounds"):
-            max_overload_flow, min_redispatch, max_redispatch = self._disco_bounds
+        # Capture the computed bounds into params — but only when scoring
+        # actually ran (i.e. there were candidates), preserving the historical
+        # "empty params when no candidate was scored" behaviour. The memoised
+        # ``_cached_disconnection_bounds`` is set exactly when
+        # ``compute_disconnection_score`` first called ``_get_disconnection_bounds``,
+        # so its presence is the byte-identical replacement for the old
+        # ``hasattr(self, "_disco_bounds")`` guard.
+        if hasattr(self, "_cached_disconnection_bounds"):
+            _bounds = self._cached_disconnection_bounds
+            max_overload_flow = _bounds.max_overload_flow
+            min_redispatch = _bounds.min_redispatch
+            max_redispatch = _bounds.max_redispatch
             if max_redispatch == float("inf"):
                 # Unconstrained regime: linear ramp, peak at max_overload_flow
                 self.params_disconnections = {
@@ -203,8 +208,3 @@ class LineDisconnectionMixin:
                 }
         else:
             self.params_disconnections = {}
-
-        # Clean up cached bounds
-        if hasattr(self, "_disco_bounds"):
-            del self._disco_bounds
-            del self._disco_capacity_map

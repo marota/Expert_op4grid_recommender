@@ -52,13 +52,87 @@ branch (released as **0.2.6**). Summary of what landed:
 - **Infrastructure** — CI migrated CircleCI → GitHub Actions (`.github/workflows/ci.yml`);
   added `scripts/benchmark_pipeline.py`.
 
-The deep-revision roadmap in §6 has since advanced across two follow-up releases:
+The deep-revision roadmap in §6 has since advanced across three follow-up releases:
 **R1 + R2** (typed pipeline spine + `SimulationBackend` protocol, `main.py` split)
 shipped in **0.2.7**; **R3 + R4** (config single-source-of-truth, unified
-per-backend simulation seam behind `BaselineContext`) shipped in **0.2.8** — see
-the ✅-marked entries in §6 for exactly what landed. Still open: **R5–R10**
-(discovery-as-data restructure, `utils/` split, `manoeuvre` IHM promotion,
-CI/packaging convergence, doc reset, product split) and the C7 formula ambiguities.
+per-backend simulation seam behind `BaselineContext`) shipped in **0.2.8**; and
+**R5 + A5 + C7** (discovery-as-data restructure, `ActionType` enum, the C7 rule-bypass
+fix) plus a container-aware reassessment fix and **R6-partial** shipped in **0.2.9** —
+see the ✅-marked entries in §6 for exactly what landed. Still open: the **R6** `utils/`
+file-move, **R7–R10** (`manoeuvre` IHM promotion, CI/packaging convergence, doc reset,
+product split) and the C7 formula ambiguities.
+
+### Status & what's left (all categories)
+
+Per-finding status is tracked **inline**: the §4 weaknesses carry "**FIXED in this branch**"
+tags on the ones already closed, and each deep revision in [§6](#6-deep-revision-proposals)
+carries a **Done / Partial / Deferred** annotation. **Shipped so far:** the **C2–C6 + C-diag**
+correctness/security fixes, **P1** and **P2** (0.2.6); **R1 + R2** typed pipeline spine + backend
+protocol (0.2.7); **R3 + R4** config single-source + unified simulation seam / `BaselineContext`
+(0.2.8); **R5 + A5 + C7 + R6-partial** discovery-as-data + container-aware reassessment (0.2.9).
+This closes **A1** (god object → R1), **A2** (import cycles → R2), **A3** (config desync → R3),
+**A5** (discovery modularization → R5), **M1** (stale CLAUDE.md, now current at 0.2.9), and the
+**P2** observation-fetch cost (0.2.6).
+
+**Still to do — comprehensive, by category** (`→R#` = the deep revision that subsumes it):
+
+*Deep-revision roadmap (§6):*
+
+- **R6 (remainder):** the `utils/` file-move reorg (`repas/` subpackage, environment-factory
+  merge, `superposition` / `reassessment` promotion, `__main__` → `scripts/`).
+- **R7:** promote the manoeuvre IHM into the package + decompose
+  `determiner_manoeuvres_avec_sections` (CC 165).
+- **R8:** Python 3.10–3.12 matrix, `pytest --cov` ratchet, a no-grid2op CI leg, `pypowsybl2grid`
+  behind a `[grid2op]` extra, one dependency source + lockfile, vendored pypowsybl2grid subclass.
+- **R9 (remainder):** language policy, release-checklist guard, and the recommender golden-test net.
+- **R10:** the `manoeuvre` product-split decision.
+
+*Correctness & security residuals (§4.1 / C7 / W3):*
+
+- Initialize `raw_dict_action` (latent `NameError`); guard the two `max()` calls in
+  `_node_merging.py`; match overload edges by `name` (not float-equal rho) in `processor.py`;
+  fix the two `ObservationWithTopologyOverride` property groups (`n_components` / `q_or` / `q_ex`).
+- Resolve the three ambiguous-physics sites: the competing `max_redispatch` formulas
+  (`discovery/_base.py`), the reconnection delta-theta **sort direction**, and the in/out
+  flow-orientation asymmetry.
+- Manoeuvre IHM: the `SESSION is None` route guards (W3) and `Host`-header validation
+  (DNS-rebinding vector). *(C2–C6, C-diag, the C7 rule-bypass and the missing `config_test`
+  keys are already fixed.)*
+
+*Architecture (§4.2):*
+
+- **A4** the shipped defaults are the test fixture (production values live in `config_basic.py`,
+  so `python main.py` analyzes the toy grid); **A6** residual interface bloat (`ActionDiscoverer`'s
+  23 kwargs, `fast_mode`'s three conflicting defaults); **A7** leaky backend abstraction (external
+  code reaches `env.backend._grid.network`, `obs._network_manager._default_dc`, `obs._limit_or`;
+  `theta_or` radians-vs-degrees; two divergent rho definitions); **A8** `utils/` split → R6 (its
+  `simulation.py` / `simulation_pypowsybl.py` duplication already closed by R4). *(A1 / A2 closed
+  by R1 / R2; A3 by R3; A5 by R5.)*
+
+*Performance (§4.3):*
+
+- **P3** per-element full-table fetches in action application (`disconnect_line` /
+  `reconnect_line`, `SwitchAction.apply` fetching the whole switch table per switch id);
+  **P4** cache the `name_line` / `name_sub` / `name_gen` arrays (the O(n²) trap class, incl.
+  `set_thermal_limit`); **P5** per-candidate full-graph recompute in scoring (now **unblocked**
+  by the C3 fix — pass the cached labels through); **P6** misc (LF-params JSON round-trip,
+  defensive `.copy()` patterns, the dead O(n²) `topology.py`). *(P1 done; P2 largely landed in 0.2.6.)*
+
+*Maintainability / tests / packaging (§4.4):*
+
+- **M3** no coverage measurement — add `pytest --cov` + a ratchet (blind spots remain:
+  `simulation_env.py`, `make_*_env.py`, `data_loader.py`); **M4** dependency-declaration drift
+  → R8; **M5** the load-bearing site-packages patch → vendored subclass (→R8); **M6**
+  observability — 191 `print()` vs. logging, swallowed failures, the still-empty
+  `non_convergence` field; **M7** a declared bilingual policy → R9; **M8** manoeuvre structural
+  debt (the 2,131-line Flask app, the `Session` god class, the Flask dev server in prod, 1.1 MB
+  of map JSON in every wheel) → R7 / R10.
+
+*Quick wins (§7, mechanical):*
+
+- Register the `slow` pytest marker + `testpaths` + error-on-unknown-marks; sync
+  `requirements.txt` with `pyproject.toml` (add numpy / pydantic / pydantic-settings; one floor
+  per dependency); hoist `act_defaut` out of the node-merging loop.
 
 **Highest-priority findings** (detail in §4). One finding originally headlined here — a pypowsybl rho-check comparing the candidate against the wrong reference state — was **downgraded to cosmetic** after tracing the data flow (discovery ranks from the overflow graph, not from that simulation; the rho-check output is diagnostic-only and gated off by default) and **fixed in this branch**; it is kept in the table's last row and written up as C-diag in §4.1 as a worked example of review principle #4 (verify the failure scenario before assigning severity).
 
@@ -230,6 +304,7 @@ Ordered as a coherent roadmap; each step is enabled by the previous and by safet
 
 **R1 — Typed pipeline spine ✅ DONE (0.2.7)** (highest leverage, mostly mechanical).
 Introduce `AnalysisContext` and `AnalysisResult` dataclasses replacing the 41-key dict and the untyped result dict; make step1 return `AnalysisResult | AnalysisContext` (or raise a typed outcome) instead of the `(Optional, Optional)` sentinel. Introduce a `SimulationBackend` protocol with the 9 backend operations plus `fast_mode` as constructor state (`Grid2opBackend`, `PypowsyblBackend`), deleting the 18 delegation wrappers (~120 lines), the 8 function pointers in the context, the call-site `if is_pypowsybl:` forks and the `discoverer._*` monkey-patching in one move. The codebase already proves it can do this well — `RecommenderInputs` is the template. Actually use `SimulatedAction`.
+**Status — DONE (0.2.7).** Shipped as proposed: `AnalysisContext` / `AnalysisResult` (dict-compatible via `DictCompatMixin`), `run_analysis_step1` returns `AnalysisContext | AnalysisResult`, the `SimulationBackend` protocol with `Grid2opBackend` / `PypowsyblBackend`, and `SimulatedAction` now actually emitted by reassessment; the 18 delegation wrappers, the 8 context function pointers, the `is_pypowsybl` forks and the discoverer monkey-patching are gone. Byte-identical prioritized-action output.
 
 **R2 — Split `main.py` into `cli.py` + `pipeline.py` ✅ DONE (0.2.7)**; move `_run_expert_discovery` under `models/`. Dependency direction becomes `cli → pipeline → models → action_evaluation/graph_analysis → utils`, dissolving all three import cycles (A2) and making `print` acceptable exactly where it remains (the CLI).
 
@@ -297,16 +372,22 @@ Introduce `AnalysisContext` and `AnalysisResult` dataclasses replacing the 41-ke
 > remaining slice.
 
 **R5 — Restructure discovery around data, not mixins.** A `FamilyResult` dataclass (`identified/effective/ineffective/scores/params/non_convergence`) stored as `self.results: Dict[family, FamilyResult]` kills ~40 lines of `__init__`, the 8× hand-written `action_scores` assembly, the PST `getattr` special-casing, and makes prioritization a data-driven loop over an ordered `(family, min_key, cap)` table — the duplicate-call slip becomes impossible. Extract a shared `InjectionDiscoveryBase` for the three injection families (~120 duplicated preamble lines, already drifting: curtailment weighs 4 flow components, shedding 2, undocumented). Replace substring action-type matching with an `ActionType` enum and a declarative keyword→type table (fixes the rules bypass in C7).
+**Status — DONE (0.2.9).** `FamilyResult` per family in `self.results` + a declarative `FAMILY_SPECS` registry (with generated `@property` bridges); the `action_scores` assembly and prioritization are data-driven loops (`ACTION_SCORES_ORDER` / `MIN_PHASE_ORDER` / `FILL_PHASE_ORDER`), making the latent `renewable_curtailment` double-add impossible; the PST `_disco_bounds` del/lazy temporal coupling is replaced by a memoised `_get_disconnection_bounds()` → frozen `DisconnectionBounds`; `InjectionDiscoveryBase` factors the shared injection preamble; `DiscovererProtocol` declares the mixin surface (A5); the `ActionType` enum + `classify_by_description` table land with the **C7** grid2op-coupling rule-bypass fixed. Behaviour-preserving (byte-identical `action_scores`).
 
 **R6 — Split `utils/` by intent**: `repas/` (parser, converter — itself split into `_compat`/`topology_cache`/`convert` —, rebuilder), environment factories merged with the top-level `environment*.py`, `superposition` and `reassessment` promoted to the pipeline layer, `__main__` script bodies moved to `scripts/`. Fix the C6 bugs as part of the move — and give the two data modules their first tests.
+**Status — PARTIAL (0.2.9).** All four **C6** `utils/` bugs are verified fixed and the two previously-untested data modules got their first tests (`tests/test_data_modules.py`). **Remaining:** the file-move reorganization itself (`repas/` subpackage, environment-factory merge, `superposition`/`reassessment` promotion, `__main__` → `scripts/`) — a large mechanical import-surface change (`utils/__init__.py` is empty, so re-export shims keep it low-risk) best landed as its own PR with full cross-repo CI.
 
 **R7 — manoeuvre: promote the IHM into the package** (`manoeuvre/ihm/`): `create_app()` factory replacing module globals (enables `test_client()`, multi-session later), `Session` split into `NetworkView`/`SequenceEditor`/`ScenarioStore`, routes as blueprints, `scripts/manoeuvre_ihm.py` reduced to a shim; run the Space under waitress/gunicorn (workers=1, threads=1 to preserve the documented serialization invariant) with a `/healthz`. Decompose `determiner_manoeuvres_avec_sections` (CC 165) into phase functions over a `SequencingContext` dataclass — the golden suite makes this near risk-free, which is precisely what it was built for. Define a real public API for `algo/` and retire the 30 re-exported underscore names over one release.
+**Status — DEFERRED.** Not started. (The C2 path-traversal / config-dir hardening of the IHM landed in 0.2.6, but the structural promotion and the CC-165 decomposition are untouched.)
 
 **R8 — CI/packaging convergence.** One CI platform; Python matrix 3.10–3.12; `pytest --cov` with a coverage ratchet (same philosophy as the ruff baseline); **one matrix leg installing without grid2op** to enforce the optionality contract; move `pypowsybl2grid` behind a `[grid2op]` extra; a single dependency source (`pyproject.toml` + lockfile) feeding both CI configs. Replace the site-packages file patch with a vendored backend subclass and upstream the fix.
+**Status — PARTIAL.** The one-CI-platform migration (CircleCI → GitHub Actions, `.circleci/` removed) landed in 0.2.6. **Remaining:** the Python 3.10–3.12 matrix, the `pytest --cov` coverage ratchet, a **no-grid2op** matrix leg, `pypowsybl2grid` behind a `[grid2op]` extra, a single dependency source + lockfile, and the vendored pypowsybl2grid subclass replacing the site-packages patch.
 
 **R9 — Documentation reset.** Regenerate CLAUDE.md against 0.2.5 (tree with `manoeuvre/`, `models/`, `discovery/`-as-package; current config keys; a declared language policy); add a release-checklist item so it can't drift a full minor version again. Extend the golden-test pattern to the recommender: freeze `action_scores`/`prioritized_actions` for 2–3 canonical contingencies on the dijon fixture — the scoring code changes every minor version and currently has no characterization net.
+**Status — PARTIAL.** CLAUDE.md has been regenerated and is kept current (now 0.2.9 — `discovery/`-as-package, `models/`, `manoeuvre/`, current config keys), resolving **M1**, and each release now ships a `docs/release-notes/vX.md`. **Remaining:** a declared bilingual language policy, a release-checklist guard against version drift, and the recommender golden-test net (still absent — the biggest characterization gap).
 
 **R10 — Consider the product split.** `manoeuvre` already has zero coupling, its own CLAUDE.md, docs tree, test tree and deploy pipeline. Either extract it as its own distribution or formalize the monorepo (independent versioning, CI path filters). Right now it pays a shared-repo tax (wheel size — including 1.1 MB of map JSON in recommender-only installs —, entangled release notes, a bilingual changelog).
+**Status — DEFERRED.** Not started — an open product decision.
 
 ---
 

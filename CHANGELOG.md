@@ -9,6 +9,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-07-06
+
+### Changed
+
+- **Discovery restructured around data (deep revisions R5 + A5).** Action
+  discovery no longer carries its per-family outcome as ~40 hand-repeated
+  instance attributes. `action_evaluation/discovery/_results.py` holds one typed
+  `FamilyResult` per family in `self.results`, described by a declarative
+  `FAMILY_SPECS` registry that also generates back-compat `@property` bridges
+  (zero mixin/test churn). Consequences:
+  - `__init__` boilerplate, the PST `getattr` special-casing (PST is now a
+    normal family in `self.results`), the 8× `action_scores` literal, and the
+    18 hand-written prioritization calls all collapse to data-driven loops
+    (`MIN_PHASE_ORDER` / `FILL_PHASE_ORDER`, one entry per family). This removes
+    a `renewable_curtailment` add that had slipped in **twice** per phase — a
+    real latent double-add.
+  - PST scoring's cross-file, order-sensitive `_disco_bounds` del/lazy protocol
+    is replaced by a memoised `_get_disconnection_bounds()` returning a frozen
+    `DisconnectionBounds`.
+  - `InjectionDiscoveryBase` factors the shared overload preamble + influence
+    factor out of the three injection families (the divergent cache / flow-arity
+    pairing is intentionally kept per-family).
+  - `DiscovererProtocol` declares the shared surface the mixins depend on.
+  Behaviour-preserving (mock discovery suite green; byte-identical `action_scores`).
+- **`ActionType` enum + declarative classifier; C7 rule-bypass fix (R5 / C7).**
+  `action_evaluation/action_types.py` gives the action-type vocabulary a typed
+  home (values byte-identical to the historical strings) and turns the
+  classifier's description cascade into one ordered keyword table. `rules.py`
+  now localizes grid2op-format couplings (substation in
+  `content['set_bus']['substations_id']`) backend-agnostically — previously they
+  fell through to `"unknown"` and escaped every expert rule (silent, backend-
+  specific bypass).
+- **R6 (partial):** verified all four C6 `utils/` bugs are fixed and gave the two
+  previously-untested data modules their first tests. The `utils/` file-move
+  reorganization (`repas/` subpackage, environment merge, superposition /
+  reassessment promotion, `__main__` → `scripts/`) remains to be landed as its
+  own PR.
+- **Container-aware reassessment CPU detection (completes the 2-vCPU fix).**
+  `0.2.7.post1` gated parallel reassessment behind
+  `min(10, cores, n_actions) >= 4`, but `cores` still came from
+  `os.cpu_count()`, which reports the **host** core count inside a CPU-limited
+  container (e.g. a 2-vCPU box on a 16-core host) — so the gate never fired and
+  the reassessment still over-subscribed the 2 vCPUs and ran *slower* than
+  serial (a reported ~47 s). CPU detection is now container-aware
+  (`_effective_cpu_count()` = min of `os.cpu_count()`, scheduler affinity, and
+  the cgroup CPU quota `cpu.max` / `cpu.cfs_quota_us`), so the effective core
+  count reflects the container and the existing worker-count gate correctly
+  stays serial. Two new config knobs complement the retained `0.2.7.post1` env
+  var (`EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS`), all env-overridable via
+  `EXPERT_OP4GRID_*`:
+  - `REASSESSMENT_PARALLEL`: `None` = auto (default), `True` = force parallel,
+    `False` = force serial (recommended on 2-vCPU deployments).
+  - `REASSESSMENT_MIN_PARALLEL_CORES` (default 4): in auto mode, the minimum
+    effective cores required before parallelising.
+
+  Behaviour-preserving otherwise. New unit coverage:
+  `tests/test_reassessment_parallelism.py`.
+
 ## [0.2.8] - 2026-07-04
 
 ### Changed

@@ -17,6 +17,11 @@ from alphaDeesp.core.graphsAndPaths import (
 
 from expert_op4grid_recommender import config
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
+from expert_op4grid_recommender.action_evaluation.discovery._results import (
+    DisconnectionBounds,
+    install_family_result_properties,
+    new_results,
+)
 from expert_op4grid_recommender.utils.simulation import (
     check_rho_reduction as _default_check_rho_reduction,
 )
@@ -145,49 +150,54 @@ class DiscovererBase:
         else:
             self._check_rho_reduction = self._per_candidate_check
 
-        # Initialize results holders (remain the same)
-        self.identified_reconnections = {}
-        self.effective_reconnections = []
-        self.ineffective_reconnections = []
-        self.identified_merges = {}
-        self.effective_merges = []
-        self.ineffective_merges = []
-        self.identified_splits = {}
-        self.effective_splits = []
-        self.ineffective_splits = []
-        self.ignored_splits = []
+        # Per-family discovery outcome — one typed FamilyResult per family
+        # (revision R5), keyed by family token. The legacy per-family attribute
+        # names (``identified_reconnections``, ``scores_splits_dict``,
+        # ``scores_pst_actions``, …) are @property bridges installed on the class
+        # (see the bottom of this module), so every existing mixin write and test
+        # read transparently targets ``self.results[key].<field>``. PST is a
+        # family like any other now — always present in ``self.results`` — so the
+        # orchestrator's ``getattr`` special-casing is gone.
+        self.results = new_results()
+        # Two family-specific extras that are not part of the unified quintuplet
+        # and are read directly by the node-splitting / disconnection mixins:
+        # ``scores_splits`` is a sorted score LIST (distinct from the dict
+        # ``scores_splits_dict``); ``ignored_*`` collect candidates dropped
+        # before scoring.
         self.scores_splits = []
-        self.identified_disconnections = {}
-        self.effective_disconnections = []
-        self.ineffective_disconnections = []
+        self.ignored_splits = []
         self.ignored_disconnections = []
-        self.scores_reconnections = {}
-        self.scores_splits_dict = {}
-        self.scores_disconnections = {}
-        self.scores_merges = {}
-        self.params_reconnections = {}
-        self.params_splits_dict = {}
-        self.params_disconnections = {}
-        self.params_merges = {}
-        self.identified_load_shedding = {}
-        self.effective_load_shedding = []
-        self.ineffective_load_shedding = []
-        self.scores_load_shedding = {}
-        self.params_load_shedding = {}
-        self.identified_renewable_curtailment = {}
-        self.effective_renewable_curtailment = []
-        self.ineffective_renewable_curtailment = []
-        self.scores_renewable_curtailment = {}
-        self.params_renewable_curtailment = {}
-        self.identified_redispatch = {}
-        self.effective_redispatch = []
-        self.ineffective_redispatch = []
-        self.scores_redispatch = {}
-        self.params_redispatch = {}
         self.prioritized_actions = {}
         # Shared per-run baseline (BaselineContext), lazily built by
         # _get_simulation_baseline and released by _release_simulation_baseline.
         self._cached_simulation_baseline = None
+
+    def _get_disconnection_bounds(self) -> DisconnectionBounds:
+        """Return the disconnection/PST flow bounds, computed once per run.
+
+        Both line-disconnection scoring and PST scoring need the same reference
+        flows (``max_overload_flow`` + the per-line ``capacity_map``). They are a
+        pure function of immutable per-instance state (``obs``, ``obs_defaut``,
+        ``obs_linecut``, ``lines_overloaded_ids``) and the discoverer is created
+        fresh per Step-2 run, so a single memoised value is always correct.
+
+        This replaces the previous ``self._disco_bounds`` / ``_disco_capacity_map``
+        pair that PST lazily created and disconnection *deleted* at entry and
+        exit — a cross-file, order-sensitive protocol (A5) that made PST scoring
+        silently depend on disconnections running immediately before it. Any
+        family may now call this in any order and get the identical value.
+        """
+        if not hasattr(self, "_cached_disconnection_bounds"):
+            max_overload_flow, min_redispatch, max_redispatch = (
+                self._compute_disconnection_flow_bounds()
+            )
+            self._cached_disconnection_bounds = DisconnectionBounds(
+                max_overload_flow=max_overload_flow,
+                min_redispatch=min_redispatch,
+                max_redispatch=max_redispatch,
+                capacity_map=self._build_line_capacity_map(),
+            )
+        return self._cached_disconnection_bounds
 
     def _cap_candidates_for_simulation(self, identified, scores_map):
         """Return the subset of ``identified`` actions to validate by simulation.
@@ -1234,3 +1244,10 @@ class DiscovererBase:
                     subs_impacted.add(sub_id)
 
         return list(subs_impacted)
+
+
+# Install the back-compat @property bridges (identified_reconnections,
+# scores_splits_dict, scores_pst_actions, …) onto DiscovererBase so every legacy
+# per-family attribute read/write proxies onto self.results[key].<field>. The
+# composed ActionDiscoverer inherits them via the MRO.
+install_family_result_properties(DiscovererBase)

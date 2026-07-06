@@ -5,13 +5,18 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 """Renewable curtailment discovery mixin."""
-import numpy as np
 from typing import List
 
-from expert_op4grid_recommender import config
+from expert_op4grid_recommender.action_evaluation.discovery._injection_base import (
+    InjectionDiscoveryBase,
+)
 
-class RenewableCurtailmentMixin:
+
+class RenewableCurtailmentMixin(InjectionDiscoveryBase):
     """Renewable curtailment discovery mixin."""
+
+    MARGIN_KEY = "RENEWABLE_CURTAILMENT_MARGIN"
+    MIN_MW_KEY = "RENEWABLE_CURTAILMENT_MIN_MW"
 
     def find_relevant_renewable_curtailment(
         self, nodes_indices: List[int], nodes_dispatch_loop_names: List[str] = []
@@ -26,10 +31,13 @@ class RenewableCurtailmentMixin:
         - Cached blue edge names and node flow calculations
         - Pre-computed baseline simulation for batch action checking
         """
-        self._build_lookup_caches()
-        # Ensure edge data cache is populated (single pass over all edges)
-        self._get_edge_data_cache()
-        obs = self.obs_defaut
+        # Shared overload preamble (InjectionDiscoveryBase): warm caches, read
+        # the RENEWABLE_CURTAILMENT margin / min-MW knobs, and compute
+        # max_overload_flow + P_overload_excess. None => early return.
+        _ctx = self._injection_overload_context()
+        if _ctx is None:
+            return
+        obs = _ctx.obs
 
         # Hoist observation arrays to locals ONCE. ``obs.name_sub`` /
         # ``obs.name_gen`` rebuild a fresh numpy string array from a Python
@@ -40,31 +48,12 @@ class RenewableCurtailmentMixin:
         # of this pass on grids with many renewables. Read them once here.
         name_sub_arr = obs.name_sub
         name_gen_arr = obs.name_gen
-        name_line_arr = obs.name_line
         gen_p_array = getattr(obs, "gen_p", getattr(obs, "prod_p", None))
 
-        margin = config.RENEWABLE_CURTAILMENT_MARGIN
-        min_mw = config.RENEWABLE_CURTAILMENT_MIN_MW
-
-        # Compute overload excess in MW (uses cached capacity map)
-        name_to_capacity = self._build_line_capacity_map()
-        if not name_to_capacity:
-            return
-
-        overloaded_line_names = {name_line_arr[i] for i in self.lines_overloaded_ids}
-        overloaded_caps = [
-            name_to_capacity[n] for n in overloaded_line_names if n in name_to_capacity
-        ]
-        max_overload_flow = (
-            max(overloaded_caps) if overloaded_caps else max(name_to_capacity.values())
-        )
-
-        if len(self.lines_overloaded_ids) == 0:
-            return
-        rho_max = float(np.max(obs.rho[self.lines_overloaded_ids]))
-        if rho_max <= 1.0:
-            return
-        P_overload_excess = (rho_max - 1.0) * max_overload_flow
+        margin = _ctx.margin
+        min_mw = _ctx.min_mw
+        max_overload_flow = _ctx.max_overload_flow
+        P_overload_excess = _ctx.P_overload_excess
 
         # Use cached blue edge names (fixes double call to get_constrained_edges_nodes)
         blue_edge_names_set = self._get_blue_edge_names_set()
@@ -134,10 +123,8 @@ class RenewableCurtailmentMixin:
             if influence_flow <= 0:
                 continue
 
-            influence_factor = (
-                min(1.0, influence_flow / max_overload_flow)
-                if max_overload_flow > 0
-                else 0.0
+            influence_factor = self._injection_influence_factor(
+                influence_flow, max_overload_flow
             )
             if influence_factor <= 0:
                 continue
