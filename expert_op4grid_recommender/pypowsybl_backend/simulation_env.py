@@ -147,20 +147,24 @@ class SimulationEnvironment:
         Args:
             thermal_limits: Array of thermal limits in same order as name_line
         """
+        # Hoist name_line to a local once (P4): even though it is now a cached
+        # property, keeping a single reference documents the O(n) contract and
+        # is robust to any future property-side regression.
+        names = self.name_line
         for i, limit in enumerate(thermal_limits):
-            line_name = self.name_line[i]
-            self._thermal_limits[line_name] = limit
-    
+            self._thermal_limits[names[i]] = limit
+
     def get_thermal_limit(self) -> np.ndarray:
         """
         Get thermal limits as array.
-        
+
         Returns:
             Array of thermal limits in same order as name_line
         """
+        names = self.name_line
         return np.array([
-            self._thermal_limits.get(ln, 9999.0) 
-            for ln in self.name_line
+            self._thermal_limits.get(ln, 9999.0)
+            for ln in names
         ])
     
     # ========== Properties matching grid2op interface ==========
