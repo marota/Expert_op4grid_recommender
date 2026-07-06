@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-07-06
+
+> Version note: `0.2.8` was published to PyPI outside this repository's history;
+> this release deliberately skips that number to avoid a version collision.
+
 ### Changed
 
 - **Discovery restructured around data (deep revisions R5 + A5).** Action

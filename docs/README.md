@@ -77,8 +77,11 @@ dataset, used to validate the maneuver module.
   session handoff: status, results, and next tasks.
 
 ## Release notes (`release-notes/`)
-Per-version notes (v0.2.2 → v0.2.5). The canonical, continuously updated history
-is [CHANGELOG.md](../CHANGELOG.md).
+Per-version notes (v0.2.2 → v0.2.6, v0.2.9). The canonical, continuously updated
+history is [CHANGELOG.md](../CHANGELOG.md). Latest:
+[`release-notes/v0.2.9.md`](release-notes/v0.2.9.md) — discovery restructured
+around data (R5/A5), `ActionType` + C7 rule-bypass fix, container-aware
+reassessment. (`0.2.8` was published to PyPI outside this repo and is skipped.)
 
 ## Reviews (`reviews/`)
 Point-in-time audits of the codebase at a given version — findings age with the

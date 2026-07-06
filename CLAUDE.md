@@ -278,7 +278,7 @@ PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # exclude unless worsened by 2
 # Pypowsybl simulation tuning (v0.1.4+)
 PYPOWSYBL_FAST_MODE = False         # disable voltage control for speed
 
-# Reassessment parallelism (v0.2.8+) — the per-action reassessment clones a
+# Reassessment parallelism (v0.2.9+) — the per-action reassessment clones a
 # full pypowsybl network per worker, so on a CPU-limited container it over-
 # subscribes the CPU and is slower than serial. Detection is container-aware
 # (cgroup CPU quota + affinity), not os.cpu_count().
@@ -477,8 +477,24 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.2.7` (see `CHANGELOG.md` for full history)
+**Current version**: `0.2.9` (see `CHANGELOG.md` for full history)
 
+> **v0.2.9 highlights** (deep revisions R5 + A5 + R6-partial from the 2026-07 review, plus a
+> container-aware reassessment fix): discovery restructured around data — one typed
+> `FamilyResult` per family in `self.results` via a declarative `FAMILY_SPECS` registry (with
+> generated back-compat `@property` bridges), data-driven `action_scores` assembly +
+> prioritization loops (`MIN_PHASE_ORDER` / `FILL_PHASE_ORDER`) that make the old latent
+> `renewable_curtailment` double-add impossible, a memoised `_get_disconnection_bounds()`
+> replacing the PST/disconnection `_disco_bounds` temporal coupling, a shared
+> `InjectionDiscoveryBase`, and a `DiscovererProtocol` declaring the mixin surface. `ActionType`
+> enum + declarative keyword classifier (byte-identical string values) with the **C7** grid2op-
+> coupling rule-bypass fixed. **Container-aware reassessment parallelism**: CPU detection now
+> reads cgroup quota + scheduler affinity (not `os.cpu_count()`), so a 2-vCPU container no longer
+> over-subscribes; new `REASSESSMENT_PARALLEL` / `REASSESSMENT_MIN_PARALLEL_CORES` config knobs
+> (env-overridable). Behaviour-preserving (mock discovery suite green; byte-identical
+> `action_scores`). Skips `0.2.8` (published to PyPI outside this repo). See
+> `docs/release-notes/v0.2.9.md`.
+>
 > **v0.2.7 highlights** (deep revisions R1 + R2 from the 2026-07 review): typed pipeline
 > spine — `AnalysisContext` / `AnalysisResult` dataclasses replace the ~41-key context dict
 > and the untyped result dict (dict-compatible via `DictCompatMixin`); a `SimulationBackend`
