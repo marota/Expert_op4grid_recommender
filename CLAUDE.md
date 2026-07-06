@@ -648,6 +648,37 @@ combined = action1 + action2
 
 ---
 
+## Contributing & Pull Requests
+
+- **Upstream is `ainetus`; `marota` is the working fork.** Development branches
+  are pushed to `marota/Expert_op4grid_recommender`, but **pull requests are
+  opened directly against the upstream `ainetus/Expert_op4grid_recommender`**
+  (base = its default branch, head = `marota:<branch>`). PRs are *not* opened
+  against `marota`.
+- **Load `ainetus` as an initial source.** A cross-fork PR into `ainetus` can
+  only be created from a session/tool context that has the `ainetus` repo in
+  scope. So a new working session should be started with
+  **`ainetus/Co-Study4Grid` and `ainetus/Expert_op4grid_recommender` as the
+  initial sources** (they should always be auto-loaded) — a session rooted only
+  at `marota` cannot target `ainetus` (cross-tier adds are blocked), and the PR
+  step will fail with an access-denied error.
+- **DCO sign-off is required on every commit.** The `ainetus` repos enforce the
+  [Developer Certificate of Origin](https://developercertificate.org/). Every
+  commit must carry a `Signed-off-by: <Name> <amarot91@gmail.com>` trailer, and
+  because the DCO check matches the sign-off against the commit **author**, the
+  commit must also be *authored* under that same identity (author email =
+  `amarot91@gmail.com`). Practically:
+
+  ```bash
+  git config user.name  "<Name>"
+  git config user.email "amarot91@gmail.com"
+  git commit -s -m "..."          # -s appends the Signed-off-by trailer
+  ```
+
+  To sign off commits that were already made under a different identity, re-author
+  and add the trailer (e.g. `git rebase --exec 'git commit --amend --no-edit \
+  --reset-author -s' <base>`), then force-with-lease push the branch.
+
 ## Contact / License
 
 **Author**: RTE (https://www.rte-france.com)  
