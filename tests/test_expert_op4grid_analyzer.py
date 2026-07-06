@@ -327,9 +327,13 @@ class MockEnv:
         self.action_space = MockActionSpace()
 
 
-def test_get_maintenance_timestep():
+def test_get_maintenance_timestep_scenarios():
     """
     Test get_maintenance_timestep for various reconnection scenarios.
+
+    (Renamed from ``test_get_maintenance_timestep`` — it used to share the
+    name of the ``@pytest.mark.slow`` real-env test below, so pytest only ever
+    collected the last definition and this mock-based one never ran.)
     """
 
     # Setup mock environment

@@ -1,10 +1,12 @@
 import pytest
-import pypowsybl
 from pathlib import Path
-from expert_op4grid_recommender.pypowsybl_backend import NetworkManager, ActionSpace, PypowsyblObservation
 
-# Skip all tests if pypowsybl is not available
+# Skip all tests if pypowsybl is not available. This MUST precede the
+# pypowsybl-dependent imports below, otherwise collection raises
+# ModuleNotFoundError before importorskip can turn it into a skip.
 pypowsybl = pytest.importorskip("pypowsybl")
+
+from expert_op4grid_recommender.pypowsybl_backend import NetworkManager, ActionSpace, PypowsyblObservation  # noqa: E402
 
 def test_islanding_small_grid_case():
     """Test islanding case suggested by user on the small grid."""

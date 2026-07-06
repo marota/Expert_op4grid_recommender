@@ -133,19 +133,47 @@ select = ["E4", "E7", "E9", "F"]
 "tests/test_ActionRuleValidator.py" = ["E402", "E701", "E702"]
 "tests/test_action_rebuilder.py" = ["E712", "F841"]
 "tests/test_config_override.py" = ["E712"]
-"tests/test_expert_op4grid_analyzer.py" = ["E741", "F403", "F405", "F811", "F841"]
+"tests/test_expert_op4grid_analyzer.py" = ["E741", "F403", "F405", "F841"]
 "tests/test_initial_lf_voltage_init_mode.py" = ["E402", "F841"]
-"tests/test_islanding_mw.py" = ["F811"]
 "tests/test_lazy_action_dict.py" = ["F841"]
 "tests/test_lf_fallback_non_converged.py" = ["E402"]
 "tests/test_min_action_counts.py" = ["F841"]
 "tests/test_pst_actions.py" = ["E712"]
 "tests/test_pypowsybl_backend.py" = ["E712"]
-"tests/test_simulation_optimizations.py" = ["F821"]
 "tests/test_superposition.py" = ["E701"]
 "tests/test_superposition_action_types.py" = ["F841"]
 "tests/test_superposition_extended.py" = ["E402"]
 "tests/test_superposition_rho_estimation.py" = ["E701"]
+
+[tool.pytest.ini_options]
+# Scope collection to the suite and register every custom marker. With
+# ``--strict-markers`` an unregistered mark (e.g. a typo ``@pytest.mark.slwo``)
+# now ERRORS at collection instead of silently running as a fast test — closing
+# the gap called out as M3 in docs/reviews/2026-07_full_code_review.md.
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "slow: end-to-end test needing a full grid2op/pypowsybl environment and real data (deselect with '-m \"not slow\"')",
+]
+
+# Coverage is opt-in (``pytest --cov``) so the suite still runs where pytest-cov
+# is absent; CI passes ``--cov=expert_op4grid_recommender``. See M3 / R8.
+[tool.coverage.run]
+branch = true
+source = ["expert_op4grid_recommender"]
+omit = [
+    "*/tests/*",
+    # ``manoeuvre`` carries its own docstring/quality gate; measured separately.
+    "*/manoeuvre/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Ratchet floor. Intentionally 0 today: large pypowsybl/grid2op-gated areas are
+# not exercised in the default (grid2op-less) CI leg, so a non-zero floor would
+# be misleading. Raise this as the grid2op CI leg + new tests land — never lower.
+fail_under = 0
 
 [tool.interrogate]
 # Couverture des docstrings. Les fonctions imbriquées (closures), __init__ et
