@@ -3,6 +3,9 @@ import numpy as np
 from unittest.mock import MagicMock, patch
 from expert_op4grid_recommender.pypowsybl_backend import NetworkManager, ActionSpace
 from expert_op4grid_recommender.action_evaluation.discovery import ActionDiscoverer
+from expert_op4grid_recommender.action_evaluation.discovery._results import (
+    DisconnectionBounds,
+)
 from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 from expert_op4grid_recommender.pypowsybl_backend.action_space import PhaseShifterAction
 
@@ -71,8 +74,10 @@ def test_pst_discovery_blue_path(mock_obs, mock_nm):
     )
     
     # Mock bounds and capacity map for scoring
-    discoverer._disco_bounds = (100.0, 10.0, 50.0) # max_overload_flow = 100.0
-    discoverer._disco_capacity_map = {"PST1": 40.0} # dispatch_flow = 40.0
+    discoverer._cached_disconnection_bounds = DisconnectionBounds(
+        max_overload_flow=100.0, min_redispatch=10.0, max_redispatch=50.0,
+        capacity_map={"PST1": 40.0},  # dispatch_flow = 40.0
+    )
     
     # Blue path: SUB1 is constrained
     nodes_blue = ["SUB1"]
@@ -121,8 +126,10 @@ def test_pst_discovery_red_loop(mock_obs, mock_nm):
     )
     
     # Mock bounds and capacity map for scoring
-    discoverer._disco_bounds = (100.0, 10.0, 50.0)
-    discoverer._disco_capacity_map = {"PST1": 25.0} # dispatch_flow = 25.0
+    discoverer._cached_disconnection_bounds = DisconnectionBounds(
+        max_overload_flow=100.0, min_redispatch=10.0, max_redispatch=50.0,
+        capacity_map={"PST1": 25.0},  # dispatch_flow = 25.0
+    )
     
     # Red loop: SUB1 is on loop
     nodes_blue = []
@@ -170,8 +177,10 @@ def test_pst_discovery_blue_path_inc_imp(mock_obs, mock_nm):
     )
     
     # Mock bounds and capacity map for scoring
-    discoverer._disco_bounds = (100.0, 10.0, 50.0)
-    discoverer._disco_capacity_map = {"PST1": 60.0} # dispatch_flow = 60.0
+    discoverer._cached_disconnection_bounds = DisconnectionBounds(
+        max_overload_flow=100.0, min_redispatch=10.0, max_redispatch=50.0,
+        capacity_map={"PST1": 60.0},  # dispatch_flow = 60.0
+    )
     
     # Current tap < ref (10)
     mock_nm.get_pst_tap_info.return_value['tap'] = 5
@@ -239,7 +248,10 @@ def test_pst_discovery_at_limit(mock_obs, mock_nm):
     nodes_blue = ["SUB1"]
     
     # Mock bounds to avoid division by zero if scoring happens
-    discoverer._disco_bounds = (100.0, 10.0, 50.0)
+    discoverer._cached_disconnection_bounds = DisconnectionBounds(
+        max_overload_flow=100.0, min_redispatch=10.0, max_redispatch=50.0,
+        capacity_map={},
+    )
     
     discoverer.find_relevant_pst_actions(nodes_blue, [])
     assert len(discoverer.identified_pst_actions) == 0

@@ -43,10 +43,12 @@ class PSTMixin:
             red_loop_nodes_set.update(path)
         blue_path_nodes_set = set(nodes_blue_path_names)
 
-        if not hasattr(self, "_disco_bounds"):
-            self._disco_bounds = self._compute_disconnection_flow_bounds()
-            self._disco_capacity_map = self._build_line_capacity_map()
-        max_overload_flow, _, _ = self._disco_bounds
+        # Shared disconnection/PST flow bounds, memoised once per run. Replaces
+        # the order-sensitive ``_disco_bounds`` del/lazy dance that made PST
+        # scoring silently depend on line-disconnection running (and self-
+        # deleting the cache) immediately before it (A5).
+        _bounds = self._get_disconnection_bounds()
+        max_overload_flow = _bounds.max_overload_flow
 
         nm = self.obs._network_manager
 
@@ -120,9 +122,7 @@ class PSTMixin:
                 identified[action_id] = action
 
                 # User-requested score: ratio of dispatch flow on the pst branch over the maximum overload dispatch flow
-                dispatch_flow = getattr(self, "_disco_capacity_map", {}).get(
-                    pst_id, 0.0
-                )
+                dispatch_flow = _bounds.capacity_map.get(pst_id, 0.0)
                 if max_overload_flow > 1e-6:
                     score = abs(dispatch_flow / max_overload_flow)
                 else:

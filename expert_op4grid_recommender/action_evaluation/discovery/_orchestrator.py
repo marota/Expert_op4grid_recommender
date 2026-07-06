@@ -8,6 +8,13 @@
 import numpy as np
 from typing import Any, Dict
 
+from expert_op4grid_recommender.action_evaluation.discovery._results import (
+    ACTION_SCORES_ORDER,
+    FAMILY_MIN_CONFIG_ATTR,
+    FAMILY_SPECS,
+    FILL_PHASE_ORDER,
+    MIN_PHASE_ORDER,
+)
 from expert_op4grid_recommender.utils.helpers import Timer, add_prioritized_actions
 
 class OrchestratorMixin:
@@ -258,105 +265,41 @@ class OrchestratorMixin:
                 + getattr(config, "MIN_REDISPATCH", 0),
             )
 
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_reconnections,
-                min_phase_cap,
-                n_action_max_per_type=config.MIN_LINE_RECONNECTIONS,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_merges,
-                min_phase_cap,
-                n_action_max_per_type=config.MIN_CLOSE_COUPLING,
-            )
-            # Step 1.3: Add minimum required PST actions
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                getattr(self, "identified_pst_actions", {}),
-                min_phase_cap,
-                n_action_max_per_type=config.MIN_PST,
-            )
+            # Two data-driven passes over ordered ``(family, per_type_cap)``
+            # tables reading from the FamilyResult store — replacing the 18
+            # hand-written add_prioritized_actions calls (and the PST
+            # ``getattr``). One entry per (family, phase) makes a slipped-in
+            # duplicate structurally impossible. The min phase enforces the
+            # per-type MIN_* floors under ``min_phase_cap``; the fill phase tops
+            # up to ``n_action_max`` with the per-family fill caps (default 3
+            # where the historical call passed none — reco/split/pst carry their
+            # explicit n_*_max). The interleave differs between phases (PST is
+            # 3rd in the floor pass but 5th in the fill pass) and is preserved.
+            for _family_key in MIN_PHASE_ORDER:
+                _per_type = getattr(config, FAMILY_MIN_CONFIG_ATTR[_family_key], 0)
+                self.prioritized_actions = add_prioritized_actions(
+                    self.prioritized_actions,
+                    self.results[_family_key].identified,
+                    min_phase_cap,
+                    n_action_max_per_type=_per_type,
+                )
 
-            # Step 1.4: Add minimum required node splitting and line disconnections
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_splits,
-                min_phase_cap,
-                n_action_max_per_type=config.MIN_OPEN_COUPLING,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_disconnections,
-                min_phase_cap,
-                n_action_max_per_type=config.MIN_LINE_DISCONNECTIONS,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_renewable_curtailment,
-                min_phase_cap,
-                n_action_max_per_type=config.MIN_RENEWABLE_CURTAILMENT,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_load_shedding,
-                min_phase_cap,
-                n_action_max_per_type=config.MIN_LOAD_SHEDDING,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_redispatch,
-                min_phase_cap,
-                n_action_max_per_type=getattr(config, "MIN_REDISPATCH", 0),
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_renewable_curtailment,
-                min_phase_cap,
-                n_action_max_per_type=getattr(config, "MIN_RENEWABLE_CURTAILMENT", 0),
-            )
-
-            # 2. Fill the remaining slots sequentially using the original priority logic and limits
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_reconnections,
-                n_action_max,
-                n_action_max_per_type=n_reco_max,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_merges, n_action_max
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_splits,
-                n_action_max,
-                n_action_max_per_type=n_split_max,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_disconnections, n_action_max
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                getattr(self, "identified_pst_actions", {}),
-                n_action_max,
-                n_action_max_per_type=n_pst_max,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_renewable_curtailment,
-                n_action_max,
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_load_shedding, n_action_max
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions, self.identified_redispatch, n_action_max
-            )
-            self.prioritized_actions = add_prioritized_actions(
-                self.prioritized_actions,
-                self.identified_renewable_curtailment,
-                n_action_max,
-            )
+            # 2. Fill the remaining slots sequentially using the original
+            #    priority logic and limits. Only reco / split / pst carry an
+            #    explicit per-family cap; the rest use add_prioritized_actions'
+            #    default of 3.
+            _fill_caps = {
+                "reconnections": n_reco_max,
+                "splits": n_split_max,
+                "pst": n_pst_max,
+            }
+            for _family_key in FILL_PHASE_ORDER:
+                self.prioritized_actions = add_prioritized_actions(
+                    self.prioritized_actions,
+                    self.results[_family_key].identified,
+                    n_action_max,
+                    n_action_max_per_type=_fill_caps.get(_family_key, 3),
+                )
 
         # Build global action scores dictionary per action type, sorted by descending score
         # Each type contains "scores" (sorted dict) and "params" (underlying hypotheses)
@@ -379,110 +322,30 @@ class OrchestratorMixin:
                     out[k] = v
             return out
 
-        self.action_scores = {
-            "line_reconnection": {
+        # Data-driven over the FAMILY_SPECS registry in the fixed
+        # ACTION_SCORES_ORDER, reading straight from the FamilyResult store —
+        # replacing the 8× hand-written literal (and the PST ``getattr``
+        # special-casing, now that every family, PST included, is always present
+        # in ``self.results``). Each entry: descending-sorted ``scores`` +
+        # rounded ``params`` + an empty ``non_convergence`` filled later by
+        # reassessment.
+        self.action_scores = {}
+        for _family_key in ACTION_SCORES_ORDER:
+            _spec = FAMILY_SPECS[_family_key]
+            _result = self.results[_family_key]
+            self.action_scores[_spec.scores_key] = {
                 "scores": _round_scores(
                     dict(
                         sorted(
-                            self.scores_reconnections.items(),
+                            _result.scores.items(),
                             key=lambda x: x[1],
                             reverse=True,
                         )
                     )
                 ),
-                "params": _round_params(self.params_reconnections),
+                "params": _round_params(_result.params),
                 "non_convergence": {},
-            },
-            "line_disconnection": {
-                "scores": _round_scores(
-                    dict(
-                        sorted(
-                            self.scores_disconnections.items(),
-                            key=lambda x: x[1],
-                            reverse=True,
-                        )
-                    )
-                ),
-                "params": _round_params(self.params_disconnections),
-                "non_convergence": {},
-            },
-            "open_coupling": {
-                "scores": _round_scores(
-                    dict(
-                        sorted(
-                            self.scores_splits_dict.items(),
-                            key=lambda x: x[1],
-                            reverse=True,
-                        )
-                    )
-                ),
-                "params": _round_params(self.params_splits_dict),
-                "non_convergence": {},
-            },
-            "close_coupling": {
-                "scores": _round_scores(
-                    dict(
-                        sorted(
-                            self.scores_merges.items(), key=lambda x: x[1], reverse=True
-                        )
-                    )
-                ),
-                "params": _round_params(self.params_merges),
-                "non_convergence": {},
-            },
-            "pst_tap": {
-                "scores": _round_scores(
-                    dict(
-                        sorted(
-                            getattr(self, "scores_pst_actions", {}).items(),
-                            key=lambda x: x[1],
-                            reverse=True,
-                        )
-                    )
-                ),
-                "params": _round_params(getattr(self, "params_pst_actions", {})),
-                "non_convergence": {},
-            },
-            "load_shedding": {
-                "scores": _round_scores(
-                    dict(
-                        sorted(
-                            self.scores_load_shedding.items(),
-                            key=lambda x: x[1],
-                            reverse=True,
-                        )
-                    )
-                ),
-                "params": _round_params(self.params_load_shedding),
-                "non_convergence": {},
-            },
-            "renewable_curtailment": {
-                "scores": _round_scores(
-                    dict(
-                        sorted(
-                            self.scores_renewable_curtailment.items(),
-                            key=lambda x: x[1],
-                            reverse=True,
-                        )
-                    )
-                ),
-                "params": _round_params(self.params_renewable_curtailment),
-                "non_convergence": {},
-            },
-            "redispatch": {
-                "scores": _round_scores(
-                    dict(
-                        sorted(
-                            self.scores_redispatch.items(),
-                            key=lambda x: x[1],
-                            reverse=True,
-                        )
-                    )
-                ),
-                "params": _round_params(self.params_redispatch),
-                "non_convergence": {},
-            },
-        }
+            }
 
         print(
             f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}"

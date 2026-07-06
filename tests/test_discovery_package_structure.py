@@ -132,8 +132,18 @@ BASE_SHARED_HELPERS: set[str] = {
 
 
 def _class_defined_methods(cls: type) -> set[str]:
-    """All non-dunder names defined locally on ``cls`` (excluding inherited)."""
-    return {name for name in cls.__dict__ if not name.startswith("__")}
+    """All non-dunder *methods* defined locally on ``cls`` (excluding inherited).
+
+    Excludes the per-family ``FamilyResult`` ``@property`` bridges installed on
+    :class:`DiscovererBase` (``identified_reconnections``, ``scores_splits_dict``,
+    …) — those are data-access proxies, not methods, and would otherwise inflate
+    the method-count invariant below.
+    """
+    return {
+        name
+        for name, value in cls.__dict__.items()
+        if not name.startswith("__") and not isinstance(value, property)
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -217,28 +227,32 @@ def test_no_method_is_defined_in_two_places():
 
 
 def test_method_count_matches_original_class():
-    """Sanity check: the new package distributes exactly 49 methods
-    across the base + mixins. The base contributes ``__init__`` plus 30
+    """Sanity check: the new package distributes exactly 50 methods
+    across the base + mixins. The base contributes ``__init__`` plus 31
     helpers (the original 24 plus ``_get_subs_with_dispatchable_gens``,
     ``_get_voltage_level_metadata`` and ``_get_site_higher_voltage_map``
     added for redispatching, ``_cap_candidates_for_simulation`` that
     bounds the per-candidate simulation of the generator-targeting passes,
     ``_get_simulation_baseline`` that shares the candidate-check baseline LF
-    across discovery passes, and ``_shared_baseline_check`` that routes the
+    across discovery passes, ``_shared_baseline_check`` that routes the
     topological passes through that shared baseline on pypowsybl — replacing
-    the old ``main.py`` monkey-patch); the nine mixins together contribute
-    the remaining 18 family methods (1 + 2 + 8 + 2 + 1 + 1 + 1 + 1 + 1)."""
+    the old ``main.py`` monkey-patch — and ``_get_disconnection_bounds`` that
+    memoises the disconnection/PST flow bounds once per run, replacing the
+    order-sensitive ``_disco_bounds`` del/lazy protocol, R5); the nine mixins
+    together contribute the remaining 18 family methods
+    (1 + 2 + 8 + 2 + 1 + 1 + 1 + 1 + 1). The FamilyResult @property bridges are
+    excluded by ``_class_defined_methods`` (they are data proxies, not methods)."""
     non_dunder = sum(
         len(_class_defined_methods(cls))
         for cls in [DiscovererBase, *MIXIN_EXPECTED_METHODS.keys()]
     )
     # _class_defined_methods filters out dunder names, so __init__ is
     # excluded from the per-class counts. Add it back explicitly to get
-    # the full 49 (42 original + redispatch mixin + 3 redispatch helpers +
+    # the full 50 (42 original + redispatch mixin + 3 redispatch helpers +
     # the candidate-simulation cap helper + the shared baseline helper +
-    # the shared-baseline topological-check helper).
+    # the shared-baseline topological-check helper + _get_disconnection_bounds).
     assert "__init__" in DiscovererBase.__dict__
-    assert non_dunder + 1 == 49
+    assert non_dunder + 1 == 50
 
 
 # ---------------------------------------------------------------------------
