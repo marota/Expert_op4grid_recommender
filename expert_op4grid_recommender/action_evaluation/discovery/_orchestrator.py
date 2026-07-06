@@ -262,7 +262,7 @@ class OrchestratorMixin:
                 + config.MIN_LINE_DISCONNECTIONS
                 + config.MIN_RENEWABLE_CURTAILMENT
                 + config.MIN_LOAD_SHEDDING
-                + getattr(config, "MIN_REDISPATCH", 0),
+                + config.MIN_REDISPATCH,
             )
 
             # Two data-driven passes over ordered ``(family, per_type_cap)``
@@ -350,4 +350,8 @@ class OrchestratorMixin:
         print(
             f"\nDiscovery complete. Total prioritized actions: {len(self.prioritized_actions)}"
         )
+        # Free the shared baseline's retained variant now that every family has
+        # finished consuming it (best-effort; no-op for grid2op and when no
+        # candidate simulation ran).
+        self._release_simulation_baseline()
         return self.prioritized_actions, self.action_scores

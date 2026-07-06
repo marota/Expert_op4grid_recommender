@@ -93,38 +93,76 @@ def _effective_cpu_count() -> int:
     if quota is not None:
         candidates.append(max(1, int(quota)))
     return max(1, min(candidates))
+#: Default minimum worker count below which the parallel reassessment is NOT
+#: worth it. The parallel path clones the whole network per worker
+#: (``save``/``load_from_binary_buffer`` + ``SimulationEnvironment`` + obs
+#: build) — a fixed overhead the serial path never pays. That overhead is only
+#: amortized above ~3-4 usable cores; v0.2.6 measured **+1.43x on a 4-core
+#: host**, but on a **2-vCPU** host (e.g. a small HuggingFace Space) the 2
+#: clones + GIL contention on the Python-side observation build make it a net
+#: *loss* vs. serial. So we stay serial below the threshold.
+_DEFAULT_MIN_PARALLEL_WORKERS = 4
+
+#: Environment override for operators who know their hardware. Takes precedence
+#: over the ``REASSESSMENT_MIN_PARALLEL_CORES`` config knob.
+_MIN_PARALLEL_WORKERS_ENV = "EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS"
+
+
+def _min_parallel_workers() -> int:
+    """Minimum worker count to enable parallel reassessment.
+
+    Resolution order: the ``EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS`` env
+    var when set, else the ``REASSESSMENT_MIN_PARALLEL_CORES`` config knob
+    (default :data:`_DEFAULT_MIN_PARALLEL_WORKERS`). Floored at 2 (a single
+    worker is strictly worse than serial: it pays the clone overhead for zero
+    concurrency). Set the env var high (e.g. 99) to force serial on any host, or
+    to 2 to restore the pre-0.2.7.post1 aggressive behaviour.
+    """
+    raw = os.environ.get(_MIN_PARALLEL_WORKERS_ENV)
+    if raw is not None:
+        try:
+            return max(2, int(raw))
+        except ValueError:
+            pass
+    return max(2, int(getattr(config, "REASSESSMENT_MIN_PARALLEL_CORES",
+                              _DEFAULT_MIN_PARALLEL_WORKERS)))
+
+
+def _should_parallelize_reassessment(is_pypowsybl: bool, workers: int,
+                                     n_actions: int) -> bool:
+    """Whether to run the reassessment in parallel.
+
+    ``workers`` is the container-aware pool size from
+    :func:`_reassessment_worker_count`. The ``REASSESSMENT_PARALLEL`` config
+    knob forces the decision (``True`` = parallel when ≥2 workers, ``False`` =
+    serial); in the default ``None`` (auto) mode parallel is engaged only above
+    a core threshold — below it the per-worker network-clone overhead makes it
+    slower than the serial path (see :data:`_DEFAULT_MIN_PARALLEL_WORKERS` /
+    :func:`_min_parallel_workers`).
+    """
+    if not is_pypowsybl or n_actions < 2:
+        return False
+    force = getattr(config, "REASSESSMENT_PARALLEL", None)
+    if force is not None:
+        return bool(force) and workers >= 2
+    return workers >= _min_parallel_workers()
 
 
 def _reassessment_worker_count(n_actions: int) -> Tuple[int, int]:
-    """Return ``(effective_cores, workers)`` for the reassessment pool.
+    """Return ``(effective_cores, workers)`` — the container-aware pool size.
 
     ``effective_cores`` is **container-aware** (respects the cgroup CPU quota
-    and scheduler affinity), unlike :func:`os.cpu_count`. Parallel is engaged
-    only when it is likely to pay off: every worker clones a full private
-    pypowsybl network, so on a CPU-starved host (e.g. a 2-vCPU cloud
-    container) the pool over-subscribes the CPU *and* pays that per-worker
-    clone tax — measurably SLOWER than a serial re-simulation.
-
-    Two config knobs gate it (both env-overridable via ``EXPERT_OP4GRID_*``):
-
-    - ``REASSESSMENT_PARALLEL``: ``None`` = auto (default), ``True`` = force
-      parallel, ``False`` = force serial (recommended on 2-vCPU deployments).
-    - ``REASSESSMENT_MIN_PARALLEL_CORES``: in auto mode, the minimum number of
-      effective cores required before parallelising (else serial).
-
-    Workers = ``min(10, effective cores, n_actions)`` when parallel, else 1.
+    and scheduler affinity), unlike :func:`os.cpu_count`. ``workers`` is the raw
+    pool size ``min(10, effective_cores, n_actions)``; whether to actually run
+    with more than one worker is decided by
+    :func:`_should_parallelize_reassessment` (the ``REASSESSMENT_PARALLEL`` force
+    knob + the ``REASSESSMENT_MIN_PARALLEL_CORES`` / env threshold). Every worker
+    clones a full private pypowsybl network, so on a CPU-starved host (e.g. a
+    2-vCPU cloud container) parallel over-subscribes the CPU *and* pays that
+    per-worker clone tax — measurably SLOWER than a serial re-simulation, which
+    is exactly what the gate guards against.
     """
     effective = _effective_cpu_count()
-    force = getattr(config, "REASSESSMENT_PARALLEL", None)
-    min_cores = getattr(config, "REASSESSMENT_MIN_PARALLEL_CORES", 4)
-
-    if force is None:
-        parallel = effective >= min_cores
-    else:
-        parallel = bool(force)
-
-    if not parallel:
-        return effective, 1
     workers = max(1, min(_MAX_REASSESSMENT_WORKERS, effective, n_actions))
     return effective, workers
 
@@ -347,7 +385,7 @@ def reassess_prioritized_actions(
         sim_out: Dict[str, tuple] = {}
         used_workers = 1
 
-        if is_pypowsybl and workers >= 2 and n_actions >= 2:
+        if _should_parallelize_reassessment(is_pypowsybl, workers, n_actions):
             try:
                 main_nm = obs_simu_defaut._network_manager
                 # Capture the N-1 baseline (contingency + maintenance) variant so

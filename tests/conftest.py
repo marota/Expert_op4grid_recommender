@@ -1,56 +1,77 @@
 """
-Pytest configuration file for test suite.
+Pytest configuration for the test suite.
 
-This file ensures that tests use tests/config_test.py instead of the package config.
+Historically this file swapped a hand-forked ``tests/config_test.py`` in for
+``expert_op4grid_recommender.config`` via ``sys.modules`` (and the package
+attribute). That fork bypassed pydantic entirely — ``Settings`` validation and
+env parsing were never exercised in CI, and every new config key had to be added
+twice (review findings M2 / C7).
 
-CRITICAL: This module-level code runs IMMEDIATELY when conftest.py is imported,
-which happens BEFORE any test modules are loaded. This ensures the config
-replacement happens before main.py or any other module imports config.
+Now the real config module stays in place and we apply the handful of test
+deltas through the sanctioned :func:`config.override_settings` accessor. That
+runs full pydantic validation (so CI now exercises it), recomputes the derived
+paths (``ENV_PATH`` / ``ACTION_FILE_PATH`` follow ``ENV_NAME`` /
+``FILE_ACTION_SPACE_DESC``), and re-promotes the values so ``config.X`` reads
+observe them.
+
+CRITICAL: this runs at conftest import time — BEFORE any test module is
+collected — so the override is in place before the pipeline or any library
+module reads a config value.
 """
 import sys
 from pathlib import Path
 
-# Get the tests directory
+# Get the tests directory / project root and make the package importable.
 tests_dir = Path(__file__).parent.resolve()
-# Get the project root directory
 project_root = tests_dir.parent.resolve()
-
-# Add project root to path if not already there
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# === CRITICAL: Replace config IMMEDIATELY ===
-# DO NOT move this into a fixture - it must run at module import time!
+# === Apply the test config deltas through the validated accessor ===
+# DO NOT move this into a fixture — it must run at module import time so the
+# override is installed before anything imports/reads config.
+from expert_op4grid_recommender import config
 
-# First, import the test config
-from tests import config_test
+#: Only the values that genuinely differ from the shipped production config.
+#: Everything else (DATE, TIMESTEP, LINES_DEFAUT, the load-shedding / curtailment
+#: / redispatch tunables, PARAM_OPTIONS_EXPERT_OP, …) inherits the real defaults,
+#: so this list can never drift out of sync with config.py the way the old fork
+#: did. The dijon environment + 5-action output mirrors config_basic.py, with
+#: visualization disabled for faster test runs.
+TEST_CONFIG_DELTAS = dict(
+    ENV_NAME="env_dijon_v2_assistant",
+    FILE_ACTION_SPACE_DESC="reduced_model_actions.json",
+    CHECK_ACTION_SIMULATION=True,
+    N_PRIORITIZED_ACTIONS=5,
+    IGNORE_LINES_MONITORING=False,
+    DO_VISUALIZATION=False,  # Skip visualization in tests for faster execution
+    MAX_RHO_BOTH_EXTREMITIES=False,  # only possible for now with pypowsybl backend
+    MIN_LINE_RECONNECTIONS=0,
+    MIN_CLOSE_COUPLING=0,
+    MIN_OPEN_COUPLING=0,
+    MIN_LINE_DISCONNECTIONS=0,
+    MIN_PST=0,
+    MIN_LOAD_SHEDDING=0,
+    MIN_RENEWABLE_CURTAILMENT=0,
+    MIN_REDISPATCH=0,
+)
 
-# Then IMMEDIATELY replace it in sys.modules BEFORE anything else can import it.
-# We must keep the *package attribute* in sync too: ``from package import
-# submodule`` resolves via the package attribute, not sys.modules, and
-# config_test now imports the real config (``import *``) which sets
-# ``expert_op4grid_recommender.config`` to the real module — so swapping only
-# sys.modules would leave ``from expert_op4grid_recommender import config``
-# returning the real config.
-import expert_op4grid_recommender as _pkg
-
-sys.modules['expert_op4grid_recommender.config'] = config_test
-sys.modules['config'] = config_test
-_pkg.config = config_test
+config.override_settings(**TEST_CONFIG_DELTAS)
 
 # Print confirmation (this helps debug if the override isn't working)
 print(f"\n{'='*70}")
-print("✓ CONFIG OVERRIDE INSTALLED")
+print("✓ TEST CONFIG OVERRIDE INSTALLED (via config.override_settings)")
 print(f"{'='*70}")
-print(f"  expert_op4grid_recommender.config -> {config_test.__file__}")
-print(f"  DO_VISUALIZATION = {config_test.DO_VISUALIZATION}")
+print(f"  expert_op4grid_recommender.config -> {config.__file__}")
+print(f"  ENV_NAME = {config.ENV_NAME}")
+print(f"  DO_VISUALIZATION = {config.DO_VISUALIZATION}")
 print(f"{'='*70}\n")
 
 # Now import pytest
 import pytest
 
 # NOTE: pypowsybl2grid backend patch is applied via scripts/patch_pypowsybl2grid_file.py
-# This must be run BEFORE tests (see .circleci/config.yml)
+# This must be run BEFORE tests (see .github/workflows/ci.yml)
 # Runtime monkey-patching doesn't work because modules are imported before conftest runs
 #
 # For local development, run:
@@ -64,18 +85,20 @@ def verify_config_override():
     Verify the config override is working.
     This runs after module imports but before tests.
     """
-    # Import and check
     from expert_op4grid_recommender import config
-    
-    # Verify
-    assert 'config_test' in config.__file__, \
-        f"❌ Config override FAILED! Using {config.__file__}"
-    
-    assert config.DO_VISUALIZATION == False, \
+
+    # The real config module is still in place (no more sys.modules fork) …
+    assert config.__file__.endswith("expert_op4grid_recommender/config.py"), \
+        f"❌ Unexpected config module: {config.__file__}"
+
+    # … and the test delta is applied and validated by pydantic.
+    assert config.DO_VISUALIZATION is False, \
         f"❌ DO_VISUALIZATION should be False in tests, got {config.DO_VISUALIZATION}"
-    
+    assert config.get_settings().DO_VISUALIZATION is False, \
+        "❌ Settings instance not overridden"
+
     print("\n✓ Config override verified in fixture")
     print(f"  File: {config.__file__}")
     print(f"  DO_VISUALIZATION: {config.DO_VISUALIZATION}\n")
-    
+
     yield

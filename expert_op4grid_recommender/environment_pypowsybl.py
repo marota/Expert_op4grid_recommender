@@ -193,7 +193,7 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
         env_folder,
         env_name,
         is_DC=config.USE_DC_LOAD_FLOW,
-        threshold_thermal_limit=getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 0.95),
+        threshold_thermal_limit=config.MONITORING_FACTOR_THERMAL_LIMITS,
         network=network,
         skip_initial_obs=skip_initial_obs,
     )
@@ -245,7 +245,7 @@ def setup_environment_configs_pypowsybl(analysis_date: Optional[datetime.datetim
             print(f"Excluded {n_excluded} branch(es) without permanent operational limits from monitoring.")
     else:
         try:
-            monitoring_file = getattr(config, 'LINES_MONITORING_FILE', None)
+            monitoring_file = config.LINES_MONITORING_FILE
             if monitoring_file is None:
                 monitoring_file = os.path.join(str(env_folder), "lignes_a_monitorer.csv")
             lines_we_care_about = load_interesting_lines(file_name=monitoring_file)
@@ -307,8 +307,8 @@ def switch_to_dc_load_flow_pypowsybl(env: SimulationEnvironment,
     Returns:
         Tuple of (new_env, new_obs, obs_simu)
     """
-    from expert_op4grid_recommender.utils.simulation_pypowsybl import simulate_contingency
-    
+    from expert_op4grid_recommender.utils.simulation import simulate_contingency
+
     print("Switching to DC load flow due to convergence issues.")
     
     # Get the network path from current environment
@@ -334,9 +334,11 @@ def switch_to_dc_load_flow_pypowsybl(env: SimulationEnvironment,
         {"set_line_status": [(line_reco, 1) for line_reco in maintenance_to_reco_at_t]}
     )
     
-    # Simulate contingency in DC mode
+    # Simulate contingency in DC mode (retain the variant + fast mode, as the
+    # dedicated pypowsybl helper did before the R4 module unification).
     obs_simu, has_converged = simulate_contingency(
-        env, obs, lines_defaut, act_reco_maintenance, timestep=0
+        env, obs, lines_defaut, act_reco_maintenance, timestep=0,
+        simulate_kwargs={"keep_variant": True, "fast_mode": True},
     )
     
     if not has_converged:

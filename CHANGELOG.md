@@ -11,9 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.9] - 2026-07-06
 
-> Version note: `0.2.8` was published to PyPI outside this repository's history;
-> this release deliberately skips that number to avoid a version collision.
-
 ### Changed
 
 - **Discovery restructured around data (deep revisions R5 + A5).** Action
@@ -49,25 +46,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reorganization (`repas/` subpackage, environment merge, superposition /
   reassessment promotion, `__main__` → `scripts/`) remains to be landed as its
   own PR.
-- **Container-aware reassessment parallelism (2-vCPU fix).** The per-action
-  reassessment (`utils/reassessment.py`) used `os.cpu_count()` to size its
-  worker pool. Inside a CPU-limited container (e.g. a 2-vCPU cloud box on a
-  16-core host) that reports the **host** core count, so it spun up to 10
-  worker threads — each cloning a full private pypowsybl network — that
-  over-subscribed the 2 vCPUs and ran *slower* than serial (a reported
-  47 s reassessment). CPU detection is now container-aware
+- **Container-aware reassessment CPU detection (completes the 2-vCPU fix).**
+  `0.2.7.post1` gated parallel reassessment behind
+  `min(10, cores, n_actions) >= 4`, but `cores` still came from
+  `os.cpu_count()`, which reports the **host** core count inside a CPU-limited
+  container (e.g. a 2-vCPU box on a 16-core host) — so the gate never fired and
+  the reassessment still over-subscribed the 2 vCPUs and ran *slower* than
+  serial (a reported ~47 s). CPU detection is now container-aware
   (`_effective_cpu_count()` = min of `os.cpu_count()`, scheduler affinity, and
-  the cgroup CPU quota `cpu.max` / `cpu.cfs_quota_us`), and parallel is engaged
-  only when it pays off. Two new config knobs (env-overridable via
-  `EXPERT_OP4GRID_*`):
+  the cgroup CPU quota `cpu.max` / `cpu.cfs_quota_us`), so the effective core
+  count reflects the container and the existing worker-count gate correctly
+  stays serial. Two new config knobs complement the retained `0.2.7.post1` env
+  var (`EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS`), all env-overridable via
+  `EXPERT_OP4GRID_*`:
   - `REASSESSMENT_PARALLEL`: `None` = auto (default), `True` = force parallel,
     `False` = force serial (recommended on 2-vCPU deployments).
   - `REASSESSMENT_MIN_PARALLEL_CORES` (default 4): in auto mode, the minimum
     effective cores required before parallelising.
 
-  Behaviour-preserving otherwise; a 4-core `--compare` shows parallel is no
-  faster than serial there anyway (the per-worker clone tax cancels the
-  concurrency). New unit coverage: `tests/test_reassessment_parallelism.py`.
+  Behaviour-preserving otherwise. New unit coverage:
+  `tests/test_reassessment_parallelism.py`.
+
+## [0.2.8] - 2026-07-04
+
+### Changed
+
+- **Config single source of truth (deep revision R3)** — the pydantic `Settings`
+  instance is now authoritative, without locking the module down (Co-Study4Grid
+  still drives the recommender by mutating `config.*` attributes directly):
+  - Derived paths (`CASE_NAME`, `ENV_FOLDER`, `ENV_PATH`, `ACTION_SPACE_FOLDER`,
+    `ACTION_FILE_PATH`, `SAVE_FOLDER_VISUALIZATION`) are `@computed_field`s on
+    `Settings`, so overriding `ENV_NAME` / `FILE_ACTION_SPACE_DESC` recomputes
+    `ENV_PATH` / `ACTION_FILE_PATH` (fixes the review-A3 staleness bug). They are
+    still promoted to module attributes via `model_dump()` for the many
+    `config.X` readers.
+  - New `config.get_settings()` / `config.override_settings()` /
+    `config.reset_settings()` accessors: `override_settings` runs full pydantic
+    validation, recomputes the derived paths, and re-promotes to the module
+    namespace. `pipeline.py` routes its `ENV_NAME` override through it instead of
+    raw module mutation.
+  - The 29 defensive `getattr(config, 'X', default)` sites collapsed to direct
+    attribute access — every key is a guaranteed `Settings` field.
+  - Tests: the hand-forked `tests/config_test.py` and the `sys.modules` swap are
+    deleted; `conftest.py` applies the test deltas via
+    `config.override_settings(**TEST_CONFIG_DELTAS)`, so `Settings` validation now
+    runs in CI (closes review-M2).
+- **Unified per-backend simulation seam behind `BaselineContext` (deep revision
+  R4)** — behaviour-preserving (grid2op output byte-identical; real pypowsybl
+  end-to-end verified):
+  - `utils/simulation_pypowsybl.py` is deleted; `utils/simulation.py` is the
+    single backend-agnostic module. The two real backend differences are explicit
+    parameters (`simulate_kwargs` for pypowsybl `keep_variant` / `fast_mode`;
+    `reapply_contingency` for the grid2op-branches-from-N-state vs.
+    pypowsybl-branches-from-kept-variant contract) instead of a forked file.
+    `check_rho_reduction_with_baseline` now takes the branch observation and the
+    contract flag explicitly, so the opposite-first-argument-contract trap that
+    bred the C-diag bug is gone by construction (and the three injection mixins
+    route through the same explicit seam).
+  - New `BaselineContext` (`act_defaut` / `baseline_rho` / `obs_baseline` /
+    `branch_obs` / `release()`), built once per run by `_get_simulation_baseline`
+    and freed by `_release_simulation_baseline` at the end of
+    `discover_and_prioritize`.
+  - `NetworkManager` gained a kept-variant registry (`register_kept_variant` /
+    `sweep_kept_variants`, `max_kept_variants=256`) with an LRU backstop that
+    never evicts the base or the working variant, bounding a long-running service
+    that reuses one `NetworkManager` across analyses (closes the cross-run half of
+    review-C4).
+
+## [0.2.7.post1] - 2026-07-03
+
+### Fixed
+
+- **Reassessment: stay serial on low-core hosts** (`utils/reassessment.py`). The
+  parallel per-action reassessment (0.2.6) clones the whole network per worker
+  (`save`/`load_from_binary_buffer` + `SimulationEnvironment` + observation
+  build) — a fixed overhead the serial path never pays, only amortized above
+  ~3-4 usable cores. On a **2-vCPU host** (e.g. a small HuggingFace Space) the
+  two clones + GIL contention on the Python-side observation build made the
+  "parallel" path **slower than serial** (observed ~42 s vs ~9 s on a many-core
+  Mac for the same 15-action pan-European case). Parallel reassessment is now
+  gated behind `min(10, cores, n_actions) >= 4` (env-tunable via
+  `EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS`; floored at 2). 2-vCPU
+  deployments fall back to the faster serial path; ≥4-core hosts keep the
+  speed-up. Behaviour and output are otherwise unchanged.
 
 ## [0.2.7] - 2026-07-03
 

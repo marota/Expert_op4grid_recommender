@@ -67,10 +67,17 @@ def simulate_contingency_grid2op(env, obs, lines_defaut, act_reco_maintenance, t
 
 def simulate_contingency_pypowsybl(env, obs, lines_defaut, act_reco_maintenance,
                                    timestep, fast_mode: bool = True):
-    """Backward-compatible pypowsybl contingency-simulation shim."""
-    from expert_op4grid_recommender.utils.simulation_pypowsybl import simulate_contingency
-    return simulate_contingency(env, obs, lines_defaut, act_reco_maintenance,
-                                timestep, fast_mode=fast_mode)
+    """Backward-compatible pypowsybl contingency-simulation shim.
+
+    The grid2op / pypowsybl simulation helpers were unified into a single
+    ``utils.simulation`` module (revision R4); the pypowsybl behaviour is now
+    expressed by forwarding the ``keep_variant`` / ``fast_mode`` kwargs.
+    """
+    from expert_op4grid_recommender.utils.simulation import simulate_contingency
+    return simulate_contingency(
+        env, obs, lines_defaut, act_reco_maintenance, timestep,
+        simulate_kwargs={"keep_variant": True, "fast_mode": fast_mode},
+    )
 
 
 __all__: List[Any] = [

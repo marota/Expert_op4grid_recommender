@@ -22,7 +22,13 @@ docs/
   development chronology (mermaid diagrams + tables).
 - [`architecture/simulation-pipeline.md`](architecture/simulation-pipeline.md) —
   the pypowsybl simulation pipeline: AC/DC & fast/slow load-flow modes, voltage
-  initialisation, variant lifecycle, thermal-limit hypotheses, retry branches.
+  initialisation, variant lifecycle (kept-variant registry + LRU backstop), the
+  unified backend simulation seam + `BaselineContext` (R4), thermal-limit
+  hypotheses, retry branches.
+- [`architecture/configuration.md`](architecture/configuration.md) — the pydantic
+  `Settings` single source of truth (R3): computed derived paths, the
+  `get_settings()` / `override_settings()` / `reset_settings()` accessors, the
+  module-attribute compatibility layer, and the fork-free test override.
 - [`architecture/recommender_models.md`](architecture/recommender_models.md) —
   the pluggable `RecommenderModel` contract: DTO fields, capability flags,
   reusable pipeline phases, integration point, and a minimal new-model example.
@@ -81,7 +87,8 @@ Per-version notes (v0.2.2 → v0.2.6, v0.2.9). The canonical, continuously updat
 history is [CHANGELOG.md](../CHANGELOG.md). Latest:
 [`release-notes/v0.2.9.md`](release-notes/v0.2.9.md) — discovery restructured
 around data (R5/A5), `ActionType` + C7 rule-bypass fix, container-aware
-reassessment. (`0.2.8` was published to PyPI outside this repo and is skipped.)
+reassessment. Built on `0.2.8` (deep revisions **R3** config single-source +
+**R4** unified simulation seam / `BaselineContext`; see the CHANGELOG).
 
 ## Reviews (`reviews/`)
 Point-in-time audits of the codebase at a given version — findings age with the

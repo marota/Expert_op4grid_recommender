@@ -52,29 +52,32 @@ branch (released as **0.2.6**). Summary of what landed:
 - **Infrastructure** — CI migrated CircleCI → GitHub Actions (`.github/workflows/ci.yml`);
   added `scripts/benchmark_pipeline.py`.
 
-Still open (not implemented here): the deep-revision roadmap in §6 (typed pipeline spine,
-config single-source, `manoeuvre` IHM promotion, etc.) and the C7 formula ambiguities.
+The deep-revision roadmap in §6 has since advanced across three follow-up releases:
+**R1 + R2** (typed pipeline spine + `SimulationBackend` protocol, `main.py` split)
+shipped in **0.2.7**; **R3 + R4** (config single-source-of-truth, unified
+per-backend simulation seam behind `BaselineContext`) shipped in **0.2.8**; and
+**R5 + A5 + C7** (discovery-as-data restructure, `ActionType` enum, the C7 rule-bypass
+fix) plus a container-aware reassessment fix and **R6-partial** shipped in **0.2.9** —
+see the ✅-marked entries in §6 for exactly what landed. Still open: the **R6** `utils/`
+file-move, **R7–R10** (`manoeuvre` IHM promotion, CI/packaging convergence, doc reset,
+product split) and the C7 formula ambiguities.
 
 ### Status & what's left (all categories)
 
 Per-finding status is tracked **inline**: the §4 weaknesses carry "**FIXED in this branch**"
 tags on the ones already closed, and each deep revision in [§6](#6-deep-revision-proposals)
 carries a **Done / Partial / Deferred** annotation. **Shipped so far:** the **C2–C6 + C-diag**
-correctness/security fixes and **P1** (0.2.6); **R1 + R2** typed pipeline spine + backend
-protocol (0.2.7); **R4 core** shared baseline (0.2.6 → 0.2.7); **R3 interim + R5 + A5 + C7 +
-R6-partial** (0.2.9). This closes **A1** (god object → R1), **A2** (import cycles → R2),
-**A5** (discovery modularization → R5), **M1** (stale CLAUDE.md, now current at 0.2.9), and
-the **P2** observation-fetch cost (0.2.6).
+correctness/security fixes, **P1** and **P2** (0.2.6); **R1 + R2** typed pipeline spine + backend
+protocol (0.2.7); **R3 + R4** config single-source + unified simulation seam / `BaselineContext`
+(0.2.8); **R5 + A5 + C7 + R6-partial** discovery-as-data + container-aware reassessment (0.2.9).
+This closes **A1** (god object → R1), **A2** (import cycles → R2), **A3** (config desync → R3),
+**A5** (discovery modularization → R5), **M1** (stale CLAUDE.md, now current at 0.2.9), and the
+**P2** observation-fetch cost (0.2.6).
 
 **Still to do — comprehensive, by category** (`→R#` = the deep revision that subsumes it):
 
 *Deep-revision roadmap (§6):*
 
-- **R3 (full):** pydantic `Settings` as single source of truth — `@computed_field` paths,
-  `get_settings()/override_settings()`, overrides-as-parameters (retire the `config.*`
-  module-mutation channel). *Interim `config_test` star-import done.*
-- **R4 (remainder):** `BaselineContext` + `release()` lifecycle, delete the duplicated
-  `simulation.py` / `simulation_pypowsybl.py` pair, `NetworkManager` variant registry.
 - **R6 (remainder):** the `utils/` file-move reorg (`repas/` subpackage, environment-factory
   merge, `superposition` / `reassessment` promotion, `__main__` → `scripts/`).
 - **R7:** promote the manoeuvre IHM into the package + decompose
@@ -98,12 +101,13 @@ the **P2** observation-fetch cost (0.2.6).
 
 *Architecture (§4.2):*
 
-- **A3** config desync → R3; **A4** the shipped defaults are the test fixture (production
-  values live in `config_basic.py`, so `python main.py` analyzes the toy grid); **A6** residual
-  interface bloat (`ActionDiscoverer`'s 23 kwargs, `fast_mode`'s three conflicting defaults);
-  **A7** leaky backend abstraction (external code reaches `env.backend._grid.network`,
-  `obs._network_manager._default_dc`, `obs._limit_or`; `theta_or` radians-vs-degrees; two
-  divergent rho definitions); **A8** `utils/` split → R6. *(A1 / A2 closed by R1 / R2; A5 by R5.)*
+- **A4** the shipped defaults are the test fixture (production values live in `config_basic.py`,
+  so `python main.py` analyzes the toy grid); **A6** residual interface bloat (`ActionDiscoverer`'s
+  23 kwargs, `fast_mode`'s three conflicting defaults); **A7** leaky backend abstraction (external
+  code reaches `env.backend._grid.network`, `obs._network_manager._default_dc`, `obs._limit_or`;
+  `theta_or` radians-vs-degrees; two divergent rho definitions); **A8** `utils/` split → R6 (its
+  `simulation.py` / `simulation_pypowsybl.py` duplication already closed by R4). *(A1 / A2 closed
+  by R1 / R2; A3 by R3; A5 by R5.)*
 
 *Performance (§4.3):*
 
@@ -204,7 +208,7 @@ There are exactly three `keep_variant=True` sites, and two are **intentional and
 
 The actual defect was the third site, `compute_baseline_simulation` (`simulation_pypowsybl.py:177`), reached through `check_rho_reduction`. The injection passes reach it once per run (cached via `_get_simulation_baseline`), but the five topological passes called the full `check_rho_reduction` **per candidate**, so each topological candidate minted a fresh `keep_variant=True` copy of the N-1 baseline that nobody released — ~30 per analysis, each a redundant duplicate of the N-1 variant already retained at site `:68`. The function's own docstring even says "use `compute_baseline_simulation()` once … for multiple actions" (`:203`); the topological path violated exactly that. Gated by `CHECK_ACTION_SIMULATION` (off in the shipped `config.py`), and bounded within one analysis — the "unbounded" framing applies only to a long-running service that reuses the `NetworkManager` across analyses (nothing sweeps kept variants between runs; `reset_to_base` doesn't purge them).
 
-**Fix (applied):** the topological passes now share the single cached baseline via a wrapper in `main.py` that routes them through `_get_simulation_baseline` + `check_rho_reduction_with_baseline` — one kept baseline variant per run instead of ~30 (same change that resolves P1). The three injection passes now also branch candidates from that shared baseline observation, closing the C-diag injection remnant in the same edit. **Remaining (folded into R4):** a cross-run variant sweep (the single per-run baseline variant, like the intended N-1/prioritized ones, is still not explicitly released — bounded per run, but a `NetworkManager` variant registry with an LRU/`max_variants` backstop would bound a long-running service across analyses); and reusing the already-kept N-1 variant (`obs_defaut`) as the baseline branch point to eliminate even that one duplicate.
+**Fix (applied):** the topological passes now share the single cached baseline via a wrapper in `main.py` that routes them through `_get_simulation_baseline` + `check_rho_reduction_with_baseline` — one kept baseline variant per run instead of ~30 (same change that resolves P1). The three injection passes now also branch candidates from that shared baseline observation, closing the C-diag injection remnant in the same edit. **Resolved in R4 (0.2.8):** the per-run baseline variant is now explicitly released (`BaselineContext.release()` at the end of `discover_and_prioritize`), and a `NetworkManager` kept-variant registry with an LRU/`max_kept_variants` backstop bounds a long-running service across analyses. **Still open:** reusing the already-kept N-1 variant (`obs_defaut`) as the baseline branch point to eliminate even that one duplicate baseline variant.
 
 **C5 — `sys.exit(0)` in library code — FIXED in this branch.** On DC-fallback non-convergence, `environment.py` and `environment_pypowsybl.py` terminated the process — deadly for the documented UI/notebook callers, and with a **success** exit code. **Fix (applied):** both sites now `raise LoadFlowDivergedError(...)` (new `expert_op4grid_recommender/exceptions.py`, subclassing `RuntimeError` so the CLI's existing `except (ValueError, RuntimeError, TypeError)` still maps it to exit 1, while library/UI callers can catch and recover). The now-unused `import sys` was removed from both modules.
 
@@ -229,7 +233,7 @@ The actual defect was the third site, `compute_baseline_simulation` (`simulation
 
 **A2 — Inverted dependencies, cycles held together by deferred imports.** The entry-point module *is* the library core: `models/expert.py:91` imports `main._run_expert_discovery` inside `recommend()`; `reassessment.py:122-124` imports from `main` inside a function; `main.py:870-876` imports both back. Lower layers importing upward is the root cause; splitting `main.py` into `cli.py` + `pipeline.py` breaks all three cycles.
 
-**A3 — Config: two desynchronized sources of truth.** The pydantic `Settings` is validated once, dumped into module attributes for backward compatibility (`config.py:252-263`), and thereafter the pipeline **mutates the module attributes** as its parameter-passing mechanism (`main.py:263-266`, `:997`) — bypassing validation (`validate_assignment=True` never fires) and leaving derived values stale: overriding `ENV_NAME` does not recompute `ENV_PATH`/`ACTION_FILE_PATH`. The codebase copes with 29 defensive `getattr(config, 'X', default)` calls coexisting with direct attribute access — two idioms chosen per call site by whether someone got burned there.
+**A3 — Config: two desynchronized sources of truth.** *(Resolved in R3 / 0.2.8 — see §6.)* The pydantic `Settings` is validated once, dumped into module attributes for backward compatibility (`config.py:252-263`), and thereafter the pipeline **mutates the module attributes** as its parameter-passing mechanism (`main.py:263-266`, `:997`) — bypassing validation (`validate_assignment=True` never fires) and leaving derived values stale: overriding `ENV_NAME` does not recompute `ENV_PATH`/`ACTION_FILE_PATH`. The codebase copes with 29 defensive `getattr(config, 'X', default)` calls coexisting with direct attribute access — two idioms chosen per call site by whether someone got burned there. *(Fix: derived paths are now `@computed_field`s that recompute from the primary fields; `override_settings()` is the validated override path; the 29 `getattr` sites collapsed to direct access.)*
 
 **A4 — The shipped defaults are the test fixture.** `config.py` defaults to `bare_env_small_grid_test`, `IGNORE_LINES_MONITORING=True`, `CHECK_ACTION_SIMULATION=False`, `N_PRIORITIZED_ACTIONS=20` (`config.py:89-151`) while the documented production values (dijon snapshot, N=5) live in the "alternative" `config_basic.py`. `python main.py` out of the box analyzes the toy grid, contradicting CLAUDE.md.
 
@@ -239,7 +243,7 @@ The actual defect was the third site, `compute_baseline_simulation` (`simulation
 
 **A7 — Leaky backend abstraction.** External code routinely reaches into privates: `env.backend._grid.network` (`main.py:284`), `obs._network_manager._default_dc` read *and written* (`reassessment.py:129-134`), `obs._limit_or` (`superposition.py:471-480`). Quiet parity gaps: `theta_or` docstring says degrees, code produces radians (`observation.py:199-200`); two different definitions of rho feed different pipeline stages (`observation.py:159-180` uses `i_or/limit_or`; `overflow_analysis.py:330-337` uses `max(i1,i2)` for lines).
 
-**A8 — `utils/` is a dumping ground** mixing five concerns: a REPAS subsystem (~2,250 lines), simulation orchestration, environment factories, core physics (`superposition.py`, 1,358 lines), and two script-style pipelines with `__main__` blocks reading files from the CWD. Three-way duplication across backends: `get_theta_node`/`get_delta_theta_line` implemented **three times** (helpers, helpers_pypowsybl, superposition); `simulation.py` vs. `simulation_pypowsybl.py` ~85% identical (~290 lines each) — and the C-diag rho-check bug bred precisely in that duplicated seam (opposite first-argument contracts hidden behind identical-looking signatures); `_inhibit_swapped_flows` implemented three times (builder, antenna_graph, overflow_analysis).
+**A8 — `utils/` is a dumping ground** mixing five concerns: a REPAS subsystem (~2,250 lines), simulation orchestration, environment factories, core physics (`superposition.py`, 1,358 lines), and two script-style pipelines with `__main__` blocks reading files from the CWD. Three-way duplication across backends: `get_theta_node`/`get_delta_theta_line` implemented **three times** (helpers, helpers_pypowsybl, superposition); `simulation.py` vs. `simulation_pypowsybl.py` ~85% identical (~290 lines each) — and the C-diag rho-check bug bred precisely in that duplicated seam (opposite first-argument contracts hidden behind identical-looking signatures) *(the pair was unified into a single backend-agnostic `simulation.py` in R4 / 0.2.8; `simulation_pypowsybl.py` deleted)*; `_inhibit_swapped_flows` implemented three times (builder, antenna_graph, overflow_analysis).
 
 ### 4.3 Performance
 
@@ -263,7 +267,7 @@ Credit where due: the architecture-level performance choices are **right** — v
 
 **M1 — CLAUDE.md is one full minor version stale** (says 0.1.9; code is 0.2.5): points to the deleted `discovery.py` monolith, omits `manoeuvre/` (a third of the package), `models/`, `antenna_graph.py`; documents an `ActionType` enum that doesn't exist and config keys that no longer match. For a repo explicitly designed for AI-assisted development, a misleading CLAUDE.md is compounding debt: it misdirects every future session.
 
-**M2 — The test config-override is fragile by construction.** `tests/conftest.py` swaps `sys.modules` at import time; `tests/config_test.py` is a **hand-maintained fork** of `config.py` (every new key must be added twice — and six are already missing, see C7); the mechanism bypasses pydantic entirely, so `Settings` validation and env parsing are never exercised in CI.
+**M2 — The test config-override is fragile by construction.** *(Resolved in R3 / 0.2.8.)* `tests/conftest.py` swaps `sys.modules` at import time; `tests/config_test.py` is a **hand-maintained fork** of `config.py` (every new key must be added twice — and six are already missing, see C7); the mechanism bypasses pydantic entirely, so `Settings` validation and env parsing are never exercised in CI. *(Fix: both the fork and the `sys.modules` swap are deleted; `conftest.py` applies the deltas via `config.override_settings(**TEST_CONFIG_DELTAS)`, which runs pydantic validation in CI.)*
 
 **M3 — No coverage measurement** anywhere, despite 1,248 tests. Concrete blind spots found manually: zero test references for `utils/load_training_data.py` (which contains bug C6 — no test would have caught it), `pypowsybl_backend/migration_guide.py`, `simulation_env.py` (only transitive); near-zero for `data_loader.py`, `make_*_env.py`. The `slow` marker is unregistered (no `[tool.pytest.ini_options]` at all) — a typo like `@pytest.mark.slwo` silently *runs as fast in CI*. The ruff baseline grandfathers `F811` (shadowed, i.e. **never-running** tests) in two files and an `F821` undefined name in a third.
 
@@ -298,18 +302,74 @@ Credit where due: the architecture-level performance choices are **right** — v
 
 Ordered as a coherent roadmap; each step is enabled by the previous and by safety nets that already exist.
 
-**R1 — Typed pipeline spine** (highest leverage, mostly mechanical).
+**R1 — Typed pipeline spine ✅ DONE (0.2.7)** (highest leverage, mostly mechanical).
 Introduce `AnalysisContext` and `AnalysisResult` dataclasses replacing the 41-key dict and the untyped result dict; make step1 return `AnalysisResult | AnalysisContext` (or raise a typed outcome) instead of the `(Optional, Optional)` sentinel. Introduce a `SimulationBackend` protocol with the 9 backend operations plus `fast_mode` as constructor state (`Grid2opBackend`, `PypowsyblBackend`), deleting the 18 delegation wrappers (~120 lines), the 8 function pointers in the context, the call-site `if is_pypowsybl:` forks and the `discoverer._*` monkey-patching in one move. The codebase already proves it can do this well — `RecommenderInputs` is the template. Actually use `SimulatedAction`.
 **Status — DONE (0.2.7).** Shipped as proposed: `AnalysisContext` / `AnalysisResult` (dict-compatible via `DictCompatMixin`), `run_analysis_step1` returns `AnalysisContext | AnalysisResult`, the `SimulationBackend` protocol with `Grid2opBackend` / `PypowsyblBackend`, and `SimulatedAction` now actually emitted by reassessment; the 18 delegation wrappers, the 8 context function pointers, the `is_pypowsybl` forks and the discoverer monkey-patching are gone. Byte-identical prioritized-action output.
 
-**R2 — Split `main.py` into `cli.py` + `pipeline.py`**; move `_run_expert_discovery` under `models/`. Dependency direction becomes `cli → pipeline → models → action_evaluation/graph_analysis → utils`, dissolving all three import cycles (A2) and making `print` acceptable exactly where it remains (the CLI).
-**Status — DONE (0.2.7).** `main.py` is now a thin re-export facade; `cli.py` + `pipeline.py` carry the CLI and pipeline core, `_run_expert_discovery` moved under `models/`; all three cycles dissolved.
+**R2 — Split `main.py` into `cli.py` + `pipeline.py` ✅ DONE (0.2.7)**; move `_run_expert_discovery` under `models/`. Dependency direction becomes `cli → pipeline → models → action_evaluation/graph_analysis → utils`, dissolving all three import cycles (A2) and making `print` acceptable exactly where it remains (the CLI).
 
-**R3 — One config, one source of truth.** Make the pydantic `Settings` instance authoritative: derived paths as `@computed_field` (fixes staleness), an explicit `get_settings()/override_settings()` accessor, pipeline overrides passed as parameters instead of module mutation. Tests override via a `Settings(...)` fixture — deleting `tests/config_test.py` and the `sys.modules` swap, so validation actually runs in CI and the 29 defensive `getattr` sites collapse. (Interim 1-hour step: make `config_test.py` star-import the real config and override only deltas.)
-**Status — PARTIAL (interim, 0.2.9).** The interim step landed: `tests/config_test.py` star-imports the real config and overrides only the test deltas, so `Settings` validation runs and the six previously-missing keys (M2 / C7 fork-drift) can't go missing. **Remaining:** the full single source — `@computed_field` derived paths, a `get_settings()/override_settings()` accessor, and parameters-not-mutation; `apply_settings_to_namespace`, the plain-attribute derived paths (`config.py:275-284`) and the module-mutation channel (`pipeline.py:250-252`, `cli.py:64`) still stand.
+**R3 — One config, one source of truth. ✅ DONE (0.2.8).** Make the pydantic `Settings` instance authoritative: derived paths as `@computed_field` (fixes staleness), an explicit `get_settings()/override_settings()` accessor, pipeline overrides passed as parameters instead of module mutation. Tests override via a `Settings(...)` fixture — deleting `tests/config_test.py` and the `sys.modules` swap, so validation actually runs in CI and the 29 defensive `getattr` sites collapse. (Interim 1-hour step: make `config_test.py` star-import the real config and override only deltas.)
 
-**R4 — Unify the per-backend simulation seam.** One `BaselineContext` (holds `act_defaut`, baseline rho, the kept baseline observation, and a `release()`) created once per discovery/reassessment run; `check_rho_reduction_with_baseline` takes the baseline observation **explicitly**. This deletes the ~85%-duplicated `simulation.py`/`simulation_pypowsybl.py` pair, structurally prevents the C-diag class of bug (and completes the fix for the three injection mixins left open by the surgical patch), routes all eight discovery families through one shared baseline (P1: halves LF count), and gives variants a lifecycle (fixes C4 — add a `NetworkManager` variant registry with an LRU/`max_variants` guard as a backstop).
-**Status — CORE DONE (0.2.6 → 0.2.7).** All eight discovery families route candidate rho-checks through one shared cached contingency baseline (`_get_simulation_baseline` + `_check_rho_with_baseline`; `check_rho_reduction_with_baseline` takes the baseline observation **explicitly**), one baseline load flow per run — completing the injection-mixin C-diag remnant, halving the discovery LF budget (P1) and closing the topological per-candidate variant leak (C4). As of 0.2.7 it is driven by `backends.py` flags (`branch_candidates_from_baseline` / `use_shared_baseline_for_topological`, `True` only for `PypowsyblBackend`) rather than the old `main.py` monkey-patch. **Remaining:** the `BaselineContext` with an explicit `release()`, deletion of the ~85%-duplicated `simulation.py` / `simulation_pypowsybl.py` pair (both still present), and the `NetworkManager` variant registry for the cross-run C4 backstop.
+> **What landed (0.2.8).** `CASE_NAME` / `ENV_FOLDER` / `ENV_PATH` /
+> `ACTION_SPACE_FOLDER` / `ACTION_FILE_PATH` / `SAVE_FOLDER_VISUALIZATION` are now
+> `@computed_field`s on `Settings`, so overriding `ENV_NAME` recomputes `ENV_PATH`
+> / `ACTION_FILE_PATH` (fixes the A3 staleness); `model_dump()` includes them so
+> they are still promoted to module attributes for the many `config.X` readers.
+> Added `get_settings()` / `override_settings()` / `reset_settings()`;
+> `override_settings` re-validates through pydantic, recomputes the derived paths
+> and re-promotes to the module namespace, and `pipeline.py` routes its
+> `ENV_NAME` override through it instead of raw module mutation. All **29**
+> `getattr(config, 'X', default)` sites collapsed to direct attribute access
+> (every key is now a guaranteed `Settings` field). The hand-forked
+> `tests/config_test.py` and the `sys.modules` swap are **deleted**: `conftest.py`
+> applies the test deltas via `config.override_settings(**TEST_CONFIG_DELTAS)`, so
+> pydantic validation now runs in CI (closes M2). The mechanism-coupled tests were
+> rewritten and unit tests added for the computed fields + accessors.
+>
+> **Deliberately preserved (not a regression).** The `config` module stays a
+> plain, mutable namespace: `config.X = y` writes and *arbitrary* extra
+> attributes still work, because the Co-Study4Grid backend drives the recommender
+> by mutating `config.ENV_PATH` / `config.ENV_FOLDER` and its own keys
+> (`LAYOUT_FILE_PATH`, `MONITORED_LINES_COUNT`, …) directly. "Authoritative" here
+> means a validated, staleness-free *accessor* path + computed derivation + a
+> `Settings`-based test fixture — not locking the module down.
+
+**R4 — Unify the per-backend simulation seam. ✅ DONE (0.2.8).** One `BaselineContext` (holds `act_defaut`, baseline rho, the kept baseline observation, and a `release()`) created once per discovery/reassessment run; `check_rho_reduction_with_baseline` takes the baseline observation **explicitly**. This deletes the ~85%-duplicated `simulation.py`/`simulation_pypowsybl.py` pair, structurally prevents the C-diag class of bug (and completes the fix for the three injection mixins left open by the surgical patch), routes all eight discovery families through one shared baseline (P1: halves LF count), and gives variants a lifecycle (fixes C4 — add a `NetworkManager` variant registry with an LRU/`max_variants` guard as a backstop).
+
+> **What landed (0.2.8).** `utils/simulation_pypowsybl.py` is **deleted**;
+> `utils/simulation.py` is the single backend-agnostic module. The two real
+> backend differences are now explicit parameters instead of a forked file:
+> `simulate_kwargs` (pypowsybl's `keep_variant` / `fast_mode`; grid2op passes
+> none) and `reapply_contingency` (grid2op branches a candidate from the healthy
+> N-state and re-applies the contingency; pypowsybl branches from the
+> contingency-applied kept variant and applies only the candidate).
+> `check_rho_reduction_with_baseline` now takes the branch observation **and** the
+> contract flag explicitly — the opposite-first-argument-contract trap that bred
+> the C-diag bug is gone by construction, and the three injection mixins route
+> through the same explicit seam (closes the C-diag injection remnant that R4 was
+> earmarked for). The grid2op defaults reproduce the old behaviour byte-for-byte,
+> so positional callers/tests are unaffected. `BaselineContext`
+> (`act_defaut` / `baseline_rho` / `obs_baseline` / `branch_obs` / `release()`) is
+> built once per run by `_get_simulation_baseline` and freed by
+> `_release_simulation_baseline` at the end of `discover_and_prioritize`; it
+> iterates as `(act_defaut, baseline_rho, branch_obs)` so the discovery call sites
+> are unchanged. `NetworkManager` gained a kept-variant registry
+> (`register_kept_variant` / `sweep_kept_variants`, `max_kept_variants=256`) with
+> an LRU backstop that never evicts the base or the working variant, so a
+> long-running service reusing one `NetworkManager` across analyses is bounded
+> (closes the cross-run half of C4). Verified: full suite at the same 9
+> pre-existing lightsim2grid-drift failures + 11 new R4 unit tests, and a real
+> pypowsybl end-to-end analysis (`CHECK_ACTION_SIMULATION=True`) produces the
+> expected overloads / prioritized actions / `action_scores`.
+>
+> **Deferred (beyond R4's byte-preserving scope).** The five topological mixins
+> still call the full `check_rho_reduction` per candidate on the *grid2op* path;
+> only pypowsybl shares the baseline (P1 already applied there). `reassessment.py`
+> and the expert `rules.py` still branch/simulate through the unified module with
+> grid2op defaults — folding *them* onto a single `BaselineContext` per
+> reassessment run (and reusing the already-kept N-1 `obs_defaut` as the baseline
+> branch point to eliminate even the one duplicate baseline variant) is the
+> remaining slice.
 
 **R5 — Restructure discovery around data, not mixins.** A `FamilyResult` dataclass (`identified/effective/ineffective/scores/params/non_convergence`) stored as `self.results: Dict[family, FamilyResult]` kills ~40 lines of `__init__`, the 8× hand-written `action_scores` assembly, the PST `getattr` special-casing, and makes prioritization a data-driven loop over an ordered `(family, min_key, cap)` table — the duplicate-call slip becomes impossible. Extract a shared `InjectionDiscoveryBase` for the three injection families (~120 duplicated preamble lines, already drifting: curtailment weighs 4 flow components, shedding 2, undocumented). Replace substring action-type matching with an `ActionType` enum and a declarative keyword→type table (fixes the rules bypass in C7).
 **Status — DONE (0.2.9).** `FamilyResult` per family in `self.results` + a declarative `FAMILY_SPECS` registry (with generated `@property` bridges); the `action_scores` assembly and prioritization are data-driven loops (`ACTION_SCORES_ORDER` / `MIN_PHASE_ORDER` / `FILL_PHASE_ORDER`), making the latent `renewable_curtailment` double-add impossible; the PST `_disco_bounds` del/lazy temporal coupling is replaced by a memoised `_get_disconnection_bounds()` → frozen `DisconnectionBounds`; `InjectionDiscoveryBase` factors the shared injection preamble; `DiscovererProtocol` declares the mixin surface (A5); the `ActionType` enum + `classify_by_description` table land with the **C7** grid2op-coupling rule-bypass fixed. Behaviour-preserving (byte-identical `action_scores`).
@@ -339,10 +399,10 @@ Low-risk, mostly mechanical; the first block should land immediately.
 1. ~~C-diag~~ **Done in this branch**: the pypowsybl topological passes now share the cached baseline and branch candidates from the contingency observation (`main.py` wiring + `_get_simulation_baseline`); the three injection passes branch from the same shared baseline. `check_rho_reduction` also passes `obs_baseline` for any residual direct callers.
 2. ~~C2~~ **Done in this branch**: `_stored_json_path` (sanitize + resolved-parent check) on load + meta read, 400/404 on bad names; `/api/config` dirs validated against an allowed root.
 3. ~~C3~~ **Done in this branch**: edge caches keyed by `(u, v, key)` + parallel-lines regression test. Remaining: pass the cached labels into `computing_buses_values_of_interest` to also close P5.
-4. ~~C4~~ **Done in this branch** (topological baseline-variant leak: ~30/run → 1, via the shared baseline). Remaining: a cross-run `NetworkManager` variant sweep and reusing `obs_defaut` as the baseline branch — folded into R4.
+4. ~~C4~~ **Done** (topological baseline-variant leak: ~30/run → 1, via the shared baseline; the per-run baseline variant + a cross-run `NetworkManager` kept-variant registry/LRU backstop landed in **R4 / 0.2.8**). Remaining: reusing `obs_defaut` as the baseline branch point to drop even the one duplicate baseline variant.
 5. ~~C5~~ **Done in this branch**: `sys.exit(0)` → `raise LoadFlowDivergedError` (2 sites, new `exceptions.py`).
 6. ~~C6~~ **Done in this branch**: the four fixes in `load_training_data.py` / `load_evaluation_data.py`.
-7. C7: initialize `raw_dict_action`; add the missing keys to `config_test.py` (or star-import); guard the two `max()` calls; match overload edges by name; fix the two `ObservationWithTopologyOverride` property groups.
+7. C7: initialize `raw_dict_action`; ~~add the missing keys to `config_test.py`~~ **done in R3 (0.2.8)** — `config_test.py` was deleted and the test deltas now go through `config.override_settings`, so no key can go missing; guard the two `max()` calls; match overload edges by name; fix the two `ObservationWithTopologyOverride` property groups.
 
 **Performance (each independently measurable):**
 8. ~~Route the five topology mixins through `_get_simulation_baseline`~~ **Done in this branch** (P1 — ~2× fewer LFs in discovery, and closes the C4 baseline-variant leak).

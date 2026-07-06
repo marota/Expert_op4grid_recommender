@@ -40,17 +40,26 @@ def test_expert_redispatch_params_have_expected_kinds():
     assert specs["redispatch_default_delta_mw"].kind == "float"
 
 
-def test_expert_params_spec_robust_to_missing_config_attrs(monkeypatch):
-    """A stale config lacking the redispatch knobs must NOT make
-    params_spec() raise — otherwise a single missing attribute blanks out
-    the entire model registry / Settings UI (regression guard)."""
+def test_expert_params_spec_reflects_config_values():
+    """params_spec() sources its defaults from the authoritative config. Since R3
+    every knob is a guaranteed pydantic ``Settings`` field (no hand-fork can drop
+    one and blank out the model registry / Settings UI — review C7/M2), so the
+    defensive ``getattr`` fallbacks are gone and the defaults track config
+    directly, including through ``override_settings``."""
     from expert_op4grid_recommender import config as cfg
-    monkeypatch.delattr(cfg, "MIN_REDISPATCH", raising=False)
-    monkeypatch.delattr(cfg, "REDISPATCH_DEFAULT_DELTA_MW", raising=False)
+
+    before = cfg.get_settings()
+    try:
+        cfg.override_settings(MIN_REDISPATCH=4, REDISPATCH_DEFAULT_DELTA_MW=25.0)
+        specs = {p.name: p for p in ExpertRecommender.params_spec()}
+        assert specs["min_redispatch"].default == 4
+        assert specs["redispatch_default_delta_mw"].default == 25.0
+    finally:
+        cfg.override_settings(before)
+
+    # Back to the session's test settings.
     specs = {p.name: p for p in ExpertRecommender.params_spec()}
-    # Still present, falling back to safe defaults.
-    assert specs["min_redispatch"].default == 0
-    assert specs["redispatch_default_delta_mw"].default == 10.0
+    assert specs["min_redispatch"].default == cfg.MIN_REDISPATCH
 
 
 def test_expert_n_prioritized_is_an_int_with_min_one():

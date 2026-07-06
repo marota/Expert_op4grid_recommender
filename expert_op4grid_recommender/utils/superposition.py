@@ -1199,9 +1199,9 @@ def compute_all_pairs_superposition(
     from expert_op4grid_recommender import config
     name_line = list(env.name_line)
     num_lines = len(name_line)
-    worsening_threshold = getattr(config, 'PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD', 0.02)
+    worsening_threshold = config.PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD
 
-    monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
+    monitoring_factor = config.MONITORING_FACTOR_THERMAL_LIMITS
     pre_existing_baseline = np.zeros(num_lines)
     is_pre_existing = np.zeros(num_lines, dtype=bool)
     for idx, rho_val in pre_existing_rho.items():
@@ -1329,7 +1329,7 @@ def compute_all_pairs_superposition(
         # obs_start.rho is computed using monitored thermal limits (permanent * monitoring_factor),
         # so rho_combined inherits that scaling.  Multiply by monitoring_factor to convert back
         # to the permanent-limit reference frame (matching the simulation results).
-        monitoring_factor = getattr(config, 'MONITORING_FACTOR_THERMAL_LIMITS', 1.0)
+        monitoring_factor = config.MONITORING_FACTOR_THERMAL_LIMITS
 
         result.update({
             "max_rho": max_rho * monitoring_factor,

@@ -54,15 +54,7 @@ settings: Settings = Settings(
     MIN_REDISPATCH=0,
 )
 
+# The derived paths (CASE_NAME / ENV_FOLDER / ENV_PATH / ACTION_SPACE_FOLDER /
+# ACTION_FILE_PATH / SAVE_FOLDER_VISUALIZATION) are ``@computed_field``\ s on
+# Settings, so they are promoted here automatically — no hand-maintained block.
 apply_settings_to_namespace(settings, globals())
-
-# --- Derived values (kept as plain module attributes for backwards compat) ---
-CASE_NAME: str = "defaut_" + "_".join(map(str, settings.LINES_DEFAUT)) + "_t" + str(
-    settings.TIMESTEP
-)
-
-ENV_FOLDER: Path = PROJECT_ROOT / "data"
-ENV_PATH: Path = ENV_FOLDER / settings.ENV_NAME
-ACTION_SPACE_FOLDER: Path = ENV_FOLDER / "action_space"
-ACTION_FILE_PATH: Path = ACTION_SPACE_FOLDER / settings.FILE_ACTION_SPACE_DESC
-SAVE_FOLDER_VISUALIZATION: Path = PROJECT_ROOT / "Overflow_Graph"
