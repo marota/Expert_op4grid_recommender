@@ -219,6 +219,19 @@ def test_mixin_defines_exactly_its_family_methods(mixin, expected_methods):
     )
 
 
+def test_action_discoverer_satisfies_discoverer_protocol_methods():
+    """A5: the shared surface the family mixins depend on is now declared in
+    ``DiscovererProtocol``. Guard that the base keeps providing every required
+    helper — so "the base lost a method a mixin needs" fails here, not with an
+    AttributeError deep inside discovery."""
+    from expert_op4grid_recommender.action_evaluation.discovery._protocols import (
+        DISCOVERER_REQUIRED_METHODS,
+    )
+
+    missing = [m for m in DISCOVERER_REQUIRED_METHODS if not callable(getattr(ActionDiscoverer, m, None))]
+    assert not missing, f"ActionDiscoverer no longer provides: {missing}"
+
+
 def test_discoverer_base_owns_init_and_shared_helpers():
     """The helpers that multiple families call (caches, scoring primitives,
     generic lookups) must remain on :class:`DiscovererBase`."""
