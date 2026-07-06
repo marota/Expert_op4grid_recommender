@@ -34,17 +34,99 @@ logger = logging.getLogger(__name__)
 #: Hard cap on reassessment worker threads (see ``_reassessment_worker_count``).
 _MAX_REASSESSMENT_WORKERS = 10
 
+#: cgroup control files that expose a container CPU quota (module-level so
+#: tests can re-point them at fixtures).
+_CGROUP_V2_CPU_MAX = "/sys/fs/cgroup/cpu.max"
+_CGROUP_V1_CPU_QUOTA = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+_CGROUP_V1_CPU_PERIOD = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+
+
+def _read_cgroup_cpu_quota() -> Optional[float]:
+    """Return the cgroup CPU quota expressed in whole CPUs, or ``None``.
+
+    A container CPU limit (e.g. a 2-vCPU cloud box on a 16-core host) is
+    invisible to :func:`os.cpu_count`, which reports the *host* core count.
+    The cgroup CFS quota is the only reliable signal on such a host. Reads
+    cgroup v2 (``/sys/fs/cgroup/cpu.max``) first, then cgroup v1
+    (``cpu.cfs_quota_us`` / ``cpu.cfs_period_us``). Returns ``None`` when the
+    quota is unset / unlimited or the files are unreadable (e.g. non-Linux).
+    """
+    # cgroup v2 — "<quota> <period>"; quota == "max" means unlimited.
+    try:
+        with open(_CGROUP_V2_CPU_MAX, encoding="ascii") as fh:
+            parts = fh.read().split()
+        if parts and parts[0] != "max":
+            quota = float(parts[0])
+            period = float(parts[1]) if len(parts) > 1 else 100000.0
+            if quota > 0 and period > 0:
+                return quota / period
+    except (OSError, ValueError, IndexError):
+        pass
+    # cgroup v1 — separate quota / period files; quota == -1 means unlimited.
+    try:
+        with open(_CGROUP_V1_CPU_QUOTA, encoding="ascii") as fh:
+            quota = float(fh.read().strip())
+        with open(_CGROUP_V1_CPU_PERIOD, encoding="ascii") as fh:
+            period = float(fh.read().strip())
+        if quota > 0 and period > 0:
+            return quota / period
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _effective_cpu_count() -> int:
+    """Best-effort count of CPUs *actually usable* by this process.
+
+    :func:`os.cpu_count` reports the host core count, which over-counts inside
+    a CPU-limited container. We take the minimum of every signal we can read:
+    the host count, the scheduler affinity mask (cpuset pinning), and the
+    cgroup CPU quota (cfs). Floored at 1.
+    """
+    candidates = [os.cpu_count() or 1]
+    if hasattr(os, "sched_getaffinity"):
+        try:
+            candidates.append(len(os.sched_getaffinity(0)))
+        except OSError:
+            pass
+    quota = _read_cgroup_cpu_quota()
+    if quota is not None:
+        candidates.append(max(1, int(quota)))
+    return max(1, min(candidates))
+
 
 def _reassessment_worker_count(n_actions: int) -> Tuple[int, int]:
-    """Return ``(cores_available, workers)`` for the reassessment pool.
+    """Return ``(effective_cores, workers)`` for the reassessment pool.
 
-    Workers = ``min(10, available cores, n_actions)`` — capped at 10 so a
-    many-core host does not spawn an unbounded number of full network copies,
-    and never more than the number of actions to simulate.
+    ``effective_cores`` is **container-aware** (respects the cgroup CPU quota
+    and scheduler affinity), unlike :func:`os.cpu_count`. Parallel is engaged
+    only when it is likely to pay off: every worker clones a full private
+    pypowsybl network, so on a CPU-starved host (e.g. a 2-vCPU cloud
+    container) the pool over-subscribes the CPU *and* pays that per-worker
+    clone tax — measurably SLOWER than a serial re-simulation.
+
+    Two config knobs gate it (both env-overridable via ``EXPERT_OP4GRID_*``):
+
+    - ``REASSESSMENT_PARALLEL``: ``None`` = auto (default), ``True`` = force
+      parallel, ``False`` = force serial (recommended on 2-vCPU deployments).
+    - ``REASSESSMENT_MIN_PARALLEL_CORES``: in auto mode, the minimum number of
+      effective cores required before parallelising (else serial).
+
+    Workers = ``min(10, effective cores, n_actions)`` when parallel, else 1.
     """
-    cores = os.cpu_count() or 1
-    workers = max(1, min(_MAX_REASSESSMENT_WORKERS, cores, n_actions))
-    return cores, workers
+    effective = _effective_cpu_count()
+    force = getattr(config, "REASSESSMENT_PARALLEL", None)
+    min_cores = getattr(config, "REASSESSMENT_MIN_PARALLEL_CORES", 4)
+
+    if force is None:
+        parallel = effective >= min_cores
+    else:
+        parallel = bool(force)
+
+    if not parallel:
+        return effective, 1
+    workers = max(1, min(_MAX_REASSESSMENT_WORKERS, effective, n_actions))
+    return effective, workers
 
 
 def _make_worker_baseline_obs(binary_buffer, thermal_limits):
@@ -333,7 +415,7 @@ def reassess_prioritized_actions(
         }
         print(
             f"[Reassessment] {n_actions} action(s) re-simulated on "
-            f"{used_workers}/{cores} core(s) "
+            f"{used_workers}/{cores} effective core(s) "
             f"({'parallel' if used_workers > 1 else 'serial'})."
         )
 

@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Container-aware reassessment parallelism (2-vCPU fix).** The per-action
+  reassessment (`utils/reassessment.py`) used `os.cpu_count()` to size its
+  worker pool. Inside a CPU-limited container (e.g. a 2-vCPU cloud box on a
+  16-core host) that reports the **host** core count, so it spun up to 10
+  worker threads — each cloning a full private pypowsybl network — that
+  over-subscribed the 2 vCPUs and ran *slower* than serial (a reported
+  47 s reassessment). CPU detection is now container-aware
+  (`_effective_cpu_count()` = min of `os.cpu_count()`, scheduler affinity, and
+  the cgroup CPU quota `cpu.max` / `cpu.cfs_quota_us`), and parallel is engaged
+  only when it pays off. Two new config knobs (env-overridable via
+  `EXPERT_OP4GRID_*`):
+  - `REASSESSMENT_PARALLEL`: `None` = auto (default), `True` = force parallel,
+    `False` = force serial (recommended on 2-vCPU deployments).
+  - `REASSESSMENT_MIN_PARALLEL_CORES` (default 4): in auto mode, the minimum
+    effective cores required before parallelising.
+
+  Behaviour-preserving otherwise; a 4-core `--compare` shows parallel is no
+  faster than serial there anyway (the per-worker clone tax cancels the
+  concurrency). New unit coverage: `tests/test_reassessment_parallelism.py`.
+
 ## [0.2.7] - 2026-07-03
 
 ### Changed

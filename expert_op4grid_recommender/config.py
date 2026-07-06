@@ -206,6 +206,26 @@ class Settings(BaseSettings):
     MAX_CANDIDATE_SIMULATIONS: int = Field(default=0, ge=-1)
 
     # -------------------
+    #  Reassessment parallelism
+    # -------------------
+    # The per-action reassessment can re-simulate the prioritized actions on
+    # private pypowsybl network copies across worker threads. Each worker clones
+    # a full network, so on a CPU-limited host (e.g. a 2-vCPU cloud container,
+    # where ``os.cpu_count()`` still reports the *host* core count) the pool
+    # over-subscribes the CPU and is SLOWER than a serial run. CPU detection is
+    # container-aware (cgroup CPU quota + scheduler affinity).
+    #   REASSESSMENT_PARALLEL:
+    #     None  (default) -> auto: parallelise only when enough effective cores
+    #                        are available (see REASSESSMENT_MIN_PARALLEL_CORES)
+    #     True            -> force parallel (still bounded by cores / n_actions)
+    #     False           -> force serial (recommended on 2-vCPU deployments;
+    #                        set env EXPERT_OP4GRID_REASSESSMENT_PARALLEL=0)
+    REASSESSMENT_PARALLEL: Optional[bool] = None
+    # In auto mode, the minimum number of *effective* (container-aware) cores
+    # required before the reassessment parallelises. Below it, serial.
+    REASSESSMENT_MIN_PARALLEL_CORES: int = Field(default=4, ge=1)
+
+    # -------------------
     #  Expert system parameters
     # -------------------
     PARAM_OPTIONS_EXPERT_OP: Dict[str, Any] = Field(

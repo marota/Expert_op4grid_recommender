@@ -244,6 +244,13 @@ PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD = 0.02  # exclude unless worsened by 2
 # Pypowsybl simulation tuning (v0.1.4+)
 PYPOWSYBL_FAST_MODE = False         # disable voltage control for speed
 
+# Reassessment parallelism (v0.2.8+) — the per-action reassessment clones a
+# full pypowsybl network per worker, so on a CPU-limited container it over-
+# subscribes the CPU and is slower than serial. Detection is container-aware
+# (cgroup CPU quota + affinity), not os.cpu_count().
+REASSESSMENT_PARALLEL = None        # None=auto, True=force parallel, False=force serial
+REASSESSMENT_MIN_PARALLEL_CORES = 4 # auto mode: min effective cores to parallelise
+
 # Minimum prioritized actions per type (v0.1.3+ / v0.1.9+ / v0.2.x)
 MIN_LINE_RECONNECTIONS = 0
 MIN_CLOSE_COUPLING = 0
