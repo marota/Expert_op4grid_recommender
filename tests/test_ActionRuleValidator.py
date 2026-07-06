@@ -120,6 +120,43 @@ def test_validator_check_rules(basic_validator):
     assert basic_validator.check_rules("open_coupling", "dispatch_path", [[1, 1]])[1] == "No node splitting on dispatch path" # Check single node case
     assert basic_validator.check_rules("open_coupling", "dispatch_path", [[1, 2]])[0] is False # Multi-node case is allowed
 
+def test_c7_grid2op_coupling_is_localized_not_bypassed(basic_validator):
+    """C7 regression: a grid2op-format coupling carries its substation only in
+    ``content['set_bus']['substations_id']`` (no top-level ``VoltageLevelId``).
+    The old code localized it to "unknown" so NO expert rule could fire — a
+    silent, backend-specific bypass. It must now localize to its substation and
+    be filtered by the same rule the pypowsybl-format action triggers."""
+    # Current single-node topology at S1 (dispatch node) so
+    # is_topo_subs_one_node holds; the action targets a *split* ([1, 2]) so it
+    # is not caught by the "already in target state" short-circuit first.
+    basic_validator.obs.sub_topologies = {1: [1, 1]}
+    action_desc = {
+        "description_unitaire": "Ouverture COUPL sur S1",
+        "content": {"set_bus": {"substations_id": [(1, [1, 2])]}},
+    }
+    names, topo = basic_validator._resolve_coupling_subs(action_desc)
+    assert names == ["S1"]           # resolved from substations_id, not "unknown"
+    assert topo == [[1, 1]]          # PRE-action (current) topology
+    do_filter, rule = basic_validator.verify_action(action_desc, topo)
+    assert do_filter is True
+    assert rule == "No node splitting on dispatch path"
+
+
+def test_c7_pypowsybl_coupling_path_unchanged(basic_validator):
+    """The VoltageLevelId (pypowsybl / REPAS) path is byte-identical."""
+    basic_validator.obs.sub_topologies = {1: [1, 1]}
+    action_desc = {
+        "description_unitaire": "Ouverture COUPL sur S1",
+        "VoltageLevelId": "S1",
+    }
+    names, topo = basic_validator._resolve_coupling_subs(action_desc)
+    assert names == ["S1"]
+    assert topo == [[1, 1]]
+    do_filter, rule = basic_validator.verify_action(action_desc, topo)
+    assert do_filter is True
+    assert rule == "No node splitting on dispatch path"
+
+
 def test_validator_verify_action_basic_checks(basic_validator):
     # Test disconnect already disconnected
     line_status_map={'L1': False, 'L2': True, 'L3': True}

@@ -13,6 +13,10 @@
 import numpy as np
 from typing import Dict, Any, Optional, Callable, Tuple, List
 
+from expert_op4grid_recommender.action_evaluation.action_types import (
+    classify_by_description,
+)
+
 
 class ActionClassifier:
     """
@@ -338,30 +342,12 @@ class ActionClassifier:
         if by_description:
             try:
                 description = actions_desc.get("description_unitaire", actions_desc.get("description", ""))
-
-                if "COUPL" in description or "TRO." in description:
-                    action_type = "open_coupling" if "Ouverture" in description else "close_coupling"
-                elif "Variation de slot" in description or "tap" in description.lower():
-                    action_type = "pst_tap"
-                elif "Ouverture" in description or "deconnection" in description:
-                    if "generator" in description.lower() or "production" in description.lower() or "centrale" in description.lower():
-                        action_type = "open_gen"
-                    else:
-                        has_line, has_load = self._infer_has_line_load(actions_desc)
-                        if has_load and has_line:
-                            action_type = "open_line_load"
-                        elif has_line:
-                            action_type = "open_line"
-                        elif has_load:
-                            action_type = "open_load"
-                elif "Fermeture" in description or "reconnection" in description:
-                    has_line, has_load = self._infer_has_line_load(actions_desc)
-                    if has_load and has_line:
-                        action_type = "close_line_load"
-                    elif has_line:
-                        action_type = "close_line"
-                    elif has_load:
-                        action_type = "close_load"
+                # Declarative, ordered keyword cascade (see action_types.py).
+                # ``_infer_has_line_load`` stays lazy — only the open/close
+                # branches invoke it, exactly as before.
+                action_type = classify_by_description(
+                    description, lambda: self._infer_has_line_load(actions_desc)
+                ).value
 
             except (KeyError, AttributeError) as e:
                 print(

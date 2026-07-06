@@ -228,6 +228,42 @@ class ActionRuleValidator:
                 return "dispatch_path"
         return "out_of_graph"
 
+    def _resolve_coupling_subs(
+        self, action_desc: Dict[str, Any]
+    ) -> Tuple[List[str], List[List[int]]]:
+        """Resolve a coupling action's substation name(s) + pre-action topology,
+        **backend-agnostically** (fixes the C7 rule bypass).
+
+        pypowsybl / REPAS couplings carry a top-level ``VoltageLevelId`` (a VL
+        name); grid2op-format couplings (produced natively by node
+        merging / splitting) carry their substation ids only inside
+        ``content['set_bus']['substations_id']`` as ``(sub_id, topo)`` tuples.
+        The old code only handled the former, so grid2op couplings localized to
+        ``"unknown"`` and no expert rule could ever fire on them.
+
+        Returns ``(sub_names, subs_topology)``.
+        """
+        if "VoltageLevelId" in action_desc:
+            names = [action_desc["VoltageLevelId"]]
+            topo: List[List[int]] = []
+            for sn in names:
+                idx = self._sub_name_to_idx.get(sn)
+                if idx is not None:
+                    topo.append(self.obs.sub_topology(idx))
+            return names, topo
+
+        set_bus = action_desc.get("content", {}).get("set_bus", {})
+        substations_id = set_bus.get("substations_id", []) if isinstance(set_bus, dict) else []
+        names, topo = [], []
+        for entry in substations_id:
+            sub_id = entry[0] if isinstance(entry, (list, tuple)) else entry
+            try:
+                names.append(str(self.obs.name_sub[sub_id]))
+                topo.append(self.obs.sub_topology(sub_id))
+            except (IndexError, TypeError, KeyError):
+                continue
+        return names, topo
+
     def check_rules(self, action_type: str, localization: str, subs_topology: List[List[int]]) -> Tuple[bool, Optional[str]]:
         """
         Checks if a given grid action violates predefined expert rules.
@@ -291,9 +327,15 @@ class ActionRuleValidator:
                     do_filter_action, broken_rule = True, "No reconnection of a line already connected"
             localization = self.localize_line_action(lines)
 
-        elif "coupling" in action_type and "VoltageLevelId" in action_desc:
-            action_subs = [action_desc["VoltageLevelId"]]
-            localization = self.localize_coupling_action(action_subs)
+        elif "coupling" in action_type:
+            # Backend-agnostic: resolve the coupling's substation(s) from either
+            # the pypowsybl ``VoltageLevelId`` or the grid2op
+            # ``substations_id`` (C7 fix — grid2op couplings were bypassing the
+            # expert rules by localizing to "unknown").
+            action_subs, _ = self._resolve_coupling_subs(action_desc)
+            localization = (
+                self.localize_coupling_action(action_subs) if action_subs else "unknown"
+            )
         else:
             localization = "unknown"
 
@@ -364,15 +406,11 @@ class ActionRuleValidator:
         filtered_actions_needing_simulation = []
 
         for action_id, action_desc in dict_action.items():
-            subs_topology = []
-            if "VoltageLevelId" in action_desc:
-                action_subs = [action_desc["VoltageLevelId"]]
-                # Use cached sub_name_to_idx mapping instead of np.where
-                subs_topology = []
-                for sn in action_subs:
-                    idx = self._sub_name_to_idx.get(sn)
-                    if idx is not None:
-                        subs_topology.append(self.obs.sub_topology(idx))
+            # Backend-agnostic coupling topology (C7 fix): grid2op couplings
+            # carry substations_id (not VoltageLevelId), and the "No node
+            # splitting on dispatch path" rule needs the real pre-action
+            # topology to evaluate ``is_topo_subs_one_node``.
+            _, subs_topology = self._resolve_coupling_subs(action_desc)
 
             do_filter_action, broken_rule = self.verify_action(action_desc, subs_topology)
             description = action_desc.get("description_unitaire", action_desc.get("description", ""))
