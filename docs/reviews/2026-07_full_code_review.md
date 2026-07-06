@@ -55,10 +55,38 @@ branch (released as **0.2.6**). Summary of what landed:
 Still open (not implemented here): the deep-revision roadmap in §6 (typed pipeline spine,
 config single-source, `manoeuvre` IHM promotion, etc.) and the C7 formula ambiguities.
 
-### What landed subsequently (R1/R2 in 0.2.7; R5/A5/C7 + partial R6 after)
+### What landed subsequently (R1/R2 in 0.2.7; R3 interim + R4 core; R5/A5/C7 + partial R6 after)
 
 - **R1 + R2** (0.2.7): typed pipeline spine (`AnalysisContext` / `AnalysisResult`),
   `SimulationBackend` protocol, `main.py` → `cli.py` + `pipeline.py`.
+- **R3 (interim, done)**: the hand-forked `tests/config_test.py` no longer duplicates
+  `config.py` — it now `star-import`s the real config and overrides only the test deltas,
+  so pydantic `Settings` validation runs and no key can go missing. This is the R3
+  "interim 1-hour step" and it simultaneously closed the M2/C7 config-fork drift (the six
+  keys `config_test.py` was missing, e.g. `ENABLE_ANTENNA_RECOMMENDATIONS`). **Still
+  deferred**: the full single source of truth — `@computed_field` derived paths (so
+  overriding `ENV_NAME` recomputes `ENV_PATH`/`ACTION_FILE_PATH`), a
+  `get_settings()/override_settings()` accessor, and passing pipeline overrides as
+  parameters instead of mutating module attributes. The `apply_settings_to_namespace`
+  shim, the plain-attribute derived paths (`config.py:275-284`) and the module-mutation
+  parameter channel (`pipeline.py:250-252`, `cli.py:64`) all still stand.
+- **R4 (core, done)**: the per-backend simulation seam is unified around the **shared
+  baseline** — all eight discovery families (five topological + three injection) route
+  their candidate rho-checks through one cached contingency baseline
+  (`_get_simulation_baseline` + `_check_rho_with_baseline`, with
+  `check_rho_reduction_with_baseline` taking the baseline observation **explicitly** +
+  `baseline_rho`), one baseline load flow per run instead of one per candidate. This
+  completes the injection-mixin remnant of the C-diag fix, structurally prevents that bug
+  class, halves the discovery load-flow budget (P1) and closes the topological
+  per-candidate variant leak (C4). As of 0.2.7 the routing is data on the backend
+  (`backends.py` flags `branch_candidates_from_baseline` /
+  `use_shared_baseline_for_topological`, `True` only for `PypowsyblBackend`) threaded via
+  `models/_expert_discovery.py` — replacing the old `main.py` monkey-patched closure. (The
+  behavioural win first landed in 0.2.6; 0.2.7 moved it onto the typed backend surface.)
+  **Still deferred**: the cosmetic `BaselineContext` with an explicit `release()`
+  lifecycle, deletion of the ~85%-duplicated `simulation.py` / `simulation_pypowsybl.py`
+  pair (both still present), and a `NetworkManager` variant registry (LRU / `max_variants`)
+  as the cross-run C4 backstop.
 - **R5 + A5** (discovery restructured around data): `discovery/_results.py` holds one
   typed `FamilyResult` per family in `self.results`, described by a declarative
   `FAMILY_SPECS` registry that also generates back-compat `@property` bridges. The
