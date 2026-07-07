@@ -139,9 +139,18 @@ def make_patched_pypowsybl_backend(*args, **kwargs):
     delegate, so there is nothing useful to override on ``PyPowSyBlBackend``
     itself — instead we guarantee the process-wide class patch before building
     the backend. Raises ``ImportError`` if pypowsybl2grid is not installed.
+
+    .. deprecated:: 0.3.0
+        ``pypowsybl2grid`` is deprecated and no longer a dependency (its
+        ``numpy==1.26.4`` pin conflicts with ``numpy>=2.0.0``). Install it
+        manually into a ``numpy<2`` environment if you still need this factory.
+        The generic ``apply_pypowsybl_integer_value_patch()`` remains active.
     """
     backend_cls = _load_pypowsybl2grid_backend_cls()
     if backend_cls is None:
-        raise ImportError("pypowsybl2grid is required to build a PyPowSyBlBackend")
+        raise ImportError(
+            "pypowsybl2grid is deprecated and no longer a dependency; install it "
+            "manually in a numpy<2 environment to build a PyPowSyBlBackend."
+        )
     apply_pypowsybl_integer_value_patch()
     return backend_cls(*args, **kwargs)

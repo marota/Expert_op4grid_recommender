@@ -28,9 +28,11 @@ dependencies = [
     "pandas",
     "networkx",
     "pypowsybl>=1.13.0",
-    # Floor bumped 0.2.1 -> 0.3.0: utils/make_env_utils.py enforces
-    # MIN_PP2GRID_VERSION = 0.3.0 at import, so the old floor was a latent bug.
-    "pypowsybl2grid>=0.3.0",
+    # pypowsybl2grid DEPRECATED and dropped as a dependency (v0.3.0): its 0.3.0
+    # wheel pins numpy==1.26.4, which is unsatisfiable against numpy>=2.0.0 and
+    # broke installs. It is only needed by the legacy grid2op+pypowsybl
+    # "assistant env" bridge (utils/make_assistant_env.create_pypowsybl_backend);
+    # install it manually in a numpy<2 environment if you still need that path.
     # Floor bumped 0.2.8 -> 0.3.2 to match the tested family (requirements.txt
     # pins 0.3.2.post3) and resolve the pyproject/requirements disagreement (M4).
     "expertop4grid>=0.3.2",
@@ -47,10 +49,11 @@ test = [
 # already pulls Grid2Op + lightsim2grid transitively, so a base install is not
 # grid2op-free at the wheel level today; this extra makes the grid2op backend's
 # DIRECT requirements explicit and pins the floors the code enforces
-# (utils/make_env_utils.py). `pypowsybl2grid` intentionally stays a BASE dep —
-# the pure-pypowsybl pipeline needs it and downstream consumers (e.g.
-# Co-Study4Grid, the HuggingFace Docker image) install the base package without
-# this extra. The CI `grid2op-optional` leg enforces the code-level contract.
+# (utils/make_env_utils.py). The CI `grid2op-optional` leg enforces the
+# code-level contract. `pypowsybl2grid` is intentionally NOT declared here or in
+# the base deps (deprecated v0.3.0 — its numpy==1.26.4 pin is unsatisfiable);
+# install it manually in a numpy<2 env only if you need the legacy
+# grid2op+pypowsybl assistant-env bridge.
 grid2op = [
     "grid2op>=1.12.1",
     "LightSim2Grid>=0.10.3",

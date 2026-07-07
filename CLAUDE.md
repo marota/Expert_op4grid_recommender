@@ -482,8 +482,10 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 **Core:**
 - `numpy >= 2.0.0`, `scipy >= 1.13.0`, `pandas`, `networkx`
-- `pypowsybl >= 1.13.0`, `pypowsybl2grid >= 0.3.0` (floor matches the
-  `MIN_PP2GRID_VERSION` guard in `utils/make_env_utils.py`)
+- `pypowsybl >= 1.13.0` (`pypowsybl2grid` is **deprecated** and no longer a
+  dependency as of 0.3.0 — its `numpy==1.26.4` pin conflicts with `numpy>=2.0.0`;
+  it is only needed by the legacy grid2op+pypowsybl assistant-env bridge, install
+  it manually in a `numpy<2` env if required)
 - `expertop4grid >= 0.3.2` (contains alphaDeesp; pulls grid2op + lightsim2grid
   transitively — so a base install is not grid2op-free at the wheel level)
 - `matplotlib >= 3.8.0`, `pydantic >= 2.0`, `pydantic-settings >= 2.0`
@@ -513,8 +515,10 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 > dead/broken tests are repaired (M3); dependency floors reconcile with a `[grid2op]` extra
 > and a grid2op-optional CI leg (M4); and `NetworkManager` name-array caching + a
 > `set_thermal_limit` O(n²) fix (P4) plus cached membership sets in action application (P3)
-> trim the pypowsybl hot path. Behaviour-preserving for the analysis pipeline. See
-> `docs/release-notes/v0.3.0.md`.
+> trim the pypowsybl hot path. **`pypowsybl2grid` is deprecated and dropped as a
+> dependency** — its `numpy==1.26.4` pin was unsatisfiable against `numpy>=2.0.0`; only the
+> legacy grid2op+pypowsybl assistant-env bridge needs it (install manually in a `numpy<2`
+> env). Behaviour-preserving for the analysis pipeline. See `docs/release-notes/v0.3.0.md`.
 >
 > **v0.2.9 highlights** (deep revisions R5 + A5 + R6-partial from the 2026-07 review, plus a
 > container-aware reassessment fix): discovery restructured around data — one typed
@@ -713,13 +717,19 @@ combined = action1 + action2
    As of M5 this is applied **at package import time** by
    `expert_op4grid_recommender/__init__.py`, via an idempotent, version-guarded
    class patch in `expert_op4grid_recommender/patched_backend.py`
-   (`apply_pypowsybl_integer_value_patch()` + the `make_patched_pypowsybl_backend`
-   factory the assistant-env builder uses). It is a no-op when pypowsybl is
+   (`apply_pypowsybl_integer_value_patch()`). It is a no-op when pypowsybl is
    absent and self-disables if a future upstream already applies the fix. **No
    site-packages edit is required.** `scripts/patch_pypowsybl2grid_file.py`
    remains only as a manual fallback; the `.github/workflows/ci.yml` step that
-   runs it is now a redundant belt-and-suspenders (idempotent with the runtime
-   patch).
+   ran it was removed in 0.3.0.
+
+   **`pypowsybl2grid` deprecated (0.3.0):** its wheel pins `numpy==1.26.4`,
+   unsatisfiable against `numpy>=2.0.0`, so it is dropped from the declared
+   dependencies. The generic patch above (on `pypowsybl.grid2op.Backend`) is
+   unaffected; only the `make_patched_pypowsybl_backend` factory + the
+   `make_assistant_env.create_pypowsybl_backend` bridge need it, and both now
+   emit a `DeprecationWarning`. Install `pypowsybl2grid` manually in a `numpy<2`
+   environment if you still use that legacy grid2op+pypowsybl path.
 
 ---
 

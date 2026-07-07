@@ -12,7 +12,11 @@ scipy>=1.13.0
 pandas==2.3.3
 networkx==3.5
 pypowsybl==1.14.0
-pypowsybl2grid==0.3.0
+# pypowsybl2grid DEPRECATED and removed as a dependency (v0.3.0): its 0.3.0
+# wheel pins numpy==1.26.4, unsatisfiable against this package's numpy>=2.0.0
+# (it broke the CI resolve). It is only needed by the legacy grid2op+pypowsybl
+# "assistant env" bridge; install it manually into a numpy<2 environment if you
+# still need create_pypowsybl_backend(). See docs/release-notes/v0.3.0.md.
 expertop4grid==0.3.2.post3
 matplotlib==3.10.7
 pydantic>=2.0

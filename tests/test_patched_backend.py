@@ -62,10 +62,11 @@ def test_patch_wraps_and_converts_on_a_stub_class(monkeypatch):
     assert calls[-1].tolist() == [-1]
 
 
-def test_make_patched_backend_raises_without_pypowsybl2grid(monkeypatch):
-    monkeypatch.setattr(pb, "_load_pypowsybl2grid_backend_cls", lambda: None)
-    with pytest.raises(ImportError, match="pypowsybl2grid"):
-        pb.make_patched_pypowsybl_backend()
+# NOTE: the make_patched_pypowsybl_backend() path depends on the deprecated
+# pypowsybl2grid package (removed as a dependency in v0.3.0 — its numpy==1.26.4
+# pin is unsatisfiable against numpy>=2.0.0), so its test was removed here. The
+# apply_pypowsybl_integer_value_patch() tests above still cover the generic
+# pypowsybl.grid2op.Backend integer-value fix, which remains in force.
 
 
 # --- pypowsybl-installed tier (skips where absent) ---------------------------

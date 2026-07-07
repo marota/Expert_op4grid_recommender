@@ -38,7 +38,22 @@ def create_pypowsybl_backend(
     Silences powsybl/pypowsybl2grid chatter to ``ERROR`` and wires in the RTE
     OpenLoadFlow parameter set so assistant runs match what the evaluator
     would do.
+
+    .. deprecated:: 0.3.0
+        This path depends on ``pypowsybl2grid``, which is no longer a
+        dependency (its ``numpy==1.26.4`` pin conflicts with ``numpy>=2.0.0``).
+        Install ``pypowsybl2grid`` manually into a ``numpy<2`` environment if
+        you still need the legacy grid2op+pypowsybl assistant env.
     """
+    import warnings
+    warnings.warn(
+        "create_pypowsybl_backend() / the grid2op+pypowsybl assistant-env bridge "
+        "depends on the deprecated pypowsybl2grid package, which is no longer a "
+        "dependency of expert_op4grid_recommender. Install it manually in a "
+        "numpy<2 environment if you still rely on this path.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if not _HAS_GRID2OP:
         raise ImportError("grid2op and pypowsybl2grid are required for create_pypowsybl_backend()")
     # Silence powsybl / pypowsybl2grid chatter WITHOUT touching the root logger.
