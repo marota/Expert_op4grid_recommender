@@ -10,7 +10,10 @@
 numpy>=2.0.0,<3
 scipy>=1.13.0
 pandas==2.3.3
-networkx==3.5
+# networkx 3.5 dropped Python 3.10 (latest 3.10 wheel is 3.4.2). Use a range so
+# the py3.10 matrix leg resolves to 3.4.x while py3.11/3.12 pick 3.5 — same
+# reason as the numpy `<3` bound above.
+networkx>=3.4,<3.6
 pypowsybl==1.14.0
 # pypowsybl2grid DEPRECATED and removed as a dependency (v0.3.0): its 0.3.0
 # wheel pins numpy==1.26.4, unsatisfiable against this package's numpy>=2.0.0
