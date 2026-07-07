@@ -501,8 +501,21 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.2.9` (see `CHANGELOG.md` for full history)
+**Current version**: `0.3.0` (see `CHANGELOG.md` for full history)
 
+> **v0.3.0 highlights** (review follow-through on top of 0.2.9 — findings M3–M6, M8,
+> P3–P4, R7-partial): the maneuver IHM (`scripts/manoeuvre_ihm.py`) becomes a serveable
+> app (`create_app()` factory + `waitress` + `/healthz`, M8/R7); the pypowsybl
+> integer-value `0 → −1` fix is a vendored, import-time, version-guarded class patch
+> (`patched_backend.py`, M5 — no site-packages edit); the package stops reconfiguring the
+> **root** logger and `action_rebuilder` re-raises instead of swallowing (M6); test infra
+> hardens with `--strict-markers` + a registered `slow` marker + opt-in coverage, and two
+> dead/broken tests are repaired (M3); dependency floors reconcile with a `[grid2op]` extra
+> and a grid2op-optional CI leg (M4); and `NetworkManager` name-array caching + a
+> `set_thermal_limit` O(n²) fix (P4) plus cached membership sets in action application (P3)
+> trim the pypowsybl hot path. Behaviour-preserving for the analysis pipeline. See
+> `docs/release-notes/v0.3.0.md`.
+>
 > **v0.2.9 highlights** (deep revisions R5 + A5 + R6-partial from the 2026-07 review, plus a
 > container-aware reassessment fix): discovery restructured around data — one typed
 > `FamilyResult` per family in `self.results` via a declarative `FAMILY_SPECS` registry (with

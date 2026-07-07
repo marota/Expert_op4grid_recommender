@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-07
+
 Follow-up slice of the 2026-07 full code review (findings M3–M6, M8, P3–P4,
-and the R7 IHM promotion), reconciled on top of 0.2.9. Behaviour-preserving
-for the analysis pipeline.
+and the R7 IHM promotion), on top of 0.2.9. Behaviour-preserving for the
+analysis pipeline; the maneuver IHM gains a production serving path and the
+dependency floors are reconciled. See `docs/release-notes/v0.3.0.md`.
 
 ### Added
 
