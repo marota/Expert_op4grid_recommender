@@ -1108,6 +1108,17 @@ def test_reproducibility_bare_env_small_grid_test():
     # 'expert_op4grid_recommender.config' actually points to 'tests.config_test'
     import expert_op4grid_recommender.config as config
     
+    # The grid2op (Backend.GRID2OP) path builds its environment through the
+    # grid2op+pypowsybl "assistant env" bridge (make_grid2op_assistant_env ->
+    # create_pypowsybl_backend), which requires pypowsybl2grid. That package is
+    # DEPRECATED and no longer a dependency (its numpy==1.26.4 pin conflicts with
+    # numpy>=2.0.0), so skip cleanly where it is absent (e.g. CI). Install
+    # pypowsybl2grid in a numpy<2 env to exercise this test locally.
+    pytest.importorskip(
+        "pypowsybl2grid",
+        reason="Backend.GRID2OP assistant-env bridge needs the deprecated pypowsybl2grid",
+    )
+
     # Test parameters
     test_id = "Case_BareEnvSmallGrid_T0"
     timestep = 0
