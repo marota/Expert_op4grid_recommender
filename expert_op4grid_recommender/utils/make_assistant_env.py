@@ -13,12 +13,17 @@ from expert_op4grid_recommender.utils.make_env_utils import (N_BUSBAR_PER_SUB,
                                                              make_default_params,
                                                              create_olf_rte_parameter)
 
+logger = logging.getLogger(__name__)
+
 try:
     import grid2op
     from grid2op.Environment import Environment
     from grid2op.Backend import Backend
     from grid2op.Chronics import ChangeNothing
-    from pypowsybl2grid import PyPowSyBlBackend
+    # Import guard for _HAS_GRID2OP: the backend is built through
+    # make_patched_pypowsybl_backend (M5), but this import must still fail when
+    # pypowsybl2grid is absent so _HAS_GRID2OP is set correctly.
+    from pypowsybl2grid import PyPowSyBlBackend  # noqa: F401
     import numpy as np
     _HAS_GRID2OP = True
 except (ImportError, Exception):
@@ -33,15 +38,38 @@ def create_pypowsybl_backend(
     Silences powsybl/pypowsybl2grid chatter to ``ERROR`` and wires in the RTE
     OpenLoadFlow parameter set so assistant runs match what the evaluator
     would do.
+
+    .. deprecated:: 0.3.0
+        This path depends on ``pypowsybl2grid``, which is no longer a
+        dependency (its ``numpy==1.26.4`` pin conflicts with ``numpy>=2.0.0``).
+        Install ``pypowsybl2grid`` manually into a ``numpy<2`` environment if
+        you still need the legacy grid2op+pypowsybl assistant env.
     """
+    import warnings
+    warnings.warn(
+        "create_pypowsybl_backend() / the grid2op+pypowsybl assistant-env bridge "
+        "depends on the deprecated pypowsybl2grid package, which is no longer a "
+        "dependency of expert_op4grid_recommender. Install it manually in a "
+        "numpy<2 environment if you still rely on this path.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if not _HAS_GRID2OP:
         raise ImportError("grid2op and pypowsybl2grid are required for create_pypowsybl_backend()")
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.ERROR)
+    # Silence powsybl / pypowsybl2grid chatter WITHOUT touching the root logger.
+    # The previous logging.basicConfig() + root setLevel(ERROR) was a global
+    # side effect that silenced the host application's own INFO/WARNING logs
+    # every time an assistant env was built (M6).
     logging.getLogger('powsybl').setLevel(logging.ERROR)
     logging.getLogger('pypowsybl2grid').setLevel(logging.ERROR)
     lf_parameters = create_olf_rte_parameter()
-    return PyPowSyBlBackend(n_busbar_per_sub=n_busbar_per_sub,
+    # M5: build through the vendored factory so the pypowsybl grid2op backend's
+    # integer-value 0->-1 fix is guaranteed in force (no site-packages patch).
+    from expert_op4grid_recommender.patched_backend import (
+        make_patched_pypowsybl_backend,
+    )
+    return make_patched_pypowsybl_backend(
+                            n_busbar_per_sub=n_busbar_per_sub,
                             check_isolated_and_disconnected_injections=check_isolated_and_disconnected_injections,
                             lf_parameters=lf_parameters)
 
@@ -77,7 +105,7 @@ def make_grid2op_assistant_env(
                        param=params
                        )
     else:
-        print("Warning: this is a bare environment with no chronics")
+        logger.warning("Bare environment with no chronics at %s", path)
         env = grid2op.make(path,
                    backend=backend,
                    allow_detachment=allow_detachment,

@@ -220,6 +220,34 @@ class NetworkManager:
         # PSTs - cache phase tap changers
         self._cache_pst_info()
 
+        # P4: materialize the name arrays ONCE. The backing id lists
+        # (_line_ids / _substation_ids / _gen_ids / _load_ids) are structural
+        # (element identity + order) and never change across variants or during
+        # this NetworkManager's lifetime — a network reload builds a fresh
+        # manager — so the arrays are safe to cache. Without this, the name_*
+        # properties rebuilt a fresh <U numpy array from a Python list on EVERY
+        # access, which turned innocent `self.name_line[i]` loops into O(n^2).
+        self._cache_name_arrays()
+
+    def _cache_name_arrays(self):
+        """Build the immutable name arrays once (P4 — kills the per-access rebuild).
+
+        Marked read-only so an accidental in-place mutation by a consumer raises
+        loudly instead of silently corrupting the shared cache. Every current
+        caller only reads / reindexes / ``set()`` / ``list()`` / masks them.
+        """
+        self._cached_name_line = np.array(self._line_ids)
+        self._cached_name_sub = np.array(self._substation_ids)
+        self._cached_name_gen = np.array(self._gen_ids)
+        self._cached_name_load = np.array(self._load_ids)
+        for arr in (
+            self._cached_name_line,
+            self._cached_name_sub,
+            self._cached_name_gen,
+            self._cached_name_load,
+        ):
+            arr.flags.writeable = False
+
     def _cache_pst_info(self):
         """Identify transformers with phase tap changers."""
         self._pst_df = self.network.get_phase_tap_changers()
@@ -295,28 +323,28 @@ class NetworkManager:
     
     @property
     def name_line(self) -> np.ndarray:
-        """Array of line names (compatible with grid2op interface)."""
-        return np.array(self._line_ids)
-    
+        """Array of line names (compatible with grid2op interface). Cached read-only (P4)."""
+        return self._cached_name_line
+
     @property
     def name_sub(self) -> np.ndarray:
-        """Array of substation names (voltage level IDs)."""
-        return np.array(self._substation_ids)
-    
+        """Array of substation names (voltage level IDs). Cached read-only (P4)."""
+        return self._cached_name_sub
+
     @property
     def name_gen(self) -> np.ndarray:
-        """Array of generator names."""
-        return np.array(self._gen_ids)
+        """Array of generator names. Cached read-only (P4)."""
+        return self._cached_name_gen
 
     @property
     def gen_energy_source(self) -> np.ndarray:
         """Array of generator energy source strings (e.g. 'WIND', 'SOLAR', 'THERMAL', ...)."""
         return self._gen_energy_source.copy()
-    
+
     @property
     def name_load(self) -> np.ndarray:
-        """Array of load names."""
-        return np.array(self._load_ids)
+        """Array of load names. Cached read-only (P4)."""
+        return self._cached_name_load
     
     @property
     def n_line(self) -> int:
@@ -533,25 +561,29 @@ class NetworkManager:
     
     def disconnect_line(self, line_id: str):
         """Disconnect a line (open both terminals)."""
-        if line_id in self.network.get_lines().index:
+        # P3: O(1) membership on the cached sets instead of fetching the full
+        # lines / 2wt tables on every call. The element index is structural and
+        # never changes across variants, so the sets stay valid.
+        if line_id in self._lines_set:
             self.network.update_lines(id=line_id, connected1=False, connected2=False)
-        elif line_id in self.network.get_2_windings_transformers().index:
+        elif line_id in self._trafos_set:
             self.network.update_2_windings_transformers(
                 id=line_id, connected1=False, connected2=False
             )
-    
+
     def reconnect_line(self, line_id: str, bus_or: int = 1, bus_ex: int = 1):
         """
         Reconnect a line to specified buses.
-        
+
         Args:
             line_id: Line identifier
             bus_or: Bus number at origin (1 or 2)
             bus_ex: Bus number at extremity (1 or 2)
         """
-        if line_id in self.network.get_lines().index:
+        # P3: cached-set membership instead of full-table fetches (see disconnect_line).
+        if line_id in self._lines_set:
             self.network.update_lines(id=line_id, connected1=True, connected2=True)
-        elif line_id in self.network.get_2_windings_transformers().index:
+        elif line_id in self._trafos_set:
             self.network.update_2_windings_transformers(
                 id=line_id, connected1=True, connected2=True
             )

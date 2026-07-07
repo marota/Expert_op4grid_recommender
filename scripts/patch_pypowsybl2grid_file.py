@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 """
-Script to patch pypowsybl2grid backend.py file directly.
+Script to patch pypowsybl's grid2op backend.py file directly.
 
-This patches the installed pypowsybl2grid package to fix the zero-value handling
-issue in update_integer_value method.
+MANUAL FALLBACK (M5): the zero-value handling fix in
+``pypowsybl.grid2op.Backend.update_integer_value`` is normally applied at
+package import time by ``expert_op4grid_recommender/patched_backend.py`` (an
+idempotent, version-guarded runtime class patch), so this script is no longer
+required for tests or CI. It remains as a manual recovery path — e.g. if the
+runtime patch's version guard fires against an unfamiliar upstream and an
+operator wants to force the in-file edit. The edit and the runtime wrap compose
+harmlessly (both are idempotent).
+
+This patches the installed package to fix the zero-value handling issue in the
+update_integer_value method (grid2op encodes the disconnected/unset bus as 0;
+pypowsybl expects -1, so value[value == 0] = -1 is inserted before the native call).
 
 Usage:
     python scripts/patch_pypowsybl2grid_file.py [--dry-run] [--revert] [--debug]

@@ -85,6 +85,9 @@ expert_op4grid_recommender/
 │                              #   re-exported as module attrs for back-compat)
 ├── config_basic.py            # One alternative config variant (Settings(...) with overrides)
 ├── exceptions.py              # Domain exceptions (LoadFlowDivergedError)
+├── patched_backend.py         # Import-time, version-guarded fix for pypowsybl's
+│                              #   grid2op backend update_integer_value (0→−1);
+│                              #   replaces the site-packages patch script (M5)
 ├── environment.py             # Grid2Op environment setup
 ├── environment_pypowsybl.py   # Pure pypowsybl environment setup
 ├── data_loader.py             # Load action dictionaries from JSON
@@ -479,19 +482,44 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 **Core:**
 - `numpy >= 2.0.0`, `scipy >= 1.13.0`, `pandas`, `networkx`
-- `pypowsybl >= 1.13.0`, `pypowsybl2grid >= 0.2.1`
-- `expertop4grid >= 0.2.8` (contains alphaDeesp)
-- `matplotlib >= 3.8.0`
+- `pypowsybl >= 1.13.0` (`pypowsybl2grid` is **deprecated** and no longer a
+  dependency as of 0.3.0 — its `numpy==1.26.4` pin conflicts with `numpy>=2.0.0`;
+  it is only needed by the legacy grid2op+pypowsybl assistant-env bridge, install
+  it manually in a `numpy<2` env if required)
+- `expertop4grid >= 0.3.2` (contains alphaDeesp; pulls grid2op + lightsim2grid
+  transitively — so a base install is not grid2op-free at the wheel level)
+- `matplotlib >= 3.8.0`, `pydantic >= 2.0`, `pydantic-settings >= 2.0`
 
-**Test:**
-- `pytest`
+**Extras:**
+- `[grid2op]` — `grid2op >= 1.12.1`, `LightSim2Grid >= 0.10.3` (the Grid2Op
+  backend's *direct* deps, made explicit). `requirements.txt` pins the whole
+  set for reproducible CI; the CI `grid2op-optional` leg installs the base
+  package, removes the grid2op family, and asserts the pure-pypowsybl pipeline
+  still imports/runs (the PR #26 optionality contract).
+- `[test]` — `pytest`; `[quality]` — ruff / interrogate / radon / vulture;
+  `[ihm]` — flask.
 
 ---
 
 ## Current Development Status
 
-**Current version**: `0.2.9` (see `CHANGELOG.md` for full history)
+**Current version**: `0.3.0` (see `CHANGELOG.md` for full history)
 
+> **v0.3.0 highlights** (review follow-through on top of 0.2.9 — findings M3–M6, M8,
+> P3–P4, R7-partial): the maneuver IHM (`scripts/manoeuvre_ihm.py`) becomes a serveable
+> app (`create_app()` factory + `waitress` + `/healthz`, M8/R7); the pypowsybl
+> integer-value `0 → −1` fix is a vendored, import-time, version-guarded class patch
+> (`patched_backend.py`, M5 — no site-packages edit); the package stops reconfiguring the
+> **root** logger and `action_rebuilder` re-raises instead of swallowing (M6); test infra
+> hardens with `--strict-markers` + a registered `slow` marker + opt-in coverage, and two
+> dead/broken tests are repaired (M3); dependency floors reconcile with a `[grid2op]` extra
+> and a grid2op-optional CI leg (M4); and `NetworkManager` name-array caching + a
+> `set_thermal_limit` O(n²) fix (P4) plus cached membership sets in action application (P3)
+> trim the pypowsybl hot path. **`pypowsybl2grid` is deprecated and dropped as a
+> dependency** — its `numpy==1.26.4` pin was unsatisfiable against `numpy>=2.0.0`; only the
+> legacy grid2op+pypowsybl assistant-env bridge needs it (install manually in a `numpy<2`
+> env). Behaviour-preserving for the analysis pipeline. See `docs/release-notes/v0.3.0.md`.
+>
 > **v0.2.9 highlights** (deep revisions R5 + A5 + R6-partial from the 2026-07 review, plus a
 > container-aware reassessment fix): discovery restructured around data — one typed
 > `FamilyResult` per family in `self.results` via a declarative `FAMILY_SPECS` registry (with
@@ -678,11 +706,30 @@ combined = action1 + action2
 
 5. **alphaDeesp dependency**: `expertop4grid >= 0.2.8` is required for `AlphaDeesp_warmStart`.
 
-6. **pypowsybl2grid backend patch**: The `PyPowSyBlBackend.update_integer_value` method has an issue with zero-value handling. The original code `changed[value == 0] = False` must be replaced with `value[value == 0] = -1`. **This patch must be applied to the installed package file before running tests**:
-   ```bash
-   python scripts/patch_pypowsybl2grid_file.py
-   ```
-   In CI, this is done automatically in the `build-and-test` job of `.github/workflows/ci.yml`. Runtime monkey-patching doesn't work because modules are imported before conftest.py runs.
+6. **pypowsybl grid2op backend integer-value fix (0 → −1)**: the buggy method
+   is `update_integer_value` on **`pypowsybl.grid2op.Backend`** (the internal
+   delegate `pypowsybl2grid.PyPowSyBlBackend` instantiates as `self._grid`) —
+   *not* on `PyPowSyBlBackend` itself. It forwards the grid2op bus array to the
+   native `_pypowsybl.update_grid2op_integer_value`, but grid2op encodes the
+   disconnected/unset-bus sentinel as `0` while pypowsybl expects `-1`, so the
+   fix inserts `value[value == 0] = -1` before the native call.
+
+   As of M5 this is applied **at package import time** by
+   `expert_op4grid_recommender/__init__.py`, via an idempotent, version-guarded
+   class patch in `expert_op4grid_recommender/patched_backend.py`
+   (`apply_pypowsybl_integer_value_patch()`). It is a no-op when pypowsybl is
+   absent and self-disables if a future upstream already applies the fix. **No
+   site-packages edit is required.** `scripts/patch_pypowsybl2grid_file.py`
+   remains only as a manual fallback; the `.github/workflows/ci.yml` step that
+   ran it was removed in 0.3.0.
+
+   **`pypowsybl2grid` deprecated (0.3.0):** its wheel pins `numpy==1.26.4`,
+   unsatisfiable against `numpy>=2.0.0`, so it is dropped from the declared
+   dependencies. The generic patch above (on `pypowsybl.grid2op.Backend`) is
+   unaffected; only the `make_patched_pypowsybl_backend` factory + the
+   `make_assistant_env.create_pypowsybl_backend` bridge need it, and both now
+   emit a `DeprecationWarning`. Install `pypowsybl2grid` manually in a `numpy<2`
+   environment if you still use that legacy grid2op+pypowsybl path.
 
 ---
 

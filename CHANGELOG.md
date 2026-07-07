@@ -9,6 +9,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-07
+
+Follow-up slice of the 2026-07 full code review (findings M3–M6, M8, P3–P4,
+and the R7 IHM promotion), on top of 0.2.9. Behaviour-preserving for the
+analysis pipeline; the maneuver IHM gains a production serving path and the
+dependency floors are reconciled. See `docs/release-notes/v0.3.0.md`.
+
+### Added
+
+- **Vendored, import-time pypowsybl integer-value patch (M5).**
+  `expert_op4grid_recommender/patched_backend.py` applies the
+  `update_integer_value` `0 → −1` fix on `pypowsybl.grid2op.Backend` via an
+  idempotent, version-guarded class patch at package import
+  (`apply_pypowsybl_integer_value_patch()`). No site-packages edit is required;
+  the standalone `scripts/patch_pypowsybl2grid_file.py` remains only as a manual
+  fallback. It is a no-op when pypowsybl is absent and self-disables if a future
+  upstream ships the fix. New coverage: `tests/test_patched_backend.py`. (The
+  `make_patched_pypowsybl_backend` factory depends on `pypowsybl2grid`, now
+  deprecated — see below.)
+- **Maneuver IHM as a serveable app (R7 partial / M8).** `scripts/manoeuvre_ihm.py`
+  gains a `create_app()` application factory, a production `waitress` serving
+  path, and a `/healthz` endpoint, so the Flask IHM can be launched as a proper
+  WSGI app rather than only via the debug server.
+
+### Changed
+
+- **Observability: stop hijacking the root logger (M6).** The package no longer
+  reconfigures the root logger on import; it logs through its own named logger,
+  so importing `expert_op4grid_recommender` no longer changes a host
+  application's logging. `utils/action_rebuilder.py` now re-raises on failure
+  instead of swallowing the error and returning a partial result.
+- **Test infrastructure hardening (M3).** `--strict-markers` plus a registered
+  `slow` marker (an unregistered mark now errors at collection instead of
+  silently running as a fast test), opt-in coverage config
+  (`pytest --cov=expert_op4grid_recommender`), and repair of two dead/broken
+  tests — including the `get_maintenance_timestep` mock test, which had never
+  run because it shared a name with the `@slow` real-env test that shadowed it.
+- **Dependency declarations synced + grid2op-optional contract enforced (M4).**
+  `pyproject.toml` / `requirements.txt` floors reconciled (`expertop4grid >= 0.3.2`,
+  explicit `pydantic` / `pydantic-settings`), the Grid2Op backend's direct deps
+  moved to a `[grid2op]` extra, and a CI leg that removes the grid2op family and
+  asserts the pure-pypowsybl pipeline still imports/runs (the PR #26 optionality
+  contract).
+
+### Deprecated / Removed
+
+- **`pypowsybl2grid` deprecated and dropped as a dependency.** Its `0.3.0` wheel
+  pins `numpy==1.26.4`, which is unsatisfiable against this package's
+  `numpy>=2.0.0` and broke the install resolve (in CI and anywhere numpy 2 is
+  required). It is only used by the legacy grid2op+pypowsybl "assistant env"
+  bridge (`utils/make_assistant_env.create_pypowsybl_backend` →
+  `patched_backend.make_patched_pypowsybl_backend`); the pure-pypowsybl and
+  grid2op(lightsim2grid) analysis paths never needed it. It is removed from
+  `requirements.txt` and `pyproject.toml`, the CI `pypowsybl2grid` patch step is
+  dropped, the import-time version guard in `utils/make_env_utils.py` is softened
+  to a `DeprecationWarning`, and the two bridge entry points now emit a
+  `DeprecationWarning`. Install `pypowsybl2grid` manually into a `numpy<2`
+  environment if you still need that legacy path. The generic
+  `apply_pypowsybl_integer_value_patch()` (on `pypowsybl.grid2op.Backend`) is
+  unaffected.
+
+### Performance
+
+- **NetworkManager name-array caching + `set_thermal_limit` O(n²) fix (P4).**
+  The `name_line` / `name_sub` / … arrays are cached instead of rebuilt on every
+  property access, and `set_thermal_limit` no longer rescans all branches per
+  element.
+- **Cached membership sets in action application (P3).** Repeated per-element
+  `in` scans over full element lists are replaced by precomputed sets in the
+  pypowsybl action-application path.
+
+### Development
+
+- **SessionStart git-sync init check.** `.claude/hooks/init-sync-check.sh`
+  (+ `.claude/settings.json`) is a read-only, non-fatal check that, when a
+  session starts on the `marota` fork, fetches and reports how far the branch is
+  from upstream and reminds that PRs target `ainetus`. Runtime-generated
+  `Overflow_Graph/` artifacts are now gitignored.
+
 ## [0.2.9] - 2026-07-06
 
 ### Changed

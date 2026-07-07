@@ -845,6 +845,8 @@ class TestEdgeCases:
     @pytest.mark.skipif(SKIP_RULES_TESTS, reason=RULES_SKIP_REASON)
     def test_empty_paths_in_validator(self):
         """Test validator with empty paths."""
+        from expert_op4grid_recommender.action_evaluation.rules import ActionRuleValidator
+        from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 
         obs = MockObservationForSimulation(
             name_line=["L1", "L2"],
@@ -871,6 +873,8 @@ class TestEdgeCases:
     @pytest.mark.skipif(SKIP_RULES_TESTS, reason=RULES_SKIP_REASON)
     def test_large_number_of_paths(self):
         """Test validator with large number of paths for performance."""
+        from expert_op4grid_recommender.action_evaluation.rules import ActionRuleValidator
+        from expert_op4grid_recommender.action_evaluation.classifier import ActionClassifier
 
         # Create large lists
         n_lines = 1000

@@ -1,11 +1,13 @@
 """Shared helpers for constructing Grid2Op / pypowsybl environments.
 
 Validates minimum package versions at import time (grid2op, lightsim2grid,
-pypowsybl, pypowsybl2grid) and exposes small factories used by
-:mod:`make_training_env` and :mod:`make_assistant_env` to build consistent
-loader / loadflow / Grid2Op parameter objects.
+pypowsybl) and exposes small factories used by :mod:`make_training_env` and
+:mod:`make_assistant_env` to build consistent loader / loadflow / Grid2Op
+parameter objects. ``pypowsybl2grid`` is deprecated (v0.3.0) and no longer a
+dependency; if present it only triggers a :class:`DeprecationWarning`.
 """
 
+import warnings
 from typing import Any, Dict, Literal, Union
 from packaging import version
 from importlib.metadata import version as version_importlib,PackageNotFoundError
@@ -40,13 +42,22 @@ if _HAS_LIGHTSIM2GRID and version.parse(lightsim2grid.__version__) < MIN_LS_VERS
                        f"upgrade it from pypi with:\n"
                        f'\t `pip install "LightSim2Grid>={MIN_LS_VERSION}"`')
 try:
+    # pypowsybl2grid is DEPRECATED (v0.3.0) and no longer a declared dependency:
+    # its wheel pins numpy==1.26.4, unsatisfiable against numpy>=2.0.0. It is only
+    # needed by the legacy grid2op+pypowsybl assistant-env bridge. If a user has
+    # installed it manually, warn rather than hard-enforcing a minimum version.
     _pp2grid_version = version_importlib("pypowsybl2grid")
-    if version.parse(_pp2grid_version) < MIN_PP2GRID_VERSION:
-        raise RuntimeError(f"pypowsybl2grid minimum version needed: {MIN_PP2GRID_VERSION}. Please "
-                           f"upgrade it from pypi with:\n"
-                           f'\t `pip install "pypowsybl2grid>={MIN_PP2GRID_VERSION}"`')
+    warnings.warn(
+        "pypowsybl2grid is deprecated and no longer a dependency of "
+        "expert_op4grid_recommender (its numpy==1.26.4 pin conflicts with "
+        "numpy>=2.0.0). It is only used by the legacy grid2op+pypowsybl "
+        "assistant-env bridge; the pure-pypowsybl and grid2op(lightsim2grid) "
+        "paths do not need it.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 except ImportError:
-    pass  # pypowsybl2grid is optional (only needed for grid2op backend)
+    pass  # pypowsybl2grid is optional/deprecated (legacy grid2op backend only)
 
 # Define the potential pypowsybl package names
 PACKAGES = ["pypowsybl", "pypowsybl-rte"]

@@ -67,16 +67,22 @@ class SwitchAction(PypowsyblAction):
         
         def apply_switch_changes(nm: 'NetworkManager'):
             net = nm.network
-            
+
+            # P3: fetch the switch index ONCE per apply (was 1-2 full ~85k-row
+            # table fetches per switch id). The set of switches is variant-
+            # invariant — only their `open` column changes — so a single read at
+            # the top of apply is correct regardless of the active variant.
+            switch_ids = set(net.get_switches().index)
+
             # Helper to find actual switch ID if prefixed
             def get_actual_sid(sid):
-                if sid in net.get_switches().index:
+                if sid in switch_ids:
                     return sid
                 # Try with underscores replaced or prefix removed
                 # Example: PYMONP3_PYMON3COUPL -> PYMON3COUPL
                 if '_' in sid:
                     parts = sid.split('_', 1)
-                    if parts[1] in net.get_switches().index:
+                    if parts[1] in switch_ids:
                         return parts[1]
                 return None
 

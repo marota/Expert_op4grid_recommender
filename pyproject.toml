@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "expert_op4grid_recommender"
-version = "0.2.9"
+version = "0.3.0"
 authors = [
     { name="RTE", email="rte@rte-france.com" },
 ]
@@ -28,8 +28,14 @@ dependencies = [
     "pandas",
     "networkx",
     "pypowsybl>=1.13.0",
-    "pypowsybl2grid>=0.2.1",
-    "expertop4grid>=0.2.8",
+    # pypowsybl2grid DEPRECATED and dropped as a dependency (v0.3.0): its 0.3.0
+    # wheel pins numpy==1.26.4, which is unsatisfiable against numpy>=2.0.0 and
+    # broke installs. It is only needed by the legacy grid2op+pypowsybl
+    # "assistant env" bridge (utils/make_assistant_env.create_pypowsybl_backend);
+    # install it manually in a numpy<2 environment if you still need that path.
+    # Floor bumped 0.2.8 -> 0.3.2 to match the tested family (requirements.txt
+    # pins 0.3.2.post3) and resolve the pyproject/requirements disagreement (M4).
+    "expertop4grid>=0.3.2",
     "matplotlib>=3.8.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
@@ -39,6 +45,19 @@ dependencies = [
 test = [
     "pytest",
 ]
+# The Grid2Op simulation backend. NOTE: `expertop4grid` (a base dependency)
+# already pulls Grid2Op + lightsim2grid transitively, so a base install is not
+# grid2op-free at the wheel level today; this extra makes the grid2op backend's
+# DIRECT requirements explicit and pins the floors the code enforces
+# (utils/make_env_utils.py). The CI `grid2op-optional` leg enforces the
+# code-level contract. `pypowsybl2grid` is intentionally NOT declared here or in
+# the base deps (deprecated v0.3.0 — its numpy==1.26.4 pin is unsatisfiable);
+# install it manually in a numpy<2 env only if you need the legacy
+# grid2op+pypowsybl assistant-env bridge.
+grid2op = [
+    "grid2op>=1.12.1",
+    "LightSim2Grid>=0.10.3",
+]
 quality = [
     "radon>=6.0",
     "vulture>=2.10",
@@ -47,6 +66,10 @@ quality = [
 ]
 ihm = [
     "flask>=3.0",
+    # Production WSGI server for the manoeuvre IHM / HuggingFace Space (R7).
+    # Served with threads=1 to preserve request serialisation (shared pypowsybl
+    # network state); falls back to the Flask dev server if absent.
+    "waitress>=3.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -113,19 +136,47 @@ select = ["E4", "E7", "E9", "F"]
 "tests/test_ActionRuleValidator.py" = ["E402", "E701", "E702"]
 "tests/test_action_rebuilder.py" = ["E712", "F841"]
 "tests/test_config_override.py" = ["E712"]
-"tests/test_expert_op4grid_analyzer.py" = ["E741", "F403", "F405", "F811", "F841"]
+"tests/test_expert_op4grid_analyzer.py" = ["E741", "F403", "F405", "F841"]
 "tests/test_initial_lf_voltage_init_mode.py" = ["E402", "F841"]
-"tests/test_islanding_mw.py" = ["F811"]
 "tests/test_lazy_action_dict.py" = ["F841"]
 "tests/test_lf_fallback_non_converged.py" = ["E402"]
 "tests/test_min_action_counts.py" = ["F841"]
 "tests/test_pst_actions.py" = ["E712"]
 "tests/test_pypowsybl_backend.py" = ["E712"]
-"tests/test_simulation_optimizations.py" = ["F821"]
 "tests/test_superposition.py" = ["E701"]
 "tests/test_superposition_action_types.py" = ["F841"]
 "tests/test_superposition_extended.py" = ["E402"]
 "tests/test_superposition_rho_estimation.py" = ["E701"]
+
+[tool.pytest.ini_options]
+# Scope collection to the suite and register every custom marker. With
+# ``--strict-markers`` an unregistered mark (e.g. a typo ``@pytest.mark.slwo``)
+# now ERRORS at collection instead of silently running as a fast test — closing
+# the gap called out as M3 in docs/reviews/2026-07_full_code_review.md.
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "slow: end-to-end test needing a full grid2op/pypowsybl environment and real data (deselect with '-m \"not slow\"')",
+]
+
+# Coverage is opt-in (``pytest --cov``) so the suite still runs where pytest-cov
+# is absent; CI passes ``--cov=expert_op4grid_recommender``. See M3 / R8.
+[tool.coverage.run]
+branch = true
+source = ["expert_op4grid_recommender"]
+omit = [
+    "*/tests/*",
+    # ``manoeuvre`` carries its own docstring/quality gate; measured separately.
+    "*/manoeuvre/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Ratchet floor. Intentionally 0 today: large pypowsybl/grid2op-gated areas are
+# not exercised in the default (grid2op-less) CI leg, so a non-zero floor would
+# be misleading. Raise this as the grid2op CI leg + new tests land — never lower.
+fail_under = 0
 
 [tool.interrogate]
 # Couverture des docstrings. Les fonctions imbriquées (closures), __init__ et
