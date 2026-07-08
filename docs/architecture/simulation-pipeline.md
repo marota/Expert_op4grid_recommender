@@ -90,7 +90,7 @@ trips the backstop; it only bounds growth across analyses.
 | Knob | Values | Meaning |
 |---|---|---|
 | **AC vs DC** | `dc=True` / `dc=False` | full non-linear Newton-Raphson (`run_ac`) vs linear DC approximation (`run_dc`). DC has no reactive power and assumes \|V\|≈1 p.u.. |
-| **Fast vs Slow** | `fast=True` / `fast=False` | when AC, *fast* disables transformer voltage control and shunt compensator voltage control (removes two outer loops). Slow = full physics. |
+| **Fast vs Slow** | `fast=True` / `fast=False` | when AC, *fast* keeps transformer & shunt voltage control ON but runs the tap-changer outer loop in `AFTER_GENERATOR_VOLTAGE_CONTROL` (far fewer iterations for the **same** currents); *slow* uses the provider-default incremental tap control (max fidelity). See § 3.3. |
 | **Voltage init** | `PREVIOUS_VALUES` / `DC_VALUES` / `UNIFORM_VALUES` | seed for Newton-Raphson. `PREVIOUS_VALUES` warm-starts from the last converged state; `DC_VALUES` runs a DC LF first and uses its angles as seed. |
 | **Provider parameters** | OpenLoadFlow-specific | iteration caps, solver scaling mode, slack-bus selector, etc. |
 
@@ -148,28 +148,40 @@ Hypotheses baked in:
 - **DC transformer ratio**: `dc_use_transformer_ratio=False` — in DC LF
   the tap ratio is ignored (canonical DC approximation).
 
-### 3.3 Fast vs slow — what gets disabled
+### 3.3 Fast vs slow — the tap-changer control mode (since v0.3.0.post1)
 
-`run_load_flow(fast=True)` shallow-copies the params and toggles two
-booleans before calling `run_ac`:
+`run_load_flow(fast=True)` shallow-copies the params and switches only the
+**transformer tap-changer voltage-control mode** — it does NOT disable any
+control:
 
 ```python
-params.transformer_voltage_control_on = False
-params.shunt_compensator_voltage_control_on = False
+provider = dict(self.lf_parameters.provider_parameters)
+provider["transformerVoltageControlMode"] = "AFTER_GENERATOR_VOLTAGE_CONTROL"
+params.provider_parameters = provider
 ```
 
-These two outer loops are the heaviest non-linear parts of the OpenLoadFlow
-solver:
+Transformer and shunt voltage control both stay **on**. (Before v0.3.0.post1,
+fast mode instead set `transformer_voltage_control_on = False` /
+`shunt_compensator_voltage_control_on = False`, which was faster still but
+*changed* the branch currents — an accuracy loss this release removes.) The
+only difference from slow mode is now how the tap-changer outer loop runs:
 
-- **`IncrementalTransformerVoltageControl`**: re-positions tap changers
-  to satisfy `target_v` on the controlled side.
-- **`IncrementalShuntVoltageControl`**: switches reactive shunt sections
-  in / out to match controlled-bus setpoints.
+- **slow (`fast=False`)** — the provider default,
+  `IncrementalTransformerVoltageControl`: re-positions tap changers
+  incrementally, re-solving the Newton inner loop on every outer iteration. On
+  the French 400 kV grid a post-contingency AC LF needs **~57 Newton
+  iterations (~4.6 s)**.
+- **fast (`fast=True`)** — `AFTER_GENERATOR_VOLTAGE_CONTROL`: solves once with
+  tap ratios frozen, then activates tap control and re-solves. Same case:
+  **~20 iterations (~0.7 s)** — a ~6–7× speed-up for the **same**
+  constrained-line current (measured 225.6 A vs 226.2 A, 0.3 %). Isolated
+  knob-by-knob: 100 % of the slow/fast gap on this grid is the tap-changer
+  mode; shunt and phase-shifter control cost nothing here.
 
-Disabling them gives a 1.5×–3× speed-up on large grids but produces
-**physically less accurate** voltage and reactive power solutions. The
-network is still a valid AC solution under the assumption that tap
-positions and shunt sections are **fixed at their input values**.
+Because fast mode keeps tap regulation on, it is **accuracy-preserving** — hence
+it is now the default (`config.PYPOWSYBL_FAST_MODE = True`). Slow mode remains
+the max-fidelity fallback (and is retried automatically when fast doesn't
+converge — § 3.7).
 
 ### 3.4 Voltage init modes — when each is right
 
@@ -228,6 +240,11 @@ correct DC_VALUES seed. 100 leaves a comfortable margin with no
 measurable cost on the normal warm-start path (which converges in
 single-digit outer iterations).
 
+This cap governs the **slow** (`IncrementalTransformerVoltageControl`) path.
+Fast mode's `AFTER_GENERATOR_VOLTAGE_CONTROL` (§ 3.3) settles the tap changers
+in ~20 Newton iterations well under the cap, so the 100 ceiling is effectively
+a slow-mode-only safety margin since v0.3.0.post1.
+
 ### 3.7 Sequence inside `run_load_flow`
 
 ```text
@@ -236,8 +253,8 @@ run_load_flow(dc=False, fast=True, voltage_init_mode=None)
 ├── if dc → lf.run_dc(network) and return (single linear LF, no retry).
 │
 └── AC path
-    ├── if fast: copy params; transformer_voltage_control_on=False;
-    │            shunt_compensator_voltage_control_on=False
+    ├── if fast: copy params; provider transformerVoltageControlMode=
+    │            AFTER_GENERATOR_VOLTAGE_CONTROL (tap & shunt control stay ON)
     │
     ├── attempt #1: _run_ac_with_init_fallback(params)
     │    ├── try lf.run_ac(network, parameters=params)
@@ -400,7 +417,22 @@ else:
 ```
 
 So a caller can force fast mode for an entire analysis run, or rely
-on the global default (`config.PYPOWSYBL_FAST_MODE`, default `False`).
+on the global default (`config.PYPOWSYBL_FAST_MODE`, default `True` since
+v0.3.0.post1 — fast mode is accuracy-preserving, see § 3.3).
+
+**Reassessment parallelism is fast-mode aware (since v0.3.0.post1).** The
+per-action reassessment (`utils/reassessment.py`) can re-simulate the
+prioritized actions across worker threads, each on a private cloned network
+built via a fresh `SimulationEnvironment` (whose `_ensure_valid_state` baseline
+LF also runs in fast mode — ~4.6 s → ~0.7 s per worker). But that per-worker
+clone + baseline tax (~9 s on the France grid) is only amortized by *expensive*
+per-action LFs. Because fast mode makes them cheap, `_should_parallelize_reassessment`
+stays **serial** in auto mode until `n_actions >= workers *
+_FAST_MODE_MIN_ACTIONS_PER_WORKER` (6) — so the France `P.SAOL31RONCI`
+15-action case runs serial (~21 s, ~1.4 s/action) instead of paying the clone
+tax. Slow mode and the explicit `REASSESSMENT_PARALLEL=True` force are
+unchanged; the container-aware core gate (`REASSESSMENT_MIN_PARALLEL_CORES` /
+`EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS`) still applies first.
 
 ## 7. Thermal limits & overload calculation
 
@@ -457,11 +489,11 @@ overload is counted as "worsening". An action that lifts
 
 | Mode | Knobs | When | Trade-off |
 |---|---|---|---|
-| **Default AC fast** | `dc=False, fast=True, init=PREVIOUS_VALUES` | every `obs.simulate(...)` and every analysis call by default | quickest AC; ignores tap / shunt re-regulation. |
-| **AC slow** | `dc=False, fast=False, init=PREVIOUS_VALUES` | falls back here automatically when fast didn't converge | full physics; ~2× slower; converges more cases. |
+| **Default AC fast** | `dc=False, fast=True, init=PREVIOUS_VALUES` | every `obs.simulate(...)` and every analysis call by default | quickest AC; tap & shunt control stay on via `AFTER_GENERATOR_VOLTAGE_CONTROL` — same currents as slow. |
+| **AC slow** | `dc=False, fast=False, init=PREVIOUS_VALUES` | falls back here automatically when fast didn't converge | incremental tap-changer outer loop; ~6–7× slower per LF on large grids; converges the last hard cases. |
 | **AC + DC seed** | `dc=False, init=DC_VALUES` | falls back here when PREVIOUS_VALUES failed (exception OR bad status); also used for the initial LF in `_ensure_valid_state` | robust to topology perturbations and cold starts; +1 internal DC LF. |
 | **DC LF** | `dc=True` | direct `nm.run_load_flow(dc=True)` calls in the recommender for screening, or via the analysis CLI `--use-dc`. | linear, no reactive, ignores tap ratios; converges almost always; not suitable for thermal overloads close to limits. |
-| **Initial LF** | `dc=False, init=DC_VALUES` (forced) | every `__init__` / `reset()` of `SimulationEnvironment._ensure_valid_state` | avoids the spurious "Voltage magnitude is undefined" warning + retry. |
+| **Initial LF** | `dc=False, fast=True, init=DC_VALUES` (forced) | every `__init__` / `reset()` of `SimulationEnvironment._ensure_valid_state` | establishes a converged baseline only (accurate per-action LFs run separately), so runs fast; avoids the spurious "Voltage magnitude is undefined" warning + retry. |
 
 ## 10. Cross-references
 
@@ -477,9 +509,16 @@ overload is counted as "worsening". An action that lifts
   `PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD`.
 - `expert_op4grid_recommender/main.py:run_analysis` — `actual_fast_mode`
   resolution; pipeline-level `fast_mode` propagation.
+- `expert_op4grid_recommender/utils/reassessment.py` —
+  `_should_parallelize_reassessment` (fast-mode-aware serial gate),
+  `_FAST_MODE_MIN_ACTIONS_PER_WORKER`.
 - `docs/release-notes/v0.2.2.post2.md` — rationale for the
   outer-loop cap bump and the non-converged-status fallback.
+- `docs/release-notes/v0.3.0.post1.md` — fast mode = AFTER_GENERATOR tap
+  control (accuracy-preserving) + the fast-mode-aware reassessment gate.
 - `tests/test_initial_lf_voltage_init_mode.py` — guards
   `_ensure_valid_state` seed.
+- `tests/test_reassessment_parallel_gate.py` — guards the parallel/serial
+  gate incl. the fast-mode cases.
 - `tests/test_lf_fallback_non_converged.py` — guards the four retry
   branches and the bumped outer-loop default.

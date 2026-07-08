@@ -776,7 +776,9 @@ class PypowsyblObservation:
                          and stored as ``_variant_id`` on the returned observation.
                          The caller is responsible for cleanup via
                          ``nm.remove_variant(obs._variant_id)`` when done.
-            fast_mode: If True, disables voltage control in load flow for speed.
+            fast_mode: If True, runs the tap-changer voltage control in the
+                cheaper AFTER_GENERATOR_VOLTAGE_CONTROL mode (~6-7x fewer Newton
+                iterations, same currents); see NetworkManager.run_load_flow.
 
         Returns:
             Tuple of (new_observation, reward, done, info)

@@ -107,6 +107,16 @@ _DEFAULT_MIN_PARALLEL_WORKERS = 4
 #: over the ``REASSESSMENT_MIN_PARALLEL_CORES`` config knob.
 _MIN_PARALLEL_WORKERS_ENV = "EXPERT_OP4GRID_MIN_PARALLEL_REASSESS_WORKERS"
 
+#: In fast mode, each per-action LF is cheap (AFTER_GENERATOR tap control,
+#: ~1.4 s incl. the observation build vs ~6 s in slow mode), so the fixed
+#: per-worker parallel tax — a full private-network clone + a baseline LF,
+#: ~9 s on the France grid — is not amortized unless each worker runs at least
+#: this many actions. Below it the serial path (which reuses the main network,
+#: paying neither clone nor per-worker baseline) is faster. Derived from
+#: tax/per-action ≈ 9/1.4 ≈ 6, so realistic prioritized-action counts (10-15
+#: over 4-10 workers) stay serial in fast mode. Slow mode is unaffected.
+_FAST_MODE_MIN_ACTIONS_PER_WORKER = 6
+
 
 def _min_parallel_workers() -> int:
     """Minimum worker count to enable parallel reassessment.
@@ -129,7 +139,8 @@ def _min_parallel_workers() -> int:
 
 
 def _should_parallelize_reassessment(is_pypowsybl: bool, workers: int,
-                                     n_actions: int) -> bool:
+                                     n_actions: int,
+                                     fast_mode: bool = False) -> bool:
     """Whether to run the reassessment in parallel.
 
     ``workers`` is the container-aware pool size from
@@ -139,13 +150,24 @@ def _should_parallelize_reassessment(is_pypowsybl: bool, workers: int,
     a core threshold — below it the per-worker network-clone overhead makes it
     slower than the serial path (see :data:`_DEFAULT_MIN_PARALLEL_WORKERS` /
     :func:`_min_parallel_workers`).
+
+    ``fast_mode`` additionally suppresses auto-mode parallelism for realistic
+    action counts: when the per-action LFs are cheap (AFTER_GENERATOR tap
+    control) the fixed per-worker clone + baseline-LF tax dominates unless a
+    worker runs many actions, so auto mode stays serial until
+    ``n_actions >= workers * _FAST_MODE_MIN_ACTIONS_PER_WORKER``. The explicit
+    ``REASSESSMENT_PARALLEL=True`` force still overrides this.
     """
     if not is_pypowsybl or n_actions < 2:
         return False
     force = getattr(config, "REASSESSMENT_PARALLEL", None)
     if force is not None:
         return bool(force) and workers >= 2
-    return workers >= _min_parallel_workers()
+    if workers < _min_parallel_workers():
+        return False
+    if fast_mode:
+        return n_actions >= workers * _FAST_MODE_MIN_ACTIONS_PER_WORKER
+    return True
 
 
 def _reassessment_worker_count(n_actions: int) -> Tuple[int, int]:
@@ -385,7 +407,8 @@ def reassess_prioritized_actions(
         sim_out: Dict[str, tuple] = {}
         used_workers = 1
 
-        if _should_parallelize_reassessment(is_pypowsybl, workers, n_actions):
+        if _should_parallelize_reassessment(is_pypowsybl, workers, n_actions,
+                                            fast_mode=actual_fast_mode):
             try:
                 main_nm = obs_simu_defaut._network_manager
                 # Capture the N-1 baseline (contingency + maintenance) variant so

@@ -38,7 +38,8 @@ class OverflowSimulator:
     
     Attributes:
         use_dc: If True, uses DC load flow. If False, uses AC load flow.
-        fast_mode: If True, uses fast mode for load flow (no voltage control).
+        fast_mode: If True, uses fast mode for load flow (tap-changer control in
+            AFTER_GENERATOR_VOLTAGE_CONTROL mode — same currents, ~6-7x fewer iters).
     """
     
     def __init__(self, 

@@ -136,7 +136,12 @@ class Settings(BaseSettings):
     # 2% — pre-existing overloads are excluded from the analysis unless the
     # current increased by more than this fraction.
     PRE_EXISTING_OVERLOAD_WORSENING_THRESHOLD: float = Field(default=0.02, ge=0.0)
-    PYPOWSYBL_FAST_MODE: bool = False
+    # Default fast mode: keeps transformer/shunt voltage control on but runs the
+    # tap-changer regulation in AFTER_GENERATOR_VOLTAGE_CONTROL (~6-7x fewer
+    # Newton iters than the incremental outer loop, same currents — see
+    # NetworkManager.run_load_flow). Slow mode (False) keeps the incremental
+    # loop as a max-fidelity fallback.
+    PYPOWSYBL_FAST_MODE: bool = True
 
     # -------------------
     #  Minimum prioritized actions per type
