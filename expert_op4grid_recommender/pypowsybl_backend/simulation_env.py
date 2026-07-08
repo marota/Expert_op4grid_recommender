@@ -108,8 +108,18 @@ class SimulationEnvironment:
         which throws a "Voltage magnitude is undefined" exception and
         retries internally with DC_VALUES — wasted ~70 ms + spurious
         warning in the logs.
+
+        Runs in ``fast=True`` mode (AFTER_GENERATOR tap-changer control):
+        this LF only establishes a *converged* baseline state — the
+        accuracy-critical per-action re-simulations run their own LFs
+        afterwards — so the ~6-7x cheaper fast solve suffices (and
+        after-generator keeps the same currents anyway). This matters for
+        the parallel reassessment, where every worker builds its own
+        SimulationEnvironment and pays this baseline LF once: the slow
+        (incremental) default costs ~4.6 s each on the France grid vs ~0.7 s.
         """
         result = self.network_manager.run_load_flow(
+            fast=True,
             voltage_init_mode=lf.VoltageInitMode.DC_VALUES,
         )
         if result is None or result.status != lf.ComponentStatus.CONVERGED:

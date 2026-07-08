@@ -86,3 +86,38 @@ class TestShouldParallelize:
 def test_default_threshold_boundary(monkeypatch, workers, expected):
     monkeypatch.delenv(_MIN_PARALLEL_WORKERS_ENV, raising=False)
     assert _should_parallelize_reassessment(True, workers=workers, n_actions=15) is expected
+
+
+class TestFastModeGate:
+    """Fast mode makes per-action LFs cheap, so the per-worker clone + baseline
+    tax is not amortized for realistic action counts → auto mode stays serial.
+    """
+
+    def test_fast_mode_realistic_count_stays_serial(self, monkeypatch):
+        # 10 workers, 15 actions (the France P.SAOL31RONCI case): parallel in
+        # slow mode, but serial in fast mode (1.5 actions/worker << the tax).
+        monkeypatch.delenv(_MIN_PARALLEL_WORKERS_ENV, raising=False)
+        assert _should_parallelize_reassessment(
+            True, workers=10, n_actions=15, fast_mode=True) is False
+        # Same inputs, slow mode → unchanged (parallel).
+        assert _should_parallelize_reassessment(
+            True, workers=10, n_actions=15, fast_mode=False) is True
+
+    def test_fast_mode_many_actions_parallelises(self, monkeypatch):
+        # Enough actions per worker to amortize the tax (>= workers*6).
+        monkeypatch.delenv(_MIN_PARALLEL_WORKERS_ENV, raising=False)
+        assert _should_parallelize_reassessment(
+            True, workers=10, n_actions=60, fast_mode=True) is True
+
+    def test_fast_mode_below_core_threshold_still_serial(self, monkeypatch):
+        monkeypatch.delenv(_MIN_PARALLEL_WORKERS_ENV, raising=False)
+        assert _should_parallelize_reassessment(
+            True, workers=2, n_actions=100, fast_mode=True) is False
+
+    def test_force_parallel_overrides_fast_mode(self, monkeypatch):
+        # An explicit REASSESSMENT_PARALLEL=True still parallelises in fast mode.
+        monkeypatch.setattr(
+            "expert_op4grid_recommender.utils.reassessment.config."
+            "REASSESSMENT_PARALLEL", True, raising=False)
+        assert _should_parallelize_reassessment(
+            True, workers=4, n_actions=15, fast_mode=True) is True
