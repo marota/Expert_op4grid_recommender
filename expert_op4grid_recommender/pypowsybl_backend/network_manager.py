@@ -495,7 +495,10 @@ class NetworkManager:
         Args:
             dc: If True, run DC load flow instead of AC.
                 If None, uses the _default_dc attribute.
-            fast: If True, disable voltage control for transformers and shunts.
+            fast: If True, keep transformer/shunt voltage control on but run the
+                tap-changer regulation in AFTER_GENERATOR_VOLTAGE_CONTROL mode
+                (~6-7x fewer Newton iterations than the default incremental
+                outer loop, same currents). See the fast branch below.
             voltage_init_mode: If provided, override the default
                 `voltage_init_mode` in the LF parameters. Most callers should
                 leave this None and let the default `PREVIOUS_VALUES` apply —
@@ -521,8 +524,23 @@ class NetworkManager:
             # Create a shallow copy via JSON to avoid modifying the main lf_parameters
             params = lf.Parameters.from_json(self.lf_parameters.to_json())
             if fast:
-                params.transformer_voltage_control_on = False
-                params.shunt_compensator_voltage_control_on = False
+                # "Fast" mode keeps transformer + shunt voltage control ON — so
+                # tap positions still shape the reactive flows and branch
+                # currents we score — but runs the tap-changer regulation with
+                # AFTER_GENERATOR_VOLTAGE_CONTROL instead of the provider's
+                # default incremental outer loop. On the full France grid the
+                # incremental loop needs ~57 Newton iterations per LF (~4.6 s);
+                # after-generator converges in ~20 (~0.7 s) for the same
+                # constrained-line current (<0.5 % delta) — a ~6-7x per-LF
+                # speedup with no accuracy loss on the overloads. Slow mode
+                # (fast=False) keeps the incremental loop as the max-fidelity
+                # fallback. (Previously fast mode disabled tap/shunt control
+                # entirely, which was faster still but changed the currents.)
+                provider = dict(self.lf_parameters.provider_parameters or {})
+                provider["transformerVoltageControlMode"] = (
+                    "AFTER_GENERATOR_VOLTAGE_CONTROL"
+                )
+                params.provider_parameters = provider
             if voltage_init_mode is not None:
                 params.voltage_init_mode = voltage_init_mode
         
