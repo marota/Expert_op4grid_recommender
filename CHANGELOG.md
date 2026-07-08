@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0.post1] - 2026-07-08
+
+A `.post1` release on top of `0.3.0` (no breaking changes; performance
+follow-up). Cuts the per-action reassessment cost on large grids without
+sacrificing accuracy. See `docs/release-notes/v0.3.0.post1.md`.
+
+### Changed
+
+- **"Fast mode" redefined — accurate *and* fast.** `run_load_flow(fast=True)`
+  no longer disables transformer/shunt voltage control (which changed the
+  branch currents). It keeps tap regulation on but runs the tap-changer outer
+  loop in `AFTER_GENERATOR_VOLTAGE_CONTROL` instead of the provider default
+  (incremental). On the full France grid one post-contingency AC load flow
+  drops from ~57 Newton iterations (~4.6 s) to ~20 (~0.7 s) for the same
+  constrained-line current (<0.5 % delta). Slow mode (`fast=False`) keeps the
+  incremental loop as the max-fidelity fallback.
+- **`PYPOWSYBL_FAST_MODE` now defaults to `True`.** Now that fast mode is
+  accuracy-preserving, it is the sensible default.
+- **Reassessment parallelism is fast-mode aware.** The parallel per-action
+  reassessment clones the whole network per worker and builds a fresh
+  `SimulationEnvironment` (whose `_ensure_valid_state` baseline LF now runs in
+  fast mode: ~4.6 s → ~0.7 s per worker). Because fast per-action LFs no longer
+  amortize that per-worker clone + baseline tax, `_should_parallelize_reassessment`
+  now stays **serial** in auto mode until `n_actions >= workers *
+  _FAST_MODE_MIN_ACTIONS_PER_WORKER` (6). Net: on a 20-core host the France
+  `P.SAOL31RONCI` 15-action case now auto-selects serial and lands at ~21 s
+  (~1.4 s/action) with no env var; a memory-bandwidth-limited host that was
+  paying ~38 s for the parallel clones is the biggest winner. Slow mode and the
+  explicit `REASSESSMENT_PARALLEL=True` force are unchanged.
+
+### Tests
+
+- `tests/test_reassessment_parallel_gate.py` — new `TestFastModeGate` (fast-mode
+  serial gate, many-actions escape hatch, force-parallel override).
+
 ## [0.3.0] - 2026-07-07
 
 Follow-up slice of the 2026-07 full code review (findings M3–M6, M8, P3–P4,
