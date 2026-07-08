@@ -314,7 +314,7 @@ The `pypowsybl` backend provides a high-performance alternative to Grid2Op for n
 *   **Batched Action Application**: Multiple topological changes are applied in batches to minimize overhead.
 
 > [!NOTE]
-> **Simulation Simplification**: To maximize speed during what-if analyses (N-1 and remedial actions), voltage control for transformers and shunts is disabled in variant simulations. The base N-state observation maintains full regulation to provide a high-fidelity reference point.
+> **Fast simulation mode**: To speed up what-if analyses (N-1 and remedial actions) without losing accuracy, the AC load flow keeps transformer and shunt voltage control **on** but runs the tap-changer outer loop in `AFTER_GENERATOR_VOLTAGE_CONTROL` — ~6–7× fewer Newton iterations than the incremental default for the *same* branch currents (since v0.3.0.post1; earlier versions disabled tap/shunt control, which changed the currents). Fast mode is the default (`PYPOWSYBL_FAST_MODE=True`); slow mode (the incremental loop) stays available as a max-fidelity fallback.
 
 > [!TIP]
 > For a complete description of the simulation pipeline — load-flow modes (AC/DC, fast/slow), voltage initialisation strategies, the `DC_VALUES` fallback on non-converged status, variant lifecycle, thermal-limit hypotheses, and the four available retry branches — see [`docs/architecture/simulation-pipeline.md`](docs/architecture/simulation-pipeline.md).
