@@ -128,6 +128,23 @@ class LoadSheddingMixin(InjectionDiscoveryBase):
                         f"Warning: Could not create load shedding action for {load_name}: {e}"
                     )
                     continue
+                # "set_load_p" is the pypowsybl action dialect; a grid2op
+                # action space silently IGNORES it and returns an empty
+                # (no-op) action — every antenna-mode shedding candidate
+                # measured exactly zero effect on the 2024 case benchmark.
+                # On a grid2op action detected impact-less, rebuild the
+                # shed as a bus disconnection of the load (set_bus -1,
+                # authorized by the assistant envs), which grid2op does
+                # simulate.
+                impact = getattr(action, "impact_on_objects", None)
+                if callable(impact):
+                    try:
+                        if not impact()["has_impact"]:
+                            action = self.action_space(
+                                {"set_bus": {"loads_id": [(int(lid), -1)]}})
+                    except Exception as e:  # keep the (inert) original
+                        print(f"Warning: grid2op shed fallback failed for "
+                              f"{load_name}: {e}")
 
                 identified[action_id] = action
                 scores_map[action_id] = round(load_score, 2)
