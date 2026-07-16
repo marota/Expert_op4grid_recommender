@@ -1,0 +1,178 @@
+[
+ {
+  "axis": "loop-guard",
+  "cases": 2,
+  "recovered": 2,
+  "solved": 1,
+  "detail": [
+   {
+    "key": "2024-08-28_ts0_AISERL31MAGNY",
+    "n_actions": 16,
+    "best_max_rho": 0.6708
+   },
+   {
+    "key": "2024-08-28_ts45_AISERL31MAGNY",
+    "n_actions": 16,
+    "best_max_rho": 1.1665
+   }
+  ]
+ },
+ {
+  "axis": "pairs",
+  "cases": 5,
+  "validated_rescues": 5,
+  "prediction_gap": [
+   0.0479,
+   0.0502,
+   0.0487,
+   0.0465,
+   0.042
+  ],
+  "detail": [
+   {
+    "key": "2024-08-28_ts42_AISERL31MAGNY",
+    "pair": "node_merging_PYMONP3+623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b",
+    "pair_pred_max_rho": 0.8311,
+    "pair_simulated_max_rho": 0.879,
+    "single_best_max_rho": 1.0348,
+    "rescued": true
+   },
+   {
+    "key": "2024-08-28_ts42_MAGNYY633",
+    "pair": "reco_CHALOL31LOUHA+disco_C.REGY631",
+    "pair_pred_max_rho": 0.9218,
+    "pair_simulated_max_rho": 0.972,
+    "single_best_max_rho": 1.0302,
+    "rescued": true
+   },
+   {
+    "key": "2024-08-28_ts42_MAGNYL61ZMAGN",
+    "pair": "reco_CHALOL31LOUHA+disco_C.REGY631",
+    "pair_pred_max_rho": 0.9222,
+    "pair_simulated_max_rho": 0.9709,
+    "single_best_max_rho": 1.0307,
+    "rescued": true
+   },
+   {
+    "key": "2024-08-28_ts43_AISERL31MAGNY",
+    "pair": "node_merging_PYMONP3+623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b",
+    "pair_pred_max_rho": 0.8285,
+    "pair_simulated_max_rho": 0.875,
+    "single_best_max_rho": 1.0372,
+    "rescued": true
+   },
+   {
+    "key": "2024-08-28_ts44_AISERL31MAGNY",
+    "pair": "node_merging_PYMONP3+623e78ac-ae42-48d7-a5a3-7ec3fca7bb9b",
+    "pair_pred_max_rho": 0.8044,
+    "pair_simulated_max_rho": 0.8464,
+    "single_best_max_rho": 1.0043,
+    "rescued": true
+   }
+  ]
+ },
+ {
+  "axis": "budget",
+  "cases": 16,
+  "solved_now": 2,
+  "improved": 3,
+  "detail": [
+   {
+    "key": "2024-08-28_ts42_AISERL31MAGNY",
+    "n_actions": 27,
+    "best_before": 1.0348,
+    "best_now": 1.0159
+   },
+   {
+    "key": "2024-08-28_ts42_MAGNYY633",
+    "n_actions": 22,
+    "best_before": 1.0302,
+    "best_now": 1.0302
+   },
+   {
+    "key": "2024-08-28_ts42_MAGNYL61ZMAGN",
+    "n_actions": 22,
+    "best_before": 1.0307,
+    "best_now": 1.0307
+   },
+   {
+    "key": "2024-08-28_ts43_AISERL31MAGNY",
+    "n_actions": 27,
+    "best_before": 1.0372,
+    "best_now": 0.8159
+   },
+   {
+    "key": "2024-08-28_ts44_AISERL31MAGNY",
+    "n_actions": 27,
+    "best_before": 1.0043,
+    "best_now": 0.9028
+   },
+   {
+    "key": "2024-11-27_ts13_BEON L31CPVAN",
+    "n_actions": 8,
+    "best_before": 1.0577,
+    "best_now": 1.0577
+   },
+   {
+    "key": "2024-11-27_ts14_BEON L31CPVAN",
+    "n_actions": 6,
+    "best_before": 1.0169,
+    "best_now": 1.0169
+   },
+   {
+    "key": "2024-11-27_ts15_BEON L31CPVAN",
+    "n_actions": 6,
+    "best_before": 1.0407,
+    "best_now": 1.0407
+   },
+   {
+    "key": "2024-11-27_ts16_BEON L31CPVAN",
+    "n_actions": 6,
+    "best_before": 1.0031,
+    "best_now": 1.0031
+   },
+   {
+    "key": "2024-11-27_ts34_BEON L31CPVAN",
+    "n_actions": 6,
+    "best_before": 1.0534,
+    "best_now": 1.0534
+   },
+   {
+    "key": "2024-11-27_ts36_BEON L31CPVAN",
+    "n_actions": 6,
+    "best_before": 1.1207,
+    "best_now": 1.1207
+   },
+   {
+    "key": "2024-11-27_ts37_BEON L31CPVAN",
+    "n_actions": 6,
+    "best_before": 1.0707,
+    "best_now": 1.0707
+   },
+   {
+    "key": "2024-11-27_ts41_BEON L31CPVAN",
+    "n_actions": 6,
+    "best_before": 1.0199,
+    "best_now": 1.0199
+   },
+   {
+    "key": "2024-11-27_ts42_BEON L31CPVAN",
+    "n_actions": 8,
+    "best_before": 1.19,
+    "best_now": 1.19
+   },
+   {
+    "key": "2024-11-27_ts45_BEON L31CPVAN",
+    "n_actions": 8,
+    "best_before": 1.3171,
+    "best_now": 1.3171
+   },
+   {
+    "key": "2024-11-27_ts46_BEON L31CPVAN",
+    "n_actions": 8,
+    "best_before": 1.2011,
+    "best_now": 1.2011
+   }
+  ]
+ }
+]

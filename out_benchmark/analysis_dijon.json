@@ -1,0 +1,163 @@
+{
+ "cases": 4128,
+ "outcomes": {
+  "no_overload": 4031,
+  "error_step2": 2,
+  "analyzed": 83,
+  "antenna": 11,
+  "error_step1": 1
+ },
+ "analyzed_cases": 94,
+ "unique_constrained_situations": 94,
+ "constraints": {
+  "max_depth": {
+   "med": 1.074,
+   "p90": 1.192,
+   "max": 1.317
+  },
+  "depth_bins": {
+   "1.00-1.05": 34,
+   ">1.20": 9,
+   "1.10-1.20": 30,
+   "1.05-1.10": 21
+  },
+  "n_overloads": {
+   "1": 68,
+   "2": 25,
+   "3": 1
+  },
+  "multi_overload_cases": 26
+ },
+ "resolution": {
+  "solved": 78,
+  "partial": 5,
+  "none": 11
+ },
+ "resolution_by_depth": {
+  "1.00-1.05": {
+   "solved": 30,
+   "none": 4
+  },
+  "1.05-1.10": {
+   "solved": 18,
+   "none": 3
+  },
+  "1.10-1.20": {
+   "solved": 26,
+   "partial": 2,
+   "none": 2
+  },
+  ">1.20": {
+   "solved": 4,
+   "partial": 3,
+   "none": 2
+  }
+ },
+ "resolution_by_count": {
+  "1": {
+   "solved": 56,
+   "partial": 3,
+   "none": 9
+  },
+  "2": {
+   "solved": 22,
+   "partial": 2,
+   "none": 1
+  },
+  ">=3": {
+   "none": 1
+  }
+ },
+ "families": {
+  "open_coupling": {
+   "cases_present": 83,
+   "cases_best": 1,
+   "solves": 54,
+   "reduces": 83,
+   "non_convergence": 3,
+   "n_actions": 408,
+   "solo_solves": 0
+  },
+  "close_coupling": {
+   "cases_present": 51,
+   "cases_best": 8,
+   "solves": 35,
+   "reduces": 51,
+   "non_convergence": 0,
+   "n_actions": 67,
+   "solo_solves": 2
+  },
+  "line_disconnection": {
+   "cases_present": 83,
+   "cases_best": 67,
+   "solves": 75,
+   "reduces": 83,
+   "non_convergence": 1,
+   "n_actions": 435,
+   "solo_solves": 7
+  },
+  "line_reconnection": {
+   "cases_present": 81,
+   "cases_best": 7,
+   "solves": 43,
+   "reduces": 81,
+   "non_convergence": 0,
+   "n_actions": 275,
+   "solo_solves": 0
+  },
+  "load_shedding": {
+   "cases_present": 93,
+   "cases_best": 11,
+   "solves": 0,
+   "reduces": 3,
+   "non_convergence": 0,
+   "n_actions": 450,
+   "solo_solves": 0
+  }
+ },
+ "failures": {
+  "n": 16,
+  "partial": 5,
+  "none": 11,
+  "no_action": 0,
+  "antenna": 11,
+  "multi_overload": 4,
+  "depth_med": 1.155,
+  "best_gap_med": 0.0389,
+  "situations": [
+   "2024-08-28 ts42 AISERL31MAGNY",
+   "2024-08-28 ts42 MAGNYL61ZMAGN",
+   "2024-08-28 ts42 MAGNYY633",
+   "2024-08-28 ts43 AISERL31MAGNY",
+   "2024-08-28 ts44 AISERL31MAGNY",
+   "2024-11-27 ts13 BEON L31CPVAN",
+   "2024-11-27 ts14 BEON L31CPVAN",
+   "2024-11-27 ts15 BEON L31CPVAN",
+   "2024-11-27 ts16 BEON L31CPVAN",
+   "2024-11-27 ts34 BEON L31CPVAN",
+   "2024-11-27 ts36 BEON L31CPVAN",
+   "2024-11-27 ts37 BEON L31CPVAN",
+   "2024-11-27 ts41 BEON L31CPVAN",
+   "2024-11-27 ts42 BEON L31CPVAN",
+   "2024-11-27 ts45 BEON L31CPVAN",
+   "2024-11-27 ts46 BEON L31CPVAN"
+  ]
+ },
+ "combination_headroom": {
+  "failing_cases_with_pairs": 5,
+  "pair_rescues_predicted": 5,
+  "cases_where_best_pair_beats_best_action": 83
+ },
+ "errors": {
+  "n": 3,
+  "by_message": {
+   "TypeError: 'numpy.float64' object is not iterable": 2,
+   "RuntimeError: Initial contingency simulation failed. Cannot proceed.": 1
+  }
+ },
+ "timing_s": {
+  "all_med": 0.66,
+  "constrained_med": 3.01,
+  "constrained_p90": 3.23
+ }
+}

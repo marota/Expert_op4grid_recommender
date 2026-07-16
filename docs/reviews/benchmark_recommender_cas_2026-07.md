@@ -99,18 +99,45 @@ valide par simulation vraie).
 Cas issus du **mode THT-only 225/400 kV** éprouvé sur 2021-2023 (10
 instants canoniques reconstruits, ~1 700 nœuds, limites saisonnières
 réelles du fichier), backend **pypowsybl** natif du recommender.
-Criblage N-1 DC systématique (~2 050 lignes par cas) puis banc sur les
-12 contingences les plus profondes par cas.
+Criblage N-1 DC systématique (~2 050 lignes par cas, 1 400-2 000
+contingences contraignantes par instant !) puis banc sur les 12 plus
+profondes par cas = **108 runs** — un stress-test volontairement à
+l'extrême du spectre, complémentaire de la grille Dijon.
 
-(§ rempli à l'issue du banc — journal
-`/workspace/out_benchmark/cases_tht_france.jsonl`.)
+### 2.1 Résultats
 
-Limitation assumée : l'espace d'actions NODALES (REPAS) du dépôt cible
-la zone Dijon d'un snapshot 2024 (ids de switches non transposables) —
-les familles exercées ici sont disco/reco de ligne, délestage (sur les
-**charges équivalentes THT→HT** du mode réduit) et curtailment/
-redispatch. Reconstruire un espace REPAS pour RTE7000 est le premier
-prérequis d'un déploiement national (§4).
+- **33 cas analysés** (16 méché + 17 antenne), 23 faux positifs DC
+  (l'AC ne confirme pas — criblage DC vs état AC), **47 divergences de
+  la simulation AC du défaut** (`error_step1`) et 5 crashs boucles
+  vides (le MÊME bug alphaDeesp que Dijon §1.4 — le loop-guard §3.A
+  s'applique tel quel).
+- Contraintes BEAUCOUP plus dures que Dijon : profondeur méd **1,48**
+  (méché) / **1,95** (antenne), max 2,71 ; multi-surcharges la norme
+  (méd 3-4, jusqu'à 11 lignes).
+- Résolution : **2 résolus** (redispatch), **31 partiels** — meilleures
+  réductions partielles −0,99/−0,41 de ρ. Familles : le délestage (sur
+  les charges équivalentes THT→HT) est présent dans 28/33 et meilleur
+  choix 18/33 ; le redispatch 19/33 (meilleur 11, seul à résoudre) ;
+  PST 10/33. **`line_disconnection` n'apparaît JAMAIS** : sur le réseau
+  THT réduit, moins maillé, les candidats de déconnexion isoleraient des
+  poches (17/33 cas basculent d'ailleurs en mode antenne) — les règles
+  expertes les écartent à juste titre.
+- **Les paires battent l'action seule dans 30/33 cas** (gains jusqu'à
+  −0,35 de ρ) — le headroom de combinaison, déjà généralisé à Dijon,
+  est encore plus net quand les actions unitaires plafonnent.
+
+### 2.2 Lecture
+
+Sur des contraintes de cette profondeur, l'efficacité n'est que
+**partielle par construction** : sans actions nodales (REPAS national
+absent) ni déconnexions viables, le recommender n'a que des leviers
+d'injection dont l'amplitude unitaire est petite devant l'excès de flux
+(50-300 %). Les échecs ne sont PAS des recommandations inopérantes
+(post-correctif §3.D, les injections réduisent réellement) mais un
+espace d'actions amputé + des cas hors du domaine nominal. Les 47
+divergences AC du défaut montrent aussi qu'un solve N-1 robuste
+(init DC → homotopie, comme le banc du mode THT) est un prérequis
+d'industrialisation sur réseau national.
 
 ## 3. Axes d'amélioration ÉPROUVÉS (mesurés sur les échecs)
 
@@ -142,11 +169,16 @@ candidats aux paires (non re-mesurés en combinaison après fix).
    réelles coupées par le top-20 (2 cas) — ou mieux, garantir par
    famille un candidat re-simulé (les minima par famille à 0 en config
    test sont un piège).
-4. **Guard alphaDeesp** à remonter upstream (frame de boucles vide).
+4. **Guard alphaDeesp** à remonter upstream (frame de boucles vide) —
+   confirmé sur les DEUX bancs (2 cas Dijon + 5 cas France THT).
 5. **Espace d'actions REPAS pour RTE7000** : sans lui, le recommender
    national (cas France THT) n'a ni scission ni fusion de nœud — les
-   familles qui portaient 65 % et 8 « meilleurs choix » au banc Dijon.
-6. Le champ `is_rho_reduction` des paires GST est incohérent avec leur
+   familles qui portaient 65 % et 8 « meilleurs choix » au banc Dijon —
+   et il ne résout que 2/33 des cas profonds nationaux.
+6. **Solve N-1 robuste dans le backend pypowsybl** (init DC → repli
+   homotopie) : 47/108 runs France THT meurent à la simulation du
+   défaut avant toute recommandation.
+7. Le champ `is_rho_reduction` des paires GST est incohérent avec leur
    `max_rho` (des paires gagnantes marquées False) — signalé, à unifier
    avec la sémantique des actions simples.
 

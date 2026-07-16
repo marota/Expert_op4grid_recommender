@@ -33,8 +33,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 RHO_MIN = 1.0
 
@@ -152,7 +155,7 @@ def run_case(xiidm: Path, label: str, defaut: str) -> dict:
     for cat, block in (res.action_scores or {}).items():
         for k in (block.get("scores") or {}):
             cat_of_key[k] = cat
-    from scripts.benchmark_recommender_cases import _family_of
+    from benchmark_recommender_cases import _family_of
     actions = []
     for k, v in (res.prioritized_actions or {}).items():
         try:

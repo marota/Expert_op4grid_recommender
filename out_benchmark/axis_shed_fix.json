@@ -1,0 +1,90 @@
+[
+ {
+  "key": "2024-11-27_ts13_BEON L31CPVAN",
+  "depth": 1.0577,
+  "best_before": 1.0577,
+  "best_now": 0.7099,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts14_BEON L31CPVAN",
+  "depth": 1.0169,
+  "best_before": 1.0169,
+  "best_now": 0.7008,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts15_BEON L31CPVAN",
+  "depth": 1.0407,
+  "best_before": 1.0407,
+  "best_now": 0.6917,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts16_BEON L31CPVAN",
+  "depth": 1.0031,
+  "best_before": 1.0031,
+  "best_now": 0.8371,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts34_BEON L31CPVAN",
+  "depth": 1.0534,
+  "best_before": 1.0534,
+  "best_now": 0.6666,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts36_BEON L31CPVAN",
+  "depth": 1.1207,
+  "best_before": 1.1207,
+  "best_now": 0.6102,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts37_BEON L31CPVAN",
+  "depth": 1.0707,
+  "best_before": 1.0707,
+  "best_now": 0.5703,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts41_BEON L31CPVAN",
+  "depth": 1.0199,
+  "best_before": 1.0199,
+  "best_now": 0.8512,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts42_BEON L31CPVAN",
+  "depth": 1.19,
+  "best_before": 1.19,
+  "best_now": 0.6657,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts45_BEON L31CPVAN",
+  "depth": 1.3171,
+  "best_before": 1.3171,
+  "best_now": 0.7679,
+  "n_reducing": 5,
+  "solved": true
+ },
+ {
+  "key": "2024-11-27_ts46_BEON L31CPVAN",
+  "depth": 1.2011,
+  "best_before": 1.2011,
+  "best_now": 1.0289,
+  "n_reducing": 5,
+  "solved": false
+ }
+]
