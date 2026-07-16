@@ -529,7 +529,9 @@ def run_analysis_step2_graph(context: AnalysisContext) -> AnalysisContext:
             lines_overloaded_ids_kept, maintenance_to_reco_at_t,
         )
 
-        use_dc = config.USE_DC_LOAD_FLOW
+        # The overflow graph is a linear flow-transfer estimate: run it in DC
+        # (fast) when configured, reserving AC for the per-action reassessment.
+        use_dc = config.USE_DC_LOAD_FLOW or config.USE_DC_FOR_OVERFLOW_GRAPH
         if not has_converged and not config.DO_FORCE_OVERLOAD_GRAPH_EVEN_IF_GRAPH_BROKEN_APART:
             use_dc = True
             env, obs, obs_simu_defaut = backend.switch_to_dc(

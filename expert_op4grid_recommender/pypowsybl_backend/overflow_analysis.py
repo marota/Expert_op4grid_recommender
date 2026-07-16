@@ -76,6 +76,33 @@ class OverflowSimulator:
         line_names = self._nm.name_line
         self._base_flows = dict(zip(line_names, self._base_flows_arr))
         self._base_currents = dict(zip(line_names, self._base_currents_arr))
+
+        # Per-branch origin-side nominal voltage (kV), aligned to name_line —
+        # used to derive a current magnitude from the DC active-power flow when
+        # the overflow graph runs in DC (currents are not populated by run_dc):
+        #   |I| ≈ |P|·1000 / (√3·Vnom).  Computed once (cheap).
+        self._vnom_or_arr = self._build_vnom_or_arr(line_names)
+
+    def _build_vnom_or_arr(self, line_names) -> np.ndarray:
+        """Origin-side nominal voltage (kV) per branch, aligned to ``name_line``."""
+        vl_nom = self._net.get_voltage_levels()['nominal_v']
+        lines_vl1 = self._nm._cached_lines_df['voltage_level1_id'].to_dict()
+        trafos_vl1 = self._nm._cached_trafos_df['voltage_level1_id'].to_dict()
+        out = np.full(len(line_names), np.nan)
+        for i, lid in enumerate(line_names):
+            vl_id = trafos_vl1.get(lid) if lid in self._nm._trafos_set else lines_vl1.get(lid)
+            if vl_id is not None and vl_id in vl_nom.index:
+                out[i] = float(vl_nom.loc[vl_id])
+        return out
+
+    def _dc_currents_from_power(self, p_arr: np.ndarray) -> np.ndarray:
+        """Approximate current magnitude (A) from DC active power (MW):
+        ``|I| = |P|·1000 / (√3·Vnom)`` (DC assumption Q≈0, V≈Vnom). Returns 0
+        where Vnom is unknown. Lets the DC overflow graph produce a meaningful
+        ``rho`` (fixes the DC ``rho=0`` behaviour for graph purposes)."""
+        with np.errstate(divide='ignore', invalid='ignore'):
+            i = np.abs(p_arr) * 1000.0 / (np.sqrt(3.0) * self._vnom_or_arr)
+        return np.where(np.isfinite(i), i, 0.0)
     
     def _run_load_flow(self) -> lf.ComponentResult:
         """Run load flow with configured mode (AC or DC) and fast optimization."""
@@ -306,7 +333,15 @@ class OverflowSimulator:
 
             # ===== COMPUTE RHO (same logic as _create_obs_linecut) =====
             from expert_op4grid_recommender.config import MAX_RHO_BOTH_EXTREMITIES
-            
+
+            # In DC the load flow does not populate branch currents (i1/i2 = 0),
+            # so derive them from the DC active-power flow — otherwise the
+            # overflow-graph rho collapses to 0 and no line reads as overloaded.
+            if self._use_dc:
+                i_dc = self._dc_currents_from_power(new_flows_arr)
+                i1_arr = i_dc
+                i2_arr = i_dc
+
             i1_arr = np.abs(i1_arr)
             i2_arr = np.abs(i2_arr)
 
