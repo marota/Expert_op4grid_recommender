@@ -65,3 +65,20 @@ try:
 except Exception as exc:  # never let a patch failure break package import
     _logger.debug("Could not apply pypowsybl integer-value patch at import: %s", exc)
 # -----------------------------------------------------------
+
+# --- alphaDeesp overflow-graph Dijkstra performance patch ---
+# Speeds up add_relevant_null_flow_lines_all_paths (the dominant non-LF cost
+# of the overflow-graph build at national scale): precomputed edge-attribute
+# weight instead of a Python callable, and target-side reverse Dijkstra when
+# cheaper. Verified output-equivalent (same edges/hubs) on the RTE7000
+# benchmark; x1.6 on the hotspot. Version-guarded and removable via
+# EXPERT_OP4GRID_DISABLE_ALPHADEESP_DIJKSTRA_PATCH. No-op if alphaDeesp is
+# not installed.
+try:
+    from expert_op4grid_recommender.patched_alphadeesp import (
+        apply_alphadeesp_dijkstra_patch,
+    )
+    apply_alphadeesp_dijkstra_patch()
+except Exception as exc:  # never let a patch failure break package import
+    _logger.debug("Could not apply alphaDeesp Dijkstra patch at import: %s", exc)
+# -----------------------------------------------------------
