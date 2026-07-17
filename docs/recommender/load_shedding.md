@@ -251,3 +251,21 @@ ALGORITHME find_relevant_load_shedding :
 - **Multi-noeuds** : si un seul noeud ne suffit pas, on pourrait combiner plusieurs noeuds aval pour atteindre le volume nécessaire.
 - **Coût économique** : intégrer un coût de délestage pour arbitrer entre load shedding et autres actions correctives.
 - **Noeuds amont** : dans certains cas, le délestage de charges en amont pourrait aussi être pertinent (boucles de flux).
+
+## Constats de banc THT (2026-07) — le délestage est un dernier recours
+
+Banc RTE7000-THT (201 contingences notées, voir
+[`../reviews/2026-07_tht_benchmark_findings.md`](../reviews/2026-07_tht_benchmark_findings.md)) :
+
+- À espace d'actions topologique **vide**, le délestage paraît « résolveur n°1 » (43/54 résolutions).
+  Avec l'espace topologique alimenté (coupleurs réels + déconnexions), **39 de ces 43 résolutions se
+  requalifient** : une action topologique gratuite résout aussi. L'injection coûteuse n'est
+  *indispensable* que sur **4/64** contingences résolues — **94 % des résolutions sont topologiques**.
+- Le périmètre légitime du délestage : le **mode antenne** (112 contingences du banc — poche isolée,
+  aucune topologie possible) et les surcharges profondes (ρ > 1.5). Dans les deux cas l'**amplitude
+  unitaire ne mord pas** : 7 contingences hors antenne frôlent le seuil (best topo 1.005–1.05) où
+  quelques dizaines de MW *dimensionnés* suffiraient → le dimensionnement en **MW requis** est la
+  suite prioritaire de cette famille.
+- Corollaire de priorisation : trier par **tier de coût avant le score** (topologie d'abord,
+  injections en dernier recours) — le redispatch unitaire « gagne » sinon 90 fois la priorisation
+  sans jamais résoudre.

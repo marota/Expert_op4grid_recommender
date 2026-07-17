@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RTE7000-THT benchmark findings documented**
+  (`docs/reviews/2026-07_tht_benchmark_findings.md` + « Constats de banc »
+  sections in `docs/recommender/{superposition_module,load_shedding,antenna_overflow_graph}.md`):
+  with a curated topological action space (real couplers + line
+  disconnections) **94 % of resolutions are topology-only** — load shedding
+  demotes to a true last resort (39/43 of its resolutions requalify);
+  8 contingencies are resolvable **only by an action pair** (true-simulation
+  validated; GST bias +0.05 median but large over-promises on
+  high-rerouting pairs → true-sim validation of pairs is mandatory);
+  the antenna regime dominates the unresolved set (112/137) and calls for
+  MW-sized load shedding. Bench lives in `marota/Grid_snapshot_reconstruct`
+  (`benchmarks/expert_op4grid_recommender/`).
+- **alphaDeesp Dijkstra performance patch** (`patched_alphadeesp.py`,
+  import-time, version-guarded, kill-switch
+  `EXPERT_OP4GRID_DISABLE_ALPHADEESP_DIJKSTRA_PATCH`): precomputed
+  edge-attribute weight + target-side reverse Dijkstra in
+  `_compute_sssp_paths` — −27 % on `add_relevant_null_flow_lines_all_paths`
+  with a bit-identical output graph; documents the upstream multigraph
+  weight bug (capacity silently ignored — ExpertOp4Grid_marota#1).
+- **`USE_DC_FOR_OVERFLOW_GRAPH` config flag** (opt-in, default off — AC
+  observations remain the default): runs the overflow-graph flow transfer
+  in DC with a power-derived rho; −59 % graph build on a numerically stiff
+  operating point, same best `max_rho`.
+
 ## [0.3.0.post1] - 2026-07-08
 
 A `.post1` release on top of `0.3.0` (no breaking changes; performance

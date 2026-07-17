@@ -387,3 +387,19 @@ neighbours. #2 is specific to stacking two large injection changes.
 | `test_superposition_rho_estimation.py` | P-based and delta-theta-based rho estimation, fallbacks, action-type-aware routing |
 | `test_superposition_extended.py` | Edge cases: no elements, multiple elements, singular systems, beta range validation |
 | `test_superposition_gst.py` | GST: topology+injection and injection+injection pairs vs ground truth (DC-exact), AC-anchoring (`TestGstIsAcAnchored`: beta RHS + reconstruction use the AC observation values), `is_injection_action` detection, `compute_all_pairs` inclusion of injection pairs |
+
+## Constats de banc THT (2026-07) — validation mesurée des paires
+
+Banc RTE7000-THT (201 contingences notées, voir
+[`../reviews/2026-07_tht_benchmark_findings.md`](../reviews/2026-07_tht_benchmark_findings.md)) :
+
+- **8 contingences ne sont résolubles QUE par une combinaison d'actions** (aucune action seule
+  < 1.0 ; paire validée en simulation vraie à ρ 0.976–0.999) — l'argument mesuré pour promouvoir
+  les paires en recommandation de 1er ordre. 89 contingences disposaient d'une paire TOPO+TOPO,
+  74 prédites résolvantes.
+- **Biais de prédiction GST : médiane +0.05, stable** sur deux campagnes → recalable.
+- **Limite de domaine identifiée** : 4 sur-promesses massives (prédit 0.40–0.82 → réel 1.00–1.16),
+  toutes sur des paires contenant une **déconnexion ou un split à fort re-routage** — la
+  superposition linéarisée sur-promet quand l'action change fortement la topologie du transit.
+  **Toute recommandation de paire doit être validée par une simulation vraie** (~1 LF par paire ;
+  cette validation a écarté les 4 faux positifs du banc).
