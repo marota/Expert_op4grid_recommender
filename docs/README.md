@@ -97,6 +97,13 @@ code they describe.
   comprehensive review at v0.2.5: architecture, interfaces, performance,
   documentation, maintainability; prioritized findings, deep revisions and
   quick wins.
+- [`reviews/benchmark_recommender_cas_2026-07.md`](reviews/benchmark_recommender_cas_2026-07.md) —
+  **benchmark systématique du recommender** (v0.3.0.post1) : grille Dijon
+  complète (4 128 cas) + cas France THT 225/400 kV reconstruits (108 runs) ;
+  efficacité par famille d'action vs profondeur/nombre de contraintes,
+  typologie des échecs (partiel vs inopérant), et 4 axes d'amélioration
+  MESURÉS (garde anti-crash, paires GST validées, budget, correctif
+  délestage antenne) — résolution Dijon 81 % → 98 %.
 
 ## Archive (`archive/`)
 Finished / transient documents kept for the record — not living reference.

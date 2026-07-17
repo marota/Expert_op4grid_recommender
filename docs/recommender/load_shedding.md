@@ -251,3 +251,31 @@ ALGORITHME find_relevant_load_shedding :
 - **Multi-noeuds** : si un seul noeud ne suffit pas, on pourrait combiner plusieurs noeuds aval pour atteindre le volume nécessaire.
 - **Coût économique** : intégrer un coût de délestage pour arbitrer entre load shedding et autres actions correctives.
 - **Noeuds amont** : dans certains cas, le délestage de charges en amont pourrait aussi être pertinent (boucles de flux).
+
+
+---
+
+## Constats de banc (2026-07, v0.3.0.post1)
+
+Mesurés sur la grille Dijon complète (4 128 cas, 94 situations
+contraintes) et les cas France THT reconstruits (108 runs) — rapport :
+[`../reviews/benchmark_recommender_cas_2026-07.md`](../reviews/benchmark_recommender_cas_2026-07.md).
+
+- **Bug corrigé — action vide côté grid2op** : la construction utilisait
+  le dialecte pypowsybl `{"set_load_p": {load: 0.0}}`, que l'action
+  space grid2op **ignore silencieusement** → toutes les recommandations
+  de délestage du mode antenne avaient un effet strictement NUL (11 cas
+  du banc, ρ inchangé à 10⁻⁴ près ; le module de superposition les
+  signalait déjà « No-op injection action detected »). Correctif dans
+  `_load_shedding.py` : repli `set_bus -1` du load quand l'action
+  grid2op est détectée sans impact. **Mesure : 10/11 cas antenne
+  résolus (ρ 0,57-0,85), le 11ᵉ amélioré (1,20 → 1,03).**
+- **En mode nominal (méché), le délestage ne résout jamais seul**
+  (0/93 cas Dijon ; il ne réduit que 3 cas) : les MW unitaires d'une
+  charge sont petits devant l'excès de flux. Sur les cas France THT
+  (charges équivalentes THT→HT, plus grosses), il est le meilleur choix
+  dans 18/33 cas mais ne suffit pas non plus (contraintes à 148-271 %).
+- **À faire (rapport §4)** : dimensionner l'action en MW requis
+  (`P_shedding` est calculé puis ignoré — l'action déleste tout le
+  transformateur) et promouvoir les paires (délestage + action
+  topologique) quand l'action seule plafonne.

@@ -387,3 +387,26 @@ neighbours. #2 is specific to stacking two large injection changes.
 | `test_superposition_rho_estimation.py` | P-based and delta-theta-based rho estimation, fallbacks, action-type-aware routing |
 | `test_superposition_extended.py` | Edge cases: no elements, multiple elements, singular systems, beta range validation |
 | `test_superposition_gst.py` | GST: topology+injection and injection+injection pairs vs ground truth (DC-exact), AC-anchoring (`TestGstIsAcAnchored`: beta RHS + reconstruction use the AC observation values), `is_injection_action` detection, `compute_all_pairs` inclusion of injection pairs |
+
+
+---
+
+## Measured validation (2026-07 benchmark, v0.3.0.post1)
+
+From the systematic case benchmark
+([`../reviews/benchmark_recommender_cas_2026-07.md`](../reviews/benchmark_recommender_cas_2026-07.md)):
+
+- **Combination headroom is general, not marginal**: the best predicted
+  pair beats the best single action in **83/94** constrained Dijon cases
+  and **30/33** France-THT cases.
+- **True-simulation validation of the rescue claim**: on the 5 deep
+  Dijon cases where every single action stalls above the limit
+  (ρ 1.00-1.04), the best GST pair, re-simulated as a REAL combined
+  grid2op action, solves **5/5** (simulated ρ 0.85-0.97).
+- **Prediction bias is small and remarkably stable**: simulated pair ρ
+  exceeds the GST prediction by **+0.042 to +0.050** on all five rescues
+  — an offset worth calibrating out (add ~+0.05 to predictions, or
+  re-simulate the top pair, one load flow, before recommending it).
+- Known inconsistency: pair entries expose an `is_rho_reduction` flag
+  that can be `False` while their `max_rho` clearly improves on the
+  baseline — align its semantics with single-action reassessment.

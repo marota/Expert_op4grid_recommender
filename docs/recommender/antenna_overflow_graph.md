@@ -196,3 +196,19 @@ observation, no pypowsybl / real env):
 - A single-feed pocket is assumed (`extract_antenna_context` bails out if the
   constraint does not cleanly bridge exactly one pocket-to-grid boundary).
   Multi-feed islanded regions are out of scope.
+
+
+---
+
+## Constats de banc (2026-07, v0.3.0.post1)
+
+- Le mode antenne s'est déclenché sur **11/96** situations contraintes
+  de la grille Dijon (défaut BEON L31CPVAN, 2024-11-27) et **17/33** cas
+  analysés France THT — sur le réseau 225/400 kV réduit, moins maillé,
+  l'isolement de poche est le régime DOMINANT des défauts profonds.
+- Les recommandations d'injection du mode antenne étaient **inopérantes
+  côté grid2op** (action de délestage vide, cf.
+  [`load_shedding.md`](load_shedding.md) — corrigé et mesuré : 10/11
+  cas résolus).
+- Rapport complet :
+  [`../reviews/benchmark_recommender_cas_2026-07.md`](../reviews/benchmark_recommender_cas_2026-07.md).

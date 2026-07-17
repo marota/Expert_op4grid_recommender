@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Antenna-mode load shedding was a silent no-op on the grid2op path**:
+  actions were built with the pypowsybl dialect (`{"set_load_p": …}`),
+  which a grid2op action space silently ignores — every antenna shedding
+  recommendation had strictly zero effect. `_load_shedding.py` now falls
+  back to a bus disconnection of the load (`set_bus -1`) when the built
+  grid2op action is detected impact-less. Measured on the 2026-07 case
+  benchmark: 10/11 previously-failing antenna cases solved (ρ 0.57-0.85).
+
+### Added
+- Systematic case benchmark + analysis tooling
+  (`scripts/benchmark_recommender_cases.py`, full Dijon grid 4 128 cases;
+  `scripts/benchmark_tht_france_cases.py`, reconstructed France-THT
+  225/400 kV snapshots; `scripts/analyze_recommender_benchmark.py`;
+  `scripts/test_improvement_axes.py`) and the findings report
+  `docs/reviews/benchmark_recommender_cas_2026-07.md` — action-family
+  efficacy vs constraint depth/count, failure typology, and four
+  MEASURED improvement axes (loop-guard, validated GST pairs, action
+  budget, shedding fix): Dijon resolution 81 % → 98 %.
+
 ## [0.3.0.post1] - 2026-07-08
 
 A `.post1` release on top of `0.3.0` (no breaking changes; performance
