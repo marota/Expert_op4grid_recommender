@@ -27,7 +27,12 @@ dependencies = [
     "scipy>=1.13.0",
     "pandas",
     "networkx",
-    "pypowsybl>=1.13.0",
+    # Upper-capped <1.16.0: pypowsybl 1.16.0 makes `import pypowsybl` eagerly
+    # import its new `opf` submodule, which hard-imports `pyoptinterface` (an
+    # OPF solver we do not use and do not depend on) — so a bare `import
+    # pypowsybl` raises ModuleNotFoundError there. 1.13–1.15 import cleanly.
+    # Lift the cap once pypowsybl makes the opf/pyoptinterface import lazy.
+    "pypowsybl>=1.13.0,<1.16.0",
     # pypowsybl2grid DEPRECATED and dropped as a dependency (v0.3.0): its 0.3.0
     # wheel pins numpy==1.26.4, which is unsatisfiable against numpy>=2.0.0 and
     # broke installs. It is only needed by the legacy grid2op+pypowsybl

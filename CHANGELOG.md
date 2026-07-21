@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.1] - 2026-07-21
 
+### Changed
+
+- **Cap `pypowsybl<1.16.0`.** pypowsybl 1.16.0 makes a bare `import pypowsybl`
+  eagerly import its new `opf` submodule, which hard-imports `pyoptinterface`
+  (an OPF solver this package neither uses nor depends on) → `import pypowsybl`
+  raises `ModuleNotFoundError: No module named 'pyoptinterface'`. This broke
+  the `grid2op-optional` CI leg (which `pip install -e .` picks the latest
+  pypowsybl). 1.13–1.15 import cleanly; the cap is lifted once pypowsybl makes
+  the `opf`/`pyoptinterface` import lazy.
+
 ### Added
 
 - **RTE7000-THT benchmark findings documented**
