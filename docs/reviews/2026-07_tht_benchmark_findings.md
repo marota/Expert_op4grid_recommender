@@ -67,12 +67,15 @@ redispatch) en **dernier recours**, réservées aux 4 cas sans solution topologi
 
 ## 6. Robustesse & performance (correctifs livrés sur cette branche)
 
-- **Garde « zéro boucle rouge »** : 20 crashs `TypeError` évités sur le banc, dont 14 devenus des
-  résolutions (bug amont : `Structured_Overload_Distribution_Graph.get_dispatch_edges_nodes`,
-  `red_loops.Path.sum()` sur DataFrame vide → issue ExpertOp4Grid_marota#2).
-- **Patch Dijkstra alphaDeesp** (`patched_alphadeesp.py`) : −27 % sur le hotspot du graphe, sortie
-  bit-identique, 208 tests verts ; bug amont documenté — le poids `capacity` est silencieusement
-  ignoré par les callables sur multigraph (issue ExpertOp4Grid_marota#1).
+- **Garde « zéro boucle rouge »** (issue ExpertOp4Grid_marota#2) : 20 crashs `TypeError` évités sur le
+  banc, dont 14 devenus des résolutions (bug amont : `Structured_Overload_Distribution_Graph.get_dispatch_edges_nodes`,
+  `red_loops.Path.sum()` sur DataFrame vide). **Corrigé en amont dans expertop4grid 0.3.3** (garde
+  explicite du cas sans boucle).
+- **Optimisation Dijkstra alphaDeesp** (issue ExpertOp4Grid_marota#1) : −27 % sur le hotspot du graphe,
+  sortie bit-identique ; bug amont documenté — le poids `capacity` est silencieusement ignoré par les
+  callables sur multigraph. **Intégrée en amont dans expertop4grid 0.3.3** (poids d'arête pré-calculé,
+  quirk multigraphe « blessed » par défaut / corrigeable via `capacity_weighted=True`) ; le patch
+  vendu localement (`patched_alphadeesp.py`) est donc **supprimé** et le plancher passe à `>=0.3.3`.
 - **Flag `USE_DC_FOR_OVERFLOW_GRAPH`** (opt-in, défaut AC préservé) : −59 % sur la construction du
   graphe d'un point raide, même `best max_rho`.
 - **Solve N-1 robuste = prérequis** : 3 cas restent réfractaires au solveur par défaut et

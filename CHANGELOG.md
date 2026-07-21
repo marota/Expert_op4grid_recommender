@@ -23,13 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the antenna regime dominates the unresolved set (112/137) and calls for
   MW-sized load shedding. Bench lives in `marota/Grid_snapshot_reconstruct`
   (`benchmarks/expert_op4grid_recommender/`).
-- **alphaDeesp Dijkstra performance patch** (`patched_alphadeesp.py`,
-  import-time, version-guarded, kill-switch
-  `EXPERT_OP4GRID_DISABLE_ALPHADEESP_DIJKSTRA_PATCH`): precomputed
-  edge-attribute weight + target-side reverse Dijkstra in
-  `_compute_sssp_paths` — −27 % on `add_relevant_null_flow_lines_all_paths`
-  with a bit-identical output graph; documents the upstream multigraph
-  weight bug (capacity silently ignored — ExpertOp4Grid_marota#1).
+- **alphaDeesp Dijkstra overflow-graph optimisation — now upstream, patch
+  removed.** The vendored `patched_alphadeesp.py` (precomputed edge-attribute
+  weight in `_compute_sssp_paths`, −27 % on
+  `add_relevant_null_flow_lines_all_paths`, bit-identical output) is dropped:
+  both fixes it carried landed in **expertop4grid 0.3.3** — the precomputed
+  string-weight `_compute_sssp_paths` (ExpertOp4Grid_marota#1, "bless or
+  fix", default bit-identical to the old hop-cost behaviour) and the
+  empty-red-loops guard in `get_dispatch_edges_nodes`
+  (ExpertOp4Grid_marota#2). The dependency floor is bumped to
+  `expertop4grid>=0.3.3` accordingly and the import-time patch wiring +
+  its test are removed. (The patch's secondary target-side reverse-Dijkstra
+  variant is not upstream; it only helped when `|targets| < |sources|` and is
+  left for a possible separate upstream contribution.)
 - **`USE_DC_FOR_OVERFLOW_GRAPH` config flag** (opt-in, default off — AC
   observations remain the default): runs the overflow-graph flow transfer
   in DC with a power-derived rho; −59 % graph build on a numerically stiff
