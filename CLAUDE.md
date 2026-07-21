@@ -486,7 +486,7 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
   dependency as of 0.3.0 — its `numpy==1.26.4` pin conflicts with `numpy>=2.0.0`;
   it is only needed by the legacy grid2op+pypowsybl assistant-env bridge, install
   it manually in a `numpy<2` env if required)
-- `expertop4grid >= 0.3.2` (contains alphaDeesp; pulls grid2op + lightsim2grid
+- `expertop4grid >= 0.3.3` (contains alphaDeesp; pulls grid2op + lightsim2grid
   transitively — so a base install is not grid2op-free at the wheel level)
 - `matplotlib >= 3.8.0`, `pydantic >= 2.0`, `pydantic-settings >= 2.0`
 
@@ -503,8 +503,19 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.3.0` (see `CHANGELOG.md` for full history)
+**Current version**: `0.3.1` (see `CHANGELOG.md` for full history)
 
+> **v0.3.1 highlights**: opt-in `USE_DC_FOR_OVERFLOW_GRAPH` (default off — AC
+> graph observations preserved) runs the overflow-graph flow transfer in DC
+> with a power-derived rho (`|I| = |P|·1000/(√3·Vnom)`), ~10 s → ~0.2 s on a
+> stiff operating point; the vendored alphaDeesp Dijkstra patch
+> (`patched_alphadeesp.py`) is **removed** now that both its fixes shipped
+> upstream in **`expertop4grid 0.3.3`** — the precomputed-string-weight
+> `_compute_sssp_paths` (ExpertOp4Grid_marota#1) and the empty-red-loops guard
+> in `get_dispatch_edges_nodes` (ExpertOp4Grid_marota#2) — so the dependency
+> floor is bumped to `expertop4grid>=0.3.3`. RTE7000-THT benchmark findings
+> documented. See `docs/release-notes/v0.3.1.md`.
+>
 > **v0.3.0 highlights** (review follow-through on top of 0.2.9 — findings M3–M6, M8,
 > P3–P4, R7-partial): the maneuver IHM (`scripts/manoeuvre_ihm.py`) becomes a serveable
 > app (`create_app()` factory + `waitress` + `/healthz`, M8/R7); the pypowsybl

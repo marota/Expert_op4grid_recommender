@@ -15,7 +15,7 @@ corrective measures to alleviate line overloads.
 
 import logging
 
-__version__ = "0.3.0.post1"
+__version__ = "0.3.1"
 
 _logger = logging.getLogger(__name__)
 
@@ -65,3 +65,8 @@ try:
 except Exception as exc:  # never let a patch failure break package import
     _logger.debug("Could not apply pypowsybl integer-value patch at import: %s", exc)
 # -----------------------------------------------------------
+# NOTE: the vendored alphaDeesp overflow-graph Dijkstra performance patch was
+# removed once its two fixes landed upstream in expertop4grid 0.3.3 (the now
+# floor): the precomputed edge-attribute weight in `_compute_sssp_paths`
+# (ExpertOp4Grid_marota#1, "bless or fix") and the empty-red-loops guard in
+# `get_dispatch_edges_nodes` (ExpertOp4Grid_marota#2). No local patch needed.

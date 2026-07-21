@@ -97,6 +97,12 @@ code they describe.
   comprehensive review at v0.2.5: architecture, interfaces, performance,
   documentation, maintainability; prioritized findings, deep revisions and
   quick wins.
+- [`reviews/2026-07_tht_benchmark_findings.md`](reviews/2026-07_tht_benchmark_findings.md) —
+  measured findings from the RTE7000-THT national benchmark (201 scored
+  contingencies): topological action space reverses the family hierarchy
+  (94 % of resolutions are topology-only; load shedding demoted to last
+  resort), depth/count difficulty gradients, unresolved-case taxonomy,
+  pair validation doctrine, shipped robustness/performance fixes.
 
 ## Archive (`archive/`)
 Finished / transient documents kept for the record — not living reference.

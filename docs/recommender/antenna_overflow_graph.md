@@ -196,3 +196,14 @@ observation, no pypowsybl / real env):
 - A single-feed pocket is assumed (`extract_antenna_context` bails out if the
   constraint does not cleanly bridge exactly one pocket-to-grid boundary).
   Multi-feed islanded regions are out of scope.
+
+## Constats de banc THT (2026-07) — l'antenne est le régime dominant des non-résolus
+
+Banc RTE7000-THT (201 contingences notées, voir
+[`../reviews/2026-07_tht_benchmark_findings.md`](../reviews/2026-07_tht_benchmark_findings.md)) :
+**112 des 137 contingences non résolues sont en mode antenne** — la contingence isole une poche
+radiale et la recommandation se restreint par construction aux injections. Sur réseau THT réduit
+(les poches HT sont des équivalents de frontière), ce régime est encore plus fréquent qu'en réseau
+complet. Les injections *unitaires* n'y concluent pas : le déblocage attendu est le **délestage
+dimensionné en MW requis** sur les charges équivalentes de la poche (cf.
+[`load_shedding.md`](load_shedding.md)).

@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-21
+
+### Changed
+
+- **Cap `pypowsybl<1.16.0`.** pypowsybl 1.16.0 makes a bare `import pypowsybl`
+  eagerly import its new `opf` submodule, which hard-imports `pyoptinterface`
+  (an OPF solver this package neither uses nor depends on) → `import pypowsybl`
+  raises `ModuleNotFoundError: No module named 'pyoptinterface'`. This broke
+  the `grid2op-optional` CI leg (which `pip install -e .` picks the latest
+  pypowsybl). 1.13–1.15 import cleanly; the cap is lifted once pypowsybl makes
+  the `opf`/`pyoptinterface` import lazy — tracked in
+  marota/Expert_op4grid_recommender#5.
+
+### Added
+
+- **RTE7000-THT benchmark findings documented**
+  (`docs/reviews/2026-07_tht_benchmark_findings.md` + « Constats de banc »
+  sections in `docs/recommender/{superposition_module,load_shedding,antenna_overflow_graph}.md`):
+  with a curated topological action space (real couplers + line
+  disconnections) **94 % of resolutions are topology-only** — load shedding
+  demotes to a true last resort (39/43 of its resolutions requalify);
+  8 contingencies are resolvable **only by an action pair** (true-simulation
+  validated; GST bias +0.05 median but large over-promises on
+  high-rerouting pairs → true-sim validation of pairs is mandatory);
+  the antenna regime dominates the unresolved set (112/137) and calls for
+  MW-sized load shedding. Bench lives in `marota/Grid_snapshot_reconstruct`
+  (`benchmarks/expert_op4grid_recommender/`).
+- **alphaDeesp Dijkstra overflow-graph optimisation — now upstream, patch
+  removed.** The vendored `patched_alphadeesp.py` (precomputed edge-attribute
+  weight in `_compute_sssp_paths`, −27 % on
+  `add_relevant_null_flow_lines_all_paths`, bit-identical output) is dropped:
+  both fixes it carried landed in **expertop4grid 0.3.3** — the precomputed
+  string-weight `_compute_sssp_paths` (ExpertOp4Grid_marota#1, "bless or
+  fix", default bit-identical to the old hop-cost behaviour) and the
+  empty-red-loops guard in `get_dispatch_edges_nodes`
+  (ExpertOp4Grid_marota#2). The dependency floor is bumped to
+  `expertop4grid>=0.3.3` accordingly and the import-time patch wiring +
+  its test are removed. (The patch's secondary target-side reverse-Dijkstra
+  variant is not upstream; it only helped when `|targets| < |sources|` and is
+  left for a possible separate upstream contribution.)
+- **`USE_DC_FOR_OVERFLOW_GRAPH` config flag** (opt-in, default off — AC
+  observations remain the default): runs the overflow-graph flow transfer
+  in DC with a power-derived rho; −59 % graph build on a numerically stiff
+  operating point, same best `max_rho`.
+
 ## [0.3.0.post1] - 2026-07-08
 
 A `.post1` release on top of `0.3.0` (no breaking changes; performance

@@ -95,6 +95,15 @@ class Settings(BaseSettings):
     # -------------------
     USE_EVALUATION_CONFIG: bool = True
     USE_DC_LOAD_FLOW: bool = False
+    # Run the overflow-graph flow-transfer in DC even when the rest of the
+    # pipeline is AC. The overflow graph only needs the *delta flows* (a linear
+    # flow-transfer estimate); AC is reserved for the per-action reassessment.
+    # On a numerically stiff operating point one AC solve can cost ~10 s vs
+    # ~0.2 s in DC. The graph's rho is then derived from the DC active power
+    # (|P|/(√3·Vnom·Ilim)) instead of the (unpopulated) DC branch currents.
+    # Opt-in (default off) to preserve the AC graph behaviour until validated
+    # across all environments.
+    USE_DC_FOR_OVERFLOW_GRAPH: bool = False
     DO_CONSOLIDATE_GRAPH: bool = False
     DO_RECO_MAINTENANCE: bool = False
     CHECK_WITH_ACTION_DESCRIPTION: bool = True
