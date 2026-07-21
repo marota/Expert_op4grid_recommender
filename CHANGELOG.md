@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raises `ModuleNotFoundError: No module named 'pyoptinterface'`. This broke
   the `grid2op-optional` CI leg (which `pip install -e .` picks the latest
   pypowsybl). 1.13–1.15 import cleanly; the cap is lifted once pypowsybl makes
-  the `opf`/`pyoptinterface` import lazy.
+  the `opf`/`pyoptinterface` import lazy — tracked in
+  marota/Expert_op4grid_recommender#5.
 
 ### Added
 

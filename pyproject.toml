@@ -32,6 +32,7 @@ dependencies = [
     # OPF solver we do not use and do not depend on) — so a bare `import
     # pypowsybl` raises ModuleNotFoundError there. 1.13–1.15 import cleanly.
     # Lift the cap once pypowsybl makes the opf/pyoptinterface import lazy.
+    # TODO(pypowsybl-uncap): tracked in marota/Expert_op4grid_recommender#5.
     "pypowsybl>=1.13.0,<1.16.0",
     # pypowsybl2grid DEPRECATED and dropped as a dependency (v0.3.0): its 0.3.0
     # wheel pins numpy==1.26.4, which is unsatisfiable against numpy>=2.0.0 and
