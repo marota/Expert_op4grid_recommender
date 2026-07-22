@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1.post1] - 2026-07-22
+
 ### Fixed
 
 - **Reused pypowsybl env no longer "contaminated" by a DC escalation (issue #6).**
