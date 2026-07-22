@@ -7,7 +7,10 @@ contingencies from one loaded network).
 
 **Status:** root-caused with a minimal reproduction; verified workaround below.
 No in-place code fix landed yet (needs care not to change the graph-build flow
-math — see "Fix directions").
+math — see "Fix directions"). Tracked in
+[issue #6](https://github.com/marota/Expert_op4grid_recommender/issues/6);
+runnable repro + fixture: `docs/reviews/repro_env_corruption_overflow_graph.py`
++ `docs/reviews/hiver_pic_2021.xiidm`.
 
 ## Symptom
 
