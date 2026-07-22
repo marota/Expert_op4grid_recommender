@@ -25,6 +25,7 @@ Expected output (bug present):
        only a full env reload does.
 """
 import os
+import zipfile
 import numpy as np
 
 from expert_op4grid_recommender import config
@@ -38,7 +39,13 @@ from expert_op4grid_recommender.pipeline import (run_analysis_step1, run_analysi
     AnalysisContext, set_thermal_limits)
 from expert_op4grid_recommender.backends import Backend
 
-XIIDM = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hiver_pic_2021.xiidm")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+XIIDM = os.path.join(_HERE, "hiver_pic_2021.xiidm")
+# The fixture is committed zipped (docs/reviews/hiver_pic_2021.xiidm.zip, ~0.8 MB
+# vs ~8.5 MB raw). Extract it next to this script on first run.
+if not os.path.exists(XIIDM):
+    with zipfile.ZipFile(os.path.join(_HERE, "hiver_pic_2021.xiidm.zip")) as zf:
+        zf.extract("hiver_pic_2021.xiidm", _HERE)
 
 # A contingency that clearly overloads a monitored line (the "probe").
 PROBE = "AVALLL61VNOL"
