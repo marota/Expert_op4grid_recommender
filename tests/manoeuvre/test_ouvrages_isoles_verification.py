@@ -217,10 +217,38 @@ def test_ihm_reconnexion_demandee_reste_dans_le_perimetre(session_avec_isole):
 
     assert res["nb_vise"] == 2
     # La reconnexion d'un départ déconnecté est hors de portée de l'algo (limite
-    # documentée) : le verdict est négatif — mais **expliqué**, jamais nu.
+    # documentée) : le verdict est négatif — mais **expliqué et nominatif**.
     assert res["is_verified"] is False
-    assert res["message"]
+    assert iso in res["message"]
+    assert "ne réénergise pas un départ déconnecté" in res["message"]
     assert iso in res["nodale"]["isolated"]         # pas reconnecté
+
+
+def test_ihm_cible_identite_avec_ouvrages_deja_deconnectes(session_avec_isole):
+    """Cible = **identité** (la partition de départ, isolés présentés à part) :
+    aucune manœuvre nécessaire, verdict positif."""
+    s, iso, connectes = session_avec_isole
+    res = s.nodale_to_detaillee([list(connectes)], [iso])
+
+    assert res["is_verified"] is True
+    assert res["nb_obtenu"] == res["nb_vise"] == 1
+    assert res["nb_isoles"] == 1
+    assert res["message"] == ""
+
+
+def test_ihm_message_nomme_les_ouvrages_non_reconnectables(session_avec_isole):
+    """Régression du second faux positif observé : une cible « identité » issue
+    d'une autre heure remet l'ouvrage déjà déconnecté **sur le nœud**. Le verdict
+    est légitimement négatif, mais l'ancien message (« obtenu 1 nœud(s), visé
+    1 ») était illisible — deux partitions différentes peuvent avoir le même
+    nombre de nœuds. Le message doit **nommer** l'ouvrage fautif."""
+    s, iso, connectes = session_avec_isole
+    res = s.nodale_to_detaillee([connectes + [iso]], [])
+
+    assert res["is_verified"] is False
+    assert res["nb_obtenu"] == res["nb_vise"] == 1     # même compte, écart réel
+    assert iso in res["message"]
+    assert "nœud(s), visé" not in res["message"]       # plus le message opaque
 
 
 def test_ihm_verdict_negatif_reste_diagnostique(session_avec_isole):
@@ -235,3 +263,29 @@ def test_ihm_verdict_negatif_reste_diagnostique(session_avec_isole):
     assert res["is_verified"] is False
     assert res["message"]
     assert res["noeuds_non_realisables"]
+
+
+# ---------------------------------------------------------------------------
+# 4. Diagnostic d'écart — fonction pure
+# ---------------------------------------------------------------------------
+
+def test_ecart_cible_nomme_les_ouvrages_a_reconnecter():
+    reelle = TopologieNodale.from_graph(_graphe(deconnecte=("L3",)), "VL")
+    cible = TopologieNodale.from_node_groups("VL", [["L1", "L2", "L3"]])
+    a_reconnecter, mal_places = ihm._ecart_cible(reelle, cible, {"L3"})
+    assert a_reconnecter == ["L3"]
+    assert mal_places == []          # L1/L2 sont bien regroupés
+
+
+def test_ecart_cible_nomme_les_departs_mal_regroupes():
+    reelle = TopologieNodale.from_graph(_graphe(deconnecte=()), "VL")
+    cible = TopologieNodale.from_node_groups("VL", [["L1"], ["L2", "L3"]])
+    a_reconnecter, mal_places = ihm._ecart_cible(reelle, cible, set())
+    assert a_reconnecter == []
+    assert mal_places == ["L1", "L2", "L3"]
+
+
+def test_ecart_cible_vide_quand_la_cible_est_atteinte():
+    reelle = TopologieNodale.from_graph(_graphe(), "VL")
+    cible = TopologieNodale.from_node_groups("VL", [["L1", "L2"]])
+    assert ihm._ecart_cible(reelle, cible, {"L3"}) == ([], [])
