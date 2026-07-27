@@ -503,8 +503,30 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.3.1.post1` (see `CHANGELOG.md` for full history)
+**Current version**: `0.3.2` (see `CHANGELOG.md` for full history)
 
+> **v0.3.2 highlights** (maneuver module only — the analysis pipeline is
+> untouched): the **"art de la manœuvre" conformity verifier**
+> (`manoeuvre/algo/conformite.py`, rules R20–R25) built from the RTE operating
+> references — per-manoeuvre consequence classification by replay, CCRT
+> authorization matrix, busbar-test advisory, CCO bay state machine, ACT 104
+> timings and expected SCADA checks — reported in a **separate**
+> `ResultatManoeuvres.conformite` field, so `ecarts`/`alertes` and every golden
+> stay byte-identical. Plus a **verification fix for isolated works**:
+> `TopologieNodale.from_graph` counted busbar-less components (i.e. *disconnected
+> works*) as electrical nodes, so `meme_topologie` against a nodal target that
+> never mentions them failed for **any** substation with a pre-disconnected work
+> — surfacing in the IHM as « ⚠ Cible partiellement réalisable (obtenu 2 nœud(s)
+> + 5 ouvrage(s) isolé(s) / visé 2 nœud(s)) » on a target that *was* reached.
+> Isolated components are now marked (`noeuds_isoles`), excluded from
+> `nb_noeuds_reels`, and `meme_topologie` compares partitions **within the common
+> scope** (`partition_hors_isoles_inconnus`) — still strict as soon as both sides
+> mention the same equipment. `partition()` stays exhaustive (goldens iso). The
+> IHM verdict is recomputed on the final state through that same rule and always
+> carries its diagnostics on a negative verdict. See
+> `docs/release-notes/v0.3.2.md` and `docs/manoeuvre/ihm.md` § « Ouvrages isolés
+> et vérification ».
+>
 > **v0.3.1.post1 highlights** (silent-correctness fix, issue #6): a reused
 > pypowsybl `SimulationEnvironment` is no longer contaminated by a transient DC
 > escalation. When an overload-disconnection load flow diverges,

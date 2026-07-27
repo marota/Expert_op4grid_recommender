@@ -9,6 +9,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-27
+
+Maneuver-module release: the "art de la manœuvre" conformity verifier (R20–R25)
+plus a fix for a false-negative nodal → detailed verification on substations
+carrying already-disconnected works. The recommender analysis pipeline is
+untouched. See `docs/release-notes/v0.3.2.md`.
+
+### Fixed
+
+- **Isolated works no longer invalidate a reached nodal target.**
+  `TopologieNodale.from_graph` materializes one `noeuds` entry per connected
+  component carrying an equipment — **including components with no busbar**,
+  i.e. **disconnected works**. A nodal target edited by the expert
+  (`from_node_groups`) only lists the works to place on a node, so the strict
+  partition comparison in `meme_topologie` failed for *any* substation with a
+  pre-disconnected work. That propagated to `ResultatManoeuvres.is_verified`,
+  to `ResultatIdentification.is_realisable` (pipeline independent verification
+  included) and finally to the IHM, which warned
+  « ⚠ Cible partiellement réalisable (obtenu 2 nœud(s) + 5 ouvrage(s) isolé(s) /
+  visé 2 nœud(s)) » while the target *was* reached and the 5 works disconnected
+  at start stayed disconnected. The notion is now explicit in the core:
+  `TopologieNodale.noeuds_isoles` (busbar-less components, filled by
+  `from_graph`), `nb_noeuds_reels` (node count excluding them) and
+  `partition_hors_isoles_inconnus()`, on which `meme_topologie` now compares
+  partitions **within the common scope** — an isolated node whose equipment
+  appears nowhere in the other topology is dropped, symmetrically. The
+  comparison stays **strict** as soon as both sides mention the same equipment
+  (naming an isolated work in a target node = reconnect it; a targeted work that
+  ends up disconnected still fails). `partition()` stays exhaustive, so
+  `partition_obtenue` and all goldens are unchanged; diagnostics now report
+  `nb_noeuds_reels` for the obtained topology. Regression tests:
+  `tests/manoeuvre/test_ouvrages_isoles_verification.py`.
+- **IHM — `Session.nodale_to_detaillee` verdict unified and diagnostics kept.**
+  The verdict is recomputed on the **final** state (post-isolation, which the
+  algorithm does not see) through the same core rule, so both code paths agree.
+  A work **already disconnected at start** and not dropped onto a node is out of
+  the target scope whether or not the client listed it in `isolated`: it is no
+  longer re-injected as an "orphan" node inflating `nb_vise`, and it is
+  force-disconnected consistently (dragging it onto a node still means
+  reconnection, and keeps the strict check). A negative verdict now always
+  carries its `message` / `noeuds_non_realisables` / `ecarts` — the previous
+  isolated-works branch blanked them, which is why the false warning showed up
+  with no explanation.
+- **`test_config_post_updates_dirs` repaired.** It pointed `/api/config` at a
+  `tmp_path` outside every allowed store root, so the path-traversal guard
+  (`_dir_within_allowed`, 0.2.6) legitimately refused it and the test had been
+  failing ever since. It now declares `tmp_path` as the persistent data root.
+
+### Added
+
+- **Maneuver module — "art de la manœuvre" conformity verifier (rules
+  R20–R25)** (`manoeuvre/algo/conformite.py`). Built from the RTE operating
+  references (CCRT C3-3 authorization matrix, ACT 104 timing directive, the
+  CCO expert-method note): per-manoeuvre **consequence classification** by
+  replay (dead-zone operation, loop open/close, prepare/de-select, energize /
+  de-energize, make/break transit, node-count change) with CCRT organ families
+  (breaker, load-break switch, busbar selector, coupling disconnector, busbar
+  sectionalizer, line disconnector); the **authorization matrix** (a
+  disconnector may not make/break transit nor change the substation node
+  count — generalizes the load-break rule R18); a **busbar-test advisory**
+  (re-energizing a dead busbar section through a disconnector instead of a
+  breaker, R22); the **CCO bay state machine** (désaiguillé / préparé / ±DA /
+  en service, forbidden and "bizarre" transitions, R23); **ACT 104 timings**
+  (10 s after each disconnector operation, ≥60 s between two closures of the
+  same breaker, R24) and **expected SCADA checks** per manoeuvre (TS/TM,
+  node-count checks, R25). Results land in a new, separate
+  `ResultatManoeuvres.conformite` field (`ConformiteSequence`: violations /
+  avertissements / temporisations / contrôles), populated by
+  `plugins.pipeline.verifier_sequence` — historical `ecarts`/`alertes`
+  verdicts (and all goldens) are byte-identical.
+- **Critical coverage analysis + consolidated rule set**
+  (`docs/manoeuvre/art_de_la_manoeuvre.md`): what R1–R19 do and do not cover
+  versus the operating references, the enriched rules R20–R25 (implemented)
+  and R26–R28 (specified: load-flow/Icc validation via the recommender's
+  pypowsybl backend, multi-substation orchestration "phase D" with
+  transformer voltage-order rules, automata alerts), the CCO `listeDordre`
+  code mapping, and the module/algo/verifier restructuring plan.
+  `docs/manoeuvre/regles.md` gains the R20–R25 traceability entries.
+
 ## [0.3.1.post1] - 2026-07-22
 
 ### Fixed

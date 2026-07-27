@@ -97,6 +97,10 @@ def test_config_get(session, monkeypatch):
 def test_config_post_updates_dirs(session, monkeypatch, tmp_path):
     monkeypatch.setattr(ihm, "SESSION", session)
     monkeypatch.setitem(ihm.DATASET, "hosted", False)
+    # ``/api/config`` n'accepte de repointer que **dans** une racine autorisée
+    # (cwd / racine de données persistantes) — cf. ``_dir_within_allowed``. On
+    # déclare donc ``tmp_path`` comme racine de données pour ce test.
+    monkeypatch.setattr(ihm, "_persist_root", lambda: str(tmp_path))
     sd, qd = tmp_path / "scen", tmp_path / "seq"
     d = ihm.app.test_client().post("/api/config", json={
         "scenarios_dir": str(sd), "sequences_dir": str(qd)}).get_json()

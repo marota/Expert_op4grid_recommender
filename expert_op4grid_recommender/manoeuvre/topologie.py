@@ -17,7 +17,7 @@ from typing import Optional
 import networkx as nx
 
 from .models import EquipmentType
-from .graph import equipment_nodes, get_node_attrs
+from .graph import busbar_nodes, equipment_nodes, get_node_attrs
 from .cellules import CellulesVL, detecter_cellules
 from .troncons import Tronconnement, construire_tronconnement
 
@@ -59,6 +59,11 @@ class TopologieNodale:
     voltage_level_id: str
     noeuds: dict[str, NoeudElectrique] = field(default_factory=dict)
     noeud_par_depart: dict[str, str] = field(default_factory=dict)
+    #: Noms des « nœuds » qui ne portent **aucune barre** : ce sont des ouvrages
+    #: **déconnectés** (composante 0-barre), pas de véritables nœuds électriques.
+    #: Renseigné par ``from_graph`` uniquement — une topologie *cible* construite
+    #: depuis une partition (``from_node_groups``) n'a pas cette notion.
+    noeuds_isoles: set[str] = field(default_factory=set)
 
     # ------------------------------------------------------------------
     # Constructeurs
@@ -72,6 +77,12 @@ class TopologieNodale:
         Un nœud électrique = composante connexe du sous-graphe restreint aux
         switches **fermés** (+ connexions internes), regroupant les équipements
         au même potentiel.
+
+        Les composantes ne contenant **aucune barre** sont des ouvrages
+        **déconnectés** (« ouvrages isolés » de l'IHM) : elles restent des
+        entrées de ``noeuds`` (compatibilité) mais sont référencées dans
+        ``noeuds_isoles`` pour que la comparaison de topologies puisse les
+        distinguer d'un vrai nœud électrique.
         """
         closed_G = nx.Graph()
         closed_G.add_nodes_from(G.nodes(data=True))
@@ -80,10 +91,13 @@ class TopologieNodale:
                 closed_G.add_edge(u, v)
 
         eq_nodes = equipment_nodes(G)
+        barres = set(busbar_nodes(G))
 
         # Composante connexe de chaque nœud d'équipement
         comp_id: dict[int, int] = {}
+        comp_avec_barre: dict[int, bool] = {}
         for idx, comp in enumerate(nx.connected_components(closed_G)):
+            comp_avec_barre[idx] = bool(comp & barres)
             for n in comp:
                 comp_id[n] = idx
 
@@ -98,14 +112,16 @@ class TopologieNodale:
         topo = cls(voltage_level_id=voltage_level_id)
         # Nommage déterministe : trier les groupes par plus petit equipment_id
         ordered = sorted(
-            groupes.values(),
-            key=lambda nodes: min(
-                G.nodes[n].get("equipment_id") or "" for n in nodes
+            groupes.items(),
+            key=lambda item: min(
+                G.nodes[n].get("equipment_id") or "" for n in item[1]
             ),
         )
-        for i, nodes in enumerate(ordered):
+        for i, (cid, nodes) in enumerate(ordered):
             nom = f"N{i}"
             noeud = NoeudElectrique(nom=nom)
+            if not comp_avec_barre.get(cid, True):
+                topo.noeuds_isoles.add(nom)   # composante sans barre = ouvrage isolé
             for n in nodes:
                 attrs = get_node_attrs(G, n)
                 dep = DepartInfo(
@@ -183,16 +199,57 @@ class TopologieNodale:
         """Partition des équipements en ensembles (un par nœud électrique)."""
         return {frozenset(n.equipment_ids) for n in self.noeuds.values()}
 
+    def univers(self) -> set[str]:
+        """Ensemble des équipements couverts par cette topologie."""
+        return set(self.noeud_par_depart)
+
+    def partition_hors_isoles_inconnus(
+        self, univers_autre: set[str]
+    ) -> set[frozenset[str]]:
+        """Partition restreinte au **périmètre** de ``univers_autre`` : les
+        ouvrages **isolés** (composante 0-barre) dont aucun équipement
+        n'apparaît dans ``univers_autre`` sont écartés.
+
+        C'est ce qui permet de comparer une topologie *réalisée* (issue du
+        graphe, qui « voit » les ouvrages déconnectés) à une topologie *cible*
+        éditée par l'expert, qui ne mentionne que les ouvrages à placer sur un
+        nœud : un ouvrage déjà déconnecté et laissé hors cible ne doit pas
+        rendre la cible non réalisable. Un isolé **mentionné** par la cible
+        reste comparé strictement (l'expert demande sa reconnexion)."""
+        garde: set[frozenset[str]] = set()
+        for nom, noeud in self.noeuds.items():
+            ids = frozenset(noeud.equipment_ids)
+            if nom in self.noeuds_isoles and not (ids & univers_autre):
+                continue          # ouvrage isolé hors du périmètre comparé
+            garde.add(ids)
+        return garde
+
     def meme_topologie(self, other: "TopologieNodale") -> bool:
         """
         Compare deux topologies nodales par isomorphisme de partition
         (les noms de nœuds sont ignorés).
+
+        Les **ouvrages isolés hors périmètre** (déconnectés d'un côté, absents
+        de l'autre) sont ignorés de part et d'autre : ce ne sont pas des nœuds
+        électriques et ils ne peuvent donc pas invalider une cible qui ne les
+        mentionne pas. La comparaison reste **stricte** dès que les deux
+        topologies parlent du même équipement.
         """
-        return self.partition() == other.partition()
+        return (self.partition_hors_isoles_inconnus(other.univers())
+                == other.partition_hors_isoles_inconnus(self.univers()))
 
     @property
     def nb_noeuds(self) -> int:
         return len(self.noeuds)
+
+    @property
+    def nb_noeuds_reels(self) -> int:
+        """Nombre de **vrais** nœuds électriques : ouvrages isolés exclus.
+
+        (``nb_noeuds`` compte toute composante portant un équipement, ouvrages
+        déconnectés compris — conservé tel quel car le placement/séquencement
+        s'appuie dessus.)"""
+        return len(self.noeuds) - len(self.noeuds_isoles)
 
     def resume(self) -> str:
         parts = [f"TopologieNodale VL '{self.voltage_level_id}': {self.nb_noeuds} nœud(s)"]

@@ -815,7 +815,7 @@ def determiner_manoeuvres_avec_sections(
     res.message = (
         "Topologie cible atteinte et vérifiée."
         if res.is_verified
-        else f"Cible non atteinte (obtenu {topo_obtenue.nb_noeuds} nœuds, "
+        else f"Cible non atteinte (obtenu {topo_obtenue.nb_noeuds_reels} nœuds, "
              f"visé {topo_cible.nb_noeuds})."
     )
     return res
@@ -982,6 +982,6 @@ def determiner_manoeuvres_par_connectivite(poste, placement, topo_cible):
         "Topologie cible atteinte (réalisateur connectivité)."
         if res.is_verified
         else f"Cible non atteinte (connectivité) : obtenu "
-             f"{res.topo_obtenue.nb_noeuds} nœud(s), visé {topo_cible.nb_noeuds}."
+             f"{res.topo_obtenue.nb_noeuds_reels} nœud(s), visé {topo_cible.nb_noeuds}."
     )
     return res
