@@ -537,6 +537,23 @@ côté est écarté (`partition_hors_isoles_inconnus`). Conséquences :
 `partition()` reste **exhaustive** (isolés inclus) : les goldens et
 `partition_obtenue` sont inchangés.
 
+**Diagnostic nominatif d'un verdict négatif.** Deux partitions différentes
+peuvent avoir le **même nombre de nœuds** : « obtenu 1 nœud(s), visé 1 » ne dit
+rien d'exploitable. Quand la cible n'est pas atteinte, le statut nomme désormais
+les départs en cause (`_ecart_cible`, fonction pure) :
+
+- **ouvrages déconnectés que la cible place sur un nœud** — le moteur ne
+  réénergise **jamais** un départ déconnecté (limite documentée : « le placement
+  ne place que les départs connectés »), donc une telle cible est
+  structurellement inatteignable. Le message les liste et indique la sortie :
+  les déclarer *ouvrages isolés* (**⌀ Isoler**). C'est le cas typique de
+  « **Retenir comme cible** » sur une heure où ces ouvrages étaient en service ;
+- **départs non regroupés comme visé** — une fois les précédents écartés, pour
+  qu'un seul ouvrage non reconnectable ne fasse pas apparaître tout son nœud
+  comme fautif ;
+- **ouvrage(s) impossible(s) à isoler** — un départ déclaré hors cible que
+  `_isoler_dans_etat` n'a pas pu déconnecter.
+
 ### Naviguer et éditer la séquence (expert)
 La séquence calculée peut être **parcourue et modifiée** directement, sans avoir
 à balayer toutes les étapes :

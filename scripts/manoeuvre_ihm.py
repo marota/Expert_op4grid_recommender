@@ -257,6 +257,35 @@ def _normalize_groups(all_branches, groups) -> list[list[str]]:
     return result
 
 
+def _ecart_cible(topo_reelle, topo_cible, iso_real) -> tuple[list[str], list[str]]:
+    """Écart **lisible** entre la topologie réalisée et la partition visée.
+
+    Renvoie ``(a_reconnecter, mal_places)`` :
+
+    - ``a_reconnecter`` : départs que la cible place sur un nœud mais qui restent
+      **déconnectés**. Le moteur ne réénergise **jamais** un départ déconnecté
+      (limite documentée : « le placement ne place que les départs connectés »),
+      donc toute cible qui en mentionne un est structurellement inatteignable ;
+    - ``mal_places`` : départs raccordés dont le **regroupement** obtenu diffère
+      du regroupement visé, une fois les précédents écartés (sinon un seul
+      ouvrage non reconnectable ferait apparaître tout son nœud comme fautif).
+
+    Fonction pure (deux ``TopologieNodale`` + un ensemble d'identifiants)."""
+    vise = topo_cible.univers()
+    a_reconnecter = sorted(vise & set(iso_real))
+    reste = vise - set(a_reconnecter)
+    mal_places = []
+    for eq in sorted(reste):
+        grp_vise = set(
+            topo_cible.noeuds[topo_cible.noeud_par_depart[eq]].equipment_ids) & reste
+        nom_reel = topo_reelle.noeud_par_depart.get(eq)
+        grp_reel = (set(topo_reelle.noeuds[nom_reel].equipment_ids)
+                    if nom_reel else set()) & reste
+        if grp_vise != grp_reel:
+            mal_places.append(eq)
+    return a_reconnecter, mal_places
+
+
 def _decode_svg_id(s: str) -> str:
     """Décode un identifiant SVG pypowsybl (``_46_`` → ``.``, ``_95_`` → ``_``,
     ``_45_`` → ``-``…). Fonction pure."""
@@ -964,7 +993,9 @@ class Session:
         # (les glisser sur un nœud = demande explicite de reconnexion, ils
         # restent alors dans le périmètre de la cible).
         demandes = {e for g in (groups or []) for e in g}
-        depart_iso = set(self.nodale_state(self.initial)["isolated"])
+        # (lecture directe sur le graphe mémoïsé : ne touche pas l'état appliqué
+        # au réseau, contrairement à ``nodale_state`` qui restaure ``self.current``)
+        depart_iso = set(_isolated_assets(self._graph(self.initial)))
         hors_cible = iso | (depart_iso - demandes)
         univers = [eq for grp in self.groups_of(self.initial)
                    for eq in grp if eq not in hors_cible]
@@ -1011,12 +1042,29 @@ class Session:
         if is_ok:
             message, ecarts, non_real = "", [], []
         else:
-            # Diagnostic complet quand la cible n'est effectivement pas atteinte.
-            message = ident.message if not partition_ok else ""
+            # Diagnostic **nominatif** quand la cible n'est pas atteinte : dire
+            # quels départs posent problème, pas seulement « obtenu N / visé M »
+            # (deux partitions différentes peuvent avoir le même nombre de nœuds).
+            diag = []
+            if not partition_ok:
+                a_reconnecter, mal_places = _ecart_cible(
+                    topo_reelle, topo_cible, iso_real)
+                if a_reconnecter:
+                    diag.append(
+                        "Ouvrage(s) déconnecté(s) au départ que la cible place sur "
+                        "un nœud : " + ", ".join(a_reconnecter) + " — le moteur ne "
+                        "réénergise pas un départ déconnecté. Déclarez-les "
+                        "« ouvrages isolés » (⌀ Isoler) pour viser une cible "
+                        "réalisable.")
+                if mal_places:
+                    diag.append("Départ(s) non regroupés comme visé : "
+                                + ", ".join(mal_places) + ".")
+                if not diag and ident.message:
+                    diag.append(ident.message)
             if non_isoles:
-                message = (message + " " if message else "") + (
-                    "Ouvrage(s) impossible(s) à isoler : "
-                    + ", ".join(non_isoles) + ".")
+                diag.append("Ouvrage(s) impossible(s) à isoler : "
+                            + ", ".join(non_isoles) + ".")
+            message = " ".join(diag)
             ecarts = seq.ecarts if seq is not None else []
             non_real = ident.noeuds_non_realisables
         return {

@@ -52,6 +52,19 @@ untouched. See `docs/release-notes/v0.3.2.md`.
   carries its `message` / `noeuds_non_realisables` / `ecarts` — the previous
   isolated-works branch blanked them, which is why the false warning showed up
   with no explanation.
+- **IHM — a negative verdict names the offending feeders.** Two different
+  partitions can have the same node count, so « obtenu 1 nœud(s), visé 1 »
+  carried no usable information. `_ecart_cible` (pure function over two
+  `TopologieNodale` + the realized isolated set) now reports: **disconnected
+  works that the target places on a node** — the engine never re-energizes a
+  disconnected feeder (documented limitation), so such a target is structurally
+  unreachable; the message lists them and points at **⌀ Isoler**. This is the
+  typical outcome of « Retenir comme cible » on an hour where those works were
+  still in service. Then **feeders not grouped as targeted** (computed after
+  removing the former, so one unreconnectable work does not flag its whole node)
+  and **works that could not be isolated**. `depart_iso` is also read straight
+  off the memoized graph instead of `nodale_state`, which restores the network to
+  `self.current` as a side effect.
 - **`test_config_post_updates_dirs` repaired.** It pointed `/api/config` at a
   `tmp_path` outside every allowed store root, so the path-traversal guard
   (`_dir_within_allowed`, 0.2.6) legitimately refused it and the test had been
