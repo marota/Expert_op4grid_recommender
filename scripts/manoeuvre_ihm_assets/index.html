@@ -224,7 +224,28 @@
  #exploreBar button{padding:3px 8px;font-size:12px;margin:0}
  #exploreBar button.hcur{background:#0891b2;color:#fff;border-color:#0891b2}
  #btnExplore{width:100%;margin-top:4px;background:#0e7490;color:#fff;border-color:#0e7490}
+ /* ── Commutateur de langue FR/EN — TOUJOURS en haut à droite (position fixe,
+    visible dans tous les modes : topologie, carte, modales). Spécification
+    systématique bilingue : docs/manoeuvre/ihm.md § 2bis. ── */
+ #langSwitch{position:fixed;top:5px;right:8px;z-index:3000;display:flex;
+   box-shadow:0 1px 4px rgba(0,0,0,.18);border-radius:5px}
+ #langSwitch .lsw{padding:2px 9px;font-size:11px;font-weight:bold;margin:0;
+   border:1px solid #94a3b8;background:#fff;color:#334155;border-radius:0;cursor:pointer}
+ #langSwitch .lsw:first-child{border-radius:5px 0 0 5px}
+ #langSwitch .lsw:last-child{border-radius:0 5px 5px 0;border-left:none}
+ #langSwitch .lsw.active{background:#2563eb;color:#fff;border-color:#2563eb}
+ /* Le commutateur (fixe) ne doit pas recouvrir les contrôles sous-jacents :
+    l'en-tête de la carte réserve la place, et le bouton ◂ du volet nodal
+    replié descend sous le commutateur. */
+ #mapHead{padding-right:96px}
+ #nodal.collapsed .nhead{margin-top:26px}
+ /* Texte injecté par CSS : version anglaise quand html[lang="en"]. */
+ html[lang="en"] .pane.reached>.ttl::after{content:" — ✓ target topology reached"}
 </style></head><body>
+<div id="langSwitch" title="Langue de l'interface / Interface language">
+  <button id="langFr" class="lsw active" onclick="setLang('fr')">FR</button>
+  <button id="langEn" class="lsw" onclick="setLang('en')">EN</button>
+</div>
 <div id="side">
   <h2 style="margin-top:0;display:flex;align-items:center;gap:6px">
     <span style="flex:1">Situation réseau</span>
@@ -498,6 +519,538 @@ python scripts/manoeuvre_ihm.py --grid /chemin/grid.xiidm</code>
   </div>
 </div>
 <script>
+// ===== i18n — mode anglais (FR/EN) =========================================
+// SPÉCIFICATION SYSTÉMATIQUE (docs/manoeuvre/ihm.md § 2bis) : le FRANÇAIS est
+// la langue canonique (markup, données serveur, fichiers sauvegardés) ;
+// l'anglais est appliqué à l'affichage uniquement. Toute nouvelle chaîne
+// visible DOIT recevoir une entrée exacte dans I18N_EN, ou une règle
+// I18N_PATTERNS si elle est paramétrée ; les chaînes construites en JS passent
+// par t()/tp(). Garde-fou CI : tests/manoeuvre/test_ihm_i18n.py.
+// Le commutateur FR/EN (#langSwitch) est en HAUT À DROITE (position fixe) ;
+// le choix persiste dans localStorage["manoeuvre_lang"].
+let LANG=(function(){try{return localStorage.getItem('manoeuvre_lang')||'fr';}catch(e){return 'fr';}})();
+// Dictionnaire EXACT — clés = chaîne française NORMALISÉE (blancs réduits,
+// bords rognés) ; valeurs = anglais (peuvent porter des espaces de bord pour
+// la concaténation). Une entrée par ligne.
+const I18N_EN={
+"IHM Manœuvre":"Switching Operations HMI",
+"Situation réseau":"Network situation",
+"✍ votre login":"✍ your login",
+"Auteur des scénarios sauvegardés — modifiable à tout moment ; enregistré dans les métadonnées des fichiers.":"Author of the saved scenarios — editable at any time; stored in the file metadata.",
+"Configuration : algorithmes par phase + chemins de sauvegarde/rechargement des scénarios et séquences":"Configuration: per-phase algorithms + save/reload paths for scenarios and sequences",
+"⚙ Config":"⚙ Config",
+"📁 Local":"📁 Local",
+"📅 RTE7000":"📅 RTE7000",
+"Charger une situation réseau depuis un fichier .xiidm local":"Load a network situation from a local .xiidm file",
+"Charger une situation du dataset RTE 7000 (France) par date / heure":"Load a situation from the RTE 7000 dataset (France) by date / time",
+"Masquer ce message":"Hide this message",
+"Import de fichier local désactivé":"Local file import disabled",
+"sur cette instance hébergée : un fichier réseau peut contenir des informations confidentielles. Pour charger vos propres situations, installez le package et lancez l'IHM chez vous :":"on this hosted instance: a network file may contain confidential information. To load your own situations, install the package and run the HMI on your own machine:",
+"pip install -e \".[ihm]\" python scripts/manoeuvre_ihm.py --grid /chemin/grid.xiidm":"pip install -e \".[ihm]\" python scripts/manoeuvre_ihm.py --grid /path/grid.xiidm",
+"chemin .xiidm (situation réseau)":".xiidm path (network situation)",
+"Charge une situation réseau côté serveur, puis liste ses postes":"Loads a network situation server-side, then lists its substations",
+"Parcourir le système de fichiers (sélecteur natif — usage local)":"Browse the file system (native picker — local use)",
+"Fichier .xiidm côté serveur — 📂 pour parcourir (usage local).":".xiidm file on the server side — 📂 to browse (local use).",
+"Situation réseau France à une date/heure du dataset":"France network situation at a dataset date/time",
+"(téléchargée à la demande).":"(downloaded on demand).",
+"Date":"Date",
+"Jour du dataset (YYYY-MM-DD)":"Dataset day (YYYY-MM-DD)",
+"⚡ Accès rapide — cas d'intérêt":"⚡ Quick access — cases of interest",
+"Journées identifiées intéressantes de la documentation (campagne RTE 7000, 2021-2023). Survolez une date pour son intérêt.":"Interesting days identified in the documentation (RTE 7000 campaign, 2021-2023). Hover over a date to see why it matters.",
+"Heure (instantané, pas de 5 min)":"Time (snapshot, 5-min step)",
+"Horodatage de l'instantané (midi par défaut)":"Snapshot timestamp (noon by default)",
+"Charge 3 situations (minuit / midi / 23 h), cartographie les postes et met en évidence ceux qui changent le plus dans la journée.":"Loads 3 situations (midnight / noon / 11 pm), maps the substations and highlights those changing the most over the day.",
+"🗺 Explorer la journée":"🗺 Explore the day",
+"⏬ Charger la situation":"⏬ Load the situation",
+"🗺 Scénario Topologique":"🗺 Topological scenario",
+"Recharger un scénario sauvegardé (départ + cible)":"Reload a saved scenario (initial + target)",
+"⟳ Recharger":"⟳ Reload",
+"Poste → topologie cible → séquence de manœuvres.":"Substation → target topology → switching sequence.",
+"1 · Poste":"1 · Substation",
+"🔎 rechercher un poste (tous)…":"🔎 search a substation (all)…",
+"Rechercher n'importe quel poste NODE_BREAKER de la situation chargée. Vide : pré-sélection de postes typiques par typologie.":"Search any NODE_BREAKER substation of the loaded situation. Empty: pre-selection of typical substations by typology.",
+"📂 Pré-sélection de postes typiques":"📂 Pre-selection of typical substations",
+"🔎 recherche sur tous les postes · 📂 vide = exploration curée par typologie (grisé = absent)":"🔎 search across all substations · 📂 empty = curated exploration by typology (greyed = absent)",
+"2 · Topologie cible":"2 · Target topology",
+"Éditez la cible (clic sur un organe du schéma / volet nodal), puis validez-la.":"Edit the target (click a switching device on the diagram / nodal panel), then validate it.",
+"Valider la cible courante pour activer le calcul de séquence (sans sauvegarder de fichier)":"Validate the current target to enable sequence computation (without saving a file)",
+"✓ Valider":"✓ Validate",
+"nom du scénario":"scenario name",
+"Sauvegarder le scénario (départ + cible). Sur le Space, le fichier est aussi téléchargé en local.":"Save the scenario (initial + target). On the Space, the file is also downloaded locally.",
+"💾 Sauvegarder":"💾 Save",
+"3 · Séquence de manœuvres":"3 · Switching sequence",
+"Mode :":"Mode:",
+"Smooth : dé-énergise au plus près, en place (peu d'ouvrages hors tension à la fois). Agressif : dé-énergise en lot (moins de manœuvres, plus d'ouvrages hors tension simultanément).":"Smooth: de-energizes as narrowly as possible, in place (few equipment items de-energized at a time). Aggressive: de-energizes in batches (fewer operations, more equipment de-energized at once).",
+"Smooth (sûr, en place)":"Smooth (safe, in place)",
+"Agressif (batch, plus court)":"Aggressive (batch, shorter)",
+"Algo :":"Algo:",
+"Algorithme de séquencement (phase B de manoeuvre.plugins) : « libtopo » natif + plugins enregistrés. Les verdicts affichés sont recalculés indépendamment de l'algorithme.":"Sequencing algorithm (phase B of manoeuvre.plugins): native \"libtopo\" + registered plugins. Displayed verdicts are recomputed independently of the algorithm.",
+"⚙ Calculer la séquence":"⚙ Compute the sequence",
+"Construire la séquence à la main : cliquez les organes du schéma (départ → …), la cible s'affiche en référence":"Build the sequence by hand: click the switching devices on the diagram (initial → …), the target is shown as a reference",
+"✋ Séquence manuelle":"✋ Manual sequence",
+"Validez d'abord la cible pour activer le calcul.":"Validate the target first to enable computation.",
+"Revenir à la carte des postes":"Back to the substation map",
+"🗺 ← Carte":"🗺 ← Map",
+"Départ :":"Initial:",
+"Retenir comme cible :":"Retain as target:",
+"🗺 Carte du réseau":"🗺 Network map",
+"Heure de la topologie ouverte au double-clic sur un poste":"Time of the topology opened on double-clicking a substation",
+"Heure :":"Time:",
+"Télécharger l'instantané des coordonnées résolu depuis OSM/Overpass — à committer/persister pour éviter de ré-interroger Overpass à chaque démarrage du Space":"Download the coordinates snapshot resolved from OSM/Overpass — commit/persist it to avoid re-querying Overpass at every Space startup",
+"⬇ coordonnées":"⬇ coordinates",
+"Zoom +":"Zoom in",
+"Zoom −":"Zoom out",
+"Recentrer":"Re-center",
+"⤢ Recentrer":"⤢ Re-center",
+"Fermer la carte (revenir à la vue topologique)":"Close the map (back to the topology view)",
+"✕ Fermer":"✕ Close",
+"Chargement de la journée…":"Loading the day…",
+"⭐ Postes les plus actifs":"⭐ Most active substations",
+"Réduire / agrandir":"Collapse / expand",
+"Réinitialiser la cible à l'état d'origine du poste":"Reset the target to the substation's original state",
+"↺ État d'origine":"↺ Original state",
+"Topologie de départ":"Initial topology",
+"nœud(s)":"node(s)",
+"Choisissez un poste…":"Choose a substation…",
+"Promouvoir la cible courante (éditée) en nouvel état de départ — pour chaîner les scénarios":"Promote the current (edited) target as the new initial state — to chain scenarios",
+"⇧ Nouvelle Topologie Départ":"⇧ New Initial Topology",
+"Topologie cible (éditable, clic sur un organe) —":"Target topology (editable, click a switching device) —",
+"nœud(s) · animation de la séquence ici":"node(s) · sequence animation here",
+"▶ Lecture":"▶ Play",
+"Revenir éditer la cible détaillée (la séquence calculée deviendra obsolète)":"Go back to editing the detailed target (the computed sequence becomes obsolete)",
+"✎ Modifier la cible":"✎ Edit the target",
+"✎ Schéma éditable : cliquez un organe pour insérer une manœuvre après l'étape courante.":"✎ Editable diagram: click a switching device to insert a switching operation after the current step.",
+"⚠ La cible détaillée a été modifiée : la séquence ci-dessous":"⚠ The detailed target has been modified: the sequence below",
+"n'atteint plus":"no longer reaches",
+"cet état cible. Re-validez puis":"this target state. Re-validate then",
+"recalculez la séquence":"recompute the sequence",
+"Séquence":"Sequence",
+"Sélection :":"Selection:",
+"🗑 Supprimer la sélection":"🗑 Delete selection",
+"Désélectionner":"Deselect",
+"case à cocher = sélection · Maj+clic = bloc":"checkbox = select · Shift+click = block",
+"nom de la séquence":"sequence name",
+"💾 Sauvegarder la séquence":"💾 Save the sequence",
+"Glisser pour élargir / réduire le volet nodal":"Drag to widen / shrink the nodal panel",
+"Topologie nodale":"Nodal topology",
+"Replier / déplier":"Collapse / expand",
+"Départ":"Initial",
+"Cible (éditable)":"Target (editable)",
+"Créer un nœud vide (puis y glisser des départs ; ou avec la sélection courante)":"Create an empty node (then drag feeders onto it; or with the current selection)",
+"＋ Nœud":"＋ Node",
+"Déclarer les départs sélectionnés comme ouvrages ISOLÉS (déconnectés / hors partition) — au lieu d'un nœud à un seul ouvrage. Glisser aussi un départ sur la zone « Ouvrages isolés » l'isole.":"Declare the selected feeders as ISOLATED equipment (disconnected / outside the partition) — instead of a single-equipment node. Dragging a feeder onto the \"Isolated equipment\" zone also isolates it.",
+"⌀ Isoler":"⌀ Isolate",
+"Réinitialiser la cible (nodale + détaillée) à la topologie d'origine du poste (départ)":"Reset the target (nodal + detailed) to the substation's original topology (initial)",
+"↺ Réinitialiser":"↺ Reset",
+"Vider la sélection":"Clear the selection",
+"∅ Désélectionner":"∅ Deselect",
+"Glisser un":"Drag a",
+"départ":"feeder",
+"(ou une sélection : clic pour (dé)sélectionner) sur une autre barre = réaiguillage. Glisser une":"(or a selection: click to (de)select) onto another busbar = busbar transfer. Drag a",
+"barre":"busbar",
+"sur une autre = fusion. Flux en MW (état de départ).":"onto another = merge. Flows in MW (initial state).",
+"Algorithme d'identification de la topologie détaillée depuis la cible nodale (phase A de manoeuvre.plugins) : « libtopo » natif + plugins enregistrés.":"Algorithm identifying the detailed topology from the nodal target (phase A of manoeuvre.plugins): native \"libtopo\" + registered plugins.",
+"⚙ Calculer la topologie détaillée d'intérêt":"⚙ Compute the detailed topology of interest",
+"⟳ Recharger un scénario":"⟳ Reload a scenario",
+"🔎 poste / nom…":"🔎 substation / name…",
+"tension":"voltage",
+"barres ≥":"busbars ≥",
+"nombre de jeux de barres minimum":"minimum number of busbars",
+"DJ ≥":"CB ≥",
+"disjoncteurs changés (min)":"circuit breakers changed (min)",
+"SA ≥":"DS ≥",
+"sectionneurs changés (min)":"disconnectors changed (min)",
+"INT ≥":"LBS ≥",
+"interrupteurs changés (min)":"load-break switches changed (min)",
+"nœud ≥":"node ≥",
+"ouvrages déplacés en changement de nœud (min)":"equipment moved to a different node (min)",
+"année de départ":"initial-state year",
+"année":"year",
+"saison de départ":"initial-state season",
+"saison":"season",
+"hiver":"winter",
+"printemps":"spring",
+"été":"summer",
+"automne":"autumn",
+"jour de semaine de départ":"initial-state weekday",
+"jour":"day",
+"lun":"Mon",
+"mar":"Tue",
+"mer":"Wed",
+"jeu":"Thu",
+"ven":"Fri",
+"sam":"Sat",
+"dim":"Sun",
+"Base **partagée** (toutes les sauvegardes). Clic = sélectionner · double-clic = recharger. « Valider » rejoue le scénario (départ + cible).":"**Shared** base (all saves). Click = select · double-click = reload. \"Validate\" replays the scenario (initial + target).",
+"Télécharger tous les scénarios (archive ZIP)":"Download all scenarios (ZIP archive)",
+"⬇ Tout (zip)":"⬇ All (zip)",
+"Annuler":"Cancel",
+"Valider":"Validate",
+"⚙ Configuration":"⚙ Configuration",
+"Algorithmes (par phase)":"Algorithms (per phase)",
+"« libtopo » = algorithme par défaut natif ; les plugins enregistrés apparaissent ici. Les verdicts affichés sont recalculés indépendamment de l'algorithme branché.":"\"libtopo\" = native default algorithm; registered plugins appear here. Displayed verdicts are recomputed independently of the plugged-in algorithm.",
+"Identification (nodale → détaillée)":"Identification (nodal → detailed)",
+"Séquencement (détaillée → manœuvres)":"Sequencing (detailed → switching operations)",
+"Planification (bout-en-bout)":"Planning (end-to-end)",
+"Chemins de sauvegarde / rechargement":"Save / reload paths",
+"Scénarios":"Scenarios",
+"dossier des scénarios":"scenarios folder",
+"Séquences":"Sequences",
+"dossier des séquences":"sequences folder",
+"IHM hébergée : les chemins sont en lecture seule (système de fichiers éphémère).":"Hosted HMI: paths are read-only (ephemeral file system).",
+"Fermer":"Close",
+"Appliquer":"Apply",
+"✍ Votre login (auteur)":"✍ Your login (author)",
+"Indiquez votre login : il sera enregistré dans les métadonnées des scénarios (facultatif).":"Enter your login: it will be stored in the scenario metadata (optional).",
+"login de l'auteur":"author login",
+"Ne plus me redemander":"Don't ask me again",
+"Enregistrer":"Save",
+"Langue de l'interface / Interface language":"Interface language / Langue de l'interface",
+"✓ Cible validée — calcul de séquence activé (ou « 💾 Sauvegarder »).":"✓ Target validated — sequence computation enabled (or \"💾 Save\").",
+"Ouverture du sélecteur…":"Opening the file picker…",
+"sélecteur indisponible — collez le chemin manuellement.":"file picker unavailable — paste the path manually.",
+"Sélecteur indisponible ({err}) — collez le chemin.":"File picker unavailable ({err}) — paste the path.",
+"Fichier sélectionné — cliquez « Charger la situation ».":"File selected — click \"Load the situation\".",
+"⚠ absent":"⚠ absent",
+"absent de la situation chargée — charger la grille France":"absent from the loaded situation — load the France grid",
+"Aucun poste ne correspond.":"No substation matches.",
+"… {n} autres — affinez la recherche.":"… {n} more — narrow the search.",
+"Aucun poste — charger une situation.":"No substation — load a situation.",
+"Dataset HuggingFace : {repo} — réseau France, 1 instantané / 5 min, téléchargé à la demande.":"HuggingFace dataset: {repo} — France network, 1 snapshot / 5 min, downloaded on demand.",
+"Journée du dataset.":"Dataset day.",
+"Choisissez une date puis « Charger la situation »…":"Choose a date then \"Load the situation\"…",
+"Liste des instantanés…":"Listing the snapshots…",
+"erreur réseau (HuggingFace)":"network error (HuggingFace)",
+"aucun instantané pour cette date":"no snapshot for this date",
+"{n} instantané(s) — {d} présélectionné":"{n} snapshot(s) — {d} preselected",
+"midi":"noon",
+"choisir une date":"choose a date",
+"Chargement {d} {t} … (téléchargement + réseau France, quelques secondes)":"Loading {d} {t} … (download + France network, a few seconds)",
+"erreur réseau":"network error",
+"échec du chargement":"loading failed",
+"✓ {d} {t} — {n} postes NODE_BREAKER":"✓ {d} {t} — {n} NODE_BREAKER substations",
+"Chargement du réseau…":"Loading the network…",
+"✓ {p} postes épinglés, {n} postes NODE_BREAKER":"✓ {p} pinned substations, {n} NODE_BREAKER substations",
+"Cible promue en nouvel état de départ — éditez puis validez une nouvelle cible.":"Target promoted as the new initial state — edit then validate a new target.",
+"Le fichier « {n} » existe déjà. OK = écraser, Annuler = renommer.":"The file \"{n}\" already exists.\n\nOK = overwrite, Cancel = rename.",
+"Nouveau nom :":"New name:",
+"Sauvegarde annulée.":"Save cancelled.",
+"⚠ Scénario déjà existant (« {n} », départ + cible identiques) — non écrasé.":"⚠ Scenario already exists (\"{n}\", identical initial + target) — not overwritten.",
+"Échec de la sauvegarde.":"Save failed.",
+"✓ Sauvegardé : {p}":"✓ Saved: {p}",
+"(nom unique : « {n} »)":" (unique name: \"{n}\")",
+"· téléchargé en local":" · downloaded locally",
+"« {n} » chargé comme état de départ — éditez puis validez une nouvelle cible.":"\"{n}\" loaded as initial state — edit then validate a new target.",
+"Scénario « {n} » rechargé (départ + cible).":"Scenario \"{n}\" reloaded (initial + target).",
+"Séquence manuelle : cliquez les organes du schéma du bas (état courant) pour ajouter des manœuvres ; la cible à atteindre est affichée en haut.":"Manual sequence: click the switching devices on the bottom diagram (current state) to add operations; the target to reach is shown at the top.",
+"Cible à atteindre":"Target to reach",
+"MANUELLE":"MANUAL",
+"ÉDITÉE":"EDITED",
+"{n} nœud(s)":"{n} node(s)",
+"= cible":"= target",
+"≠ cible":"≠ target",
+"DÉTAILLÉE VÉRIFIÉE":"DETAILED VERIFIED",
+"mode {m}":"mode {m}",
+"agressif":"aggressive",
+"NODALE OK · {n} écart(s) détaillé(s)":"NODAL OK · {n} detailed discrepancy(ies)",
+"NON VÉRIFIÉE":"NOT VERIFIED",
+"Algorithme de séquencement (manoeuvre.plugins)":"Sequencing algorithm (manoeuvre.plugins)",
+"Bonne pratique : privilégier un seul ouvrage hors tension à la fois (mode smooth)":"Good practice: keep only one equipment item de-energized at a time (smooth mode)",
+"⚠ {n} alerte(s) « 1 ouvrage à la fois »":"⚠ {n} alert(s) \"1 item at a time\"",
+"(aucune manœuvre)":"(no switching operation)",
+"Écarts détaillés :":"Detailed discrepancies:",
+"⚠ Bonne pratique (1 ouvrage hors tension à la fois) : {a}":"⚠ Good practice (1 item de-energized at a time): {a}",
+"(séquence éditée manuellement)":"(sequence edited manually)",
+"⚠ {n} manœuvre(s) enfreignant une règle de sûreté — voir ⚠ dans la liste.":"⚠ {n} operation(s) breaching a safety rule — see ⚠ in the list.",
+"Aller à l'état de départ":"Go to the initial state",
+"Sélectionner (Maj+clic = bloc)":"Select (Shift+click = block)",
+"Supprimer cette manœuvre":"Delete this operation",
+"État de départ":"Initial state",
+"LONGUE":"LONG",
+"COURTE":"SHORT",
+"Étape {i}/{n} (vue)":"Step {i}/{n} (view)",
+"▶ Revenir à la séquence":"▶ Back to the sequence",
+"✎ Édition de la cible détaillée : cliquez un organe pour la modifier (la séquence deviendra obsolète).":"✎ Editing the detailed target: click a switching device to modify it (the sequence becomes obsolete).",
+"N{i} · {n} branche(s)":"N{i} · {n} branch(es)",
+"⌀ Ouvrages isolés (0) — glisser un départ ici pour l'isoler":"⌀ Isolated equipment (0) — drag a feeder here to isolate it",
+"⚠ Ouvrages isolés ({n})":"⚠ Isolated equipment ({n})",
+"— glisser sur un nœud pour reconnecter":" — drag onto a node to reconnect",
+"— déconnectés":" — disconnected",
+"Sélectionnez d'abord un ou des départs (clic), puis « ⌀ Isoler ».":"First select one or more feeders (click), then \"⌀ Isolate\".",
+"Calcul en cours…":"Computing…",
+"+ {n} ouvrage(s) isolé(s)":" + {n} isolated equipment item(s)",
+", algo {a}":", algo {a}",
+"✓ Topologie détaillée d'intérêt chargée comme cible ({d}). Validez puis calculez la séquence.":"✓ Detailed topology of interest loaded as target ({d}). Validate then compute the sequence.",
+"⚠ Cible partiellement réalisable (obtenu {o} nœud(s){iso} / visé {v} nœud(s)).":"⚠ Target partially achievable (obtained {o} node(s){iso} / aimed {v} node(s)).",
+"Nœuds non réalisables : {l}.":" Unachievable nodes: {l}.",
+"Écarts : {e}.":" Discrepancies: {e}.",
+"Choisir une date d’abord.":"Choose a date first.",
+"Chargement des 3 situations (minuit · midi · 23 h) de {d} … téléchargement + calcul des changements d’OC (≈ 1 min).":"Loading the 3 situations (midnight · noon · 11 pm) of {d} … download + switching-device change computation (≈ 1 min).",
+"{d} — exploration en cours…":"{d} — exploring…",
+"Exploration de {d} …":"Exploring {d} …",
+"Erreur réseau.":"Network error.",
+"Échec de l’exploration.":"Exploration failed.",
+"échec":"failed",
+"✓ {d} exploré.":"✓ {d} explored.",
+"{d} ({h}) · {p} postes · {a} actifs · {g} géolocalisés · coord. : {c}":"{d} ({h}) · {p} substations · {a} active · {g} geolocated · coords: {c}",
+"⚠ Aucune coordonnée de poste résolue (source : <b>{s}</b>). La carte est indisponible ; utilisez le <b>classement</b> à droite (cliquez un poste pour ouvrir sa topologie).":"⚠ No substation coordinate resolved (source: <b>{s}</b>). The map is unavailable; use the <b>ranking</b> on the right (click a substation to open its topology).",
+"<br>↳ <b>OSM/Overpass injoignable</b> : <code>{e}</code>. Vérifiez la sortie internet du Space (ou committez/persistez <code>postes_rte_geo.json</code>).":"<br>↳ <b>OSM/Overpass unreachable</b>: <code>{e}</code>. Check the Space's internet egress (or commit/persist <code>postes_rte_geo.json</code>).",
+"<br>↳ <b>OSM joignable</b> ({n} postes) mais {a} apparié(s). Codes OSM (ref:FR:RTE) : <code>{c}</code>. Noms : <code>{m}</code>. Postes réseau : <code>{s}</code>. → identifiants non recoupés ; ajuster l’appariement.":"<br>↳ <b>OSM reachable</b> ({n} substations) but {a} matched. OSM codes (ref:FR:RTE): <code>{c}</code>. Names: <code>{m}</code>. Network substations: <code>{s}</code>. → identifiers do not overlap; adjust the matching.",
+"Pour activer la carte : autorisez <code>overpass-api.de</code> sur le Space, ou committez/persistez <code>postes_rte_geo.json</code> (script <code>scripts/fetch_postes_geo.py</code>).":" To enable the map: allow <code>overpass-api.de</code> on the Space, or commit/persist <code>postes_rte_geo.json</code> (script <code>scripts/fetch_postes_geo.py</code>).",
+"Tension":"Voltage",
+"tout":"all",
+"aucun":"none",
+"Clic : afficher/masquer · double-clic : isoler ce niveau (ou tout réafficher)":"Click: show/hide · double-click: isolate this level (or show all again)",
+"Afficher/masquer les lignes entre postes":"Show/hide the lines between substations",
+"Lignes":"Lines",
+"⭐ halo = top 10 · clic tension/lignes = afficher/masquer · double-clic tension = isoler · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer":"⭐ halo = top 10 · click voltage/lines = show/hide · double-click voltage = isolate · click disk = info · double-click = topology · wheel = zoom · drag = pan",
+", ⚇ {n} ouvr. re-groupés":", ⚇ {n} regrouped items",
+"dont {n} ouvrage(s) re-groupé(s) — scission/fusion de nœud":"including {n} regrouped equipment item(s) — node split/merge",
+"{n} changements":"{n} changes",
+"poste {s}":"substation {s}",
+"— clic : localiser ; double-clic : topologie":" — click: locate; double-click: topology",
+"— non géolocalisé, clic : topologie":" — not geolocated, click: topology",
+"Σ {n} changements — {k}":"Σ {n} changes — {k}",
+"· ⚇ {n} ouvrage(s) re-groupé(s)":" · ⚇ {n} regrouped equipment item(s)",
+"▶ Topologie de ce poste":"▶ Topology of this substation",
+"Ouvrir la topologie des postes à {h}":"Open the substation topologies at {h}",
+"Ouverture du poste impossible.":"Could not open the substation.",
+"Charger la topologie de DÉPART à {h}":"Load the INITIAL topology at {h}",
+"Définir la CIBLE = topologie du poste à {h} (puis éditable)":"Set the TARGET = substation topology at {h} (then editable)",
+"Niveau :":"Level:",
+"{n} OC changés":"{n} switching devices changed",
+"Cible = topologie de {t} (éditable). Validez puis calculez la séquence.":"Target = topology of {t} (editable). Validate then compute the sequence.",
+"(un seul algorithme disponible)":" (only one algorithm available)",
+"(défaut)":" (default)",
+"✓ Configuration appliquée.":"✓ Configuration applied.",
+"Aucun scénario ne correspond.":"No scenario matches.",
+"date/heure de la topologie cible":"date/time of the target topology",
+"{n} barre":"{n} busbar",
+"{n} barres":"{n} busbars",
+"{a}→{b} nœud":"{a}→{b} node",
+"auteur":"author",
+"date de création":"creation date",
+"dim. · hiver":"Sun · winter",
+"mar. · hiver":"Tue · winter",
+"mer. · printemps":"Wed · spring",
+"jeu. · été":"Thu · summer",
+"mar. · automne":"Tue · autumn",
+"mer. · été":"Wed · summer",
+"mer. · hiver":"Wed · winter",
+"Dimanche, hiver — 6 233 blocs, 1 861 postes actifs, 36 reconfigurations structurelles (le MINIMUM) : week-end calme, cas « simple » de référence (journée pilote).":"Sunday, winter — 6,233 blocks, 1,861 active substations, 36 structural reconfigurations (the MINIMUM): quiet weekend, \"simple\" reference case (pilot day).",
+"Mardi, hiver — 6 554 blocs, 2 011 postes actifs, 123 reconfigurations structurelles : jour ouvré d'hiver.":"Tuesday, winter — 6,554 blocks, 2,011 active substations, 123 structural reconfigurations: winter working day.",
+"Mercredi, printemps — 7 216 blocs, 2 024 postes actifs, 158 reconfigurations structurelles : mi-saison.":"Wednesday, spring — 7,216 blocks, 2,024 active substations, 158 structural reconfigurations: mid-season.",
+"Jeudi, été — 7 127 blocs, 2 096 postes actifs (le PLUS), 203 reconfigurations structurelles : pointe estivale.":"Thursday, summer — 7,127 blocks, 2,096 active substations (the MOST), 203 structural reconfigurations: summer peak.",
+"Mardi, automne — 6 760 blocs, 2 056 postes actifs, 208 reconfigurations structurelles (le MAXIMUM) : chantiers d'automne, cas « riche ».":"Tuesday, autumn — 6,760 blocks, 2,056 active substations, 208 structural reconfigurations (the MAXIMUM): autumn works, \"rich\" case.",
+"Mercredi, été — 6 400 blocs, 2 037 postes actifs, 181 reconfigurations structurelles : autre année (dataset 2022).":"Wednesday, summer — 6,400 blocks, 2,037 active substations, 181 structural reconfigurations: another year (2022 dataset).",
+"Mercredi, hiver — 6 442 blocs, 1 984 postes actifs, 185 reconfigurations structurelles, jusqu'à 38 organes manœuvrés (le plus profond) : autre année (dataset 2023).":"Wednesday, winter — 6,442 blocks, 1,984 active substations, 185 structural reconfigurations, up to 38 devices operated (the deepest): another year (2023 dataset).",
+"3 jeux de barres — 400 kV":"3 busbars — 400 kV",
+"≥ 5 jeux de barres":"≥ 5 busbars",
+"4 jeux de barres":"4 busbars",
+"Sectionnement extrême (SJB ≫ barres)":"Extreme sectioning (busbar DS ≫ busbars)",
+"Faisceau de couplage partagé":"Shared coupler bay",
+"Organes internes 2 bornes (self / réactance)":"Internal 2-terminal devices (reactor / reactance)",
+"Omnibus / départs multiples":"Omnibus / multiple feeders",
+"Départs déconnectés (nœuds 0-barre)":"Disconnected feeders (0-busbar nodes)",
+"Gros postes (beaucoup de départs)":"Large substations (many feeders)",
+"Postes standards / multi-sections":"Standard / multi-section substations",
+"Aucun instantané pour {date} dans {repo}.":"No snapshot for {date} in {repo}.",
+"Choisir une date.":"Choose a date.",
+"Explorer une journée d'abord.":"Explore a day first.",
+"Poste/VL introuvable.":"Substation/VL not found.",
+"Vue topologique d'un poste requise.":"Substation topology view required.",
+"Aucun instantané de coordonnées.":"No coordinates snapshot.",
+"osascript a échoué":"osascript failed",
+"sélecteur indisponible":"file picker unavailable",
+"Sélecteur expiré (aucune sélection).":"File picker timed out (no selection).",
+"nom de fichier invalide":"invalid file name",
+"chemin hors du dossier autorisé":"path outside the allowed folder",
+"scénario introuvable":"scenario not found",
+"Import de fichier local désactivé sur cette instance hébergée : un fichier réseau peut contenir des informations confidentielles. Installez le package et lancez l'IHM en local pour charger vos propres situations : pip install -e \".[ihm]\" puis python scripts/manoeuvre_ihm.py --grid /chemin/grid.xiidm":"Local file import is disabled on this hosted instance: a network file may contain confidential information. Install the package and run the HMI locally to load your own situations: pip install -e \".[ihm]\" then python scripts/manoeuvre_ihm.py --grid /path/grid.xiidm",
+"ouverture couplage de barres":"opening busbar coupler",
+"ouverture couplage de barres (séparation de nœuds)":"opening busbar coupler (node separation)",
+"ouverture couplage de barres (isolement de la section)":"opening busbar coupler (section isolation)",
+"ouverture temporaire couplage (réduction de la section à dé-énergiser)":"temporary coupler opening (reducing the section to de-energize)",
+"refermeture couplage (rétabli après isolement de section)":"re-closing coupler (restored after section isolation)",
+"fermeture couplage de barres":"closing busbar coupler",
+"fermeture couplage de barres (fusion de nœud)":"closing busbar coupler (node merge)",
+"fermeture sectionnement (barres équipotentielles)":"closing busbar sectionalizer (equipotential busbars)",
+"fermeture sectionnement (section mise hors tension)":"closing busbar sectionalizer (section de-energized)",
+"fermeture sectionnement de barre (barres équipotentielles)":"closing busbar sectionalizer (equipotential busbars)",
+"fermeture sectionnement de barre (fusion)":"closing busbar sectionalizer (merge)",
+"ouverture sectionnement de barre (boucle, chemin parallèle)":"opening busbar sectionalizer (loop, parallel path)",
+"ouverture sectionnement de barre (section hors tension)":"opening busbar sectionalizer (de-energized section)",
+"ouverture sectionnement de barre (section ATTENTION sous tension)":"opening busbar sectionalizer (WARNING: section energized)",
+"ouverture sectionnement de barre (séparation)":"opening busbar sectionalizer (separation)",
+"remise sous tension (après ouverture sectionneur)":"re-energization (after opening disconnector)",
+"dé-énergisation faisceau (alignement cible)":"de-energizing coupler bay (target alignment)",
+"alignement SA de faisceau sur la cible":"aligning bay disconnectors with the target",
+"alignement DJ de faisceau sur la cible":"aligning bay circuit breakers with the target",
+"Topologie cible atteinte (réalisateur connectivité).":"Target topology reached (connectivity realizer).",
+"Topologie détaillée cible atteinte et vérifiée (réalisateur connectivité, poste multi-barres).":"Target detailed topology reached and verified (connectivity realizer, multi-busbar substation).",
+"Aucun nœud connecté à placer.":"No connected node to place.",
+"Aucun séquenceur configuré.":"No sequencer configured.",
+"Identification de topologie détaillée impossible.":"Detailed topology identification impossible.",
+"Aucun séquenceur configuré et l'identificateur ne fournit pas de séquence.":"No sequencer configured and the identifier provides no sequence.",
+"manœuvre directe (diff cible minimal)":"direct switching operation (minimal target diff)",
+"manœuvre manuelle (expert)":"manual switching operation (expert)",
+"sectionneur de barre manœuvré sous charge — mettre la section de barre hors tension (ré-aiguiller ses départs sur l'autre section) avant d'ouvrir ce sectionnement":"busbar-sectioning disconnector operated under load — de-energize the busbar section (transfer its feeders to the other section) before opening this sectioning switch",
+"sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur":"disconnector operated under load — de-energize the branch via its circuit breaker before opening this disconnector",
+"Topologie détaillée cible atteinte et vérifiée (mode agressif).":"Target detailed topology reached and verified (aggressive mode).",
+"Topologie détaillée cible atteinte et vérifiée (poste multi-barres).":"Target detailed topology reached and verified (multi-busbar substation).",
+"Topologie détaillée cible atteinte et vérifiée.":"Target detailed topology reached and verified.",
+"Topologie détaillée cible atteinte (diff minimal).":"Target detailed topology reached (minimal diff).",
+"Diff minimal non exact ou non sûr (candidat rejeté).":"Minimal diff not exact or unsafe (candidate rejected).",
+"Topologie cible atteinte et vérifiée.":"Target topology reached and verified.",
+"Topologie cible non atteinte.":"Target topology not reached.",
+"La topologie courante satisfait déjà la cible (aucune manœuvre).":"The current topology already satisfies the target (no switching operation).",
+"Graphe absent : impossible de calculer les manœuvres.":"Missing graph: cannot compute the switching operations.",
+"Aucune affectation de SJB réalisable (topologie impossible).":"No feasible busbar-disconnector assignment (impossible topology).",
+};
+// Motifs — chaînes PARAMÉTRÉES (serveur / module manoeuvre) traduites par
+// fragments, appliqués en cascade quand le match exact échoue. Ordre : du plus
+// spécifique au plus générique.
+const I18N_PATTERNS=[
+[/ré-aiguillage '([^']+)' vers ([^)\n]+)/g,"busbar transfer of '$1' to $2"],
+[/'([^']+)' quitte ([^)\n]+)/g,"'$1' leaves $2"],
+[/mise hors tension '([^']+)' \(boucle longue\)/g,"de-energization of '$1' (long loop)"],
+[/remise sous tension '([^']+)' \(boucle longue\)/g,"re-energization of '$1' (long loop)"],
+[/mise hors tension '([^']+)' \(avant ouverture sectionneur\)/g,"de-energization of '$1' (before opening disconnector)"],
+[/remise sous tension '([^']+)' \(après ouverture sectionneur\)/g,"re-energization of '$1' (after opening disconnector)"],
+[/mise hors tension '([^']+)' \(dé-énergisation groupée\)/g,"de-energization of '$1' (grouped de-energization)"],
+[/isolement départ (\S+) \(nœud sans barre\)/g,"isolation of feeder $1 (node without busbar)"],
+[/mise en service départ (\S+)/g,"placing feeder $1 in service"],
+[/mise hors service départ (\S+)/g,"taking feeder $1 out of service"],
+[/ré-aiguillage '([^']+)' \(hors tension\)/g,"busbar transfer of '$1' (de-energized)"],
+[/remise en service '([^']+)'/g,"returning '$1' to service"],
+[/'([^']+)' ne peut atteindre aucune SJB de son nœud cible/g,"'$1' cannot reach any busbar section of its target node"],
+[/Ouvrage\(s\) déconnecté\(s\) au départ que la cible place sur un nœud : (.*?) — le moteur ne réénergise pas un départ déconnecté\. Déclarez-les « ouvrages isolés » \(⌀ Isoler\) pour viser une cible réalisable\./g,"Equipment disconnected in the initial state that the target places on a node: $1 — the engine never re-energizes a disconnected feeder. Declare them \"isolated equipment\" (⌀ Isolate) to aim at an achievable target."],
+[/Départ\(s\) non regroupés comme visé : /g,"Feeder(s) not grouped as intended: "],
+[/Ouvrage\(s\) impossible\(s\) à isoler : /g,"Equipment item(s) impossible to isolate: "],
+[/sectionneur de barre manœuvré sous charge — mettre la section de barre hors tension \(ré-aiguiller ses départs sur l'autre section\) avant d'ouvrir ce sectionnement/g,"busbar-sectioning disconnector operated under load — de-energize the busbar section (transfer its feeders to the other section) before opening this sectioning switch"],
+[/sectionneur manœuvré sous charge — dé-énergiser la branche par son disjoncteur avant d'ouvrir ce sectionneur/g,"disconnector operated under load — de-energize the branch via its circuit breaker before opening this disconnector"],
+[/sectionneur (\S+) ouvert sous tension \(deux côtés énergisés\)/g,"disconnector $1 opened energized (both sides energized)"],
+[/plus d'un ouvrage temporairement hors tension simultanément : /g,"more than one equipment item temporarily de-energized at once: "],
+[/organe inconnu du poste : /g,"switching device unknown to the substation: "],
+[/'([^']+)' sur (\S+) au lieu de ([^;.\n]+)/g,"'$1' on $2 instead of $3"],
+[/organe (\S+) ouvert au lieu de fermé/g,"device $1 open instead of closed"],
+[/organe (\S+) fermé au lieu de ouvert/g,"device $1 closed instead of open"],
+[/DJ (\S+) ouvert au lieu de fermé/g,"CB $1 open instead of closed"],
+[/DJ (\S+) fermé au lieu de ouvert/g,"CB $1 closed instead of open"],
+[/\[vérification indépendante : cible détaillée réalise la partition nodale visée, contrairement à la déclaration de l'algorithme\] /,"[independent verification: the detailed target DOES realize the intended nodal partition, contrary to the algorithm's claim] "],
+[/\[vérification indépendante : cible détaillée NE réalise PAS la partition nodale visée, contrairement à la déclaration de l'algorithme\] /,"[independent verification: the detailed target does NOT realize the intended nodal partition, contrary to the algorithm's claim] "],
+[/Topologie détaillée cible atteinte et vérifiée \(mode agressif\)\./,"Target detailed topology reached and verified (aggressive mode)."],
+[/Topologie détaillée cible atteinte et vérifiée \(poste multi-barres\)\./,"Target detailed topology reached and verified (multi-busbar substation)."],
+[/Topologie détaillée cible atteinte et vérifiée\./,"Target detailed topology reached and verified."],
+[/Topologie nodale cible non atteinte \(mode agressif\) : obtenu /,"Target nodal topology not reached (aggressive mode): obtained "],
+[/Topologie nodale cible non atteinte : départs cibles absents du poste : /,"Target nodal topology not reached: target feeders absent from the substation: "],
+[/Topologie nodale cible non atteinte : /,"Target nodal topology not reached: "],
+[/Topologie nodale atteinte \(poste multi-barres\) ; (\d+) écart\(s\) détaillé\(s\) résiduel\(s\) : /,"Nodal topology reached (multi-busbar substation); $1 residual detailed discrepancy(ies): "],
+[/Topologie nodale atteinte ; (\d+) écart\(s\) : /,"Nodal topology reached; $1 discrepancy(ies): "],
+[/Topologie nodale atteinte/,"Nodal topology reached"],
+[/Topologie cible partiellement atteinte \(poste multi-barres\) : /,"Target topology partially reached (multi-busbar substation): "],
+[/(\d+)\/(\d+) nœuds atteints ; /,"$1/$2 nodes reached; "],
+[/(\d+) nœud\(s\) à compléter manuellement — manœuvres sur les niveaux de barres supplémentaires \(self\/réactance\) non gérées\./,"$1 node(s) to complete manually — operations on the extra busbar levels (reactor/reactance) are not handled."],
+[/Topologie cible non réalisable sur ce poste : /,"Target topology not achievable on this substation: "],
+[/Départs cibles absents du poste : /,"Target feeders absent from the substation: "],
+[/Cible non atteinte \(connectivité\) : obtenu /,"Target not reached (connectivity): obtained "],
+[/Cible non atteinte \(obtenu (\d+) nœuds, visé (\d+)\)\./,"Target not reached (obtained $1 nodes, aimed $2)."],
+[/\(réalisateur connectivité, poste multi-barres\)/g,"(connectivity realizer, multi-busbar substation)"],
+[/[Ll]a topologie obtenue ne correspond pas à la cible \(obtenu /,"the topology obtained does not match the target (obtained "],
+[/Placement partiel : /,"Partial placement: "],
+[/ nœud\(s\) non réalisé\(s\) laissé\(s\) à l'opérateur ; /," unrealized node(s) left to the operator; "],
+[/niveaux de barres supplémentaires \(([^)]*)\) non gérés par l'algorithme 2 jeux de barres : /,"additional busbar levels ($1) not handled by the 2-busbar algorithm: "],
+[/ nœuds nécessitent une section parmi /," nodes require a section among "],
+[/ disponible\(s\)\)/g," available)"],
+[/organe interne '([^']+)' présent sur (\d+) nœuds mais seulement /,"internal device '$1' present on $2 nodes but only "],
+[/ section\(s\) atteignable\(s\)/g," reachable section(s)"],
+[/ nœud\(s\), visé /g," node(s), aimed "],
+[/ nœuds, visé /g," nodes, aimed "],
+[/ écart\(s\) détaillé\(s\) résiduel\(s\)/g," residual detailed discrepancy(ies)"],
+[/ écart\(s\) résiduel\(s\)/g," residual discrepancy(ies)"],
+[/ écart\(s\) détaillé\(s\)/g," detailed discrepancy(ies)"],
+[/ écart\(s\)/g," discrepancy(ies)"],
+[/ manœuvre\(s\) partielles?\./g," partial switching operation(s)."],
+[/ manœuvre\(s\)/g," switching operation(s)"],
+[/ nœud\(s\)/g," node(s)"],
+[/nœud à compléter manuellement : /g,"node to complete manually: "],
+[/Listing HuggingFace impossible : /,"HuggingFace listing failed: "],
+[/Chargement impossible : /,"Loading failed: "],
+[/Exploration impossible : /,"Exploration failed: "],
+[/Fichier introuvable : /,"File not found: "],
+[/Échec du chargement : /,"Loading failed: "],
+[/Aucun instantané pour (\S+) dans ([^.]+)\./,"No snapshot for $1 in $2."],
+];
+const I18N_REV={};
+const _i18nNorm=s=>(s+'').replace(/\s+/g,' ').trim();
+for(const k in I18N_EN)I18N_REV[_i18nNorm(I18N_EN[k])]=k;
+// trEn(s) : français → anglais (exact sur la forme normalisée, puis motifs).
+function trEn(s){if(s==null||s==='')return s;
+  const k=_i18nNorm(s),e=I18N_EN[k];
+  if(e!==undefined)return e;
+  let out=s;for(const pr of I18N_PATTERNS)out=out.replace(pr[0],pr[1]);
+  return out;}
+// t(s) : identité en FR ; traduction en EN. À utiliser pour TOUTE chaîne
+// visible construite en JS (spécification systématique).
+function t(s){return LANG==='en'?trEn(s):s;}
+// tp(gabarit, params) : gabarit à {placeholders} traduit puis substitué.
+function tp(tmpl,params){let s=t(tmpl);
+  for(const k in (params||{}))s=s.split('{'+k+'}').join(params[k]);
+  return s;}
+// Traduction d'un fragment DOM : nœuds texte + attributs title/placeholder.
+// EN : exact puis motifs ; retour FR : exact inverse (les composites sont
+// re-rendus par refreshLangWidgets / la prochaine interaction).
+function _trCore(s,toEn){const k=_i18nNorm(s);
+  if(!k)return null;
+  if(toEn){const e=I18N_EN[k];if(e!==undefined)return e;
+    let out=k;for(const pr of I18N_PATTERNS)out=out.replace(pr[0],pr[1]);
+    return out!==k?out:null;}
+  const f=I18N_REV[k];return f!==undefined?f:null;}
+function translateDom(root){
+  const toEn=(LANG==='en');
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{
+    acceptNode(n){
+      if(n.nodeType===1){const tg=(n.tagName||'').toLowerCase();
+        if(tg==='script'||tg==='style'||tg==='svg')return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;}
+      return NodeFilter.FILTER_ACCEPT;}});
+  const nodes=[];while(w.nextNode())nodes.push(w.currentNode);
+  nodes.forEach(n=>{
+    if(n.nodeType===3){const tr=_trCore(n.nodeValue,toEn);
+      if(tr!=null){const m=/^(\s*)[\s\S]*?(\s*)$/.exec(n.nodeValue);
+        n.nodeValue=(m?m[1]:'')+tr+(m?m[2]:'');}
+      return;}
+    ['title','placeholder'].forEach(a=>{
+      if(!n.getAttribute)return;
+      const v=n.getAttribute(a);
+      if(v){const tr=_trCore(v,toEn);if(tr!=null)n.setAttribute(a,tr);}});});}
+// Abréviations des types d'organes de coupure (DJ/SA/INT ↔ CB/DS/LBS).
+function kindShort(k){
+  const m=LANG==='en'
+    ?{BREAKER:'CB',DISCONNECTOR:'DS',LOAD_BREAK_SWITCH:'LBS'}
+    :{BREAKER:'DJ',DISCONNECTOR:'SA',LOAD_BREAK_SWITCH:'INT'};
+  return m[k]||k;}
+function setLang(l){if(l===LANG)return;LANG=l;
+  try{localStorage.setItem('manoeuvre_lang',l);}catch(e){}
+  applyLang();}
+function applyLang(){
+  document.documentElement.lang=LANG;
+  document.title=t('IHM Manœuvre');
+  const bf=document.getElementById('langFr'),be=document.getElementById('langEn');
+  if(bf)bf.classList.toggle('active',LANG==='fr');
+  if(be)be.classList.toggle('active',LANG==='en');
+  translateDom(document.body);
+  refreshLangWidgets();}
+// Re-rendu (dans la langue courante) des composants dynamiques côté client.
+function refreshLangWidgets(){
+  try{renderPosteList((document.getElementById('posteSearch')||{}).value||'');}catch(e){}
+  try{if(typeof renderScenList==='function')renderScenList();}catch(e){}
+  try{if(NOD&&NOD.depart&&(NOD.depart.groups||[]).length){renderNodaleDepart();renderNodaleCible();}}catch(e){}
+  try{if(MAP&&MAP.data){renderLegend();renderMapHours();renderClassement(MAP.data);}}catch(e){}
+  try{const sw=document.getElementById('seqwrap');
+    if(S&&S.n>0&&S.lastSeq&&!S.stale&&sw&&sw.style.display!=='none'){
+      const sel=S.sel;renderSeq(S.lastSeq);S.sel=sel;updateSelUI();showStep(S.idx);}}catch(e){}}
+// ===== fin i18n ============================================================
 let S={n:0,idx:0,timer:null,labels:[],algo:{},sel:new Set(),lastSel:null,manual:false,
   editTarget:false,stale:false,currentVL:null,tab:'local'};
 // État de la source « dataset RTE7000 » (onglet de choix date/heure).
@@ -507,7 +1060,7 @@ let DS={enabled:false,repo:'',defaultTime:'12:00',hosted:false};
 // Validation de la cible (étape 2) : active le calcul de séquence, **sans**
 // écrire de fichier (la sauvegarde est l'action séparée « 💾 Sauvegarder »).
 function validateCible(){setValidated(true);
-  document.getElementById('savemsg').textContent='✓ Cible validée — calcul de séquence activé (ou « 💾 Sauvegarder »).';}
+  document.getElementById('savemsg').textContent=t('✓ Cible validée — calcul de séquence activé (ou « 💾 Sauvegarder »).');}
 // Télécharge le fichier sauvegardé (JSON renvoyé par le backend) **si l'IHM est
 // déportée** (Space) — pour en garder une copie locale malgré le FS éphémère.
 function maybeDownload(r){
@@ -545,12 +1098,12 @@ function selectTab(which){
 function chargerSituation(){if(S.tab==='rte')loadDataset();else loadGrid();}
 // Sélecteur de fichier natif (onglet Local, usage local) : remplit le chemin.
 async function pickGridFile(){
-  const msg=document.getElementById('gridMsg');msg.textContent='Ouverture du sélecteur…';
+  const msg=document.getElementById('gridMsg');msg.textContent=t('Ouverture du sélecteur…');
   let r;try{r=await (await fetch('/api/pick_grid_file')).json();}
-  catch(e){msg.textContent='sélecteur indisponible — collez le chemin manuellement.';return;}
-  if(r.error){msg.textContent='Sélecteur indisponible ('+r.error+') — collez le chemin.';return;}
+  catch(e){msg.textContent=t('sélecteur indisponible — collez le chemin manuellement.');return;}
+  if(r.error){msg.textContent=tp('Sélecteur indisponible ({err}) — collez le chemin.',{err:t(r.error)});return;}
   if(r.path){document.getElementById('gridPath').value=r.path;
-    msg.textContent='Fichier sélectionné — cliquez « Charger la situation ».';}
+    msg.textContent=t('Fichier sélectionné — cliquez « Charger la situation ».');}
   else msg.textContent='';}
 // État de l'éditeur de topologie nodale (volet de droite).
 let NOD={depart:{groups:[]},departIso:[],labels:{},types:{},flows:{},dirs:{},order:{},
@@ -578,9 +1131,9 @@ function _posteItem(vl,pinned,available){
   const d=document.createElement('div');
   d.className='it'+(available?'':' off')+(vl===S.currentVL?' cur':'');
   d.innerHTML=(pinned?'<span class="pin">★ </span>':'')+xesc(vl)
-    +(available?'':' <span style="font-size:9px">⚠ absent</span>');
+    +(available?'':' <span style="font-size:9px">'+t('⚠ absent')+'</span>');
   if(available)d.onclick=()=>selectPoste(vl);
-  else d.title='absent de la situation chargée — charger la grille France';
+  else d.title=t('absent de la situation chargée — charger la grille France');
   return d;}
 // Sélection d'un poste (recherche / présélection). En **exploration de journée**,
 // ouvre le poste à l'heure courante de la carte (comme un double-clic sur la
@@ -598,19 +1151,19 @@ function renderPosteList(query){
   if(q){   // recherche plein-texte sur TOUS les postes de la situation
     const pin=new Set(PINNED);
     const hits=ALL_POSTES.filter(p=>p.toLowerCase().includes(q));
-    if(!hits.length){root.innerHTML='<div class="empty">Aucun poste ne correspond.</div>';return;}
+    if(!hits.length){root.innerHTML='<div class="empty">'+t('Aucun poste ne correspond.')+'</div>';return;}
     hits.slice(0,POSTE_CAP).forEach(p=>root.appendChild(_posteItem(p,pin.has(p),true)));
     if(hits.length>POSTE_CAP){const d=document.createElement('div');d.className='empty';
-      d.textContent='… '+(hits.length-POSTE_CAP)+' autres — affinez la recherche.';
+      d.textContent=tp('… {n} autres — affinez la recherche.',{n:hits.length-POSTE_CAP});
       root.appendChild(d);}
     return;}
   // vide : exploration curée par typologie (les postes épinglés ★ restent
   // repérables dans les résultats de recherche, sans section dédiée).
   CATALOG.forEach(sec=>{
-    root.appendChild(_posteSec(sec.title+'  ('+sec.n_available+'/'+sec.postes.length+')'));
+    root.appendChild(_posteSec(t(sec.title)+'  ('+sec.n_available+'/'+sec.postes.length+')'));
     sec.postes.forEach(p=>root.appendChild(_posteItem(p.vl,false,p.available)));});
   if(!CATALOG.length)
-    root.innerHTML='<div class="empty">Aucun poste — charger une situation.</div>';}
+    root.innerHTML='<div class="empty">'+t('Aucun poste — charger une situation.')+'</div>';}
 // Sélecteurs d'algorithme pluggable (manoeuvre.plugins) : phase A (nodale →
 // détaillée, volet nodal) et phase B (séquencement, panneau latéral). Les
 // plugins tiers enregistrés (registre / entry points) y apparaissent d'office.
@@ -627,7 +1180,7 @@ function fillAlgoSel(id,phase,r){
     const rr=await api('/api/algos',b);
     sel.value=(rr.selection||{})[phase]||sel.value;};  // resync si nom refusé
   sel.disabled=sel.options.length<2;
-  sel.title=sel.disabled?sel.title+' (un seul algorithme disponible)':sel.title;}
+  sel.title=sel.disabled?sel.title+t(' (un seul algorithme disponible)'):sel.title;}
 async function init(){const r=await (await fetch('/api/postes')).json();
   populatePostes(r);await refreshAlgos();
   // Champ poste unique : la saisie filtre la liste (recherche sur tous les
@@ -643,12 +1196,12 @@ async function init(){const r=await (await fetch('/api/postes')).json();
   initNodalResize(); initNodalDnD(); initMap(); await refreshScenarios(); await initDataset();
   // Pas d'auto-chargement de poste : on attend que l'utilisateur en choisisse un
   // (le schéma reste sur « Choisissez un poste… » tant qu'aucun n'est sélectionné).
-  if(r.postes&&r.postes.length){const t=document.getElementById('diagTop');
-    if(t&&!DS.enabled)t.textContent='Choisissez un poste…';}}
+  if(r.postes&&r.postes.length){const dtop=document.getElementById('diagTop');
+    if(dtop&&!DS.enabled)dtop.textContent=t('Choisissez un poste…');}}
 // Réinitialise les vues quand aucun poste n'est encore choisi (après chargement
 // d'une situation, en attente du choix de poste).
 function awaitPosteChoice(){S.currentVL=null;
-  const t=document.getElementById('diagTop');if(t)t.textContent='Choisissez un poste…';
+  const dtop=document.getElementById('diagTop');if(dtop)dtop.textContent=t('Choisissez un poste…');
   const b=document.getElementById('diagBottom');if(b)b.innerHTML='';
   renderPosteList((document.getElementById('posteSearch')||{}).value||'');}
 // ---- Onglet « RTE7000 » : choisir une date/heure, charger la situation -------
@@ -663,13 +1216,13 @@ async function initDataset(){
     const di=document.getElementById('dsDate');di.value=cfg.default_date||'';
     di.onchange=()=>loadDatasetTimestamps(di.value);
     const info=document.getElementById('dsRepoInfo');
-    if(info)info.title='Dataset HuggingFace : '+(cfg.repo||'OpenSynth/D-GITT-RTE7000-*')
-      +' — réseau France, 1 instantané / 5 min, téléchargé à la demande.';
+    if(info)info.title=tp('Dataset HuggingFace : {repo} — réseau France, 1 instantané / 5 min, téléchargé à la demande.',
+      {repo:cfg.repo||'OpenSynth/D-GITT-RTE7000-*'});
     const sm=document.getElementById('dsSamples');sm.innerHTML='';
     (cfg.sample_dates||[]).forEach(d=>{const meta=DATE_INFO[d]||{tag:'',desc:'Journée du dataset.'};
       const b=document.createElement('button');b.style.cssText='padding:2px 6px;font-size:11px;margin:0';
-      b.title=d+' — '+meta.desc;
-      b.innerHTML=xesc(d)+(meta.tag?'<span class="stag">'+xesc(meta.tag)+'</span>':'');
+      b.title=d+' — '+t(meta.desc);
+      b.innerHTML=xesc(d)+(meta.tag?'<span class="stag">'+xesc(t(meta.tag))+'</span>':'');
       b.onclick=()=>{di.value=d;loadDatasetTimestamps(d);};sm.appendChild(b);});
     await loadDatasetTimestamps(di.value);}
   // IHM déportée (Space) : l'import local est interdit (confidentialité) — on
@@ -680,28 +1233,28 @@ async function initDataset(){
     const hn=document.getElementById('hostedNote');if(hn)hn.style.display='block';
     selectTab('rte');
   }else selectTab(DS.enabled?'rte':'local');   // RTE7000 « en avant » sur le Space
-  if(DS.enabled&&!S.currentVL){const t=document.getElementById('diagTop');
-    if(t)t.textContent='Choisissez une date puis « Charger la situation »…';}}
+  if(DS.enabled&&!S.currentVL){const dtop=document.getElementById('diagTop');
+    if(dtop)dtop.textContent=t('Choisissez une date puis « Charger la situation »…');}}
 async function loadDatasetTimestamps(date){
   const sel=document.getElementById('dsTime'),msg=document.getElementById('dsMsg');
   sel.innerHTML='';if(!date)return;
-  msg.textContent='Liste des instantanés…';
+  msg.textContent=t('Liste des instantanés…');
   let r;try{r=await (await fetch('/api/dataset/timestamps?date='+encodeURIComponent(date))).json();}
-  catch(e){msg.textContent='erreur réseau (HuggingFace)';return;}
-  if(!r||!r.ok){msg.textContent=(r&&r.error)||'aucun instantané pour cette date';return;}
-  (r.timestamps||[]).forEach(t=>{const o=document.createElement('option');o.value=t.ts;o.text=t.ts;sel.add(o);});
+  catch(e){msg.textContent=t('erreur réseau (HuggingFace)');return;}
+  if(!r||!r.ok){msg.textContent=t((r&&r.error)||'aucun instantané pour cette date');return;}
+  (r.timestamps||[]).forEach(ts=>{const o=document.createElement('option');o.value=ts.ts;o.text=ts.ts;sel.add(o);});
   if(r.default)sel.value=r.default;
-  msg.textContent=(r.timestamps||[]).length+' instantané(s) — '+(r.default||'midi')+' présélectionné';}
+  msg.textContent=tp('{n} instantané(s) — {d} présélectionné',{n:(r.timestamps||[]).length,d:r.default||t('midi')});}
 async function loadDataset(){
   const date=document.getElementById('dsDate').value;
   const time=document.getElementById('dsTime').value||DS.defaultTime;
   const msg=document.getElementById('dsMsg');
-  if(!date){msg.textContent='choisir une date';return;}
-  msg.textContent='Chargement '+date+' '+time+' … (téléchargement + réseau France, quelques secondes)';
-  let r;try{r=await api('/api/dataset/load',{date,time});}catch(e){msg.textContent='erreur réseau';return;}
-  if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
+  if(!date){msg.textContent=t('choisir une date');return;}
+  msg.textContent=tp('Chargement {d} {t} … (téléchargement + réseau France, quelques secondes)',{d:date,t:time});
+  let r;try{r=await api('/api/dataset/load',{date,time});}catch(e){msg.textContent=t('erreur réseau');return;}
+  if(!r||!r.ok){msg.textContent=t((r&&r.error)||'échec du chargement');return;}
   populatePostes(r);await refreshAlgos();await refreshScenarios();
-  msg.textContent='✓ '+r.date+' '+r.time+' — '+(r.all||[]).length+' postes NODE_BREAKER';
+  msg.textContent=tp('✓ {d} {t} — {n} postes NODE_BREAKER',{d:r.date,t:r.time,n:(r.all||[]).length});
   // Préserver le poste courant s'il existe encore (changement de date) ; sinon
   // **ne pas** auto-charger — attendre que l'utilisateur choisisse un poste.
   if(S.currentVL&&(r.all||[]).includes(S.currentVL))load(S.currentVL);
@@ -709,12 +1262,12 @@ async function loadDataset(){
 // Charger une **situation réseau** quelconque (chemin .xiidm côté serveur).
 async function loadGrid(){
   const path=document.getElementById('gridPath').value.trim();if(!path)return;
-  const msg=document.getElementById('gridMsg');msg.textContent='Chargement du réseau…';
+  const msg=document.getElementById('gridMsg');msg.textContent=t('Chargement du réseau…');
   let r;try{r=await fetch('/api/load_grid',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({path})}).then(x=>x.json());}catch(e){msg.textContent='erreur réseau';return;}
-  if(!r||!r.ok){msg.textContent=(r&&r.error)||'échec du chargement';return;}
+    body:JSON.stringify({path})}).then(x=>x.json());}catch(e){msg.textContent=t('erreur réseau');return;}
+  if(!r||!r.ok){msg.textContent=t((r&&r.error)||'échec du chargement');return;}
   populatePostes(r);await refreshAlgos();   // nouvelle session => sélection d'algos réinitialisée
-  msg.textContent=`✓ ${r.postes.length} postes épinglés, ${(r.all||[]).length} postes NODE_BREAKER`;
+  msg.textContent=tp('✓ {p} postes épinglés, {n} postes NODE_BREAKER',{p:r.postes.length,n:(r.all||[]).length});
   awaitPosteChoice();}   // pas d'auto-chargement : l'utilisateur choisit un poste
 async function load(vl){stopAnim();exitMapMode();S.currentVL=vl;
   // Chargement « normal » (hors carte / hors exploration) : pas d'heures
@@ -755,7 +1308,7 @@ async function promoteCible(){stopAnim();
   if(d&&d.vl)S.currentVL=d.vl;
   show(d);initNodale(d);hideSeq();setValidated(false);
   S.cibleModifiee=false;S.scenNameDirty=false;setDefaultScenName();   // nouveau départ, cible = départ
-  document.getElementById('savemsg').textContent='Cible promue en nouvel état de départ — éditez puis validez une nouvelle cible.';}
+  document.getElementById('savemsg').textContent=t('Cible promue en nouvel état de départ — éditez puis validez une nouvelle cible.');}
 async function reset(){stopAnim();const d=await api('/api/reset',{});show(d);
   syncNodalCible(d.nodale);hideSeq();setValidated(false);
   S.cibleModifiee=false;setDefaultScenName();}   // cible réinitialisée au départ
@@ -776,13 +1329,13 @@ async function toggleEditTarget(){
     document.getElementById('nbB').textContent=d.nb_noeuds;
     bind(d.switches);highlightChanges(d.changes);syncNodalCible(d.nodale);
     document.getElementById('paneBot').classList.remove('reached');
-    b.textContent='▶ Revenir à la séquence';b.classList.add('primary');
+    b.textContent=t('▶ Revenir à la séquence');b.classList.add('primary');
     ['bprev','bplay','bnext'].forEach(id=>document.getElementById(id).disabled=true);
-    hint.textContent='✎ Édition de la cible détaillée : cliquez un organe pour la modifier (la séquence deviendra obsolète).';
+    hint.textContent=t('✎ Édition de la cible détaillée : cliquez un organe pour la modifier (la séquence deviendra obsolète).');
   }else{
-    b.textContent='✎ Modifier la cible';b.classList.remove('primary');
+    b.textContent=t('✎ Modifier la cible');b.classList.remove('primary');
     document.getElementById('bplay').disabled=false;
-    hint.textContent="✎ Schéma éditable : cliquez un organe pour insérer une manœuvre après l'étape courante.";
+    hint.textContent=t("✎ Schéma éditable : cliquez un organe pour insérer une manœuvre après l'étape courante.");
     await showStep(S.idx);
   }}
 function markSeqStale(){S.stale=true;
@@ -793,7 +1346,7 @@ function clearSeqStale(){S.stale=false;
   const seq=document.getElementById('seq');if(seq)seq.classList.remove('stale');}
 function resetEditTarget(){S.editTarget=false;
   const b=document.getElementById('bedit');
-  if(b){b.textContent='✎ Modifier la cible';b.classList.remove('primary');}}
+  if(b){b.textContent=t('✎ Modifier la cible');b.classList.remove('primary');}}
 // Resynchronise le volet nodal CIBLE depuis l'état détaillé courant
 // ({groups, colors, isolated}) : la topologie détaillée fait foi.
 function syncNodalCible(n){if(!n)return;
@@ -806,12 +1359,12 @@ async function refreshScenarios(){const r=await (await fetch('/api/scenarios')).
   // tolère l'ancien format (liste de noms) et le nouveau (objets + métadonnées).
   SCENARIOS=(r.scenarios||[]).map(s=>typeof s==='string'?{name:s}:s);
   const sel=document.getElementById('scfVolt');
-  if(sel){const cur=sel.value;sel.innerHTML='<option value="">tension</option>';
+  if(sel){const cur=sel.value;sel.innerHTML='<option value="">'+t('tension')+'</option>';
     [...new Set(SCENARIOS.map(s=>s.nominal_v).filter(v=>v!=null))].sort((a,b)=>b-a)
       .forEach(v=>{const o=document.createElement('option');o.value=v;o.text=Math.round(v)+' kV';sel.add(o);});
     sel.value=cur;}
   const ysel=document.getElementById('scfYear');
-  if(ysel){const cur=ysel.value;ysel.innerHTML='<option value="">année</option>';
+  if(ysel){const cur=ysel.value;ysel.innerHTML='<option value="">'+t('année')+'</option>';
     [...new Set(SCENARIOS.map(s=>s.year).filter(v=>v!=null))].sort((a,b)=>b-a)
       .forEach(y=>{const o=document.createElement('option');o.value=y;o.text=y;ysel.add(o);});
     ysel.value=cur;}
@@ -835,22 +1388,22 @@ function renderScenList(){const root=document.getElementById('scenList');if(!roo
     return ge(s.nb_barres,fb)&&ge(s.n_dj,fd)&&ge(s.n_sa,fsa)&&ge(s.n_int,fi)&&ge(s.n_nodal,fn);});
   g('scenCount').textContent='— '+hits.length+'/'+SCENARIOS.length;
   const sel=g('scenSel').value;root.innerHTML='';
-  if(!hits.length){root.innerHTML='<div class="scempty">Aucun scénario ne correspond.</div>';return;}
+  if(!hits.length){root.innerHTML='<div class="scempty">'+t('Aucun scénario ne correspond.')+'</div>';return;}
   hits.forEach(s=>{const d=document.createElement('div');
     d.className='scrow'+(s.name===sel?' cur':'');
     const kv=s.nominal_v!=null?Math.round(s.nominal_v)+' kV':'?';
     let chips='<span class="scchip" style="background:'+voltColor(s.nominal_v||0)+'">'+kv+'</span>';
-    if(s.dt){const jour=(s.weekday!=null?JOURS[s.weekday]:''),sai=s.season||'';
+    if(s.dt){const jour=(s.weekday!=null?t(JOURS[s.weekday]):''),sai=s.season?t(s.season):'';
       chips+='<span class="scc scdt">📅 '+xesc(s.dt.replace('T',' '))
         +(jour?' · '+jour:'')+(sai?' · '+sai:'')+'</span>';}
     if(s.cible_dt&&s.cible_dt!==s.dt)
-      chips+='<span class="scc scdt" title="date/heure de la topologie cible">🎯 '+xesc(s.cible_dt.replace('T',' '))+'</span>';
-    if(s.nb_barres!=null)chips+='<span class="scc">'+s.nb_barres+' barre'+(s.nb_barres>1?'s':'')+'</span>';
-    if(s.nb_depart!=null&&s.nb_cible!=null)chips+='<span class="scc">'+s.nb_depart+'→'+s.nb_cible+' nœud</span>';
-    if(s.n_dj!=null)chips+='<span class="scc">DJ '+(s.n_dj||0)+' · SA '+(s.n_sa||0)+' · INT '+(s.n_int||0)+'</span>';
+      chips+='<span class="scc scdt" title="'+t('date/heure de la topologie cible')+'">🎯 '+xesc(s.cible_dt.replace('T',' '))+'</span>';
+    if(s.nb_barres!=null)chips+='<span class="scc">'+(s.nb_barres>1?tp('{n} barres',{n:s.nb_barres}):tp('{n} barre',{n:s.nb_barres}))+'</span>';
+    if(s.nb_depart!=null&&s.nb_cible!=null)chips+='<span class="scc">'+tp('{a}→{b} nœud',{a:s.nb_depart,b:s.nb_cible})+'</span>';
+    if(s.n_dj!=null)chips+='<span class="scc">'+kindShort('BREAKER')+' '+(s.n_dj||0)+' · '+kindShort('DISCONNECTOR')+' '+(s.n_sa||0)+' · '+kindShort('LOAD_BREAK_SWITCH')+' '+(s.n_int||0)+'</span>';
     if(s.n_nodal)chips+='<span class="scc">⚇ '+s.n_nodal+'</span>';
-    if(s.author)chips+='<span class="scc" title="auteur">✍ '+xesc(s.author)+'</span>';
-    if(s.created_at)chips+='<span class="scc" title="date de création">🕒 '+xesc(s.created_at.replace('T',' '))+'</span>';
+    if(s.author)chips+='<span class="scc" title="'+t('auteur')+'">✍ '+xesc(s.author)+'</span>';
+    if(s.created_at)chips+='<span class="scc" title="'+t('date de création')+'">🕒 '+xesc(s.created_at.replace('T',' '))+'</span>';
     d.innerHTML='<div class="scnm">'+xesc(s.name)+'</div><div class="scmeta">'+chips+'</div>';
     d.onclick=()=>{g('scenSel').value=s.name;renderScenList();};
     d.ondblclick=()=>{g('scenSel').value=s.name;validateReload();};
@@ -881,7 +1434,7 @@ async function openConfig(){
   document.getElementById('configModal').style.display='flex';}
 function fillCfgAlgo(id,phase,algos){const sel=document.getElementById(id);if(!sel)return;
   sel.innerHTML='';((algos.disponibles||{})[phase]||[]).forEach(n=>{
-    const o=document.createElement('option');o.value=n;o.text=n+(n==='libtopo'?' (défaut)':'');sel.add(o);});
+    const o=document.createElement('option');o.value=n;o.text=n+(n==='libtopo'?t(' (défaut)'):'');sel.add(o);});
   sel.value=(algos.selection||{})[phase]||'libtopo';
   sel.disabled=sel.options.length<2;}
 function closeConfig(){document.getElementById('configModal').style.display='none';}
@@ -893,11 +1446,11 @@ async function saveConfig(){
     scenarios_dir:document.getElementById('cfgScenDir').value,
     sequences_dir:document.getElementById('cfgSeqDir').value};
   let r;try{r=await api('/api/config',body);}catch(e){
-    document.getElementById('cfgMsg').textContent='échec';return;}
+    document.getElementById('cfgMsg').textContent=t('échec');return;}
   await refreshAlgos();await refreshScenarios();   // resync sélecteurs inline + base
   document.getElementById('cfgScenDir').value=r.scenarios_dir||'';
   document.getElementById('cfgSeqDir').value=r.sequences_dir||'';
-  document.getElementById('cfgMsg').textContent='✓ Configuration appliquée.';}
+  document.getElementById('cfgMsg').textContent=t('✓ Configuration appliquée.');}
 // --- Auteur des scénarios (mémorisé localement, modifiable à tout moment) ----
 function currentAuthor(){return (document.getElementById('authorName').value||'').trim();}
 function initAuthor(){const el=document.getElementById('authorName');if(!el)return;
@@ -932,11 +1485,11 @@ async function validateReload(){const name=document.getElementById('scenSel').va
 async function saveWithConfirm(url,name,msgEl){
   let r=await api(url,{name});
   while(r.exists){
-    if(confirm('Le fichier « '+r.name+' » existe déjà.\n\nOK = écraser, Annuler = renommer.')){
+    if(confirm(tp('Le fichier « {n} » existe déjà. OK = écraser, Annuler = renommer.',{n:r.name}))){
       r=await api(url,{name:r.name,overwrite:true});
     }else{
-      const nn=prompt('Nouveau nom :', r.name+'_v2');
-      if(!nn){msgEl.textContent='Sauvegarde annulée.';return null;}
+      const nn=prompt(t('Nouveau nom :'), r.name+'_v2');
+      if(!nn){msgEl.textContent=t('Sauvegarde annulée.');return null;}
       r=await api(url,{name:nn});
     }
   }
@@ -960,14 +1513,14 @@ async function save(){const name=document.getElementById('scenName').value;
   const r=await api('/api/save',{name,depart_dt,cible_dt,source:S.tab,author});
   if(r&&r.already_exists){   // départ + cible identiques à un scénario existant
     setValidated(true);await refreshScenarios();
-    msg.textContent='⚠ Scénario déjà existant (« '+r.name+' », départ + cible identiques) — non écrasé.';
+    msg.textContent=tp('⚠ Scénario déjà existant (« {n} », départ + cible identiques) — non écrasé.',{n:r.name});
     return;}
-  if(!r||!r.path){msg.textContent='Échec de la sauvegarde.';return;}
+  if(!r||!r.path){msg.textContent=t('Échec de la sauvegarde.');return;}
   setValidated(true);await refreshScenarios();
   const dl=maybeDownload(r);   // copie locale si IHM déportée (Space)
-  msg.textContent='✓ Sauvegardé : '+r.path
-    +(r.name&&r.name!==name?' (nom unique : « '+r.name+' »)':'')
-    +(dl?' · téléchargé en local':'');}
+  msg.textContent=tp('✓ Sauvegardé : {p}',{p:r.path})
+    +(r.name&&r.name!==name?tp(' (nom unique : « {n} »)',{n:r.name}):'')
+    +(dl?t(' · téléchargé en local'):'');}
 // Re-synchronise les sélecteurs Date/Heure (onglet RTE7000) sur la date/heure de
 // DÉPART loggée du scénario rechargé (ignoré pour un scénario local).
 function syncDepartFromScenario(meta){
@@ -990,11 +1543,11 @@ async function loadScen(mode){const name=document.getElementById('scenSel').valu
   S.scenNameDirty=true;   // nom explicite du scénario rechargé : ne pas l'écraser
   if(mode==='as_depart'){
     document.getElementById('scenName').value=name+'_suite';
-    document.getElementById('savemsg').textContent='« '+name+' » chargé comme état de départ — éditez puis validez une nouvelle cible.';
+    document.getElementById('savemsg').textContent=tp('« {n} » chargé comme état de départ — éditez puis validez une nouvelle cible.',{n:name});
     setValidated(false);
   }else{
     document.getElementById('scenName').value=name;
-    document.getElementById('savemsg').textContent='Scénario « '+name+' » rechargé (départ + cible).';
+    document.getElementById('savemsg').textContent=tp('Scénario « {n} » rechargé (départ + cible).',{n:name});
     setValidated(true);
   }}
 function hideSeq(){document.getElementById('seqwrap').style.display='none';document.getElementById('anim').style.display='none';
@@ -1004,7 +1557,7 @@ function show(d){
   document.getElementById('paneBot').classList.remove('reached');
   if(d.initial_svg!==undefined){document.getElementById('diagTop').innerHTML=d.initial_svg;
     document.getElementById('nbA').textContent=d.nb_initial;
-    document.getElementById('ttlA').textContent='Topologie de départ';S.manual=false;}
+    document.getElementById('ttlA').textContent=t('Topologie de départ');S.manual=false;}
   document.getElementById('diagBottom').innerHTML=d.svg;
   document.getElementById('nbB').textContent=d.nb_noeuds;
   bind(d.switches);highlightChanges(d.changes);}
@@ -1035,59 +1588,64 @@ async function sequence(){stopAnim();S.manual=false;resetEditTarget();clearSeqSt
 async function manualSeq(){stopAnim();S.manual=true;resetEditTarget();clearSeqStale();
   const d=await api('/api/manual_start',{});
   document.getElementById('seqwrap').style.display='block';
-  S.algo={message:'Séquence manuelle : cliquez les organes du schéma du bas (état courant) pour ajouter des manœuvres ; la cible à atteindre est affichée en haut.',ecarts:[],verified:false,verified_detaillee:false};
+  S.algo={message:t('Séquence manuelle : cliquez les organes du schéma du bas (état courant) pour ajouter des manœuvres ; la cible à atteindre est affichée en haut.'),ecarts:[],verified:false,verified_detaillee:false};
   // Vue de référence : la CIBLE en haut.
   document.getElementById('diagTop').innerHTML=d.cible_svg;
   document.getElementById('nbA').textContent=d.cible_nb;
-  document.getElementById('ttlA').textContent='Cible à atteindre';
+  document.getElementById('ttlA').textContent=t('Cible à atteindre');
   document.getElementById('seqName').value=(document.getElementById('scenName').value||'sequence');
   document.getElementById('seqsavemsg').textContent='';
   renderSeq(d);
   document.getElementById('anim').style.display='flex';
   await showStep(0);}
 function renderSeq(d){
-  S.n=d.n_steps;S.labels=d.labels;S.sel=new Set();S.lastSel=null;
+  S.lastSeq=d;   // re-rendu (langue, resynchronisations) sans nouvel appel serveur
+  // Libellés d'étapes reconstruits côté client (même format que le serveur),
+  // pour traduire la « raison » de chaque manœuvre à l'affichage.
+  S.n=d.n_steps;S.sel=new Set();S.lastSel=null;
+  S.labels=[t('État de départ')].concat((d.manoeuvres||[]).map((m,i)=>
+    (i+1)+'. '+m.action+' '+m.switch_id+' — '+t(m.raison)));
   const st=document.getElementById('seqstatus');
-  if(d.edited){const lbl=S.manual?'MANUELLE':'ÉDITÉE';
-    st.innerHTML='<span class="badge" style="background:#7c3aed;color:#fff">'+lbl+(d.nb_final!=null?' · '+d.nb_final+' nœud(s)':'')+'</span> '+
-      (d.matches_cible?'<span class="badge ok">= cible</span>':'<span class="badge ko">≠ cible</span>');}
-  else if(S.algo.verified_detaillee){st.innerHTML='<span class="badge ok">DÉTAILLÉE VÉRIFIÉE</span>'+(S.algo.mode?' <span class="badge">mode '+(S.algo.mode==='aggressive'?'agressif':'smooth')+'</span>':'');}
-  else if(S.algo.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">NODALE OK · '+(S.algo.ecarts?S.algo.ecarts.length:'?')+' écart(s) détaillé(s)</span>';}
-  else{st.innerHTML='<span class="badge ko">NON VÉRIFIÉE</span>';}
+  if(d.edited){const lbl=S.manual?t('MANUELLE'):t('ÉDITÉE');
+    st.innerHTML='<span class="badge" style="background:#7c3aed;color:#fff">'+lbl+(d.nb_final!=null?' · '+tp('{n} nœud(s)',{n:d.nb_final}):'')+'</span> '+
+      (d.matches_cible?'<span class="badge ok">'+t('= cible')+'</span>':'<span class="badge ko">'+t('≠ cible')+'</span>');}
+  else if(S.algo.verified_detaillee){st.innerHTML='<span class="badge ok">'+t('DÉTAILLÉE VÉRIFIÉE')+'</span>'+(S.algo.mode?' <span class="badge">'+tp('mode {m}',{m:S.algo.mode==='aggressive'?t('agressif'):'smooth'})+'</span>':'');}
+  else if(S.algo.verified){st.innerHTML='<span class="badge" style="background:#d97706;color:#fff">'+tp('NODALE OK · {n} écart(s) détaillé(s)',{n:S.algo.ecarts?S.algo.ecarts.length:'?'})+'</span>';}
+  else{st.innerHTML='<span class="badge ko">'+t('NON VÉRIFIÉE')+'</span>';}
   // Algorithme de séquencement utilisé (phase B pluggable).
   if(!d.edited&&S.algo.algoName){
-    st.innerHTML+=' <span class="badge" title="Algorithme de séquencement (manoeuvre.plugins)">algo '+S.algo.algoName+'</span>';}
+    st.innerHTML+=' <span class="badge" title="'+t('Algorithme de séquencement (manoeuvre.plugins)')+'">algo '+S.algo.algoName+'</span>';}
   // Alerte bonne pratique (non bloquante) : > 1 ouvrage hors tension à la fois.
   if(S.algo.alertes&&S.algo.alertes.length){
     st.innerHTML+=' <span class="badge" style="background:#d97706;color:#fff" '+
-      'title="Bonne pratique : privilégier un seul ouvrage hors tension à la fois (mode smooth)">'+
-      '⚠ '+S.algo.alertes.length+' alerte(s) « 1 ouvrage à la fois »</span>';}
+      'title="'+t('Bonne pratique : privilégier un seul ouvrage hors tension à la fois (mode smooth)')+'">'+
+      tp('⚠ {n} alerte(s) « 1 ouvrage à la fois »',{n:S.algo.alertes.length})+'</span>';}
   const seq=document.getElementById('seq');seq.innerHTML='';
-  let headtxt=(S.algo.message||'')+(d.manoeuvres.length?'':'\n(aucune manœuvre)');
-  if(S.algo.ecarts&&S.algo.ecarts.length){headtxt+='\nÉcarts détaillés : '+S.algo.ecarts.join(' ; ');}
-  if(S.algo.alertes&&S.algo.alertes.length){headtxt+='\n⚠ Bonne pratique (1 ouvrage hors tension à la fois) : '+S.algo.alertes.join(' ; ');}
-  if(d.edited){headtxt+='\n(séquence éditée manuellement)';}
+  let headtxt=t(S.algo.message||'')+(d.manoeuvres.length?'':'\n'+t('(aucune manœuvre)'));
+  if(S.algo.ecarts&&S.algo.ecarts.length){headtxt+='\n'+t('Écarts détaillés :')+' '+S.algo.ecarts.map(e=>t(e)).join(' ; ');}
+  if(S.algo.alertes&&S.algo.alertes.length){headtxt+='\n'+tp('⚠ Bonne pratique (1 ouvrage hors tension à la fois) : {a}',{a:S.algo.alertes.map(a=>t(a)).join(' ; ')});}
+  if(d.edited){headtxt+='\n'+t('(séquence éditée manuellement)');}
   const viols=d.violations||[];
   const nbViol=viols.filter(Boolean).length;
-  if(nbViol){headtxt+='\n⚠ '+nbViol+' manœuvre(s) enfreignant une règle de sûreté — voir ⚠ dans la liste.';}
+  if(nbViol){headtxt+='\n'+tp('⚠ {n} manœuvre(s) enfreignant une règle de sûreté — voir ⚠ dans la liste.',{n:nbViol});}
   const head=document.createElement('div');head.className='head'+(nbViol?' hasviol':'');head.id='ln0';head.textContent=headtxt;
-  head.style.cursor='pointer';head.title="Aller à l'état de départ";head.onclick=()=>stepGoto(0);seq.appendChild(head);
+  head.style.cursor='pointer';head.title=t("Aller à l'état de départ");head.onclick=()=>stepGoto(0);seq.appendChild(head);
   d.manoeuvres.forEach((m,i)=>{const k=i+1;const ln=document.createElement('div');
     const viol=viols[i];
     ln.className='line'+(/manuelle/.test(m.raison)?' manual':'')+(viol?' violation':'');ln.id='ln'+k;
     const chk=document.createElement('input');chk.type='checkbox';chk.className='chk';
-    chk.title='Sélectionner (Maj+clic = bloc)';
+    chk.title=t('Sélectionner (Maj+clic = bloc)');
     chk.onclick=(e)=>{e.stopPropagation();onChkClick(k,e.shiftKey);};
     const txt=document.createElement('span');txt.className='txt';
-    txt.textContent=`${String(k).padStart(2)}. ${m.action.padEnd(5)} ${m.switch_id}  (${m.raison})${m.boucle?' ['+m.boucle+']':''}`;
+    txt.textContent=`${String(k).padStart(2)}. ${m.action.padEnd(5)} ${m.switch_id}  (${t(m.raison)})${m.boucle?' ['+t(m.boucle)+']':''}`;
     if(viol){const w=document.createElement('span');w.className='warn';w.textContent='⚠';
-      w.title=viol;ln.title=viol;ln.appendChild(w);}
-    const del=document.createElement('span');del.className='del';del.textContent='✕';del.title='Supprimer cette manœuvre';
+      w.title=t(viol);ln.title=t(viol);ln.appendChild(w);}
+    const del=document.createElement('span');del.className='del';del.textContent='✕';del.title=t('Supprimer cette manœuvre');
     del.onclick=(e)=>{e.stopPropagation();seqDelete(k);};
     ln.appendChild(chk);ln.appendChild(txt);ln.appendChild(del);
     ln.onclick=()=>stepGoto(k);seq.appendChild(ln);
     if(viol){const vm=document.createElement('div');vm.className='violmsg';vm.id='viol'+k;
-      vm.textContent='⚠ '+viol;vm.onclick=()=>stepGoto(k);seq.appendChild(vm);}});
+      vm.textContent='⚠ '+t(viol);vm.onclick=()=>stepGoto(k);seq.appendChild(vm);}});
   updateSelUI();
 }
 function onChkClick(idx,shift){
@@ -1113,7 +1671,7 @@ async function saveSeq(){const name=document.getElementById('seqName').value;
   const r=await saveWithConfirm('/api/save_sequence',name,msg);
   if(!r)return;
   const dl=maybeDownload(r);   // copie locale si IHM déportée (Space)
-  msg.textContent='✓ '+r.path+(dl?' · téléchargé en local':'');}
+  msg.textContent='✓ '+r.path+(dl?t(' · téléchargé en local'):'');}
 function bindStep(switches){const root=document.getElementById('diagBottom');
   switches.forEach(s=>{const el=root.querySelector('[id="'+s.svgId+'"]');
     if(el){el.style.cursor='pointer';el.onclick=()=>seqInsert(S.idx,s.id);
@@ -1136,7 +1694,7 @@ async function showStep(i){S.idx=Math.max(0,Math.min(i,S.n-1));
     renderNodaleSVG('ndCible', r.nodale.groups||[], false, r.nodale.colors||{});
     renderIso('ndCibleIso', r.nodale.isolated||[], false);
     document.getElementById('ndCibN').textContent=(r.nodale.groups||[]).length;
-    document.getElementById('ndCibTitle').textContent='Étape '+S.idx+'/'+(S.n-1)+' (vue)';
+    document.getElementById('ndCibTitle').textContent=tp('Étape {i}/{n} (vue)',{i:S.idx,n:S.n-1});
   }
   document.getElementById('bprev').disabled=(S.idx<=0);document.getElementById('bnext').disabled=(S.idx>=S.n-1);}
 function step(d){stopAnim();showStep(S.idx+d);}
@@ -1238,7 +1796,7 @@ function buildNodaleSVG(groups, editable, colors){
     blk+=`<g class="nbadge"><rect x="${PADX}" y="${(busY-BADGE/2).toFixed(1)}" rx="4" `
        +`width="${BADGE}" height="${BADGE}" fill="${col}"/>`
        +`<text x="${(PADX+BADGE/2).toFixed(1)}" y="${(busY+3.8).toFixed(1)}" fill="${tcol}">N${ni}</text></g>`;
-    blk+=`<title>N${ni} · ${g.length} branche(s)</title>`;
+    blk+=`<title>${tp('N{i} · {n} branche(s)',{i:ni,n:g.length})}</title>`;
     top.forEach(eq=>blk+=branchSeg(eq,colX(colOf[eq]),
       busY-BUSH/2,busY-BUSH/2-STUB,true,editable));
     bot.forEach(eq=>blk+=branchSeg(eq,colX(colOf[eq]),
@@ -1279,7 +1837,7 @@ function renderNodaleDepart(){const gs=NOD.depart.groups||[];
 // valides ; ils sont nettoyés par les opérations (déplacement / fusion) et
 // ignorés au calcul de la topologie détaillée.
 function renderNodaleCible(){
-  document.getElementById('ndCibTitle').textContent='Cible (éditable)';  // restaure le mode édition
+  document.getElementById('ndCibTitle').textContent=t('Cible (éditable)');  // restaure le mode édition
   document.getElementById('ndCibN').textContent=NOD.groups.length;
   renderNodaleSVG('ndCible',NOD.groups,true,NOD.colorsCible);
   renderIso('ndCibleIso',NOD.isolated,true);}
@@ -1292,11 +1850,11 @@ function renderIso(rootId,list,editable){
     // Zone CIBLE éditable : reste visible (même vide) comme cible de dépose
     // « isoler » — glisser-y un départ le déclare ouvrage isolé.
     root.style.display='block';
-    root.innerHTML='<div class="isohd">⌀ Ouvrages isolés (0) — glisser un départ ici pour l\'isoler</div>';
+    root.innerHTML='<div class="isohd">'+t('⌀ Ouvrages isolés (0) — glisser un départ ici pour l\'isoler')+'</div>';
     return;}
   root.style.display='block';
-  let h=`<div class="isohd">⚠ Ouvrages isolés (${list.length})`
-    +(editable?' — glisser sur un nœud pour reconnecter':' — déconnectés')+`</div><div class="isochips">`;
+  let h=`<div class="isohd">${tp('⚠ Ouvrages isolés ({n})',{n:list.length})}`
+    +(editable?t(' — glisser sur un nœud pour reconnecter'):t(' — déconnectés'))+`</div><div class="isochips">`;
   list.slice().sort().forEach(eq=>{const sel=editable&&NOD.selBranches.has(eq);
     h+=`<span class="isochip${sel?' sel':''}" data-br="${xesc(eq)}" `
       +`title="${xesc(eq)}${NOD.flows[eq]!=null?' · '+fmtFlow(NOD.flows[eq])+' MW':''}">`
@@ -1379,11 +1937,11 @@ function nodIsolate(items){
 function nodIsolateSel(){
   const items=[...NOD.selBranches];
   if(!items.length){const st=document.getElementById('nodstatus');
-    st.className='';st.textContent='Sélectionnez d\'abord un ou des départs (clic), puis « ⌀ Isoler ».';return;}
+    st.className='';st.textContent=t('Sélectionnez d\'abord un ou des départs (clic), puis « ⌀ Isoler ».');return;}
   nodIsolate(items);}
 function nodClearSel(){NOD.selBranches=new Set();renderNodaleCible();}
 async function nodCompute(){
-  const st=document.getElementById('nodstatus');st.className='';st.textContent='Calcul en cours…';
+  const st=document.getElementById('nodstatus');st.className='';st.textContent=t('Calcul en cours…');
   // Les nœuds restés vides sont écartés (ignorés par le calcul de toute façon).
   const groups=NOD.groups.filter(g=>g.length);
   const d=await api('/api/nodale_to_detaillee',{groups,isolated:NOD.isolated});
@@ -1397,12 +1955,17 @@ async function nodCompute(){
   // (partition + couleurs + isolés des nœuds obtenus).
   syncNodalCible(d.nodale);
   // Les ouvrages isolés sont présentés à part, jamais comptés comme des nœuds.
-  const iso=d.nb_isoles||0, isoTxt=iso?(' + '+iso+' ouvrage(s) isolé(s)'):'';
+  const iso=d.nb_isoles||0, isoTxt=iso?tp('+ {n} ouvrage(s) isolé(s)',{n:iso}):'';
   let msg='';
-  if(d.is_verified){st.className='okv';msg='✓ Topologie détaillée d\'intérêt chargée comme cible ('+d.nb_obtenu+' nœud(s)'+isoTxt+(d.algo?', algo '+d.algo:'')+'). Validez puis calculez la séquence.';}
-  else{st.className='kov';msg='⚠ Cible partiellement réalisable (obtenu '+d.nb_obtenu+' nœud(s)'+isoTxt+' / visé '+d.nb_vise+' nœud(s)). '+(d.message||'');
-    if(d.noeuds_non_realisables&&d.noeuds_non_realisables.length)msg+=' Nœuds non réalisables : '+d.noeuds_non_realisables.map(g=>g.join(',')).join(' | ')+'.';}
-  if(d.ecarts&&d.ecarts.length)msg+=' Écarts : '+d.ecarts.join(' ; ')+'.';
+  if(d.is_verified){st.className='okv';
+    msg=tp('✓ Topologie détaillée d\'intérêt chargée comme cible ({d}). Validez puis calculez la séquence.',
+      {d:tp('{n} nœud(s)',{n:d.nb_obtenu})+isoTxt+(d.algo?tp(', algo {a}',{a:d.algo}):'')});}
+  else{st.className='kov';
+    msg=tp('⚠ Cible partiellement réalisable (obtenu {o} nœud(s){iso} / visé {v} nœud(s)).',
+      {o:d.nb_obtenu,iso:isoTxt,v:d.nb_vise})+' '+t(d.message||'');
+    if(d.noeuds_non_realisables&&d.noeuds_non_realisables.length)
+      msg+=tp('Nœuds non réalisables : {l}.',{l:d.noeuds_non_realisables.map(g=>g.join(',')).join(' | ')});}
+  if(d.ecarts&&d.ecarts.length)msg+=tp('Écarts : {e}.',{e:d.ecarts.map(x=>t(x)).join(' ; ')});
   st.textContent=msg;}
 
 // ============================================================================
@@ -1431,7 +1994,7 @@ function voltColor(nv){for(const b of VOLT_BANDS)if(nv>=b.min)return b.color;ret
 // Indice de la bande de tension (pour le filtrage par légende).
 function voltBand(nv){for(let i=0;i<VOLT_BANDS.length;i++)if(nv>=VOLT_BANDS[i].min)return i;return VOLT_BANDS.length-1;}
 function fmtKv(nv){return Math.round(nv||0)+' kV';}
-function kindShort(t){return {BREAKER:'DJ',DISCONNECTOR:'SA',LOAD_BREAK_SWITCH:'INT'}[t]||t;}
+// kindShort (DJ/SA/INT ↔ CB/DS/LBS) : défini dans le bloc i18n (bilingue).
 function vbStr(v){return v.x.toFixed(1)+' '+v.y.toFixed(1)+' '+v.w.toFixed(1)+' '+v.h.toFixed(1);}
 function applyVB(){const s=document.getElementById('mapSvg');if(s&&MAP.vb)s.setAttribute('viewBox',vbStr(MAP.vb));}
 
@@ -1445,18 +2008,17 @@ function backToMap(){if(MAP.data)enterMapMode();}
 async function exploreDay(){
   const date=document.getElementById('dsDate').value;
   const msg=document.getElementById('exploreMsg');
-  if(!date){msg.textContent='Choisir une date d’abord.';return;}
+  if(!date){msg.textContent=t('Choisir une date d’abord.');return;}
   enterMapMode();stopAnim();
   const spin=document.getElementById('mapSpin');spin.style.display='block';
-  spin.textContent='Chargement des 3 situations (minuit · midi · 23 h) de '+date
-    +' … téléchargement + calcul des changements d’OC (≈ 1 min).';
-  document.getElementById('mapHeadInfo').textContent=date+' — exploration en cours…';
-  msg.textContent='Exploration de '+date+' …';
+  spin.textContent=tp('Chargement des 3 situations (minuit · midi · 23 h) de {d} … téléchargement + calcul des changements d’OC (≈ 1 min).',{d:date});
+  document.getElementById('mapHeadInfo').textContent=tp('{d} — exploration en cours…',{d:date});
+  msg.textContent=tp('Exploration de {d} …',{d:date});
   let r;try{r=await api('/api/explore_day',{date});}
-  catch(e){spin.textContent='Erreur réseau.';msg.textContent='erreur réseau';return;}
-  if(!r||!r.ok){spin.style.display='block';spin.textContent=(r&&r.error)||'Échec de l’exploration.';
-    msg.textContent=(r&&r.error)||'échec';return;}
-  spin.style.display='none';msg.textContent='✓ '+date+' exploré.';
+  catch(e){spin.textContent=t('Erreur réseau.');msg.textContent=t('erreur réseau');return;}
+  if(!r||!r.ok){spin.style.display='block';spin.textContent=t((r&&r.error)||'Échec de l’exploration.');
+    msg.textContent=t((r&&r.error)||'échec');return;}
+  spin.style.display='none';msg.textContent=tp('✓ {d} exploré.',{d:date});
   // Peupler la liste de postes (recherche + présélection à gauche) depuis le
   // réseau de référence de l'exploration → le champ de recherche devient
   // utilisable pendant l'exploration (pas seulement la liste des plus actifs).
@@ -1473,16 +2035,12 @@ async function exploreDay(){
 function coordDiag(st){
   const j=a=>(a||[]).map(x=>x==null?'∅':x).join(', ');
   if(st.geo_error)
-    return '<br>↳ <b>OSM/Overpass injoignable</b> : <code>'+xesc(st.geo_error)+'</code>. '
-      +'Vérifiez la sortie internet du Space (ou committez/persistez '
-      +'<code>postes_rte_geo.json</code>).';
+    return tp('<br>↳ <b>OSM/Overpass injoignable</b> : <code>{e}</code>. Vérifiez la sortie internet du Space (ou committez/persistez <code>postes_rte_geo.json</code>).',
+      {e:xesc(st.geo_error)});
   if(st.n_records!=null)
-    return '<br>↳ <b>OSM joignable</b> ('+st.n_records+' postes) mais '
-      +(st.n_apparies||0)+' apparié(s). Codes OSM (ref:FR:RTE) : <code>'+xesc(j(st.sample_codes))
-      +'</code>. Noms : <code>'+xesc(j(st.sample_noms))+'</code>. Postes réseau : <code>'
-      +xesc(j(st.sample_subs))+'</code>. → identifiants non recoupés ; ajuster l’appariement.';
-  return ' Pour activer la carte : autorisez <code>overpass-api.de</code> sur le Space, '
-    +'ou committez/persistez <code>postes_rte_geo.json</code> (script <code>scripts/fetch_postes_geo.py</code>).';
+    return tp('<br>↳ <b>OSM joignable</b> ({n} postes) mais {a} apparié(s). Codes OSM (ref:FR:RTE) : <code>{c}</code>. Noms : <code>{m}</code>. Postes réseau : <code>{s}</code>. → identifiants non recoupés ; ajuster l’appariement.',
+      {n:st.n_records,a:st.n_apparies||0,c:xesc(j(st.sample_codes)),m:xesc(j(st.sample_noms)),s:xesc(j(st.sample_subs))});
+  return t('Pour activer la carte : autorisez <code>overpass-api.de</code> sur le Space, ou committez/persistez <code>postes_rte_geo.json</code> (script <code>scripts/fetch_postes_geo.py</code>).');
 }
 function downloadCoordsFile(){const a=document.createElement('a');
   a.href='/api/explore_coords_file';a.download='postes_rte_geo.json';
@@ -1494,8 +2052,8 @@ function renderExplore(d){
   const coord=d.coord_source+((d.coord_source==='osm'||d.coord_source==='layout')&&st.taux!=null
     ? ' ('+(st.n_apparies||0)+'/'+(st.n_substations||0)+', '+Math.round(st.taux*100)+'%)':'');
   document.getElementById('mapHeadInfo').textContent=
-    d.date+' ('+hrs+') · '+d.n_postes+' postes · '+d.n_actifs+' actifs · '
-    +d.n_geolocalises+' géolocalisés · coord. : '+coord;
+    tp('{d} ({h}) · {p} postes · {a} actifs · {g} géolocalisés · coord. : {c}',
+      {d:d.date,h:hrs,p:d.n_postes,a:d.n_actifs,g:d.n_geolocalises,c:coord});
   const dl=document.getElementById('mapDlCoords');
   if(dl)dl.style.display=d.coord_file?'inline-block':'none';
   renderClassement(d);renderLegend();
@@ -1503,9 +2061,8 @@ function renderExplore(d){
   const old=document.getElementById('mapSvg');if(old)old.remove();
   if(!d.postes||!d.postes.length){
     mm.style.display='block';
-    mm.innerHTML='⚠ Aucune coordonnée de poste résolue (source : <b>'+xesc(d.coord_source)
-      +'</b>). La carte est indisponible ; utilisez le <b>classement</b> à droite '
-      +'(cliquez un poste pour ouvrir sa topologie).'+coordDiag(d.coord_stats||{});
+    mm.innerHTML=tp('⚠ Aucune coordonnée de poste résolue (source : <b>{s}</b>). La carte est indisponible ; utilisez le <b>classement</b> à droite (cliquez un poste pour ouvrir sa topologie).',
+      {s:xesc(d.coord_source)})+' '+coordDiag(d.coord_stats||{});
     return;}
   mm.style.display='none';
   buildMap(d.postes);
@@ -1644,8 +2201,8 @@ function showBubble(sub,e){const p=MAP.bySub[sub];if(!p)return;
     +'<span class="x">✕</span>';
   h.querySelector('.x').onclick=hideBubble;b.appendChild(h);
   const kr=document.createElement('div');kr.className='kindrow';
-  kr.textContent='Σ '+p.total+' changements — '+kinds
-    +(p.nodal?' · ⚇ '+p.nodal+' ouvrage(s) re-groupé(s)':'');b.appendChild(kr);
+  kr.textContent=tp('Σ {n} changements — {k}',{n:p.total,k:kinds})
+    +(p.nodal?tp(' · ⚇ {n} ouvrage(s) re-groupé(s)',{n:p.nodal}):'');b.appendChild(kr);
   const vls=document.createElement('div');vls.className='vls';
   (p.vls||[]).forEach(v=>{const row=document.createElement('div');row.className='vlrow';
     row.innerHTML='<span>'+xesc(v.vl)+' <b style="color:'+voltColor(v.nv)+'">'+fmtKv(v.nv)
@@ -1654,7 +2211,7 @@ function showBubble(sub,e){const p=MAP.bySub[sub];if(!p)return;
   if(!(p.vls||[]).length)vls.innerHTML='<i>—</i>';
   b.appendChild(vls);
   const go=document.createElement('button');go.className='go primary';
-  go.textContent='▶ Topologie de ce poste';go.onclick=()=>mapOpenPoste(sub);b.appendChild(go);
+  go.textContent=t('▶ Topologie de ce poste');go.onclick=()=>mapOpenPoste(sub);b.appendChild(go);
   const wr=document.getElementById('mapSvgWrap').getBoundingClientRect();
   b.style.display='block';
   let x=e.clientX-wr.left+12,y=e.clientY-wr.top+12;
@@ -1664,19 +2221,19 @@ function showBubble(sub,e){const p=MAP.bySub[sub];if(!p)return;
 function hideBubble(){const b=document.getElementById('mapBubble');if(b)b.style.display='none';}
 
 function renderLegend(){const lg=document.getElementById('mapLegend');
-  let h='<div class="lghd"><span style="font-weight:bold">Tension</span><span>'
-    +'<button class="lgbtn" onclick="voltAll(true)">tout</button>'
-    +'<button class="lgbtn" onclick="voltAll(false)">aucun</button></span></div>';
+  let h='<div class="lghd"><span style="font-weight:bold">'+t('Tension')+'</span><span>'
+    +'<button class="lgbtn" onclick="voltAll(true)">'+t('tout')+'</button>'
+    +'<button class="lgbtn" onclick="voltAll(false)">'+t('aucun')+'</button></span></div>';
   VOLT_BANDS.forEach((b,i)=>{const off=MAP.voltOff.has(i);
     h+='<div class="lg'+(off?' off':'')+'" onclick="voltClick('+i+')" '
-      +'title="Clic : afficher/masquer · double-clic : isoler ce niveau (ou tout réafficher)">'
+      +'title="'+t('Clic : afficher/masquer · double-clic : isoler ce niveau (ou tout réafficher)')+'">'
       +'<span class="dot" style="background:'+b.color+'"></span>'+b.label+'</div>';});
   // Bascule de la couche « connexions » (lignes entre postes).
   const nc=(MAP.data&&MAP.data.n_connexions)||0;
   h+='<div class="lg lgln'+(MAP.showLines?'':' off')+'" onclick="linesToggle()" '
-    +'title="Afficher/masquer les lignes entre postes"><span class="lndot"></span>'
-    +'Lignes'+(nc?' ('+nc+')':'')+'</div>';
-  h+='<div class="hint">⭐ halo = top 10 · clic tension/lignes = afficher/masquer · double-clic tension = isoler · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer</div>';
+    +'title="'+t('Afficher/masquer les lignes entre postes')+'"><span class="lndot"></span>'
+    +t('Lignes')+(nc?' ('+nc+')':'')+'</div>';
+  h+='<div class="hint">'+t('⭐ halo = top 10 · clic tension/lignes = afficher/masquer · double-clic tension = isoler · clic disque = infos · double-clic = topologie · molette = zoom · glisser = déplacer')+'</div>';
   lg.innerHTML=h;}
 
 // Classement **par voltage level** (plus fin que par poste) : chaque ligne = un
@@ -1684,15 +2241,15 @@ function renderLegend(){const lg=document.getElementById('mapLegend');
 function renderClassement(d){const root=document.getElementById('mapList');root.innerHTML='';
   (d.classement||[]).forEach(c=>{const row=document.createElement('div');
     row.className='clrow'+(c.rank&&c.rank<=10?' top':'');
-    const extra=(c.LOAD_BREAK_SWITCH?', INT '+c.LOAD_BREAK_SWITCH:'')
-      +(c.nodal?', ⚇ '+c.nodal+' ouvr. re-groupés':'');
+    const extra=(c.LOAD_BREAK_SWITCH?', '+kindShort('LOAD_BREAK_SWITCH')+' '+c.LOAD_BREAK_SWITCH:'')
+      +(c.nodal?tp(', ⚇ {n} ouvr. re-groupés',{n:c.nodal}):'');
     row.innerHTML='<span class="rk">'+(c.rank||'')+'</span>'
       +'<span class="nm" style="border-left:3px solid '+voltColor(c.nv)+';padding-left:4px">'+xesc(c.name)+'</span>'
-      +'<span class="tot">'+c.total+(c.nodal?'<span class="nodbadge" title="dont '+c.nodal+' ouvrage(s) re-groupé(s) — scission/fusion de nœud">⚇</span>':'')+'</span>'
+      +'<span class="tot">'+c.total+(c.nodal?'<span class="nodbadge" title="'+tp('dont {n} ouvrage(s) re-groupé(s) — scission/fusion de nœud',{n:c.nodal})+'">⚇</span>':'')+'</span>'
       +(c.geo?'':'<span class="nogeo">⌖?</span>');
-    row.title=xesc(c.name)+' ('+fmtKv(c.nv)+') — '+c.total+' changements (DJ '+(c.BREAKER||0)
-      +', SA '+(c.DISCONNECTOR||0)+extra+') · poste '+xesc(c.sub)
-      +(c.geo?' — clic : localiser ; double-clic : topologie':' — non géolocalisé, clic : topologie');
+    row.title=xesc(c.name)+' ('+fmtKv(c.nv)+') — '+tp('{n} changements',{n:c.total})+' ('+kindShort('BREAKER')+' '+(c.BREAKER||0)
+      +', '+kindShort('DISCONNECTOR')+' '+(c.DISCONNECTOR||0)+extra+') · '+tp('poste {s}',{s:xesc(c.sub)})
+      +(c.geo?t(' — clic : localiser ; double-clic : topologie'):t(' — non géolocalisé, clic : topologie'));
     row.onclick=()=>{if(c.geo&&MAP.bySub[c.sub]){flyTo(c.sub);
         const wr=document.getElementById('mapSvgWrap').getBoundingClientRect();
         showBubble(c.sub,{clientX:wr.left+wr.width/2,clientY:wr.top+wr.height/2});}
@@ -1711,7 +2268,7 @@ function renderMapHours(){
   if(!MAP.openHour)MAP.openHour=defaultHour();
   hrs.forEach(h=>{const b=document.createElement('button');b.textContent=h.ts;
     if(h.requested===MAP.openHour)b.classList.add('hcur');
-    b.title='Ouvrir la topologie des postes à '+h.ts;
+    b.title=tp('Ouvrir la topologie des postes à {h}',{h:h.ts});
     b.onclick=()=>{MAP.openHour=h.requested;renderMapHours();};host.appendChild(b);});}
 function mapOpenPoste(sub){const p=MAP.bySub[sub]
     ||((MAP.data&&MAP.data.classement)||[]).find(c=>c.sub===sub);
@@ -1724,7 +2281,7 @@ function mapOpenVl(sub,vl){mapToTopo(sub,vl,defaultHour());}
 // départ (même heure).
 async function mapToTopo(sub,vl,hour,cibleHour){hideBubble();stopAnim();
   const r=await api('/api/explore_poste',{sub,vl,hour});
-  if(!r||!r.ok){alert((r&&r.error)||'Ouverture du poste impossible.');return;}
+  if(!r||!r.ok){alert(t((r&&r.error)||'Ouverture du poste impossible.'));return;}
   exitMapMode();
   // Cible = départ à l'ouverture (même heure) → on met en évidence l'heure cible
   // dès maintenant (bouton bleu), comme l'heure de départ.
@@ -1750,15 +2307,15 @@ function renderExploreBar(r){
       if(h.requested===activeReq)b.classList.add('hcur');b.title=title(h);
       b.onclick=()=>onclick(h.requested);host.appendChild(b);});};
   mk(document.getElementById('exploreHours'),exploreHour,MAP.topoHour,
-     h=>'Charger la topologie de DÉPART à '+h.ts);
+     h=>tp('Charger la topologie de DÉPART à {h}',{h:h.ts}));
   mk(document.getElementById('exploreTargets'),retainTarget,MAP.cibleHour,
-     h=>'Définir la CIBLE = topologie du poste à '+h.ts+' (puis éditable)');
+     h=>tp('Définir la CIBLE = topologie du poste à {h} (puis éditable)',{h:h.ts}));
   const vd=document.getElementById('exploreVls');vd.innerHTML='';
   const vls=r.sub_vls||[];
   if(vls.length>1){const l=document.createElement('span');l.className='lbl';
-    l.textContent='Niveau :';vd.appendChild(l);
+    l.textContent=t('Niveau :');vd.appendChild(l);
     vls.forEach(v=>{const b=document.createElement('button');b.textContent=fmtKv(v.nv);
-      if(v.vl===r.vl)b.classList.add('hcur');b.title=v.vl+' — '+v.total+' OC changés';
+      if(v.vl===r.vl)b.classList.add('hcur');b.title=v.vl+' — '+tp('{n} OC changés',{n:v.total});
       // changer de niveau de tension : conserver l'heure de départ ET l'heure cible.
       b.onclick=()=>mapToTopo(r.sub,v.vl,MAP.topoHour,MAP.cibleHour);vd.appendChild(b);});}}
 
@@ -1781,8 +2338,8 @@ async function retainTarget(hour){
   S.cibleModifiee=false;setDefaultScenName();   // cible = topologie observée à cette heure
   if(S.n>0)markSeqStale();else hideSeq();
   const ts=((MAP.heures||[]).find(h=>h.requested===hour)||{}).ts||hour;
-  document.getElementById('savemsg').textContent='Cible = topologie de '+ts
-    +' (éditable). Validez puis calculez la séquence.';}
+  document.getElementById('savemsg').textContent=
+    tp('Cible = topologie de {t} (éditable). Validez puis calculez la séquence.',{t:ts});}
 
 // Reflète l'heure et le poste ciblé dans les sélecteurs de la colonne de gauche.
 function syncHourPoste(hourReq,vl){
@@ -1794,6 +2351,7 @@ function syncHourPoste(hourReq,vl){
   const ps=document.getElementById('posteSearch');if(ps){ps.value=vl;
     renderPosteList(vl);}}
 
+applyLang();   // langue mémorisée (localStorage) appliquée avant le premier rendu
 init();
 </script>
 </body></html>

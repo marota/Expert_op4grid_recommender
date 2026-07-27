@@ -340,6 +340,67 @@ des variables CSS).
 
 ---
 
+## 2bis. Langue de l'interface — mode anglais (FR/EN)
+
+> **Spécification systématique** (voir encadré en fin de section) : l'IHM est
+> **bilingue français / anglais**. Toute évolution de l'IHM (nouveau texte,
+> bouton, info-bulle, message dynamique ou message serveur affiché) **doit**
+> être livrée avec sa traduction anglaise.
+
+Un **commutateur FR / EN** est affiché **en haut à droite** de l'IHM
+(`#langSwitch`, position fixe — visible dans tous les modes : vue topologique,
+carte d'exploration, modales). Le choix est **persisté** dans le navigateur
+(`localStorage["manoeuvre_lang"]`) ; le **français est la langue par défaut**.
+Le basculement est **instantané** (sans rechargement de page ni perte de l'état
+de travail : poste chargé, cible éditée, séquence calculée).
+
+**Architecture (front-only, français canonique)** :
+
+- Le **français reste la langue canonique** : markup HTML, données serveur
+  (raisons de manœuvre, messages de vérification, métadonnées de scénarios) et
+  **fichiers sauvegardés** sont inchangés — un scénario/une séquence sauvegardé
+  en mode EN est **byte-identique** à sa version FR. Seule la **présentation**
+  est traduite, côté client.
+- `const I18N_EN = { "chaîne française": "english string", … }` : dictionnaire
+  **exact** (une entrée par ligne) couvrant les textes statiques, les
+  info-bulles (`title=`), les `placeholder=`, les `<option>` et les fragments
+  constants des messages JS.
+- `const I18N_PATTERNS = [[regex, remplacement], …]` : règles à **motifs** pour
+  les chaînes **paramétrées** produites par le serveur ou le module `manoeuvre`
+  (raisons de manœuvre `ré-aiguillage '<eq>' vers <barre>`, messages de
+  `targets.py`/`verification.py`, écarts, alertes R10ter, erreurs d'endpoints).
+- Helpers : `t(s)` (exact puis motifs), `tp(gabarit, params)` (gabarits à
+  `{placeholders}`), `translateDom(root)` (parcours du DOM : nœuds texte +
+  attributs `title`/`placeholder`, sous-arbres SVG exclus), `setLang(l)` /
+  `applyLang()` (bascule + re-rendu des composants dynamiques :
+  liste de postes, légende carte, volet nodal, liste de scénarios, séquence).
+- `document.documentElement.lang` reflète la langue courante ; le texte injecté
+  par CSS (`.pane.reached>.ttl::after` — « topologie cible atteinte ») est
+  surchargé par une règle `html[lang="en"]`.
+- Les libellés issus du **module** (`raison` des manœuvres, `seq_labels`,
+  `message`/`ecarts`/`alertes`/`violations`) sont traduits **à l'affichage
+  uniquement** — la donnée reste française (la détection `/manuelle/` sur
+  `m.raison`, les fichiers JSON et les goldens ne changent pas).
+
+> **📌 Spécification systématique (à appliquer à toute évolution de l'IHM)**
+>
+> 1. Toute **nouvelle chaîne visible** par l'utilisateur (texte d'élément,
+>    `title=`, `placeholder=`, `<option>`, message construit en JS, message
+>    serveur affiché) reçoit **au moment même de son ajout** une entrée exacte
+>    dans `I18N_EN` — ou une règle dans `I18N_PATTERNS` si elle est paramétrée.
+> 2. Les chaînes JS dynamiques passent par `t()` / `tp()` ; ne jamais assigner
+>    de littéral français directement à `textContent`/`innerHTML`/`title`.
+> 3. Le **français reste canonique** (markup, données, fichiers) ; l'anglais est
+>    une **présentation** (aucun impact sur les sauvegardes ni les tests golden).
+> 4. Garde-fou CI : `tests/manoeuvre/test_ihm_i18n.py` vérifie la présence du
+>    commutateur et de la couche i18n, et **échoue si un `title=` /
+>    `placeholder=` français du markup n'a pas d'entrée** dans `I18N_EN`.
+> 5. La même exigence s'applique à toute **future IHM** du projet : prévoir la
+>    couche bilingue FR/EN dès la conception (commutateur en haut à droite,
+>    français canonique, dictionnaire + motifs).
+
+---
+
 ## 3. Flux de travail
 
 1. **Choisir un poste** (étape *1 · Poste* du Scénario Topologique). **Aucun poste
@@ -823,6 +884,7 @@ assert res.ecarts == []
 | **Conserver date/heure** de la topo de départ **et** de la topo cible (RTE7000 non modifiée) | `meta.dt` (départ) + `meta.cible_dt` (cible) ; `save()` envoie `depart_dt`/`cible_dt` |
 | **Date de création** + **auteur** dans les métadonnées des scénarios | `meta.created_at` (horloge serveur) + `meta.author` ; champ **✍ votre login** (gauche de ⚙ Config), demandé une fois (coche « ne plus me redemander ») |
 | **Déclarer des ouvrages à isoler** (hors partition, vraiment déconnectés) | Bouton **⌀ Isoler** / dépose sur la zone *Ouvrages isolés* → `isolated` ; `Session._isoler_dans_etat` ouvre les organes (nœud 0-barre) |
+| **Mode anglais** pour un utilisateur international (présentation + interactions), commutateur en haut à droite — *spécification systématique* | Commutateur **FR / EN** `#langSwitch` (fixe, haut-droite) ; couche i18n front (`I18N_EN` exact + `I18N_PATTERNS` motifs, `t()`/`tp()`/`translateDom`), persistance `localStorage`, français canonique (fichiers inchangés) — cf. **§ 2bis** |
 
 ---
 
@@ -848,6 +910,12 @@ assert res.ecarts == []
     `_normalize_groups` ignore les nœuds vides.
   - `test_ihm_nodale_*` / `test_ihm_sequence_edit.py` / `test_ihm_algo_selection.py`
     — édition nodale, séquence, sélecteurs d'algo (inchangés).
+  - `test_ihm_i18n.py` — couche bilingue FR/EN (§ 2bis) : commutateur
+    `#langSwitch` + fonctions `setLang`/`applyLang`/`t(`/`tp(` présents,
+    dictionnaire `I18N_EN` + motifs `I18N_PATTERNS` présents, **couverture
+    systématique** (chaque `title=`/`placeholder=` français du markup a une
+    entrée `I18N_EN` ; échantillon de chaînes critiques couvertes), règle CSS
+    `html[lang="en"]` pour le texte injecté par CSS.
 - **Couleurs** : pypowsybl encode les couleurs via des variables CSS
   (`var(--sld-vl-color)`). Le navigateur les résout nativement ; aucune palette
   maison n'est appliquée. (Pour un export PNG hors navigateur, voir

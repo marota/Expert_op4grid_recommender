@@ -15,7 +15,7 @@ corrective measures to alleviate line overloads.
 
 import logging
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 _logger = logging.getLogger(__name__)
 
