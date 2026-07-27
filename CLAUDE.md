@@ -505,8 +505,25 @@ pytest tests/test_ActionClassifier.py::test_specific  # Single test
 
 ## Current Development Status
 
-**Current version**: `0.3.1.post1` (see `CHANGELOG.md` for full history)
+**Current version**: `0.3.3` (see `CHANGELOG.md` for full history)
 
+> **v0.3.3 highlights** (maneuver IHM English mode): the maneuver IHM is now
+> **bilingual FR/EN** — a fixed **FR | EN switcher at the top-right** (visible
+> in every mode: topology view, exploration map, modals) toggles the whole
+> presentation/interaction language instantly, persisted in
+> `localStorage["manoeuvre_lang"]` (French default, no reload, no state loss).
+> Front-only i18n layer in `scripts/manoeuvre_ihm_assets/index.html`: exact
+> dictionary `I18N_EN` (~370 entries) + `I18N_PATTERNS` rules for parameterised
+> server/module strings (manoeuvre `raison` labels, targets/verification
+> messages, R10ter alerts, endpoint errors), helpers `t()`/`tp()`/
+> `translateDom()`, `html[lang="en"]` CSS override, bilingual DJ/SA/INT ↔
+> CB/DS/LBS. **French stays canonical** (markup, server data, saved files —
+> byte-identical whatever the display language). Bilingual support is a
+> **systematic specification** (docs/manoeuvre/ihm.md § 2bis): every new
+> visible IHM string ships with its English translation, enforced in CI by
+> `tests/manoeuvre/test_ihm_i18n.py` (full `title=`/`placeholder=`/text-node
+> coverage guard). See `docs/release-notes/v0.3.3.md`.
+>
 > **v0.3.1.post1 highlights** (silent-correctness fix, issue #6): a reused
 > pypowsybl `SimulationEnvironment` is no longer contaminated by a transient DC
 > escalation. When an overload-disconnection load flow diverges,

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-07-27
+
 ### Added
 
 - **Maneuver IHM: English mode (FR/EN) for international users.** A fixed

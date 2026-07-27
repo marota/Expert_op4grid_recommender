@@ -83,12 +83,13 @@ dataset, used to validate the maneuver module.
   session handoff: status, results, and next tasks.
 
 ## Release notes (`release-notes/`)
-Per-version notes (v0.2.2 → v0.2.6, v0.2.9). The canonical, continuously updated
+Per-version notes (v0.2.2 → v0.3.3). The canonical, continuously updated
 history is [CHANGELOG.md](../CHANGELOG.md). Latest:
-[`release-notes/v0.2.9.md`](release-notes/v0.2.9.md) — discovery restructured
-around data (R5/A5), `ActionType` + C7 rule-bypass fix, container-aware
-reassessment. Built on `0.2.8` (deep revisions **R3** config single-source +
-**R4** unified simulation seam / `BaselineContext`; see the CHANGELOG).
+[`release-notes/v0.3.3.md`](release-notes/v0.3.3.md) — maneuver IHM **English
+mode (FR/EN)** with a top-right language switcher, French-canonical front-only
+i18n layer, and the **systematic bilingual specification**
+(docs/manoeuvre/ihm.md § 2bis) enforced in CI by
+`tests/manoeuvre/test_ihm_i18n.py`.
 
 ## Reviews (`reviews/`)
 Point-in-time audits of the codebase at a given version — findings age with the
