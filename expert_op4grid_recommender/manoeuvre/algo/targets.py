@@ -266,7 +266,7 @@ def _aggressive_impl(
     if not res.is_verified:
         res.message = (
             "Topologie nodale cible non atteinte (mode agressif) : obtenu "
-            f"{res.topo_obtenue.nb_noeuds} nœud(s), visé {res.topo_cible.nb_noeuds}.")
+            f"{res.topo_obtenue.nb_noeuds_reels} nœud(s), visé {res.topo_cible.nb_noeuds}.")
     elif res.is_verified_detaillee:
         res.message = "Topologie détaillée cible atteinte et vérifiée (mode agressif)."
     else:
@@ -529,7 +529,7 @@ def _sequence_detaillee_multibarres(
         _consigner_non_realisables(res, non_realises)
         res.message = (
             "Topologie cible partiellement atteinte (poste multi-barres) : "
-            f"{res.topo_obtenue.nb_noeuds}/{topo_cible.nb_noeuds} nœuds atteints ; "
+            f"{res.topo_obtenue.nb_noeuds_reels}/{topo_cible.nb_noeuds} nœuds atteints ; "
             f"{len(non_realises)} nœud(s) à compléter manuellement — manœuvres sur "
             "les niveaux de barres supplémentaires (self/réactance) non gérées.")
     return res
@@ -629,7 +629,7 @@ def determiner_topo_complete_cible(
             core.message = (
                 "Topologie cible atteinte et vérifiée." if core.is_verified
                 else "La topologie obtenue ne correspond pas à la cible "
-                     f"(obtenu {core.topo_obtenue.nb_noeuds if core.topo_obtenue else 0} "
+                     f"(obtenu {core.topo_obtenue.nb_noeuds_reels if core.topo_obtenue else 0} "
                      f"nœud(s), visé {topo_cible.nb_noeuds})."
             )
         else:
@@ -821,7 +821,7 @@ def _determiner_manoeuvres_cible_detaillee_principal(
     elif not res.is_verified:
         res.message = (
             "Topologie nodale cible non atteinte : la topologie obtenue ne "
-            f"correspond pas à la cible (obtenu {res.topo_obtenue.nb_noeuds} "
+            f"correspond pas à la cible (obtenu {res.topo_obtenue.nb_noeuds_reels} "
             f"nœud(s), visé {topo_cible.nb_noeuds})."
         )
     elif res.is_verified_detaillee:

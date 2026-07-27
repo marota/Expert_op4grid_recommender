@@ -479,6 +479,16 @@ nœud électrique**.
   affiche « **N nœud(s) + M ouvrage(s) isolé(s)** » (`nb_obtenu` = nœuds réels,
   `nb_isoles` = isolés) et **non** un total gonflé (plus de « obtenu 4 » pour
   2 nœuds + 2 isolés).
+  Un ouvrage **déjà déconnecté au départ** et non replacé sur un nœud est
+  **hors périmètre de la cible**, qu'il figure ou non dans `isolated` : il ne
+  compte ni dans `nb_vise` (plus de nœud « orphelin » qui gonflait la cible) ni
+  dans le verdict de réalisabilité. C'est la même sémantique que le cœur
+  (`TopologieNodale.noeuds_isoles`) — voir « Ouvrages isolés et vérification »
+  ci-dessous. Le glisser d'un ouvrage isolé **sur un nœud** vaut au contraire
+  demande de **reconnexion** : il rentre alors dans le périmètre et la
+  vérification redevient stricte à son égard.
+  Quand le verdict est négatif, le statut porte **toujours** son diagnostic
+  (`message`, `noeuds_non_realisables`, `ecarts`) — plus d'avertissement nu.
   Le volet nodal cible est alors **resynchronisé sur la topologie réalisée**
   (partition, **couleurs** topological_coloring et ouvrages isolés renvoyés dans
   `nodale` par `/api/nodale_to_detaillee`) : il prend les mêmes nœuds et couleurs
@@ -499,6 +509,33 @@ glisser-déposer nodal (et **＋ Nœud**) sont des **propositions** de partition
 cible détaillée et resynchronise le volet nodal sur la topologie **obtenue**
 (d'où, en cas de réalisation partielle, un volet nodal qui correspond bien au
 détail réalisé et non à la proposition).
+
+### Ouvrages isolés et vérification
+
+Un **ouvrage isolé** est un ouvrage dont la composante électrique (organes
+fermés) ne contient **aucune barre** : il est déconnecté, ce n'est pas un nœud
+électrique. Le cœur les distingue désormais explicitement :
+`TopologieNodale.from_graph` renseigne `noeuds_isoles` (noms des composantes
+0-barre) et expose `nb_noeuds_reels` (= `nb_noeuds` − isolés). Une topologie
+**cible** construite depuis une partition (`from_node_groups`) n'a pas cette
+notion : elle ne décrit que les ouvrages à placer sur un nœud.
+
+`TopologieNodale.meme_topologie` compare donc les partitions **dans le périmètre
+commun** : un nœud isolé d'un côté dont aucun équipement n'apparaît de l'autre
+côté est écarté (`partition_hors_isoles_inconnus`). Conséquences :
+
+- un ouvrage **déjà déconnecté** et absent de la cible ne rend plus la cible
+  « non réalisable » — c'était la cause du faux avertissement
+  « ⚠ Cible partiellement réalisable (obtenu 2 nœud(s) + 5 ouvrage(s) isolé(s)
+  / visé 2 nœud(s)) » alors que la cible était atteinte ;
+- la comparaison reste **stricte** dès que la cible mentionne l'ouvrage — le
+  citer dans un nœud vaut demande de reconnexion, le citer comme nœud à lui seul
+  reste comparé à l'identique (comportement historique) ;
+- un ouvrage **visé sur un nœud** qui finit déconnecté fait toujours échouer la
+  vérification.
+
+`partition()` reste **exhaustive** (isolés inclus) : les goldens et
+`partition_obtenue` sont inchangés.
 
 ### Naviguer et éditer la séquence (expert)
 La séquence calculée peut être **parcourue et modifiée** directement, sans avoir

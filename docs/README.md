@@ -89,12 +89,11 @@ dataset, used to validate the maneuver module.
   session handoff: status, results, and next tasks.
 
 ## Release notes (`release-notes/`)
-Per-version notes (v0.2.2 → v0.2.6, v0.2.9). The canonical, continuously updated
-history is [CHANGELOG.md](../CHANGELOG.md). Latest:
-[`release-notes/v0.2.9.md`](release-notes/v0.2.9.md) — discovery restructured
-around data (R5/A5), `ActionType` + C7 rule-bypass fix, container-aware
-reassessment. Built on `0.2.8` (deep revisions **R3** config single-source +
-**R4** unified simulation seam / `BaselineContext`; see the CHANGELOG).
+Per-version notes (v0.2.2 → v0.2.6, v0.2.9, v0.3.0 → v0.3.2). The canonical,
+continuously updated history is [CHANGELOG.md](../CHANGELOG.md). Latest:
+[`release-notes/v0.3.2.md`](release-notes/v0.3.2.md) — maneuver "art de la
+manœuvre" conformity verifier (R20–R25) and isolated works no longer
+invalidating a reached nodal target.
 
 ## Reviews (`reviews/`)
 Point-in-time audits of the codebase at a given version — findings age with the
