@@ -16,7 +16,7 @@ de couplage.
 | `graph.py`     | Etape 1.1 : `build_vl_graph()` — graphe NetworkX depuis un voltage level pypowsybl |
 | `cellules.py`  | Etape 1.2 : `detecter_cellules()` — BFS structurel + connectivite electrique |
 | `troncons.py`  | Etapes 1.3-1.4 : `construire_tronconnement()` — barres, troncons, attribution |
-| `topologie.py` | Etapes 1.5-1.6 : `TopologieNodale`, `PosteTopologique`, `attribuer_noeuds()` |
+| `topologie.py` | Etapes 1.5-1.6 : `TopologieNodale`, `PosteTopologique`, `attribuer_noeuds()`. `from_graph` marque les composantes **sans barre** dans `noeuds_isoles` (ouvrages deconnectes) ; `nb_noeuds_reels` les exclut et `meme_topologie` compare **dans le perimetre commun** (`partition_hors_isoles_inconnus`) — un ouvrage deja deconnecte absent de la cible ne rend plus la cible « non realisable ». `partition()` reste exhaustive (goldens iso). Doc : `docs/manoeuvre/ihm.md` § « Ouvrages isoles et verification » |
 | `algo/`        | Phase 2 : `determiner_topo_complete_cible()` — package en couches (voir ci-dessous) |
 | `plugins/`     | Couche **pluggable** : contrats des 3 phases (identification nodale→détaillée, séquencement détaillée→manœuvres, planification bout-en-bout), registre + entry points, façade `PlanificateurTopologie` avec vérification indépendante. Doc : `docs/architecture/plugins.md` |
 | `__init__.py`  | API publique                                     |
@@ -32,6 +32,7 @@ Sous-modules en couches, **dependances strictement descendantes** (sans cycle) :
 | `algo/graph_ops.py`  | Helpers bas niveau : index O(1), `_is_open`/`_set_switch`, chemins SA, `_inter_sjb_couplers` |
 | `algo/placement.py`  | Placement noeud → sections (`_placement_automatique`, best-effort, glouton, `_main_busbar_sjb`) |
 | `algo/verification.py`| Regle du sectionneur (`_rejeu_securite`, `sectionneurs_sous_charge_par_manoeuvre`), `_optimiser_sequence` |
+| `algo/conformite.py` | Conformite « art de la manoeuvre » (R20-R25) : classification des consequences par rejeu (`classifier_manoeuvres`), matrice d'autorisation CCRT (`verifier_matrice_autorisation`), machine a etats des departs (`suivre_etats_departs`), temporisations ACT 104 (`calculer_temporisations`), controles SCADA attendus. Point d'entree `analyser_conformite` -> `ConformiteSequence`, attache a `ResultatManoeuvres.conformite` par `verifier_sequence` (champ **separe** d'`ecarts`/`alertes` : goldens iso). Doc : `docs/manoeuvre/art_de_la_manoeuvre.md` |
 | `algo/sequencing.py` | Sequenceur general (`determiner_manoeuvres_avec_sections`), re-aiguillages |
 | `algo/targets.py`    | Points d'entree : `determiner_topo_complete_cible`, `determiner_manoeuvres_cible_detaillee`, modes smooth/aggressive/multi-barres |
 | `algo/__init__.py`   | **Reexporte toute la surface** de l'ancien module (publics + prives) : `manoeuvre.algo.X` et `from ...algo import X` restent inchanges |
@@ -207,6 +208,13 @@ ces tests garantissent l'invariance du comportement :
   (id inconnu, validite sur copie de graphe).
 - `test_couplers_memoisation.py` — invariance a l'etat des couplers, purete,
   non-mutation de `poste.graph` par le pipeline.
+- `test_ouvrages_isoles_verification.py` — **ouvrages isoles et verification**
+  (3 niveaux) : cœur (`noeuds_isoles` / `nb_noeuds_reels` / `meme_topologie`
+  hors perimetre, sur graphe NX pur), algo
+  (`PlanificateurTopologie.identifier_topologie_detaillee`) et IHM
+  (`Session.nodale_to_detaillee`). Verrouille le correctif du faux
+  « Cible partiellement realisable » et le fait qu'un verdict negatif reste
+  **diagnostique** (message / nœuds non realisables / ecarts).
 
 ### Filets pre-eclatement d'`algo.py` (#7)
 
@@ -381,11 +389,17 @@ Limites connues (cf. docstring `algo.py`) :
 
 ### Specification des regles
 
-Toutes les regles metier du sequencement (R1-R14 : faisabilite, distinction
+Toutes les regles metier du sequencement (R1-R19 : faisabilite, distinction
 sectionnement/couplage, tronconnement, placement noeud->SJB, boucle courte/
 longue, DJ d'ensemble de cellule, regle du sectionneur de barre, ordonnancement
 listeDordre, controle court-circuit, verification) sont tracees avec leurs
-fonctions et tests dans **`docs/manoeuvre/regles.md`**.
+fonctions et tests dans **`docs/manoeuvre/regles.md`**, ainsi que les regles
+de **conformite « art de la manoeuvre »** (R20-R25, `algo/conformite.py`).
+L'analyse critique de couverture face aux referentiels RTE (CCRT C3-3, ACT 104,
+methode experte CCO), les regles specifiees non implementees (R26 validations
+electriques, R27 orchestration multi-postes, R28 automates) et le plan de
+restructuration module/algo/verificateur sont dans
+**`docs/manoeuvre/art_de_la_manoeuvre.md`**.
 
 ### Convention de detection des barres
 

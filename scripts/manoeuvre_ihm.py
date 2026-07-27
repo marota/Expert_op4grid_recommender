@@ -257,6 +257,35 @@ def _normalize_groups(all_branches, groups) -> list[list[str]]:
     return result
 
 
+def _ecart_cible(topo_reelle, topo_cible, iso_real) -> tuple[list[str], list[str]]:
+    """Écart **lisible** entre la topologie réalisée et la partition visée.
+
+    Renvoie ``(a_reconnecter, mal_places)`` :
+
+    - ``a_reconnecter`` : départs que la cible place sur un nœud mais qui restent
+      **déconnectés**. Le moteur ne réénergise **jamais** un départ déconnecté
+      (limite documentée : « le placement ne place que les départs connectés »),
+      donc toute cible qui en mentionne un est structurellement inatteignable ;
+    - ``mal_places`` : départs raccordés dont le **regroupement** obtenu diffère
+      du regroupement visé, une fois les précédents écartés (sinon un seul
+      ouvrage non reconnectable ferait apparaître tout son nœud comme fautif).
+
+    Fonction pure (deux ``TopologieNodale`` + un ensemble d'identifiants)."""
+    vise = topo_cible.univers()
+    a_reconnecter = sorted(vise & set(iso_real))
+    reste = vise - set(a_reconnecter)
+    mal_places = []
+    for eq in sorted(reste):
+        grp_vise = set(
+            topo_cible.noeuds[topo_cible.noeud_par_depart[eq]].equipment_ids) & reste
+        nom_reel = topo_reelle.noeud_par_depart.get(eq)
+        grp_reel = (set(topo_reelle.noeuds[nom_reel].equipment_ids)
+                    if nom_reel else set()) & reste
+        if grp_vise != grp_reel:
+            mal_places.append(eq)
+    return a_reconnecter, mal_places
+
+
 def _decode_svg_id(s: str) -> str:
     """Décode un identifiant SVG pypowsybl (``_46_`` → ``.``, ``_95_`` → ``_``,
     ``_45_`` → ``-``…). Fonction pure."""
@@ -945,6 +974,9 @@ class Session:
 
         ``isolated`` liste les départs à **laisser déconnectés** (hors partition
         cible : non placés sur un nœud ; ils conservent leur état de départ).
+        Les ouvrages **déjà déconnectés au départ** que l'expert n'a pas
+        replacés sur un nœud sont traités de même (hors partition cible), que
+        l'IHM les ait ou non listés explicitement.
 
         Phase **A** de la couche pluggable (``identifier_topologie_detaillee``
         de la façade), avec l'algorithme sélectionné (``self.algos``).
@@ -956,10 +988,20 @@ class Session:
         poste = PosteTopologique.from_graph(self._graph(self.initial), self.vl)
 
         iso = set(isolated or [])
+        # Ouvrages **hors partition cible** : ceux déclarés isolés par l'expert
+        # + ceux **déjà déconnectés au départ** qu'il n'a placé sur aucun nœud
+        # (les glisser sur un nœud = demande explicite de reconnexion, ils
+        # restent alors dans le périmètre de la cible).
+        demandes = {e for g in (groups or []) for e in g}
+        # (lecture directe sur le graphe mémoïsé : ne touche pas l'état appliqué
+        # au réseau, contrairement à ``nodale_state`` qui restaure ``self.current``)
+        depart_iso = set(_isolated_assets(self._graph(self.initial)))
+        hors_cible = iso | (depart_iso - demandes)
         univers = [eq for grp in self.groups_of(self.initial)
-                   for eq in grp if eq not in iso]
+                   for eq in grp if eq not in hors_cible]
         groups = _normalize_groups(
-            univers, [[e for e in g if e not in iso] for g in (groups or [])])
+            univers,
+            [[e for e in g if e not in hors_cible] for g in (groups or [])])
         topo_cible = TopologieNodale.from_node_groups(self.vl, groups)
 
         ident = self._pipe().identifier_topologie_detaillee(poste, topo_cible)
@@ -972,12 +1014,13 @@ class Session:
                             for k, v in self.initial.items()}
         else:
             self.current = dict(self.initial)
-        # Ouvrages **explicitement déclarés isolés** par l'expert : forcer leur
-        # déconnexion réelle (nœud 0-barre) au lieu de les laisser sur une barre —
-        # l'algo ne manœuvre que les départs de la partition, donc un ouvrage en
-        # service déclaré isolé resterait sinon connecté.
-        if iso:
-            self.current = self._isoler_dans_etat(self.current, iso)
+        # Ouvrages **hors partition cible** : forcer leur déconnexion réelle
+        # (nœud 0-barre) au lieu de les laisser sur une barre — l'algo ne
+        # manœuvre que les départs de la partition, donc un ouvrage en service
+        # déclaré isolé resterait sinon connecté. No-op pour ceux déjà
+        # déconnectés (cas des ouvrages isolés dès le départ).
+        if hors_cible:
+            self.current = self._isoler_dans_etat(self.current, hors_cible)
         self.scenario_name = None   # cible à revalider avant calcul de séquence
 
         svg, switches, nb = self.view(self.current)
@@ -986,21 +1029,42 @@ class Session:
         nb_isoles = len(iso_real)
         seq = ident.sequence   # sous-produit éventuel (écarts détaillés)
 
-        if iso:
-            # Verdict **recalculé sur l'état final** (post-isolation) : on ne
-            # compte que les nœuds RÉELS — les ouvrages isolés sont présentés à
-            # part, **jamais** comptés comme des nœuds (sinon le verdict de l'algo,
-            # calculé avant l'isolation, gonfle le compte : « obtenu 4 » au lieu de
-            # « 2 nœuds + 2 ouvrages isolés »).
-            real_part = {frozenset(e for e in g if e not in iso_real)
-                         for g in realized["groups"]}
-            real_part.discard(frozenset())
-            target_part = {frozenset(g) for g in groups}
-            is_ok = (real_part == target_part) and iso <= iso_real
+        # Verdict **recalculé sur l'état final** (post-isolation, que l'algo ne
+        # voit pas) avec la sémantique « ouvrages isolés » du cœur : un ouvrage
+        # déconnecté hors périmètre de la cible n'est **pas** un nœud électrique
+        # et ne peut donc pas rendre la cible non réalisable. Les ouvrages
+        # explicitement écartés de la partition doivent l'être **réellement**.
+        with self.applied(self.current):
+            topo_reelle = self._topo(self.current)
+        partition_ok = topo_reelle.meme_topologie(topo_cible)
+        non_isoles = sorted(hors_cible - iso_real)   # isolement non réalisable
+        is_ok = partition_ok and not non_isoles
+        if is_ok:
             message, ecarts, non_real = "", [], []
         else:
-            is_ok = ident.is_realisable
-            message = ident.message
+            # Diagnostic **nominatif** quand la cible n'est pas atteinte : dire
+            # quels départs posent problème, pas seulement « obtenu N / visé M »
+            # (deux partitions différentes peuvent avoir le même nombre de nœuds).
+            diag = []
+            if not partition_ok:
+                a_reconnecter, mal_places = _ecart_cible(
+                    topo_reelle, topo_cible, iso_real)
+                if a_reconnecter:
+                    diag.append(
+                        "Ouvrage(s) déconnecté(s) au départ que la cible place sur "
+                        "un nœud : " + ", ".join(a_reconnecter) + " — le moteur ne "
+                        "réénergise pas un départ déconnecté. Déclarez-les "
+                        "« ouvrages isolés » (⌀ Isoler) pour viser une cible "
+                        "réalisable.")
+                if mal_places:
+                    diag.append("Départ(s) non regroupés comme visé : "
+                                + ", ".join(mal_places) + ".")
+                if not diag and ident.message:
+                    diag.append(ident.message)
+            if non_isoles:
+                diag.append("Ouvrage(s) impossible(s) à isoler : "
+                            + ", ".join(non_isoles) + ".")
+            message = " ".join(diag)
             ecarts = seq.ecarts if seq is not None else []
             non_real = ident.noeuds_non_realisables
         return {

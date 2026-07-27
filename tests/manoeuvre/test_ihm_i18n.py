@@ -196,6 +196,9 @@ CRITICAL_PATTERN_HINTS = [
     "sous charge",            # messages de la règle du sectionneur
     "Topologie nodale atteinte",
     "Topologie détaillée cible atteinte",
+    # diagnostics nominatifs v0.3.2 (message de /api/nodale_to_detaillee)
+    "non regroupés comme visé",
+    "impossible\\(s\\) à isoler",
 ]
 
 

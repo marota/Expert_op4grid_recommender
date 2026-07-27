@@ -54,8 +54,14 @@ historical dataset it is validated against. (Its pluggable calculation phases ar
 documented under [`architecture/plugins.md`](architecture/plugins.md).)
 - [`manoeuvre/module.md`](manoeuvre/module.md) — module reference: objectives,
   pipeline, node-breaker topology analysis.
-- [`manoeuvre/regles.md`](manoeuvre/regles.md) — business rules (R1–R16) with
+- [`manoeuvre/regles.md`](manoeuvre/regles.md) — business rules (R1–R25) with
   rule-to-code traceability.
+- [`manoeuvre/art_de_la_manoeuvre.md`](manoeuvre/art_de_la_manoeuvre.md) —
+  critical coverage analysis against the RTE operating references (CCRT C3-3,
+  ACT 104, CCO expert method), the consolidated/enriched rule set R20–R28
+  (consequence classification, authorization matrix, busbar test, bay state
+  machine, timing, expected SCADA checks, electrical validation, multi-substation
+  orchestration, automata) and the module/algo/verifier restructuring plan.
 - [`manoeuvre/ihm.md`](manoeuvre/ihm.md) — the interactive web IHM (topology
   editor + sequence animation, day-exploration map, ⚙ config modal, isolated-device
   declaration, scenario author/date metadata) and the hosted HuggingFace Space.
@@ -89,7 +95,10 @@ history is [CHANGELOG.md](../CHANGELOG.md). Latest:
 mode (FR/EN)** with a top-right language switcher, French-canonical front-only
 i18n layer, and the **systematic bilingual specification**
 (docs/manoeuvre/ihm.md § 2bis) enforced in CI by
-`tests/manoeuvre/test_ihm_i18n.py`.
+`tests/manoeuvre/test_ihm_i18n.py`. Before it:
+[`release-notes/v0.3.2.md`](release-notes/v0.3.2.md) — maneuver "art de la
+manœuvre" conformity verifier (R20–R25) and isolated works no longer
+invalidating a reached nodal target.
 
 ## Reviews (`reviews/`)
 Point-in-time audits of the codebase at a given version — findings age with the

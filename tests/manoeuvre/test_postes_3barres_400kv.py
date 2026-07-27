@@ -356,10 +356,15 @@ def test_cible_3_ou_4_noeuds_innocuite(name, shape):
     viol = sectionneurs_sous_charge_par_manoeuvre(poste, res.manoeuvres)
     assert len(viol) == len(res.manoeuvres)
     assert all(v is None or isinstance(v, str) for v in viol)
-    # (e) cohérence : si vérifié, alors topologie exacte et aucun écart.
+    # (e) cohérence : si vérifié, alors topologie exacte et aucun écart. La
+    #     partition obtenue est comparée **dans le périmètre de la cible** : un
+    #     ouvrage déjà déconnecté et absent de la cible n'est pas un nœud
+    #     électrique (cf. ``TopologieNodale.noeuds_isoles``).
     assert res.topo_obtenue is not None
     if res.is_verified:
-        assert res.topo_obtenue.nb_noeuds == cible.nb_noeuds
+        obtenue = res.topo_obtenue.partition_hors_isoles_inconnus(cible.univers())
+        assert obtenue == cible.partition()
+        assert len(obtenue) == cible.nb_noeuds
         assert res.ecarts == []
 
 
