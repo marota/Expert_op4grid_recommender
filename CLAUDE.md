@@ -138,8 +138,10 @@ expert_op4grid_recommender/
 ├── manoeuvre/                 # Detailed-topology maneuver module (~9k LOC, self-contained;
 │   ├── algo/                  #   zero imports to/from the rest of the package). Sequencing,
 │   ├── dataset/               #   targets, placement; RTE-7000 dataset; plugin architecture;
-│   ├── plugins/               #   Flask IHM lives in scripts/manoeuvre_ihm.py. See
-│   └── ...                    #   expert_op4grid_recommender/manoeuvre/CLAUDE.md + docs/manoeuvre/.
+│   ├── plugins/               #   Flask IHM lives in scripts/manoeuvre_ihm.py — bilingual FR/EN
+│   └── ...                    #   UI (SYSTEMATIC spec: every new visible string ships with its
+│                              #   English translation; docs/manoeuvre/ihm.md § 2bis). See
+│                              #   expert_op4grid_recommender/manoeuvre/CLAUDE.md + docs/manoeuvre/.
 │
 └── utils/                     # Utility modules
     ├── simulation.py          # Backend-agnostic simulation helpers + BaselineContext

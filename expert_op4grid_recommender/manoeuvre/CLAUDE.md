@@ -76,6 +76,15 @@ python scripts/render_carrip3_sld.py --grid path/to/grid.xiidm
 #   animer la sequence, sauvegarder scenarios et sequences. Doc complete :
 #   docs/manoeuvre/ihm.md
 #
+# SPECIFICATION SYSTEMATIQUE — IHM bilingue FR/EN (docs/manoeuvre/ihm.md S 2bis) :
+#   l'IHM offre un mode anglais (commutateur FR/EN en haut a droite, persiste
+#   en localStorage, francais canonique — fichiers sauvegardes inchanges).
+#   TOUTE evolution de l'IHM (texte, title=, placeholder=, message JS, message
+#   serveur affiche) DOIT etre livree avec sa traduction anglaise : entree
+#   exacte dans I18N_EN, ou regle I18N_PATTERNS si parametree ; chaines JS via
+#   t()/tp(), jamais de litteral francais assigne directement au DOM.
+#   Garde-fou CI : tests/manoeuvre/test_ihm_i18n.py.
+#
 # R7 (partiel) : le script expose une fabrique create_app(config) + serve()
 #   (waitress, threads=1 pour serialiser l'etat pypowsybl partage ; repli sur
 #   le serveur Flask de dev) et une route /healthz. La promotion physique dans

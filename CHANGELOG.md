@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Maneuver IHM: English mode (FR/EN) for international users.** A fixed
+  **FR / EN switcher at the top-right** of the IHM (`#langSwitch`, visible in
+  every mode — topology view, exploration map, modals) toggles the whole
+  presentation/interaction language instantly, without page reload or loss of
+  working state; the choice persists in `localStorage["manoeuvre_lang"]`
+  (French remains the default). Front-only i18n layer in
+  `scripts/manoeuvre_ihm_assets/index.html`: exact dictionary `I18N_EN`
+  (static texts, tooltips, placeholders, options, JS message templates) +
+  pattern rules `I18N_PATTERNS` for parameterised server/module strings
+  (manoeuvre `raison` labels, `targets.py`/`verification.py` messages,
+  discrepancies, R10ter alerts, endpoint errors), helpers `t()`/`tp()`/
+  `translateDom()`, and an `html[lang="en"]` override for CSS-injected text.
+  **French stays canonical** (markup, server data, saved files — a scenario or
+  sequence saved in EN mode is byte-identical to its FR version). Documented as
+  a **systematic specification** for any future IHM evolution
+  (`docs/manoeuvre/ihm.md` § 2bis + `manoeuvre/CLAUDE.md`): every new
+  user-visible string must ship with its English translation, enforced in CI by
+  `tests/manoeuvre/test_ihm_i18n.py` (coverage guard on `title=`/`placeholder=`
+  markup attributes + critical-string sample).
+
 ## [0.3.1.post1] - 2026-07-22
 
 ### Fixed
