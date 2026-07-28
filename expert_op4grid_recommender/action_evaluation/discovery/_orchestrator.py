@@ -113,15 +113,36 @@ class OrchestratorMixin:
             else:
                 red_loop_paths_names = []
 
-            if antenna_mode:
-                # A radial pocket is a pure tree: no parallel red dispatch loops.
-                # Skip get_dispatch_edges_nodes(only_loop_paths=True), which
-                # additionally raises on an empty red_loops DataFrame.
+            # ``get_dispatch_edges_nodes(only_loop_paths=True)`` calcule
+            # ``list(set(red_loops.Path.sum()))`` : sur un DataFrame de boucles
+            # rouges VIDE, ``.sum()`` de pandas retourne le scalaire ``0.0``
+            # (numpy.float64) au lieu d'une liste concaténée, et ``set()`` lève
+            # ``TypeError: 'numpy.float64' object is not iterable``. Le cas
+            # n'est pas propre aux poches radiales : toute situation sans
+            # boucle rouge parallèle le déclenche (mesuré : 84 occurrences sur
+            # 901 contingences graduées du jeu de données Matpower).
+            # On teste donc la condition RÉELLE — absence de boucles rouges
+            # exploitables — dont le mode antenne n'est qu'un cas particulier.
+            _red_loops = getattr(self.g_distribution_graph, "red_loops", None)
+            _sans_boucle_rouge = (
+                _red_loops is None
+                or getattr(_red_loops, "empty", True)
+                or "Path" not in getattr(_red_loops, "columns", ())
+            )
+            if antenna_mode or _sans_boucle_rouge:
+                # Poche radiale (arbre pur) ou aucune boucle rouge : il n'y a
+                # pas de chemin de dispatch en boucle à extraire.
                 nodes_dispatch_loop_indices = []
             else:
-                _, nodes_dispatch_loop_indices = (
-                    self.g_distribution_graph.get_dispatch_edges_nodes(only_loop_paths=True)
-                )
+                try:
+                    _, nodes_dispatch_loop_indices = (
+                        self.g_distribution_graph.get_dispatch_edges_nodes(
+                            only_loop_paths=True)
+                    )
+                except TypeError:
+                    # Filet : même défaut en amont sur une colonne ``Path``
+                    # présente mais non concaténable (NaN).
+                    nodes_dispatch_loop_indices = []
             nodes_dispatch_loop_names = list(
                 name_sub_arr[
                     [idx for idx in nodes_dispatch_loop_indices if idx < n_subs]

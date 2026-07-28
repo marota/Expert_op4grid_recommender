@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3.post1] - 2026-07-28
+
+### Fixed
+
+- **`action_evaluation.discovery._orchestrator.discover_and_prioritize`: guard
+  against an empty `red_loops` DataFrame.**
+  `Structured_Overload_Distribution_Graph.get_dispatch_edges_nodes(
+  only_loop_paths=True)` computes `list(set(red_loops.Path.sum()))`; on an
+  **empty** red-loops DataFrame pandas `Series.sum()` returns the scalar `0.0`
+  (`numpy.float64`) instead of a concatenated list, so `set()` raises
+  `TypeError: 'numpy.float64' object is not iterable`. The pre-existing guard
+  covered only `antenna_mode`, whereas the real condition is *no exploitable
+  red loop* (radial pocket being one instance). The condition is now
+  `antenna_mode or _no_red_loop` (red_loops absent / empty / no `Path`
+  column), with a `try/except TypeError` net for a `Path` column carrying a
+  residual NaN. Purely defensive on the consumer side — alphaDeesp is not
+  patched. Seven unit tests characterise the upstream defect and verify the
+  guard (`tests/test_discovery_boucles_rouges_vides.py`).
+  Measured downstream (Co-Study4Grid Matpower dataset grading): the fatal
+  traceback hit **42 of 901 contingencies (4.7 %)**, truncating action
+  discovery and overestimating difficulty; after the fix, re-grading moved
+  those 42 out of `hard` (`hard → easy` 21, `hard → medium` 21, none the other
+  way), shifting the tier split from 440/368/62 to **461/389/20** easy/medium/
+  hard.
+
 ## [0.3.3] - 2026-07-27
 
 ### Added
